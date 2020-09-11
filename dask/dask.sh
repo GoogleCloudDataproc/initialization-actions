@@ -21,7 +21,7 @@
 
 set -euxo pipefail
 
-readonly DEFAULT_CONDA_ENV=$(conda info --envs | sed -n 's/base[[:blank:]*]*\(.*\)/\1/p')
+readonly DEFAULT_CONDA_ENV=$(conda info --base)
 readonly DASK_YARN_CONFIG_DIR=/etc/dask/
 readonly DASK_YARN_CONFIG_FILE=${DASK_YARN_CONFIG_DIR}/config.yaml
 
@@ -64,10 +64,6 @@ yarn:
   worker: 
     count: 2
 EOF
-}
-
-function install_conda_packages() {
-  conda install -c conda-forge "${CONDA_PACKAGES[@]}"
 }
 
 function install_systemd_dask_service() {
@@ -120,7 +116,7 @@ EOF
 
 function main() {
   # Install conda packages
-  install_conda_packages
+  conda install -c conda-forge "${CONDA_PACKAGES[@]}"
 
   if [[ "${DASK_RUNTIME}" == "yarn" ]]; then
       # Create Dask Yarn config file
