@@ -26,6 +26,7 @@ class H2OTestCase(DataprocTestCase):
         self.createCluster(configuration,
                            init_actions,
                            optional_components=optional_components,
+                           timeout_in_minutes=20,
                            scopes="cloud-platform")
 
         self.assert_dataproc_job(
