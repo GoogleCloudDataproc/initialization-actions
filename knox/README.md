@@ -46,7 +46,7 @@ Knox installed as follows:
     CLUSTER_NAME=<cluster_name>
     gcloud dataproc clusters create ${CLUSTER_NAME} \
         --region ${REGION}
-        --initialization-actions gs://dataproc-initialization-actions-${REGION}/knox/knox.sh \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/knox/knox.sh \
         --metadata knox-gw-config=gs://<GCS path to your Knox configuration directory>
     ```
 
@@ -112,7 +112,7 @@ REGION=<region>
 CLUSTER_NAME=<cluster_name>
 gcloud dataproc clusters create ${CLUSTER_NAME} \
     --region ${REGION}
-    --initialization-actions gs://dataproc-initialization-actions-${REGION}/knox/knox.sh \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/knox/knox.sh \
     --metadata knox-gw-config=<your knox configuration directory without gs:// prefix> \
     --properties="hive:hive.server2.thrift.http.port=10000,hive:hive.server2.thrift.http.path=cliservice,hive:hive.server2.transport.mode=http"
 ```
