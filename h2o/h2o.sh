@@ -5,7 +5,7 @@ readonly NOT_SUPPORTED_MESSAGE="Dataproc ${DATAPROC_VERSION} not supported. Plea
 ([[ $DATAPROC_VERSION == "1.5" ]] || [[ $DATAPROC_VERSION < "1.3" ]]) && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
 
 ## Set Spark and Sparkling water versions
-readonly DEFAULT_H2O_SPARKLING_WATER_VERSION="3.30.0.7-1"
+readonly DEFAULT_H2O_SPARKLING_WATER_VERSION="3.30.1.2-1"
 readonly H2O_SPARKLING_WATER_VERSION="$(/usr/share/google/get_metadata_value attributes/H2O_SPARKLING_WATER_VERSION || echo ${DEFAULT_H2O_SPARKLING_WATER_VERSION})"
 
 readonly SPARK_VERSION=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
