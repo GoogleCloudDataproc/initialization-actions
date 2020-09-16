@@ -25,6 +25,7 @@ class H2OTestCase(DataprocTestCase):
                            init_actions,
                            optional_components=optional_components,
                            timeout_in_minutes=20,
+                           machine_type="e2-standard-8",
                            scopes="cloud-platform")
 
         self.assert_dataproc_job(
