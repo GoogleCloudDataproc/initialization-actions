@@ -25,7 +25,7 @@ Sparkling Water installed by:
     gcloud dataproc clusters create ${CLUSTER_NAME} \
         --image-version preview-ubuntu \
         --scopes "cloud-platform" \
-        --initialization-actions "gs://goog-dataproc-initialization-actions-${REGION}/conda/bootstrap-conda.sh,gs://goog-dataproc-initialization-actions-${REGION}/h2o/h2o.sh"
+        --initialization-actions "gs://goog-dataproc-initialization-actions-${REGION}/h2o/h2o.sh"
     ```
 
 1.  Submit sample job.
