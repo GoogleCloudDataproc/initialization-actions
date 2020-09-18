@@ -165,7 +165,7 @@ function main() {
     fi
     
     # Install RAPIDS
-    conda install -c "rapidsai" -c "nvidia" -c "conda-forge" \
+    conda install -c "rapidsai" -c "nvidia" \
       "cudatoolkit=${CUDA_VERSION}" "rapids=${RAPIDS_VERSION}"
     
     echo "RAPIDS installed with Dask runtime"
