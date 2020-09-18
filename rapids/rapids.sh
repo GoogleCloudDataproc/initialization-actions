@@ -36,6 +36,10 @@ readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' '0.15')
 readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
 readonly XGBOOST_VERSION=$(get_metadata_attribute 'xgboost-version' '1.0.0')
 
+# Dask config
+readonly DASK_LAUNCHER=dask-launcher.sh
+readonly DASK_SERVICE=dask-cluster
+
 # Dataproc configurations
 readonly SPARK_CONF_DIR='/etc/spark/conf'
 
@@ -125,7 +129,6 @@ configure_systemd_dask_service() {
 
   # Replace Dask Launcher file with dask-cuda config
   systemctl stop ${DASK_SERVICE}
-  rm "${DASK_LAUNCHER}"
 
   if [[ "${ROLE}" == "Master" ]]; then
     cat <<EOF >"${DASK_LAUNCHER}"
@@ -157,14 +160,14 @@ function main() {
     # RUNTIME is exposed by the Dask initialization action in
     # "standalone" mode. This configuration is only necessary in 
     # this case.
-    if [[ -n $"{DASK_SERVICE}" ]]; then
+    if [[ -f "${DASK_SERVICE}" ]]; then
       configure_systemd_dask_service
     fi
     
     # Install RAPIDS
     conda install -c "rapidsai" -c "nvidia" -c "conda-forge" \
       "cudatoolkit=${CUDA_VERSION}" "rapids=${RAPIDS_VERSION}"
-
+    
     echo "RAPIDS installed with Dask runtime"
   elif [[ "${RUNTIME}" == "SPARK" ]]; then
     install_spark_rapids

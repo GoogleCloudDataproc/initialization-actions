@@ -24,7 +24,8 @@ class RapidsTestCase(DataprocTestCase):
         grandparent_dir = os.path.dirname(parent_dir)
 
         # Verify RAPIDS
-        self._run_dask_test_script(os.path.join(parent_dir, self.DASK_RAPIDS_TEST_SCRIPT_FILE_NAME))
+        self._run_dask_test_script(os.path.join(
+            parent_dir, self.DASK_RAPIDS_TEST_SCRIPT_FILE_NAME), name)
       
         # Verify Dask installation integrity
         if dask_runtime is "standalone":
@@ -32,12 +33,11 @@ class RapidsTestCase(DataprocTestCase):
         else:
             runtime_test_script = self.DASK_YARN_TEST_SCRIPT_FILE_NAME
         
-        self._run_dask_test_script(os.path.join(grandparent_dir, runtime_test_script))
+        self._run_dask_test_script(os.path.join(grandparent_dir, runtime_test_script), name)
 
     def _run_dask_test_script(self, script, name):
         self.upload_test_file(script, name)
-        verify_cmd = "/opt/conda/miniconda3/bin/python {}".format(
-            script)
+        verify_cmd = "python {}".format(script)
         self.assert_instance_command(name, verify_cmd)
         self.remove_test_script(script, name)
 
@@ -67,10 +67,9 @@ class RapidsTestCase(DataprocTestCase):
         self.createCluster(configuration,
                            init_actions,
                            metadata=metadata,
-                           machine_type='n1-standard-2',
+                           machine_type='n1-standard-8',
                            master_accelerator=accelerator,
                            worker_accelerator=accelerator,
-                           optional_components=['ANACONDA'],
                            timeout_in_minutes=60)
 
         for machine_suffix in machine_suffixes:
@@ -91,7 +90,7 @@ class RapidsTestCase(DataprocTestCase):
             configuration,
             self.INIT_ACTIONS,
             metadata=metadata,
-            machine_type='n1-standard-2',
+            machine_type='n1-standard-8',
             worker_accelerator=accelerator,
             timeout_in_minutes=30)
 

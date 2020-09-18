@@ -35,7 +35,7 @@ readonly MASTER="$(/usr/share/google/get_metadata_value attributes/dataproc-mast
 readonly DASK_LAUNCHER=/usr/local/bin/dask-launcher.sh
 readonly DASK_SERVICE=dask-cluster
 
-CONDA_PACKAGES=("dask")
+CONDA_PACKAGES=("dask>=2.26")
 
 if [[ "${DASK_RUNTIME}" == "yarn" ]]; then
   if [ "$(echo "$DATAPROC_VERSION < 2.0" | bc)" -eq 1 ]; then
@@ -106,12 +106,6 @@ EOF
 
   systemctl daemon-reload
   systemctl enable "${DASK_SERVICE}"
-
-  # Expose DASK_LAUNCHER and DASK_SERVICE
-  cat <<EOF >"/etc/environment"
-DASK_LAUNCHER=${DASK_LAUNCHER}
-DASK_SERVICE=${DASK_SERVICE}
-EOF
 }
 
 function main() {
