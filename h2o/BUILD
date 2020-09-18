@@ -10,7 +10,7 @@ py_test(
         "//conda:bootstrap-conda.sh",
     ],
     local = True,
-    shard_count = 9,
+    shard_count = 4,
     deps = [
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",

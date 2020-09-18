@@ -2,8 +2,8 @@
 
 set -euxo pipefail
 
-readonly NOT_SUPPORTED_MESSAGE="Dataproc ${DATAPROC_VERSION} not supported. Please use Dataproc 1.3, 1.4 or 2.0+."
-[[ $DATAPROC_VERSION == "1.5" ]] && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
+readonly NOT_SUPPORTED_MESSAGE="Dataproc ${DATAPROC_VERSION} not supported. Please use Dataproc 2.0+."
+[[ $DATAPROC_VERSION == "1.*" ]] && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
 
 ## Set Spark and Sparkling water versions
 readonly DEFAULT_H2O_SPARKLING_WATER_VERSION="3.30.1.2-1"

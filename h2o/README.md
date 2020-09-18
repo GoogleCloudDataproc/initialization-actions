@@ -4,8 +4,9 @@ This [initialization action](https://cloud.google.com/dataproc/init-actions)
 installs
 [H2O Sparkling Water](http://docs.h2o.ai/sparkling-water/2.4/latest-stable/doc/deployment/sw_google_cloud_dataproc.html)
 on all nodes of [Google Cloud Dataproc](https://cloud.google.com/dataproc)
-cluster. This initialization works with Dataproc image version `1.3` or newer,
-with an exception of version `1.5`. Please file an [issue](https://github.com/GoogleCloudDataproc/initialization-actions/issues/new) if support for `1.5` is desired.
+cluster. This initialization works with Dataproc image version `2.0` or newer.
+Please file an [issue](https://github.com/GoogleCloudDataproc/initialization-actions/issues/new)
+if support for older versions is desired.
 
 ## Using this initialization action
 
@@ -16,30 +17,15 @@ initialization actions in production.
 You can use this initialization action to create a new Dataproc cluster with H2O
 Sparkling Water installed by:
 
-1.  Use the `gcloud` command to create a new cluster with this initialization
-    action.
-
-    To create Dataproc 1.3 cluster and older use `conda` initialization action:
+1. Create a Dataproc cluster:
 
     ```bash
     REGION=<region>
     CLUSTER_NAME=<cluster_name>
     gcloud dataproc clusters create ${CLUSTER_NAME} \
-        --image-version 1.3 \
+        --image-version preview-ubuntu \
         --scopes "cloud-platform" \
         --initialization-actions "gs://goog-dataproc-initialization-actions-${REGION}/conda/bootstrap-conda.sh,gs://goog-dataproc-initialization-actions-${REGION}/h2o/h2o.sh"
-    ```
-
-    To create Dataproc 1.4 cluster and newer use `ANACONDA` optional component:
-
-    ```bash
-    REGION=<region>
-    CLUSTER_NAME=<cluster_name>
-    gcloud dataproc clusters create ${CLUSTER_NAME} \
-        --image-version 1.4 \
-        --optional-components ANACONDA \
-        --scopes "cloud-platform" \
-        --initialization-actions "gs://goog-dataproc-initialization-actions-${REGION}/h2o/h2o.sh"
     ```
 
 1.  Submit sample job.
@@ -54,4 +40,4 @@ Sparkling Water installed by:
 
 ### Supported metadata parameters
 
-*   `H2O_SPARKLING_WATER_VERSION`: Sparkling Water version number. You can find the versions from the [releases](https://github.com/h2oai/sparkling-water/releases) page on Github. Default is `3.30.0.7-1`.
+*   `H2O_SPARKLING_WATER_VERSION`: Sparkling Water version number. You can find the versions from the [releases](https://github.com/h2oai/sparkling-water/releases) page on Github. Default is `3.30.1.2-1`.
