@@ -3,7 +3,7 @@ from pyspark.sql import SparkSession
 from pysparkling import *
 
 spark = SparkSession.builder.appName("SparklingWaterApp").getOrCreate()
-hc = H2OContext.getOrCreate(spark)
+hc = H2OContext.getOrCreate()
 
 bucket = "h2o-bq-large-dataset"
 train_path = "demos/cc_train.csv"
