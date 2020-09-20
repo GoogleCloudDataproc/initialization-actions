@@ -95,7 +95,18 @@ function generate_or_replace_certificate() {
   if [[ "$generate_cert" == "true" ]]; then
     # set the hostname to machine name id reserved word HOSTNAME is passed
     [[ "${certificate_hostname}" == "HOSTNAME" ]] && certificate_hostname=$(hostname -A | tr -d '[:space:]')
-    sudo -u knox "${KNOX_HOME}/bin/knoxcli.sh" create-cert --hostname "${certificate_hostname}"
+
+    if [[ "${DATAPROC_VERSION}" == "1.4" || "${DATAPROC_VERSION}" == "1.3" ]]; then
+      # old versions of dataproc use knox 1.1 which creates 1024 length keys 
+      # and those keys are not accepted by curl in Debian >= 10
+      rm -rf "${KNOX_HOME}/data/security/keystores/gateway.jks"
+      sudo -u knox keytool -genkey -keyalg RSA -alias gateway-identity \
+      -keystore "${KNOX_HOME}/data/security/keystores/gateway.jks" \
+      -storepass ${master_key} -keypass ${master_key} -validity 360 \
+      -keysize 2048 -dname "cn=${certificate_hostname}, ou=Test, o=Hadoop, l=Test, st=Test, c=US"
+    else
+      sudo -u knox "${KNOX_HOME}/bin/knoxcli.sh" create-cert --hostname "${certificate_hostname}"
+    fi
 
     # we have not used export cert command for JKS since we wanted to provide our own storepass, which is the master key
     sudo -u knox keytool -export -alias "gateway-identity" \
