@@ -10,20 +10,21 @@ class H2OTestCase(DataprocTestCase):
     INIT_ACTIONS = ["h2o/h2o.sh"]
     SAMPLE_H2O_JOB_PATH = "h2o/sample-script.py"
 
-    @parameterized.parameters("SINGLE", "STANDARD", "HA")
+    @parameterized.parameters("STANDARD", "HA")
     def test_h2o(self, configuration):
-        # Init action supported on Dataproc 1.3+
-        if self.getImageVersion() < pkg_resources.parse_version("1.3"):
-            self.skipTest("Not supported in pre 1.3 images")
+        if self.getImageVersion() == pkg_resources.parse_version("1.5"):
+            self.skipTest("Not supported in 1.5 images")
 
+        optional_components = None
         init_actions = self.INIT_ACTIONS
-        optional_components = ["ANACONDA"]
         if self.getImageVersion() < pkg_resources.parse_version("1.4"):
             init_actions = ["conda/bootstrap-conda.sh"] + init_actions
-            optional_components = None
+        elif self.getImageVersion() < pkg_resources.parse_version("2.0"):
+            optional_components = ["ANACONDA"]
 
         self.createCluster(configuration,
                            init_actions,
+                           machine_type="e2-highmem-4",
                            optional_components=optional_components,
                            scopes="cloud-platform")
 
