@@ -90,6 +90,7 @@ run_tests() {
     --jobs="${max_parallel_tests}" \
     --local_cpu_resources="${max_parallel_tests}" \
     --local_ram_resources="$((max_parallel_tests * 1024))" \
+    --flaky_test_attempts=3 \
     --action_env="INTERNAL_IP_SSH=true" \
     --test_output="errors" \
     --noshow_progress \
