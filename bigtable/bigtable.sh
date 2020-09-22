@@ -39,7 +39,22 @@ readonly BIGTABLE_INSTANCE="$(/usr/share/google/get_metadata_value attributes/bi
 readonly BIGTABLE_PROJECT="$(/usr/share/google/get_metadata_value attributes/bigtable-project ||
     /usr/share/google/get_metadata_value ../project/project-id)"
 
-function retry_apt_command() {
+function is_centos() {
+  [[ "$(. /etc/os-release && echo "${ID}")" == 'centos' ]]
+  return $?
+}
+
+function is_debian() {
+  [[ "$(. /etc/os-release && echo "${ID}")" == 'debian' ]]
+  return $?
+}
+
+function is_ubuntu() {
+  [[ "$(. /etc/os-release && echo "${ID}")" == 'ubuntu' ]]
+  return $?
+}
+
+function retry_command() {
   local -r cmd="${1}"
   for ((i = 0; i < 10; i++)); do
     if eval "${cmd}"; then
@@ -53,6 +68,33 @@ function retry_apt_command() {
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
   return 1
+}
+
+function install_yum() {
+  local pkgs="$*"
+  retry_command "yum install -y $pkgs"
+}
+
+function install_apt_get() {
+  local pkgs="$*"
+  retry_command "apt-get install -y $pkgs"
+}
+
+function install_packages() {
+  local pkgs="$*"
+  if is_centos; then
+    install_yum "$pkgs"
+  else
+    install_apt_get "$pkgs"
+  fi
+}
+
+function update_repo() {
+  if is_centos; then
+    retry_command "yum -y update"
+  else
+    retry_command "apt-get update"
+  fi
 }
 
 function install_bigtable_client() {
@@ -110,8 +152,8 @@ EOF
 }
 
 function main() {
-  retry_apt_command "apt-get update" || err 'Unable to update packages lists.'
-  retry_apt_command "apt-get install -y hbase" || err 'Unable to install HBase.'
+  update_repo || err 'Unable to update packages repo.'
+  install_packages hbase || err 'Unable to install HBase.'
 
   install_bigtable_client || err 'Unable to install big table client.'
   configure_bigtable_client || err 'Failed to configure big table client.'
