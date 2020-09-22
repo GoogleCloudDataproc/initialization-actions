@@ -29,7 +29,7 @@ function err() {
   exit 1
 }
 
-function retry_apt_command() {
+function retry_command() {
   local cmd="$1"
   for ((i = 0; i < 10; i++)); do
     if eval "$cmd"; then
@@ -40,8 +40,46 @@ function retry_apt_command() {
   return 1
 }
 
-function update_apt_get() {
-  retry_apt_command "apt-get update"
+function is_centos() {
+  [[ "$(. /etc/os-release && echo "${ID}")" == 'centos' ]]
+  return $?
+}
+
+function is_debian() {
+  [[ "$(. /etc/os-release && echo "${ID}")" == 'debian' ]]
+  return $?
+}
+
+function is_ubuntu() {
+  [[ "$(. /etc/os-release && echo "${ID}")" == 'ubuntu' ]]
+  return $?
+}
+
+function install_yum() {
+  local pkgs="$*"
+  retry_command "yum install -y $pkgs"
+}
+
+function install_apt_get() {
+  local pkgs="$*"
+  retry_command "apt-get install -t $(lsb_release -sc)-backports -y $pkgs"
+}
+
+function install_packages() {
+  local pkgs="$*"
+  if is_centos; then
+    install_yum "$pkgs"
+  else
+    install_apt_get "$pkgs"
+  fi
+}
+
+function update_repo() {
+  if is_centos; then
+    retry_command "yum -y update"
+  else
+    retry_command "apt-get update"
+  fi
 }
 
 function install_hue_and_configure() {
@@ -54,8 +92,7 @@ function install_hue_and_configure() {
   local hadoop_conf_dir='/etc/hadoop/conf'
 
   # Install Hue
-  retry_apt_command "apt-get install -t $(lsb_release -sc)-backports -y hue" ||
-    err "Failed to install Hue"
+  install_packages hue || err "Failed to install Hue"
 
   # Stop Hue
   systemctl stop hue || err "Hue stop action not performed"
@@ -199,6 +236,6 @@ EOF
 
 # Only run on the master node ("0"-master in HA mode) of the cluster
 if [[ "${HOSTNAME}" == "${MASTER_HOSTNAME}" ]]; then
-  update_apt_get || err "Unable to update apt-get"
+  update_repo || err "Unable to update repository"
   install_hue_and_configure || err "Hue install process failed"
 fi
