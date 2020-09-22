@@ -115,6 +115,21 @@ readonly METASTORE_DB
 # Dataproc master nodes information
 readonly DATAPROC_MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 
+function is_centos() {
+  [[ "$(. /etc/os-release && echo "${ID}")" == 'centos' ]]
+  return $?
+}
+
+function is_debian() {
+  [[ "$(. /etc/os-release && echo "${ID}")" == 'debian' ]]
+  return $?
+}
+
+function is_ubuntu() {
+  [[ "$(. /etc/os-release && echo "${ID}")" == 'ubuntu' ]]
+  return $?
+}
+
 function get_java_property() {
   local property_file=$1
   local property_name=$2
@@ -301,7 +316,14 @@ EOF
 
 function configure_sql_client() {
   # Configure MySQL client to talk to metastore
-  cat <<EOF >/etc/mysql/conf.d/cloud-sql-proxy.cnf
+  local mysql_conf_dir
+  if is_centos; then
+    mysql_conf_dir="/etc/my.cnf.d"
+  else
+    mysql_conf_dir="/etc/mysql/conf.d"
+  fi
+
+  cat <<EOF >"${mysql_conf_dir}/cloud-sql-proxy.cnf"
 [client]
 protocol = tcp
 port = ${METASTORE_PROXY_PORT}
@@ -374,11 +396,17 @@ function main() {
       else
         echo "Service hive-metastore is not enabled"
       fi
-      if (systemctl is-enabled --quiet mysql); then
-        systemctl stop mysql
-        systemctl disable mysql
+      local mysql_service
+      if is_centos; then
+        mysql_service="mysqld"
       else
-        echo "Service mysql is not enabled"
+        mysql_service="mysql"
+      fi
+      if (systemctl is-enabled --quiet "${mysql_service}"); then
+        systemctl stop "${mysql_service}"
+        systemctl disable "${mysql_service}"
+      else
+        echo "Service ${mysql_service} is not enabled"
       fi
     fi
 
