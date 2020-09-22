@@ -61,12 +61,27 @@ readonly FLINK_SNAPSHOT_URL_METADATA_KEY='flink-snapshot-url'
 
 readonly MASTER_ADDITIONAL="$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)"
 
+function is_centos() {
+  [[ "$(. /etc/os-release && echo "${ID}")" == 'centos' ]]
+  return $?
+}
+
+function is_debian() {
+  [[ "$(. /etc/os-release && echo "${ID}")" == 'debian' ]]
+  return $?
+}
+
+function is_ubuntu() {
+  [[ "$(. /etc/os-release && echo "${ID}")" == 'ubuntu' ]]
+  return $?
+}
+
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
   return 1
 }
 
-function retry_apt_command() {
+function retry_command() {
   local -r cmd="$1"
   for ((i = 0; i < 10; i++)); do
     if eval "$cmd"; then
@@ -77,13 +92,31 @@ function retry_apt_command() {
   return 1
 }
 
-function update_apt_get() {
-  retry_apt_command "apt-get update"
+function install_yum() {
+  local pkgs="$*"
+  retry_command "yum install -y $pkgs"
 }
 
 function install_apt_get() {
   local pkgs="$*"
-  retry_apt_command "apt-get install -y $pkgs"
+  retry_command "apt-get install -y $pkgs"
+}
+
+function install_packages() {
+  local pkgs="$*"
+  if is_centos; then
+    install_yum "$pkgs"
+  else
+    install_apt_get "$pkgs"
+  fi
+}
+
+function update_repo() {
+  if is_centos; then
+    retry_command "yum -y update"
+  else
+    retry_command "apt-get update"
+  fi
 }
 
 # Returns list of zookeeper servers configured in the zoo.cfg file.
@@ -228,8 +261,8 @@ function main() {
   if /usr/share/google/get_metadata_value "attributes/${FLINK_SNAPSHOT_URL_METADATA_KEY}"; then
     install_flink_snapshot || err "Unable to install Flink"
   else
-    update_apt_get || err "Unable to update apt-get"
-    install_apt_get flink || err "Unable to install flink"
+    update_repo || err "Unable to update repository"
+    install_packages flink || err "Unable to install flink"
   fi
   configure_flink || err "Flink configuration failed"
   if [[ "${HOSTNAME}" == "${MASTER_HOSTNAME}" ]]; then
