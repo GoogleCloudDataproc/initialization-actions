@@ -32,7 +32,22 @@ readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
 readonly HIVE_CONF_DIR='/etc/hive/conf'
 readonly SPARK_CONF_DIR='/etc/spark/conf'
 
-function retry_apt_command() {
+function is_centos() {
+  [[ "$(. /etc/os-release && echo "${ID}")" == 'centos' ]]
+  return $?
+}
+
+function is_debian() {
+  [[ "$(. /etc/os-release && echo "${ID}")" == 'debian' ]]
+  return $?
+}
+
+function is_ubuntu() {
+  [[ "$(. /etc/os-release && echo "${ID}")" == 'ubuntu' ]]
+  return $?
+}
+
+function retry_command() {
   cmd="$1"
   for ((i = 0; i < 10; i++)); do
     if eval "$cmd"; then
@@ -43,13 +58,31 @@ function retry_apt_command() {
   return 1
 }
 
-function update_apt_get() {
-  retry_apt_command "apt-get update"
+function install_yum() {
+  local pkgs="$*"
+  retry_command "yum install -y $pkgs"
 }
 
 function install_apt_get() {
   local pkgs="$*"
-  retry_apt_command "apt-get install -y $pkgs"
+  retry_command "apt-get install -y $pkgs"
+}
+
+function install_packages() {
+  local pkgs="$*"
+  if is_centos; then
+    install_yum "$pkgs"
+  else
+    install_apt_get "$pkgs"
+  fi
+}
+
+function update_repo() {
+  if is_centos; then
+    retry_command "yum -y update"
+  else
+    retry_command "apt-get update"
+  fi
 }
 
 function err() {
@@ -58,8 +91,8 @@ function err() {
 }
 
 function configure_master_node() {
-  update_apt_get || err 'Unable to update packages lists.'
-  install_apt_get tez hadoop-yarn-timelineserver ||
+  update_repo || err 'Unable to update packages repository.'
+  install_packages tez hadoop-yarn-timelineserver ||
     err 'Failed to install required packages.'
 
   # Copy to hdfs from one master only to avoid race
