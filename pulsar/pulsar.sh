@@ -3,7 +3,7 @@ set -euxo pipefail
 
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly CLUSTER_NAME="$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)"
-readonly NUM_WORKERS=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count) 
+readonly NUM_WORKERS=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
 readonly ZOOKEEPER_HOME=/usr/lib/zookeeper
 
 readonly PULSAR_FUNCTIONS_ENABLED="$(/usr/share/google/get_metadata_value attributes/pulsar-functions-enabled || echo 'false')"
@@ -11,12 +11,12 @@ readonly BUILTIN_CONNECTORS_ENABLED="$(/usr/share/google/get_metadata_value attr
 readonly TIERED_STORAGE_OFFLOADERS_ENABLED="$(/usr/share/google/get_metadata_value attributes/tiered-storage-offloaders-enabled || echo 'false')"
 
 readonly PULSAR_VERSION="$(/usr/share/google/get_metadata_value attributes/pulsar-version || echo '2.6.0')"
+readonly PULSAR_HOME="/opt/apache-pulsar-${PULSAR_VERSION}"
 
-
-WEB_SERVICE_URL_PORT="8080" #default value, not recommended to change
-WEB_SERVICE_URL_TLS_PORT="8443" #default value, not recommended to change
-BROKER_SERVICE_URL_PORT="6650" #default value, not recommended to change
-BROKER_SERVICE_URL_TLS_PORT="6651" #default value, not recommended to change
+readonly WEB_SERVICE_URL_PORT="$(/usr/share/google/get_metadata_value attributes/web-service-url-port || echo 8080)"               #default value, not recommended to change
+readonly WEB_SERVICE_URL_TLS_PORT="$(/usr/share/google/get_metadata_value attributes/web-service-url-tls-port || echo 8443)"       #default value, not recommended to change
+readonly BROKER_SERVICE_URL_PORT="$(/usr/share/google/get_metadata_value attributes/broker-service-url-port || echo 6650)"         #default value, not recommended to change
+readonly BROKER_SERVICE_URL_TLS_PORT="$(/usr/share/google/get_metadata_value attributes/broker-service-url-tls-port || echo 6651)" #default value, not recommended to change
 
 ZOOKEEPER_ADDRESSES=""
 ZOOKEEPER_ADDRESS=""
@@ -52,9 +52,9 @@ function retry_command() {
 
 function edit() {
   if [ "$#" == "3" ]; then
-   grep -q "$1" "$3" && sed -i "s/"$1"/"$2"/" "$3" || echo "$2" >> "$3"
+    grep -q "$1" "$3" && sed -i "s/"$1"/"$2"/" "$3" || echo "$2" >>"$3"
   else
-   echo "$1" >> "$2"
+    echo "$1" >>"$2"
   fi
 }
 
@@ -78,7 +78,6 @@ function update_apt_get() {
   retry_apt_command "apt-get update"
 }
 
-
 function fetch_zookeeper_list() {
   local zookeeper_client_port
   zookeeper_client_port=$(grep 'clientPort' /etc/zookeeper/conf/zoo.cfg |
@@ -94,23 +93,23 @@ function fetch_zookeeper_list() {
     sed "s/$/:${zookeeper_client_port}/" |
     xargs echo |
     sed "s/ /,/g")
-    
-    ZOOKEEPER_ADDRESSES="${zookeeper_list}"
+
+  ZOOKEEPER_ADDRESSES="${zookeeper_list}"
 
   # If attempt fails, error out.
   if [[ -z "${zookeeper_list}" ]]; then
     err 'Failed to find configured Zookeeper list. Please remember to include Zookeeper optional component'
   fi
-  
+
   ZK_ADDRS="${zookeeper_list}"
-  ZK_ADDRS=${ZK_ADDRS//,/$'\n'}  
+  ZK_ADDRS=${ZK_ADDRS//,/$'\n'}
   ZK_ADDRS=($ZK_ADDRS)
 
   for i in "${!ZK_ADDRS[@]}"; do
     local serverNo=$i
-    serverNo=$((serverNo+1))
+    serverNo=$((serverNo + 1))
     edit "server.${serverNo}=${ZK_ADDRS[$i]}" conf/zookeeper.conf
-    done
+  done
 
   ZOOKEEPER_ADDRESS="${zookeeper_list%%,*}"
 }
@@ -122,31 +121,34 @@ function fetch_urls() {
     BROKER_SERVICE_URL+="$CLUSTER_NAME-w:$BROKER_SERVICE_URL_PORT"
     BROKER_SERVICE_URL_TLS+="$CLUSTER_NAME-w:$BROKER_SERVICE_URL_TLS_PORT"
   else
-    for ((i=0; i<$NUM_WORKERS; i++))
-    do
-      if [ "$i" == $(($NUM_WORKERS-1)) ]; then
+    for ((i = 0; i < $NUM_WORKERS; i++)); do
+      if [ "$i" == $(($NUM_WORKERS - 1)) ]; then
         WEB_SERVICE_URL+="$CLUSTER_NAME-w-$i:$WEB_SERVICE_URL_PORT"
         WEB_SERVICE_URL_TLS+="$CLUSTER_NAME-w-$i:$WEB_SERVICE_URL_TLS_PORT"
         BROKER_SERVICE_URL+="$CLUSTER_NAME-w-$i:$BROKER_SERVICE_URL_PORT"
         BROKER_SERVICE_URL_TLS+="$CLUSTER_NAME-w-$i:$BROKER_SERVICE_URL_TLS_PORT"
-      else 
-      WEB_SERVICE_URL+="$CLUSTER_NAME-w-$i:$WEB_SERVICE_URL_PORT,"
-      WEB_SERVICE_URL_TLS+="$CLUSTER_NAME-w-$i:$WEB_SERVICE_URL_TLS_PORT,"
-      BROKER_SERVICE_URL+="$CLUSTER_NAME-w-$i:$BROKER_SERVICE_URL_PORT,"
-      BROKER_SERVICE_URL_TLS+="$CLUSTER_NAME-w-$i:$BROKER_SERVICE_URL_TLS_PORT,"
+      else
+        WEB_SERVICE_URL+="$CLUSTER_NAME-w-$i:$WEB_SERVICE_URL_PORT,"
+        WEB_SERVICE_URL_TLS+="$CLUSTER_NAME-w-$i:$WEB_SERVICE_URL_TLS_PORT,"
+        BROKER_SERVICE_URL+="$CLUSTER_NAME-w-$i:$BROKER_SERVICE_URL_PORT,"
+        BROKER_SERVICE_URL_TLS+="$CLUSTER_NAME-w-$i:$BROKER_SERVICE_URL_TLS_PORT,"
       fi
     done
   fi
 }
 
 function install_and_configure_pulsar() {
-    retry_command wget https://archive.apache.org/dist/pulsar/pulsar-${PULSAR_VERSION}/apache-pulsar-${PULSAR_VERSION}-bin.tar.gz
-    tar xvzf apache-pulsar-${PULSAR_VERSION}-bin.tar.gz
-    cd apache-pulsar-${PULSAR_VERSION}
-    fetch_zookeeper_list
-    fetch_urls
+  retry_command wget https://archive.apache.org/dist/pulsar/pulsar-${PULSAR_VERSION}/apache-pulsar-${PULSAR_VERSION}-bin.tar.gz -P /opt
+  tar xvzf /opt/apache-pulsar-${PULSAR_VERSION}-bin.tar.gz
 
-    configure_pulsar_client
+  mkdir /usr/lib/pulsar
+  ln -s "$PULSAR_HOME" /usr/lib/pulsar
+
+  cd /usr/lib/pulsar
+  fetch_zookeeper_list
+  fetch_urls
+
+  configure_pulsar_client
 }
 
 function initialize_zookeeper_metadata() {
@@ -173,9 +175,9 @@ function wait_for_zookeeper() {
   exit 1
 }
 
-function deploy_bookkeeper() {    
-    edit "zkServers=.*" "zkServers=${ZOOKEEPER_ADDRESSES}" "conf/bookkeeper.conf"
-    bin/pulsar-daemon start bookie
+function deploy_bookkeeper() {
+  edit "zkServers=.*" "zkServers=${ZOOKEEPER_ADDRESSES}" "conf/bookkeeper.conf"
+  bin/pulsar-daemon start bookie
 }
 
 function deploy_broker() {
@@ -187,24 +189,24 @@ function deploy_broker() {
   edit "webServicePort=.*" "webServicePort=${WEB_SERVICE_URL_PORT}" "conf/broker.conf"
   edit "webServicePortTls=.*" "webServicePortTls=${WEB_SERVICE_URL_TLS_PORT}" "conf/broker.conf"
 
-    if [[ "${PULSAR_FUNCTIONS_ENABLED}" == true ]]; then
-        edit "functionsWorkerEnabled=.*" "functionsWorkerEnabled=true" "conf/broker.conf"
-        sed -i "s/pulsarFunctionsCluster: standalone/pulsarFunctionsCluster: ${CLUSTER_NAME}/" conf/functions_worker.yml
-    fi
+  if [[ "${PULSAR_FUNCTIONS_ENABLED}" == true ]]; then
+    edit "functionsWorkerEnabled=.*" "functionsWorkerEnabled=true" "conf/broker.conf"
+    sed -i "s/pulsarFunctionsCluster: standalone/pulsarFunctionsCluster: ${CLUSTER_NAME}/" conf/functions_worker.yml
+  fi
 
-    if [[ "${BUILTIN_CONNECTORS_ENABLED}" == true ]]; then
-        retry_command wget https://archive.apache.org/dist/pulsar/pulsar-${PULSAR_VERSION}/connectors/{connector}-${PULSAR_VERSION}.nar
-        mkdir connectors
-        mv pulsar-io-aerospike-${PULSAR_VERSION}.nar connectors
-    fi 
+  if [[ "${BUILTIN_CONNECTORS_ENABLED}" == true ]]; then
+    retry_command wget https://archive.apache.org/dist/pulsar/pulsar-${PULSAR_VERSION}/connectors/{connector}-${PULSAR_VERSION}.nar
+    mkdir connectors
+    mv pulsar-io-aerospike-${PULSAR_VERSION}.nar connectors
+  fi
 
-    if [[ "${TIERED_STORAGE_OFFLOADERS_ENABLED}" == true ]]; then
-        retry_command wget https://archive.apache.org/dist/pulsar/pulsar-${PULSAR_VERSION}/apache-pulsar-offloaders-${PULSAR_VERSION}-bin.tar.gz
-        tar xvfz apache-pulsar-offloaders-${PULSAR_VERSION}-bin.tar.gz
-        mv apache-pulsar-offloaders-${PULSAR_VERSION}/offloaders offloaders
-    fi
+  if [[ "${TIERED_STORAGE_OFFLOADERS_ENABLED}" == true ]]; then
+    retry_command wget https://archive.apache.org/dist/pulsar/pulsar-${PULSAR_VERSION}/apache-pulsar-offloaders-${PULSAR_VERSION}-bin.tar.gz
+    tar xvfz apache-pulsar-offloaders-${PULSAR_VERSION}-bin.tar.gz
+    mv apache-pulsar-offloaders-${PULSAR_VERSION}/offloaders offloaders
+  fi
 
-    bin/pulsar-daemon start broker
+  bin/pulsar-daemon start broker
 }
 
 function configure_pulsar_client() {
@@ -214,15 +216,15 @@ function configure_pulsar_client() {
 
 function main() {
   update_apt_get || err 'Unable to update packages lists.'
-    # regardless of role, we want to install the pulsar binary.
-    install_and_configure_pulsar
-    wait_for_zookeeper
-    initialize_zookeeper_metadata
-  
-    if [[ "${ROLE}" != 'Master' ]]; then
-        deploy_bookkeeper
-        deploy_broker
-    fi
+  # regardless of role, we want to install the pulsar binary.
+  install_and_configure_pulsar
+  wait_for_zookeeper
+  initialize_zookeeper_metadata
+
+  if [[ "${ROLE}" != 'Master' ]]; then
+    deploy_bookkeeper
+    deploy_broker
+  fi
 }
 
 main
