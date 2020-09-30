@@ -65,11 +65,7 @@ function install_spark_rapids() {
 
   if [[ "${CUDA_VERSION}" == "10.0" ]]; then
     local -r cudf_cuda_version="10"
-  else
-    local -r cudf_cuda_version="${CUDA_VERSION//\./-}"
-  fi
-
-  if [[ "${CUDA_VERSION}" == "11.0" ]]; then
+  elif [[ "${CUDA_VERSION}" == "11.0" ]]; then
     local -r cudf_cuda_version="11"
   else
     local -r cudf_cuda_version="${CUDA_VERSION//\./-}"
