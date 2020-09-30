@@ -1,4 +1,4 @@
-# GPU drivers installation
+# GPU driver installation
 
 GPUs require special drivers and software which are not pre-installed on
 [Cloud Dataproc](https://cloud.google.com/dataproc) clusters by default.
