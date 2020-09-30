@@ -69,6 +69,12 @@ function install_spark_rapids() {
     local -r cudf_cuda_version="${CUDA_VERSION//\./-}"
   fi
 
+  if [[ "${CUDA_VERSION}" == "11.0" ]]; then
+    local -r cudf_cuda_version="11"
+  else
+      local -r cudf_cuda_version="${CUDA_VERSION//\./-}"
+  fi
+
   if [[ "${SPARK_VERSION}" == "3"* ]]; then
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
       "${nvidia_repo_url}/xgboost4j-spark_${SPARK_VERSION}/${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}/xgboost4j-spark_${SPARK_VERSION}-${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}.jar" \
