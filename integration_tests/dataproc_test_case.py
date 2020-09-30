@@ -108,7 +108,7 @@ class DataprocTestCase(parameterized.TestCase):
         args = self.DEFAULT_ARGS[configuration].copy()
         if FLAGS.image:
             args.append("--image={}".format(FLAGS.image))
-        else:
+        elif FLAGS.image_version:
             args.append("--image-version={}".format(FLAGS.image_version))
 
         if optional_components:
