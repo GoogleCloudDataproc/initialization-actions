@@ -88,8 +88,7 @@ run_tests() {
   local -r max_parallel_tests=10
   bazel test \
     --jobs="${max_parallel_tests}" \
-    --local_cpu_resources="${max_parallel_tests}" \
-    --local_ram_resources="$((max_parallel_tests * 1024))" \
+    --local_test_jobs="${max_parallel_tests}" \
     --flaky_test_attempts=3 \
     --action_env="INTERNAL_IP_SSH=true" \
     --test_output="errors" \
