@@ -25,9 +25,9 @@ To use Spark Rapids SQL plugin, XGBoost4j with Spark 3
     *   NVIDIA Pascal™ GPU architecture or better (V100, P100, T4 and later)
     *   Multi-node clusters with homogenous GPU configuration
 *   Software Requirements
-    *   NVIDIA driver 440.33+
-    *   CUDA v11.0/v10.2/v10.1
-    *   NCCL 2.4.7 and later
+    *   NVIDIA GPU driver 440.33+
+    *   CUDA 10.1+
+    *   NCCL 2.4.7+
 
 This section describes how to create
 [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster with
@@ -46,7 +46,7 @@ A few notes:
     SparkUI, will remove later
 *   for better GPU performance it's recommended to remove IO bottleneck as much
     as possible, that includes faster disk/networking.
-*   Adjust spark properties in cluster creation command to the hardware
+*   Adjust Spark properties in cluster creation command to the hardware
     availability
 *   For best practice, please refer to NVIDIA
     [getting started guide](https://nvidia.github.io/spark-rapids/)
@@ -73,7 +73,7 @@ gcloud dataproc clusters create $CLUSTER_NAME  \
     --bucket $GCS_BUCKET \
     --subnet=default \
     --enable-component-gateway \
-    --properties="^#^spark:spark.yarn.unmanagedAM.enabled=false"
+    --properties="spark:spark.yarn.unmanagedAM.enabled=false"
 ```
 
 User can adjust Spark resource default allocation by adding following to
@@ -96,7 +96,7 @@ applications.
 
 ### Step 2. Run a sample query and exam GPU usage
 
-Once you have started your spark shell or Zeppelin notebook you can run the
+Once you have started your Spark shell or Zeppelin notebook you can run the
 following commands to do a basic join and look at the UI to see that it runs on
 the GPU.
 
@@ -108,8 +108,8 @@ out.count()
 out.explain()
 ```
 
-From `out.explain()`, you should see GpuRowToColumn, GpuFilter,
-GpuColumnarExchange, those all indicate things that would run on the GPU.
+From `out.explain()`, you should see `GpuRowToColumn`, `GpuFilter`,
+`GpuColumnarExchange`, those all indicate things that would run on the GPU.
 
 Or go to the Spark UI and click on the application you ran and on the "SQL" tab.
 If you click the operation "count at ...", you should see the graph of Spark
