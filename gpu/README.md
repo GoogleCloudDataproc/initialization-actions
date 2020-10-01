@@ -1,10 +1,9 @@
-# Dataproc - GPU driver installation
+# GPU driver installation
 
-GPUs require special drivers and software. These items are not pre-installed on
-Cloud Dataproc clusters by default. This
-[initialization action](https://cloud.google.com/dataproc/init-actions) installs
-GPU drivers for NVIDIA on master and workers node in a
-[Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster.
+GPUs require special drivers and software which are not pre-installed on
+[Cloud Dataproc](https://cloud.google.com/dataproc) clusters by default.
+This initialization action installs GPU driver for NVIDIA GPUs on master and
+worker nodes in a Cloud Dataproc cluster.
 
 **Note:** This feature is in Beta mode.
 
@@ -96,15 +95,15 @@ gpu-driver-provider=<OS|NVIDIA>` metadata value.
 #### GPU Scheduling in YARN:
 
 YARN is the default Resource Manager for Dataproc. To use GPU scheduling feature
-in Spark, it requires YARN version >= 2.10 or >=3.1.1. If intended to use spark
-with Deep Learning use case, it recommended to use Yarn >= 3.1.3 to get support
+in Spark, it requires YARN version >= 2.10 or >=3.1.1. If intended to use Spark
+with Deep Learning use case, it recommended to use YARN >= 3.1.3 to get support
 for [nvidia-docker version 2](https://github.com/NVIDIA/nvidia-docker).
 
 In current Dataproc set up, we enable GPU resource isolation by initialization
 script without NVIDIA Docker, you can find more information at
 [NVIDIA Spark RAPIDS getting started guide](https://nvidia.github.io/spark-rapids/).
 
-#### Supported metadata parameters:
+#### Metadata parameters:
 
 -   `install-gpu-agent: true|false` - this is an optional parameter with
     case-sensitive value. Default is `false`.
@@ -119,12 +118,12 @@ script without NVIDIA Docker, you can find more information at
     NVIDIA-provided GPU driver on Debian.
 
 -   `cuda-url: <URL>` - this is an optional parameter for customizing
-    NVIDIA-provided CUDA on Debian. This is required if not using CUDA 10.1
-    or 10.2 with a Debian image. Please find the appropriate linux-based 
+    NVIDIA-provided CUDA on Debian. This is required if not using CUDA `10.1` or
+    `10.2` with a Debian image. Please find the appropriate linux-based
     runtime-file URL [here](https://developer.nvidia.com/cuda-toolkit-archive).
 
 -   `cuda-version: 10.1|10.2|<VERSION>` - this is an optional parameter for
-    customizing NVIDIA-provided CUDA version. Default is `10.2`. 
+    customizing NVIDIA-provided CUDA version. Default is `10.2`.
 
 #### Verification
 
