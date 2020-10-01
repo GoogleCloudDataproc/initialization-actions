@@ -11,13 +11,13 @@ function get_metadata_attribute() {
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
 
 if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
-    readonly DEFAULT_CUDF_VERSION="0.14"
-    readonly DEFAULT_SPARK_RAPIDS_VERSION="0.1.0"
-    readonly SPARK_VERSION="${SPARK_VERSION_ENV}"
+  readonly DEFAULT_CUDF_VERSION="0.14"
+  readonly DEFAULT_SPARK_RAPIDS_VERSION="0.1.0"
+  readonly SPARK_VERSION="${SPARK_VERSION_ENV}"
 else
-    readonly DEFAULT_CUDF_VERSION="0.9.2"
-    readonly DEFAULT_SPARK_RAPIDS_VERSION="Beta5"
-    readonly SPARK_VERSION="2.x"
+  readonly DEFAULT_CUDF_VERSION="0.9.2"
+  readonly DEFAULT_SPARK_RAPIDS_VERSION="Beta5"
+  readonly SPARK_VERSION="2.x"
 fi
 
 readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
@@ -130,8 +130,9 @@ EOF
 function create_conda_env() {
   echo "Create RAPIDS Conda environment..."
   # For use with Anaconda component
-  local -r conda_env_file="${BUILD_DIR}/conda-environment.yaml"
+  local -r conda_env_file="${BUILD_DIR}/conda-rapids-env.yaml"
   cat <<EOF >"${conda_env_file}"
+name: ${RAPIDS_ENV}
 channels:
   - rapidsai/label/xgboost
   - rapidsai
@@ -144,7 +145,8 @@ dependencies:
   - dill
   - ipykernel
 EOF
-  conda env create --name "${RAPIDS_ENV}" --file "${conda_env_file}"
+  conda config --set channel_priority flexible
+  conda env create --file "${conda_env_file}"
 }
 
 function install_conda_kernel() {
@@ -156,7 +158,6 @@ function install_conda_kernel() {
 install_systemd_dask_service() {
   echo "Installing systemd Dask service..."
   local -r dask_worker_local_dir="/tmp/rapids"
-  local -r mem_total=$(free -m | grep -oP '\d+' | head -n1)
 
   if [[ "${ROLE}" == "Master" ]]; then
     cat <<EOF >"${DASK_LAUNCHER}"

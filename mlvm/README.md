@@ -60,7 +60,7 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
     --metadata gpu-driver-provider=NVIDIA \
     --metadata rapids-runtime=SPARK \
     --metadata include-gpus=true \
-    --optional-components ANACONDA,JUPYTER \
+    --optional-components JUPYTER \
     --initialization-actions gs://dataproc-initialization-actions/mlvm/mlvm.sh \
     --initialization-action-timeout=45m
     --enable-component-gateway
@@ -85,10 +85,9 @@ config:
   masterConfig:
     machineTypeUri: n1-standard-16
   softwareConfig:
-    imageVersion: 2.0.0-RC6-ubuntu18
+    imageVersion: 2.0.0-RC12-ubuntu18
     optionalComponents:
     - JUPYTER
-    - ANACONDA
   workerConfig:
     accelerators:
     - acceleratorCount: 2

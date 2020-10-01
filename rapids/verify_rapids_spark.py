@@ -16,8 +16,8 @@ spark = SparkSession.builder \
 
 print("CREATED SPARK SESSION")
 sc = spark.sparkContext
-df1 = sc.parallelize([[x] for x in range(0,1000)]).toDF()
-df2 = sc.parallelize([[x] for x in range(0,1000)]).toDF()
+df1 = sc.parallelize([[x] for x in range(0, 1000)]).toDF()
+df2 = sc.parallelize([[x] for x in range(0, 1000)]).toDF()
 out = df1.join(df2, df1._1 == df2._1)
 
 print("************ Join count:", out.count())
