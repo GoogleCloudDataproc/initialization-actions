@@ -62,14 +62,9 @@ function execute_with_retries() {
 function install_spark_rapids() {
   local -r rapids_repo_url='https://repo1.maven.org/maven2/ai/rapids'
   local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
-
-  if [[ "${CUDA_VERSION}" == "10.0" ]]; then
-    local -r cudf_cuda_version="10"
-  elif [[ "${CUDA_VERSION}" == "11.0" ]]; then
-    local -r cudf_cuda_version="11"
-  else
-    local -r cudf_cuda_version="${CUDA_VERSION//\./-}"
-  fi
+  local cudf_cuda_version="${CUDA_VERSION//\./-}"
+  # Convert "11-0" to "11"
+  cudf_cuda_version="${cudf_cuda_version%-0}"
 
   if [[ "${SPARK_VERSION}" == "3"* ]]; then
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
