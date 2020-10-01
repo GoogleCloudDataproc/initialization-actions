@@ -20,7 +20,7 @@ initialization actions in production.
 
 To use Spark Rapids SQL plugin, XGBoost4j with Spark 3
 
-*   Apache Spark 3.0.0 
+*   Apache Spark 3.0
 *   Hardware Requirements
     *   NVIDIA Pascal™ GPU architecture or better (V100, P100, T4 and later)
     *   Multi-node clusters with homogenous GPU configuration
@@ -75,15 +75,17 @@ gcloud dataproc clusters create $CLUSTER_NAME  \
     --enable-component-gateway \
     --properties="^#^spark:spark.yarn.unmanagedAM.enabled=false"
 ```
-User can adjust spark resource default allocation by adding following to `--properties flag.
-The numbers should be adjusted given the hardware resource availability, spark job requirement.   
+
+User can adjust Spark resource default allocation by adding following to
+`--properties` flag (the numbers should be adjusted given the hardware resource
+availability and Spark job requirements):
+
 ```bash
 spark:spark.task.resource.gpu.amount=0.125
 spark:spark.executor.cores=8
 spark:spark.task.cpus=1
 spark:spark.executor.memory=4G
-``` 
-
+```
 
 After submitting this command, please go to the Google Cloud Platform console on
 your browser. Search for "Dataproc" and click on the "Dataproc" icon. This will
@@ -131,15 +133,16 @@ To use XGBoost4j with Spark 2
     *   NVIDIA driver 410.48+
     *   CUDA v10.2/v10.1/v10.0/v9.2
     *   NCCL 2.4.7 and later
-*   `EXCLUSIVE_PROCESS` must be set for all GPUs in each NodeManager (set by default in this
-    initialization action)
-*   `spark.dynamicAllocation.enabled` property must be set to `false` for Spark (set by default 
-    in this initialization action)
+*   `EXCLUSIVE_PROCESS` must be set for all GPUs in each NodeManager (set by
+    default in this initialization action)
+*   `spark.dynamicAllocation.enabled` property must be set to `false` for Spark
+    (set by default in this initialization action)
 
 ### Step 1. Download dataset for Spark RAPIDS XGBoost application
 
-From [Spark examples](https://github.com/NVIDIA/spark-xgboost-examples/tree/spark-2) repository
-download to your own bucket:
+From
+[Spark examples](https://github.com/NVIDIA/spark-xgboost-examples/tree/spark-2)
+repository download to your own bucket:
 
 1.  PySpark application files
 1.  A sample dataset for a XGBoost PySpark application
@@ -183,7 +186,7 @@ gcloud dataproc clusters create $CLUSTER_NAME \
     --metadata rapids-runtime=SPARK \
     --metadata cuda-version=10.1 \
     --bucket $GCS_BUCKET \
-    --enable-component-gateway 
+    --enable-component-gateway
 ```
 
 After submitting this command, please go to the Google Cloud Platform console on
