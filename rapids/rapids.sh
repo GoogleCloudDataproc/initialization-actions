@@ -11,8 +11,8 @@ function get_metadata_attribute() {
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
 
 if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
-  readonly DEFAULT_CUDF_VERSION="0.14"
-  readonly DEFAULT_SPARK_RAPIDS_VERSION="0.1.0"
+  readonly DEFAULT_CUDF_VERSION="0.15"
+  readonly DEFAULT_SPARK_RAPIDS_VERSION="0.2.0"
   readonly SPARK_VERSION="${SPARK_VERSION_ENV}"
 else
   readonly DEFAULT_CUDF_VERSION="0.9.2"
@@ -27,7 +27,7 @@ readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'DASK')
 readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-master' 'true')
 
 # RAPIDS config
-readonly DEFAULT_CUDA_VERSION="10.2"
+readonly DEFAULT_CUDA_VERSION="11.0"
 readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VERSION})
 readonly CUDF_VERSION=$(get_metadata_attribute 'cudf-version' ${DEFAULT_CUDF_VERSION})
 readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' '0.15')
@@ -62,12 +62,9 @@ function execute_with_retries() {
 function install_spark_rapids() {
   local -r rapids_repo_url='https://repo1.maven.org/maven2/ai/rapids'
   local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
-
-  if [[ "${CUDA_VERSION}" == "10.0" ]]; then
-    local -r cudf_cuda_version="10"
-  else
-    local -r cudf_cuda_version="${CUDA_VERSION//\./-}"
-  fi
+  local cudf_cuda_version="${CUDA_VERSION//\./-}"
+  # Convert "11-0" to "11"
+  cudf_cuda_version="${cudf_cuda_version%-0}"
 
   if [[ "${SPARK_VERSION}" == "3"* ]]; then
     wget -nv --timeout=30 --tries=5 --retry-connrefused \

@@ -20,19 +20,19 @@ initialization actions in production.
 
 To use Spark Rapids SQL plugin, XGBoost4j with Spark 3
 
-*   Apache Spark 3.0.0 RC1+
+*   Apache Spark 3.0+
 *   Hardware Requirements
     *   NVIDIA Pascal™ GPU architecture or better (V100, P100, T4 and later)
     *   Multi-node clusters with homogenous GPU configuration
 *   Software Requirements
-    *   NVIDIA driver 440.33+
-    *   CUDA v10.2/v10.1/v10.0
-    *   NCCL 2.4.7 and later
+    *   NVIDIA GPU driver 440.33+
+    *   CUDA v11.0/v10.2/v10.1
+    *   NCCL 2.4.7+
 
 This section describes how to create
 [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster with
 [Spark RAPIDS SQL plugin](https://github.com/NVIDIA/spark-rapids) and
-[XGBoost4j](https://github.com/rapidsai/spark-examples/tree/support-spark3.0).
+[XGBoost4j](https://github.com/NVIDIA/spark-xgboost-examples/tree/spark-2).
 
 ### Step 1. Create Dataproc cluster with Spark RAPIDS Accelerator
 
@@ -46,7 +46,7 @@ A few notes:
     SparkUI, will remove later
 *   for better GPU performance it's recommended to remove IO bottleneck as much
     as possible, that includes faster disk/networking.
-*   Adjust spark properties in cluster creation command to the hardware
+*   Adjust Spark properties in cluster creation command to the hardware
     availability
 *   For best practice, please refer to NVIDIA
     [getting started guide](https://nvidia.github.io/spark-rapids/)
@@ -60,7 +60,7 @@ export NUM_WORKERS=2
 
 gcloud dataproc clusters create $CLUSTER_NAME  \
     --region $REGION \
-    --image-version=preview-ubuntu \
+    --image-version=preview-ubuntu18 \
     --master-machine-type n1-standard-4 \
     --master-boot-disk-size 200 \
     --num-workers $NUM_WORKERS \
@@ -73,17 +73,19 @@ gcloud dataproc clusters create $CLUSTER_NAME  \
     --bucket $GCS_BUCKET \
     --subnet=default \
     --enable-component-gateway \
-    --properties="^#^spark:spark.yarn.unmanagedAM.enabled=false"
+    --properties="spark:spark.yarn.unmanagedAM.enabled=false"
 ```
-User can adjust spark resource default allocation by adding following to `--properties flag.
-The numbers should be adjusted given the hardware resource availability, spark job requirement.   
+
+User can adjust Spark resource default allocation by adding following to
+`--properties` flag (the numbers should be adjusted given the hardware resource
+availability and Spark job requirements):
+
 ```bash
 spark:spark.task.resource.gpu.amount=0.125
 spark:spark.executor.cores=8
 spark:spark.task.cpus=1
 spark:spark.executor.memory=4G
-``` 
-
+```
 
 After submitting this command, please go to the Google Cloud Platform console on
 your browser. Search for "Dataproc" and click on the "Dataproc" icon. This will
@@ -94,7 +96,7 @@ applications.
 
 ### Step 2. Run a sample query and exam GPU usage
 
-Once you have started your spark shell or zeppelin notebook you can run the
+Once you have started your Spark shell or Zeppelin notebook you can run the
 following commands to do a basic join and look at the UI to see that it runs on
 the GPU.
 
@@ -106,8 +108,8 @@ out.count()
 out.explain()
 ```
 
-From `out.explain()`, you should see GpuRowToColumn, GpuFilter,
-GpuColumnarExchange, those all indicate things that would run on the GPU.
+From `out.explain()`, you should see `GpuRowToColumn`, `GpuFilter`,
+`GpuColumnarExchange`, those all indicate things that would run on the GPU.
 
 Or go to the Spark UI and click on the application you ran and on the "SQL" tab.
 If you click the operation "count at ...", you should see the graph of Spark
@@ -117,7 +119,7 @@ Executors and some of those should have the "GPU" label as well.
 
 This section describes how to create
 [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster with
-[XGBoost4j](https://github.com/rapidsai/spark-examples).
+[XGBoost4j](https://github.com/NVIDIA/spark-xgboost-examples/tree/spark-2).
 
 ### Prerequisites
 
@@ -130,23 +132,25 @@ To use XGBoost4j with Spark 2
 *   Software Requirements
     *   NVIDIA driver 410.48+
     *   CUDA v10.2/v10.1/v10.0/v9.2
-    *   NCCL 2.4.7 and later
-*   `EXCLUSIVE_PROCESS` must be set for all GPUs in each NodeManager (set by default in this
-    initialization action)
-*   `spark.dynamicAllocation.enabled` property must be set to `false` for Spark (set by default 
-    in this initialization action)
+    *   NCCL 2.4.7+
+*   `EXCLUSIVE_PROCESS` must be set for all GPUs in each NodeManager (set by
+    default in this initialization action)
+*   `spark.dynamicAllocation.enabled` property must be set to `false` for Spark
+    (set by default in this initialization action)
 
 ### Step 1. Download dataset for Spark RAPIDS XGBoost application
 
-From [Spark examples](https://github.com/rapidsai/spark-examples) repository
-download to your own bucket:
+From
+[Spark examples](https://github.com/NVIDIA/spark-xgboost-examples/tree/spark-2)
+repository download to your own bucket:
 
 1.  PySpark application files
 1.  A sample dataset for a XGBoost PySpark application
 
 ```bash
 GCS_BUCKET=<bucket_name>
-git clone --depth 1 https://github.com/rapidsai/spark-examples.git /tmp/rapidsai-spark-examples
+git clone --depth 1 https://github.com/NVIDIA/spark-xgboost-examples.git /tmp/rapidsai-spark-examples
+git checkout spark-2
 
 # Upload PySpark application files
 pushd /tmp/rapidsai-spark-examples/examples/apps/python
@@ -182,7 +186,7 @@ gcloud dataproc clusters create $CLUSTER_NAME \
     --metadata rapids-runtime=SPARK \
     --metadata cuda-version=10.1 \
     --bucket $GCS_BUCKET \
-    --enable-component-gateway 
+    --enable-component-gateway
 ```
 
 After submitting this command, please go to the Google Cloud Platform console on
@@ -205,7 +209,7 @@ This notebook is running on the just created `CLUSTER_NAME` cluster.
 
 Next, to upload the Sample PySpark App into the Jupyter notebook, use the
 “Upload” button on the Jupyter notebook. Sample PySpark notebook is inside the
-[`spark-examples/examples/notebooks/python/`](https://github.com/rapidsai/spark-examples/tree/master/examples/notebooks/python)
+[`spark-examples/examples/notebooks/python/`](https://github.com/NVIDIA/spark-xgboost-examples/tree/spark-2/examples/notebooks/python)
 directory. Once you upload the sample `mortgage-gpu.ipynb`, make sure to change
 the kernel to “PySpark” under the "Kernel" tab using "Change Kernel" selection.
 The Spark XGBoost Sample Jupyter notebook is now ready to run on the cluster. To
@@ -222,7 +226,7 @@ eval_data = GpuDataReader(spark).schema(schema).option('header', True).csv('gs:/
 #### 4a) Submit Spark Scala application on GPUs
 
 Please build the `sample_xgboost_apps.jar` with dependencies as specified in the
-[guide](https://github.com/rapidsai/spark-examples/tree/master/getting-started-guides/building-sample-apps/scala.md)
+[guide](https://github.com/NVIDIA/spark-xgboost-examples/blob/spark-2/getting-started-guides/building-sample-apps/scala.md)
 and upload the jar file (`sample_xgboost_apps-0.1.4-jar-with-dependencies.jar`)
 into the `gs://${GCS_BUCKET}/scala/` folder. To do this you can either drag and
 drop files from your local machine into the
@@ -264,7 +268,7 @@ gcloud dataproc jobs submit spark \
 #### 4b) Submit PySpark application on GPUs
 
 Please build the XGBoost PySpark application as specified in the
-[guide](https://github.com/rapidsai/spark-examples/tree/master/getting-started-guides/building-sample-apps/python.md)
+[guide](https://github.com/nvidia/spark-xgboost-examples/blob/spark-2/getting-started-guides/building-sample-apps/python.md)
 and upload `main.py` and `samples.zip` files into the
 `gs://${GCS_BUCKET}/pyspark/` folder.
 

@@ -32,7 +32,7 @@ ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly ROLE
 
 # CUDA Version
-CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '10.2')
+CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.0')
 readonly CUDA_VERSION
 
 # Parameters for NVIDIA-provided Debian GPU driver
