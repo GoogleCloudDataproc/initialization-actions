@@ -28,6 +28,9 @@ class JupyterTestCase(DataprocTestCase):
         if self.getImageVersion() < pkg_resources.parse_version("1.4"):
             return
 
+        if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+            self.OPTIONAL_COMPONENTS.append("ANACONDA")
+
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
                            optional_components=self.OPTIONAL_COMPONENTS,
