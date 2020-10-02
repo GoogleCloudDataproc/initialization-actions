@@ -43,9 +43,6 @@ readonly DASK_SERVICE=dask-cluster
 # Dataproc configurations
 readonly SPARK_CONF_DIR='/etc/spark/conf'
 
-BUILD_DIR=$(mktemp -d -t rapids-init-action-XXXX)
-readonly BUILD_DIR
-
 function execute_with_retries() {
   local -r cmd=$1
   for ((i = 0; i < 10; i++)); do
@@ -55,6 +52,40 @@ function execute_with_retries() {
     sleep 5
   done
   return 1
+}
+
+function conda_fix_pin() {
+  local -r base=$(conda info --base)
+  local -r pinned=${base}/conda-meta/pinned
+
+  sed -i 's/conda [\.0-9\*]*/conda 4\.8\.\*/g' ${pinned}
+}
+
+function install_dask_rapids() {
+  local -r base=$(conda info --base)
+  local -r pinned=${base}/conda-meta/pinned
+  local -r mamba_env=mamba
+  
+  # Using mamba significantly reduces the conda solve-time. Create a separate conda
+  # environment with mamba installed to manage installations.
+  conda create -y -n ${mamba_env} -c conda-forge mamba
+
+  # RAPIDS releases require fixed PyArrow versions. Unpin PyArrow to solve
+  # for new environment.
+  sed -i 's/pyarrow [\.0-9\*]*/pyarrow/g' ${pinned}
+
+  # Install RAPIDS and cudatoolkit. Use mamba in new env to resolve base environment
+  ${base}/envs/${mamba_env}/bin/mamba install -y \
+    -c "rapidsai" -c "nvidia" -c "conda-forge" -c "defaults" \
+    "cudatoolkit=${CUDA_VERSION}" "rapids=${RAPIDS_VERSION}" \
+    -p ${base}
+
+  # Repin PyArrow with new version
+  local -r version=$(conda list pyarrow | grep -E pyarrow 2>&1 | sed -n 's/pyarrow[[:blank:]]\+\([0-9\.]\+\).*/\1/p')
+  sed -i 's/pyarrow/pyarrow '"${version}"'\.\*/g' ${pinned}
+
+  # Remove mamba env
+  conda env remove -n ${mamba_env}
 }
 
 function install_spark_rapids() {
@@ -163,11 +194,14 @@ function main() {
     if [[ -f "${DASK_SERVICE}" ]]; then
       configure_systemd_dask_service
     fi
+
+    # Temporary fix in Dataproc 1.5 to fix conda pin
+    if [[ "${DATAPROC_VERSION}" == "1.5" ]]; then
+      conda_fix_pin
+    fi
     
     # Install RAPIDS
-    conda install -c "rapidsai" -c "nvidia" -c "conda-forge" -c "defaults" \
-      "cudatoolkit=${CUDA_VERSION}" "rapids=${RAPIDS_VERSION}"
-    
+    install_dask_rapids
     echo "RAPIDS installed with Dask runtime"
   elif [[ "${RUNTIME}" == "SPARK" ]]; then
     install_spark_rapids

@@ -13,19 +13,21 @@ class RapidsTestCase(DataprocTestCase):
     INIT_ACTIONS = ['gpu/install_gpu_driver.sh', 'rapids/rapids.sh']
 
     GPU_P100 = 'type=nvidia-tesla-p100'
-
+    
+    # Tests for RAPIDS init action
     DASK_RAPIDS_TEST_SCRIPT_FILE_NAME = 'verify_rapids_dask.py'
-    DASK_YARN_TEST_SCRIPT_FILE_NAME = 'dask/verify_dask_yarn.py'
-    DASK_STANDALONE_TEST_SCRIPT_FILE_NAME = 'dask/verify_dask_standalone.py'
     SPARK_TEST_SCRIPT_FILE_NAME = 'verify_rapids_spark.py'
 
+    # Tests for validating Dask installation integrity,  under dask/ directory
+    DASK_YARN_TEST_SCRIPT_FILE_NAME = 'verify_dask_yarn.py'
+    DASK_STANDALONE_TEST_SCRIPT_FILE_NAME = 'verify_dask_standalone.py'
+
     def verify_dask_instance(self, name, dask_runtime):
-        parent_dir = os.path.dirname(os.path.abspath(__file__))
-        grandparent_dir = os.path.dirname(parent_dir)
+        rapids_dir = os.path.dirname(os.path.abspath(__file__))
+        dask_dir = os.path.join(os.path.dirname(rapids_dir), "dask")
 
         # Verify RAPIDS
-        self._run_dask_test_script(os.path.join(
-            parent_dir, self.DASK_RAPIDS_TEST_SCRIPT_FILE_NAME), name)
+        self._run_dask_test_script(rapids_dir, self.DASK_RAPIDS_TEST_SCRIPT_FILE_NAME, name)
       
         # Verify Dask installation integrity
         if dask_runtime is "standalone":
@@ -33,11 +35,11 @@ class RapidsTestCase(DataprocTestCase):
         else:
             runtime_test_script = self.DASK_YARN_TEST_SCRIPT_FILE_NAME
         
-        self._run_dask_test_script(os.path.join(grandparent_dir, runtime_test_script), name)
+        self._run_dask_test_script(dask_dir, runtime_test_script, name)
 
-    def _run_dask_test_script(self, script, name):
-        self.upload_test_file(script, name)
-        verify_cmd = "python {}".format(script)
+    def _run_dask_test_script(self, parent, script, name):
+        self.upload_test_file(os.path.join(parent, script), name)
+        verify_cmd = "/opt/conda/default/bin/python {}".format(script)
         self.assert_instance_command(name, verify_cmd)
         self.remove_test_script(script, name)
 
@@ -64,12 +66,17 @@ class RapidsTestCase(DataprocTestCase):
         if dask_runtime:
             metadata+=',dask-runtime={}'.format(dask_runtime)
 
+        optional_components = None
+        if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+            optional_components = ["ANACONDA"]
+
         self.createCluster(configuration,
                            init_actions,
                            metadata=metadata,
                            machine_type='n1-standard-8',
                            master_accelerator=accelerator,
                            worker_accelerator=accelerator,
+                           optional_components=optional_components,
                            timeout_in_minutes=60)
 
         for machine_suffix in machine_suffixes:
@@ -86,12 +93,17 @@ class RapidsTestCase(DataprocTestCase):
         if self.getImageVersion() < pkg_resources.parse_version("2.0"):
             metadata += ",cuda-version=10.1"
 
+        optional_components = None
+        if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+            optional_components = ["ANACONDA"]
+
         self.createCluster(
             configuration,
             self.INIT_ACTIONS,
             metadata=metadata,
             machine_type='n1-standard-8',
             worker_accelerator=accelerator,
+            optional_components=optional_components,
             timeout_in_minutes=30)
 
         for machine_suffix in machine_suffixes:
