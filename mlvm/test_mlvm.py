@@ -10,7 +10,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 class MLVMTestCase(DataprocTestCase):
   COMPONENT = "mlvm"
   INIT_ACTIONS = ["mlvm/mlvm.sh"]
-  OPTIONAL_COMPONENTS = ["ANACONDA", "JUPYTER"]
+  OPTIONAL_COMPONENTS = ["JUPYTER"]
 
   PYTHON_SCRIPT = "mlvm/scripts/python_packages.py"
   R_SCRIPT = "mlvm/scripts/r_packages.R"
@@ -53,8 +53,11 @@ class MLVMTestCase(DataprocTestCase):
               os.path.dirname(os.path.abspath(__file__)), "scripts",
               self.RAPIDS_DASK_SCRIPT), name)
 
-      verify_cmd = "/opt/conda/anaconda/envs/RAPIDS/bin/python {}".format(
-          self.RAPIDS_DASK_SCRIPT)
+      conda = "miniconda3"
+      if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+        conda = "anaconda"
+      verify_cmd = "/opt/conda/{}/envs/RAPIDS/bin/python {}".format(
+          conda, self.RAPIDS_DASK_SCRIPT)
 
       self.assert_instance_command(name, verify_cmd)
 
@@ -68,6 +71,9 @@ class MLVMTestCase(DataprocTestCase):
     # Supported on Dataproc 1.5+
     if self.getImageVersion() < pkg_resources.parse_version("1.5"):
       self.skipTest("Not supported in pre 1.5 images")
+
+    if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+      self.OPTIONAL_COMPONENTS.append("ANACONDA")
 
     metadata = "init-actions-repo={}".format(self.INIT_ACTIONS_REPO)
     if accelerator:

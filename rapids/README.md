@@ -68,7 +68,7 @@ gcloud dataproc clusters create $CLUSTER_NAME  \
     --worker-machine-type n1-standard-16 \
     --num-worker-local-ssds 1 \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
-    --optional-components=ANACONDA,JUPYTER,ZEPPELIN \
+    --optional-components=JUPYTER,ZEPPELIN \
     --metadata gpu-driver-provider="NVIDIA",rapids-runtime="SPARK" \
     --bucket $GCS_BUCKET \
     --subnet=default \
@@ -326,10 +326,10 @@ Dask-cuDF cluster:
         master node.
     -   `dask-cuda-worker` on the Dataproc worker nodes.
 
-### Create Dataroc cluster with Dask RAPIDS
+### Create Dataproc cluster with Dask RAPIDS
 
 Using the `gcloud` command to create a new cluster with this initialization
-action. Because of Anaconda version conflict, script deployment on older images
+action. Because of conda version conflict, script deployment on older images
 is slow, we recommend users to use Dask with Dataproc 2.0+.
 
 ```bash
@@ -429,7 +429,7 @@ gcloud dataproc clusters create $CLUSTER_NAME \
 *   RAPIDS initialization action depends on the
     [Anaconda](https://cloud.google.com/dataproc/docs/concepts/components/anaconda)
     component, which should be included at cluster creation time via the
-    `--optional-components-ANACONDA` argument.
+    `--optional-components=ANACONDA` argument.
 *   RAPIDS initialization action depends on the [GPU](/gpu/README.md)
     initialization action, which should be included at cluster creation time via
     the `--initialization-actions
