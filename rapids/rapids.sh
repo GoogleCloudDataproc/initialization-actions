@@ -2,6 +2,10 @@
 
 set -euxo pipefail
 
+readonly NOT_SUPPORTED_MESSAGE="Dataproc ${DATAPROC_VERSION} does not support RAPIDS."
+[[ $DATAPROC_VERSION == "2.0" ]] && [[ ${RUNTIME} == "DASK" ]] && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
+ 
+
 function get_metadata_attribute() {
   local -r attribute_name=$1
   local -r default_value=$2
@@ -23,7 +27,7 @@ fi
 readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 
-readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'DASK')
+readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' '')
 readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-master' 'true')
 
 # RAPIDS config
@@ -54,13 +58,6 @@ function execute_with_retries() {
   return 1
 }
 
-function conda_fix_pin() {
-  local -r base=$(conda info --base)
-  local -r pinned=${base}/conda-meta/pinned
-
-  sed -i 's/conda [\.0-9\*]*/conda 4\.8\.\*/g' ${pinned}
-}
-
 function install_dask_rapids() {
   local -r base=$(conda info --base)
   local -r pinned=${base}/conda-meta/pinned
@@ -75,7 +72,8 @@ function install_dask_rapids() {
   sed -i 's/pyarrow [\.0-9\*]*/pyarrow/g' ${pinned}
 
   # Install RAPIDS and cudatoolkit. Use mamba in new env to resolve base environment
-  ${base}/envs/${mamba_env}/bin/mamba install -y \
+  installer=${base}/envs/${mamba_env}/bin/mamba
+  $installer install -y \
     -c "rapidsai" -c "nvidia" -c "conda-forge" -c "defaults" \
     "cudatoolkit=${CUDA_VERSION}" "rapids=${RAPIDS_VERSION}" \
     -p ${base}
@@ -193,11 +191,6 @@ function main() {
     # this case.
     if [[ -f "${DASK_SERVICE}" ]]; then
       configure_systemd_dask_service
-    fi
-
-    # Temporary fix in Dataproc 1.5 to fix conda pin
-    if [[ "${DATAPROC_VERSION}" == "1.5" ]]; then
-      conda_fix_pin
     fi
     
     # Install RAPIDS
