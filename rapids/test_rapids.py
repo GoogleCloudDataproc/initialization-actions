@@ -13,7 +13,7 @@ class RapidsTestCase(DataprocTestCase):
   INIT_ACTIONS = ["gpu/install_gpu_driver.sh", "rapids/rapids.sh"]
 
   GPU_P100 = "type=nvidia-tesla-p100"
-    
+
   # Tests for RAPIDS init action
   DASK_RAPIDS_TEST_SCRIPT_FILE_NAME = "verify_rapids_dask.py"
   SPARK_TEST_SCRIPT_FILE_NAME = "verify_rapids_spark.py"
@@ -34,7 +34,7 @@ class RapidsTestCase(DataprocTestCase):
       runtime_test_script = self.DASK_STANDALONE_TEST_SCRIPT_FILE_NAME
     else:
       runtime_test_script = self.DASK_YARN_TEST_SCRIPT_FILE_NAME
-        
+
     self._run_dask_test_script(dask_dir, runtime_test_script, name)
 
   def _run_dask_test_script(self, parent, script, name):
@@ -78,14 +78,14 @@ class RapidsTestCase(DataprocTestCase):
 
     for machine_suffix in machine_suffixes:
       self.verify_dask_instance("{}-{}".format(self.getClusterName(),
-                                               machine_suffix), 
+                                               machine_suffix),
                                 dask_runtime)
 
   @parameterized.parameters(("STANDARD", ["w-0"], GPU_P100))
   def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
     if self.getImageVersion() < pkg_resources.parse_version("1.5"):
       self.skipTest("Not supported in pre 1.5 images")
-   
+
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
     self.createCluster(
         configuration,
@@ -98,7 +98,7 @@ class RapidsTestCase(DataprocTestCase):
     for machine_suffix in machine_suffixes:
       self.verify_spark_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
-      # Only need to do this once                                           
+      # Only need to do this once     
       self.verify_spark_job()
 
 
