@@ -48,7 +48,7 @@ class RapidsTestCase(DataprocTestCase):
 
   def verify_spark_job(self):
     self.assert_dataproc_job(
-        self.name, "pyspark", 
+        self.name, "pyspark",
         "{}/rapids/{}".format(self.INIT_ACTIONS_REPO,
                               self.SPARK_TEST_SCRIPT_FILE_NAME))
 
@@ -60,12 +60,12 @@ class RapidsTestCase(DataprocTestCase):
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0 images")
 
-      init_actions = self.INIT_ACTIONS
-      init_actions.insert(1, "dask/dask.sh")
+    init_actions = self.INIT_ACTIONS
+    init_actions.insert(1, "dask/dask.sh")
 
-      metadata="gpu-driver-provider=NVIDIA,rapids-runtime=DASK"
-      if dask_runtime:
-        metadata+=",dask-runtime={}".format(dask_runtime)
+    metadata="gpu-driver-provider=NVIDIA,rapids-runtime=DASK"
+    if dask_runtime:
+      metadata+=",dask-runtime={}".format(dask_runtime)
 
     self.createCluster(
         configuration,
@@ -85,7 +85,7 @@ class RapidsTestCase(DataprocTestCase):
   def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
     if self.getImageVersion() < pkg_resources.parse_version("1.5"):
       self.skipTest("Not supported in pre 1.5 images")
-        
+   
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
     self.createCluster(
         configuration,
