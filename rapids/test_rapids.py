@@ -9,18 +9,18 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 
 class RapidsTestCase(DataprocTestCase):
-  COMPONENT = 'rapids'
-  INIT_ACTIONS = ['gpu/install_gpu_driver.sh', 'rapids/rapids.sh']
+  COMPONENT = "rapids"
+  INIT_ACTIONS = ["gpu/install_gpu_driver.sh", "rapids/rapids.sh"]
 
-  GPU_P100 = 'type=nvidia-tesla-p100'
+  GPU_P100 = "type=nvidia-tesla-p100"
     
   # Tests for RAPIDS init action
-  DASK_RAPIDS_TEST_SCRIPT_FILE_NAME = 'verify_rapids_dask.py'
-  SPARK_TEST_SCRIPT_FILE_NAME = 'verify_rapids_spark.py'
+  DASK_RAPIDS_TEST_SCRIPT_FILE_NAME = "verify_rapids_dask.py"
+  SPARK_TEST_SCRIPT_FILE_NAME = "verify_rapids_spark.py"
 
   # Tests for validating Dask installation integrity,  under dask/ directory
-  DASK_YARN_TEST_SCRIPT_FILE_NAME = 'verify_dask_yarn.py'
-  DASK_STANDALONE_TEST_SCRIPT_FILE_NAME = 'verify_dask_standalone.py'
+  DASK_YARN_TEST_SCRIPT_FILE_NAME = "verify_dask_yarn.py"
+  DASK_STANDALONE_TEST_SCRIPT_FILE_NAME = "verify_dask_standalone.py"
 
   def verify_dask_instance(self, name, dask_runtime):
     rapids_dir = os.path.dirname(os.path.abspath(__file__))
@@ -63,44 +63,44 @@ class RapidsTestCase(DataprocTestCase):
       init_actions = self.INIT_ACTIONS
       init_actions.insert(1, "dask/dask.sh")
 
-      metadata='gpu-driver-provider=NVIDIA,rapids-runtime=DASK'
+      metadata="gpu-driver-provider=NVIDIA,rapids-runtime=DASK"
       if dask_runtime:
-        metadata+=',dask-runtime={}'.format(dask_runtime)
+        metadata+=",dask-runtime={}".format(dask_runtime)
 
-      self.createCluster(
-          configuration,
-          init_actions,
-          metadata=metadata,
-          machine_type='n1-standard-8',
-          master_accelerator=accelerator,
-          worker_accelerator=accelerator,
-          timeout_in_minutes=30)
+    self.createCluster(
+        configuration,
+        init_actions,
+        metadata=metadata,
+        machine_type="n1-standard-8",
+        master_accelerator=accelerator,
+        worker_accelerator=accelerator,
+        timeout_in_minutes=30)
 
-      for machine_suffix in machine_suffixes:
-        self.verify_dask_instance("{}-{}".format(self.getClusterName(),
-                                                 machine_suffix), 
-                                  dask_runtime)
+    for machine_suffix in machine_suffixes:
+      self.verify_dask_instance("{}-{}".format(self.getClusterName(),
+                                               machine_suffix), 
+                                dask_runtime)
 
-    @parameterized.parameters(("STANDARD", ["w-0"], GPU_P100))
-    def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
-      if self.getImageVersion() < pkg_resources.parse_version("1.5"):
-        self.skipTest("Not supported in pre 1.5 images")
+  @parameterized.parameters(("STANDARD", ["w-0"], GPU_P100))
+  def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
+    if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+      self.skipTest("Not supported in pre 1.5 images")
         
-      metadata = 'gpu-driver-provider=NVIDIA,rapids-runtime=SPARK'
-      self.createCluster(
-          configuration,
-          self.INIT_ACTIONS,
-          metadata=metadata,
-          machine_type='n1-standard-8',
-          worker_accelerator=accelerator,
-          timeout_in_minutes=30)
+    metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
+    self.createCluster(
+        configuration,
+        self.INIT_ACTIONS,
+        metadata=metadata,
+        machine_type="n1-standard-8",
+        worker_accelerator=accelerator,
+        timeout_in_minutes=30)
 
-      for machine_suffix in machine_suffixes:
-        self.verify_spark_instance("{}-{}".format(self.getClusterName(),
-                                                  machine_suffix))
+    for machine_suffix in machine_suffixes:
+      self.verify_spark_instance("{}-{}".format(self.getClusterName(),
+                                                machine_suffix))
       # Only need to do this once                                           
       self.verify_spark_job()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
   absltest.main()
