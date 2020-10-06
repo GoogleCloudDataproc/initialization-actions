@@ -14,6 +14,10 @@ action supports Dask and Spark runtimes for RAPIDS on
 [best practices](/README.md#how-initialization-actions-are-used) of using
 initialization actions in production.
 
+This initialization action will install RAPIDS on Dataproc for either Spark or
+Dask. RAPIDS for Spark is supported on Dataproc 1.5 (Spark 2.4) or Dataproc
+2.0+ (Spark 3.0)+. RAPIDS for Dask is only supported on Dataproc 2.0+.
+
 ## Spark RAPIDS Accelerator
 
 ### Prerequisites
@@ -176,7 +180,7 @@ export GCS_BUCKET=<your bucket for the logs and notebooks>
 export REGION=<region>
 gcloud dataproc clusters create $CLUSTER_NAME \
     --region $REGION \
-    --image-version 1.4-ubuntu18 \
+    --image-version preview-ubuntu18 \
     --master-machine-type n1-standard-4 \
     --worker-machine-type n1-highmem-16 \
     --worker-accelerator type=nvidia-tesla-t4,count=1 \
@@ -184,7 +188,6 @@ gcloud dataproc clusters create $CLUSTER_NAME \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
     --metadata gpu-driver-provider=NVIDIA \
     --metadata rapids-runtime=SPARK \
-    --metadata cuda-version=10.1 \
     --bucket $GCS_BUCKET \
     --enable-component-gateway
 ```
@@ -342,7 +345,7 @@ CLUSTER_NAME=<cluster_name>
 REGION=<region>
 gcloud dataproc clusters create $CLUSTER_NAME \
     --region $REGION \
-    --image-version preview-ubuntu \
+    --image-version preview-ubuntu18 \
     --master-machine-type n1-standard-16 \
     --master-accelerator type=nvidia-tesla-t4,count=2 \
     --worker-machine-type n1-standard-16 \
@@ -415,7 +418,7 @@ CLUSTER_NAME=<cluster_name>
 REGION=<region>
 gcloud dataproc clusters create $CLUSTER_NAME \
     --region $REGION \
-    --image-version 1.4-ubuntu18 \
+    --image-version preview-ubuntu18 \
     --master-machine-type n1-standard-32 \
     --worker-machine-type n1-standard-32 \
     --worker-accelerator type=nvidia-tesla-t4,count=$NUM_GPUS \
@@ -440,6 +443,10 @@ gcloud dataproc clusters create $CLUSTER_NAME \
     gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh`
     argument and configured to install NVIDIA-provided GPU driver via
     `--metadata gpu-driver-provider=NVIDIA`.
+*   In addition to [GPU](/gpu/README.md), RAPIDS for Dask also relies on the
+    [Dask](/dask/README.md) initialization action. You can configure the Dask
+    runtime via `--metadata dask-runtime=yarn|standalone`. `yarn` is the 
+    default.
 *   RAPIDS is supported on Pascal or newer GPU architectures (Tesla K80s will
     _not_ work with RAPIDS). See
     [list](https://cloud.google.com/compute/docs/gpus/) of available GPU types
@@ -462,8 +469,3 @@ gcloud dataproc clusters create $CLUSTER_NAME \
     [the dask-scheduler doesn't support it](https://github.com/dask/distributed/issues/1072).
 *   Dask scheduler and worker logs are written to `/var/log/dask-scheduler.log`
     and `/var/log/dask-cuda-workers.log` on the master and host respectively.
-*   If using the
-    [Jupyter optional component](https://cloud.google.com/dataproc/docs/concepts/components/jupyter),
-    note that RAPIDS init-actions will install
-    [nb_conda_kernels](https://github.com/Anaconda-Platform/nb_conda_kernels)
-    and restart Jupyter so that the RAPIDS conda environment appears in Jupyter.

@@ -2,17 +2,13 @@
 
 set -euxo pipefail
 
-readonly NOT_SUPPORTED_MESSAGE="Dataproc ${DATAPROC_VERSION} does not support RAPIDS."
-[[ $DATAPROC_VERSION == "2.0" ]] && [[ ${RUNTIME} == "DASK" ]] && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
- 
-
 function get_metadata_attribute() {
   local -r attribute_name=$1
   local -r default_value=$2
   /usr/share/google/get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
 }
 
-readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
+readonly SPARK_VERSION=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
 
 if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
   readonly DEFAULT_CUDF_VERSION="0.15"
