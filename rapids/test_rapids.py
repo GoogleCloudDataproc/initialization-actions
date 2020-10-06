@@ -90,7 +90,8 @@ class RapidsTestCase(DataprocTestCase):
       self.verify_spark_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
     # Only need to do this once
-    self.verify_spark_job()
+    if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
+      self.verify_spark_job()
 
 
 if __name__ == "__main__":
