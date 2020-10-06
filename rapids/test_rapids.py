@@ -98,8 +98,8 @@ class RapidsTestCase(DataprocTestCase):
     for machine_suffix in machine_suffixes:
       self.verify_spark_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
-      # Only need to do this once     
-      self.verify_spark_job()
+    # Only need to do this once
+    self.verify_spark_job()
 
 
 if __name__ == "__main__":
