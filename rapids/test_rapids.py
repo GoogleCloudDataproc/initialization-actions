@@ -66,7 +66,7 @@ class RapidsTestCase(DataprocTestCase):
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0 images")
 
-    init_actions = self.INIT_ACTIONS
+    init_actions = self.INIT_ACTIONS[:]
     init_actions.insert(1, "dask/dask.sh")
 
     metadata="gpu-driver-provider=NVIDIA,rapids-runtime=DASK"
@@ -92,13 +92,17 @@ class RapidsTestCase(DataprocTestCase):
     if self.getImageVersion() < pkg_resources.parse_version("1.5"):
       self.skipTest("Not supported in pre 1.5 images")
 
+    optional_components = None
+
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
-    if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+    if self.getImageVersion() < pkg_resources.parse_version("2.0"):
       metadata += ",cuda-version=10.1"
+      optional_components = ["ANACONDA"]
 
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
+        optional_components=optional_components,
         metadata=metadata,
         machine_type="n1-standard-8",
         worker_accelerator=accelerator,
