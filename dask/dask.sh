@@ -106,6 +106,12 @@ EOF
 
   systemctl daemon-reload
   systemctl enable "${DASK_SERVICE}"
+
+  # Expose DASK_LAUNCHER and DASK_SERVICE
+  cat <<EOF >"/etc/environment"
+DASK_LAUNCHER=${DASK_LAUNCHER}
+DASK_SERVICE=${DASK_SERVICE}
+EOF
 }
 
 function main() {
