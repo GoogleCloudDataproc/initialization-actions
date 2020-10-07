@@ -93,7 +93,7 @@ class RapidsTestCase(DataprocTestCase):
       self.skipTest("Not supported in pre 1.5 images")
 
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
-    if self.getImageVersion() == pkg_resources.parse_version("1.5"):
+    if self.getImageVersion() < pkg_resources.parse_version("1.5"):
       metadata += ",cuda-version=10.1"
 
     self.createCluster(
