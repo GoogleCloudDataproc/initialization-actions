@@ -23,7 +23,7 @@ fi
 readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 
-readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' '')
+readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-master' 'true')
 
 # RAPIDS config
@@ -55,9 +55,12 @@ function execute_with_retries() {
 }
 
 function install_dask_rapids() {
-  local -r base=$(conda info --base)
-  local -r pinned=${base}/conda-meta/pinned
-  local -r mamba_env=mamba
+  local base
+  base=$(conda info --base)
+  local pinned
+  pinned=${base}/conda-meta/pinned
+  local mamba_env
+  mamba_env=mamba
   
   # Using mamba significantly reduces the conda solve-time. Create a separate conda
   # environment with mamba installed to manage installations.
@@ -75,7 +78,8 @@ function install_dask_rapids() {
     -p ${base}
 
   # Repin PyArrow with new version
-  local -r version=$(conda list pyarrow | grep -E pyarrow 2>&1 | sed -n 's/pyarrow[[:blank:]]\+\([0-9\.]\+\).*/\1/p')
+  local version
+  version=$(conda list pyarrow | grep -E pyarrow 2>&1 | sed -n 's/pyarrow[[:blank:]]\+\([0-9\.]\+\).*/\1/p')
   sed -i 's/pyarrow/pyarrow '"${version}"'\.\*/g' ${pinned}
 
   # Remove mamba env
@@ -83,9 +87,12 @@ function install_dask_rapids() {
 }
 
 function install_spark_rapids() {
-  local -r rapids_repo_url='https://repo1.maven.org/maven2/ai/rapids'
-  local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
-  local cudf_cuda_version="${CUDA_VERSION//\./-}"
+  local rapids_repo_url
+  rapids_repo_url='https://repo1.maven.org/maven2/ai/rapids'
+  local nvidia_repo_url 
+  nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
+  local cudf_cuda_version
+  cudf_cuda_version="${CUDA_VERSION//\./-}"
   # Convert "11-0" to "11"
   cudf_cuda_version="${cudf_cuda_version%-0}"
 

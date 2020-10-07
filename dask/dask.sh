@@ -35,7 +35,7 @@ readonly MASTER="$(/usr/share/google/get_metadata_value attributes/dataproc-mast
 readonly DASK_LAUNCHER=/usr/local/bin/dask-launcher.sh
 readonly DASK_SERVICE=dask-cluster
 
-CONDA_PACKAGES=("dask>=2.26")
+CONDA_PACKAGES=("dask")
 
 if [[ "${DASK_RUNTIME}" == "yarn" ]]; then
   if [ "$(echo "$DATAPROC_VERSION < 2.0" | bc)" -eq 1 ]; then
