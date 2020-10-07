@@ -17,6 +17,7 @@ class RapidsTestCase(DataprocTestCase):
   # Tests for RAPIDS init action
   DASK_RAPIDS_TEST_SCRIPT_FILE_NAME = "verify_rapids_dask.py"
   SPARK_TEST_SCRIPT_FILE_NAME = "verify_rapids_spark.py"
+  XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME = "verify_xgboost_spark.py"
 
   # Tests for validating Dask installation integrity,  under dask/ directory
   DASK_YARN_TEST_SCRIPT_FILE_NAME = "verify_dask_yarn.py"
@@ -51,6 +52,11 @@ class RapidsTestCase(DataprocTestCase):
         self.name, "pyspark",
         "{}/rapids/{}".format(self.INIT_ACTIONS_REPO,
                               self.SPARK_TEST_SCRIPT_FILE_NAME))
+    if self.getImageVersion() > pkg_resources.parse_version("1.5"):
+      self.assert_dataproc_job(
+          self.name, "pyspark",
+          "{}/rapids/{}".format(self.INIT_ACTIONS_REPO,
+                                self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME))
 
   @parameterized.parameters(
     ("STANDARD", ["m", "w-0"], GPU_P100, None),
