@@ -14,6 +14,10 @@ action supports Dask and Spark runtimes for RAPIDS on
 [best practices](/README.md#how-initialization-actions-are-used) of using
 initialization actions in production.
 
+This initialization action will install RAPIDS on Dataproc for either Spark or
+Dask. RAPIDS for Spark is supported on Dataproc 1.5 (Spark 2.4) or Dataproc
+2.0+ (Spark 3.0)+. RAPIDS for Dask is only supported on Dataproc 2.0+.
+
 ## Spark RAPIDS Accelerator
 
 ### Prerequisites
@@ -176,7 +180,7 @@ export GCS_BUCKET=<your bucket for the logs and notebooks>
 export REGION=<region>
 gcloud dataproc clusters create $CLUSTER_NAME \
     --region $REGION \
-    --image-version 1.4-ubuntu18 \
+    --image-version preview-ubuntu18 \
     --master-machine-type n1-standard-4 \
     --worker-machine-type n1-highmem-16 \
     --worker-accelerator type=nvidia-tesla-t4,count=1 \
@@ -184,7 +188,6 @@ gcloud dataproc clusters create $CLUSTER_NAME \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
     --metadata gpu-driver-provider=NVIDIA \
     --metadata rapids-runtime=SPARK \
-    --metadata cuda-version=10.1 \
     --bucket $GCS_BUCKET \
     --enable-component-gateway
 ```
@@ -322,19 +325,19 @@ gcloud dataproc jobs submit pyspark \
 ## Dask RAPIDS
 
 This section automates the process of setting up a Dataproc cluster with
-Dask-cuDF cluster:
+DASK and RAPIDS installed. This requires additionally using the
+[Dask initialization action]
+(https://github.com/GoogleCloudDataproc/initialization-actions/tree/master/dask).
 
--   creates `RAPIDS` conda environment and installs RAPIDS conda packages.
--   starts Systemd services of Dask CUDA cluster:
-    -   `dask-scheduler` and optionally `dask-cuda-worker` on the Dataproc
-        master node.
-    -   `dask-cuda-worker` on the Dataproc worker nodes.
+With the Dask initialization action, you can set up Dask to leverage `yarn`
+for orchestration or `standalone` to leverage the `dask-scheduler`. Learn
+more in the [Dask initialization action]
+(https://github.com/GoogleCloudDataproc/initialization-actions/tree/master/dask).
 
-### Create Dataproc cluster with Dask RAPIDS
+### Create Dataproc cluster with Dask and RAPIDS
 
 Using the `gcloud` command to create a new cluster with this initialization
-action. Because of conda version conflict, script deployment on older images
-is slow, we recommend users to use Dask with Dataproc 2.0+.
+action. We recommend users to use Dask with Dataproc 2.0+.
 
 ```bash
 GCS_BUCKET=<bucket_name>
@@ -342,24 +345,24 @@ CLUSTER_NAME=<cluster_name>
 REGION=<region>
 gcloud dataproc clusters create $CLUSTER_NAME \
     --region $REGION \
-    --image-version 1.4-ubuntu18 \
-    --master-machine-type n1-standard-32 \
-    --master-accelerator type=nvidia-tesla-t4,count=4 \
-    --worker-machine-type n1-standard-32 \
-    --worker-accelerator type=nvidia-tesla-t4,count=4 \
+    --image-version preview-ubuntu18 \
+    --master-machine-type n1-standard-16 \
+    --master-accelerator type=nvidia-tesla-t4,count=2 \
+    --worker-machine-type n1-standard-16 \
+    --worker-accelerator type=nvidia-tesla-t4,count=2 \
     --optional-components=ANACONDA \
-    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
-    --initialization-action-timeout=60m \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/dask/dask.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
+    --initialization-action-timeout=30m \
     --metadata gpu-driver-provider=NVIDIA,rapids-runtime=DASK \
     --enable-component-gateway
 ```
 
 ### Run Dask RAPIDS workload
 
-Once the cluster has been created, the Dask scheduler listens for workers on
-port `8786`, and its status dashboard is on port `8787` on the Dataproc master
-node. These ports can be changed by modifying the `install_systemd_dask_service`
-function in the initialization action script.
+Once the cluster has been created, if using `standalone` mode, the Dask
+scheduler listens for workers on port `8786`, and its status dashboard is on
+port `8787` on the Dataproc master node. These ports can be changed by
+modifying the `install_systemd_dask_service` function in the initialization action script.
 
 To connect to the Dask web interface, you will need to create an SSH tunnel as
 described in the
@@ -415,7 +418,7 @@ CLUSTER_NAME=<cluster_name>
 REGION=<region>
 gcloud dataproc clusters create $CLUSTER_NAME \
     --region $REGION \
-    --image-version 1.4-ubuntu18 \
+    --image-version preview-ubuntu18 \
     --master-machine-type n1-standard-32 \
     --worker-machine-type n1-standard-32 \
     --worker-accelerator type=nvidia-tesla-t4,count=$NUM_GPUS \
@@ -440,6 +443,10 @@ gcloud dataproc clusters create $CLUSTER_NAME \
     gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh`
     argument and configured to install NVIDIA-provided GPU driver via
     `--metadata gpu-driver-provider=NVIDIA`.
+*   In addition to [GPU](/gpu/README.md), RAPIDS for Dask also relies on the
+    [Dask](/dask/README.md) initialization action. You can configure the Dask
+    runtime via `--metadata dask-runtime=yarn|standalone`. `yarn` is the 
+    default.
 *   RAPIDS is supported on Pascal or newer GPU architectures (Tesla K80s will
     _not_ work with RAPIDS). See
     [list](https://cloud.google.com/compute/docs/gpus/) of available GPU types
@@ -462,8 +469,3 @@ gcloud dataproc clusters create $CLUSTER_NAME \
     [the dask-scheduler doesn't support it](https://github.com/dask/distributed/issues/1072).
 *   Dask scheduler and worker logs are written to `/var/log/dask-scheduler.log`
     and `/var/log/dask-cuda-workers.log` on the master and host respectively.
-*   If using the
-    [Jupyter optional component](https://cloud.google.com/dataproc/docs/concepts/components/jupyter),
-    note that RAPIDS init-actions will install
-    [nb_conda_kernels](https://github.com/Anaconda-Platform/nb_conda_kernels)
-    and restart Jupyter so that the RAPIDS conda environment appears in Jupyter.

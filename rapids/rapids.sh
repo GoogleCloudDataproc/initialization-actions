@@ -23,7 +23,7 @@ fi
 readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 
-readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'DASK')
+readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-master' 'true')
 
 # RAPIDS config
@@ -36,17 +36,12 @@ readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' '0.15')
 readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
 readonly XGBOOST_VERSION=$(get_metadata_attribute 'xgboost-version' '1.0.0')
 
-# DASK config
-readonly DASK_LAUNCHER='/usr/local/bin/dask-launcher.sh'
-readonly DASK_SERVICE='dask-cluster'
-readonly RAPIDS_ENV='RAPIDS'
-readonly RAPIDS_ENV_BIN="/opt/conda/anaconda/envs/${RAPIDS_ENV}/bin"
+# Dask config
+readonly DASK_LAUNCHER=dask-launcher.sh
+readonly DASK_SERVICE=dask-cluster
 
 # Dataproc configurations
 readonly SPARK_CONF_DIR='/etc/spark/conf'
-
-BUILD_DIR=$(mktemp -d -t rapids-init-action-XXXX)
-readonly BUILD_DIR
 
 function execute_with_retries() {
   local -r cmd=$1
@@ -57,6 +52,35 @@ function execute_with_retries() {
     sleep 5
   done
   return 1
+}
+
+function install_dask_rapids() {
+  local base
+  base=$(conda info --base)
+  local -r pinned=${base}/conda-meta/pinned
+  local -r mamba_env=mamba
+  
+  # Using mamba significantly reduces the conda solve-time. Create a separate conda
+  # environment with mamba installed to manage installations.
+  conda create -y -n ${mamba_env} -c conda-forge mamba
+
+  # RAPIDS releases require fixed PyArrow versions. Unpin PyArrow to solve
+  # for new environment.
+  sed -i '/pyarrow .*/d' ${pinned}
+
+  # Install RAPIDS and cudatoolkit. Use mamba in new env to resolve base environment
+  ${base}/envs/${mamba_env}/bin/mamba install -y \
+    -c "rapidsai" -c "nvidia" -c "conda-forge" -c "defaults" \
+    "cudatoolkit=${CUDA_VERSION}" "rapids=${RAPIDS_VERSION}" \
+    -p ${base}
+
+  # Repin PyArrow with new version
+  local version
+  version=$(conda list pyarrow | grep -E pyarrow 2>&1 | sed -n 's/pyarrow[[:blank:]]\+\([0-9\.]\+\).*/\1/p')
+  echo "pyarrow ${version}.*" >> ${pinned}
+
+  # Remove mamba env
+  conda env remove -n ${mamba_env}
 }
 
 function install_spark_rapids() {
@@ -124,37 +148,14 @@ EOF
   fi
 }
 
-function create_conda_env() {
-  echo "Create RAPIDS Conda environment..."
-  # For use with Anaconda component
-  local -r conda_env_file="${BUILD_DIR}/conda-rapids-env.yaml"
-  cat <<EOF >"${conda_env_file}"
-name: ${RAPIDS_ENV}
-channels:
-  - rapidsai/label/xgboost
-  - rapidsai
-  - nvidia
-  - conda-forge
-dependencies:
-  - cudatoolkit=${CUDA_VERSION}
-  - rapids=${RAPIDS_VERSION}
-  - gcsfs
-  - dill
-  - ipykernel
-EOF
-  conda config --set channel_priority flexible
-  conda env create --file "${conda_env_file}"
-}
+configure_systemd_dask_service() {
+  echo "Configuring systemd Dask service for RAPIDS..."
+  local -r dask_worker_local_dir="/tmp/dask"
+  local conda_env_bin
+  conda_env_bin=$(conda info --base)/bin
 
-function install_conda_kernel() {
-  conda install -y nb_conda_kernels
-  # Restart Jupyter service to pickup RAPIDS environment.
-  service jupyter restart || true
-}
-
-install_systemd_dask_service() {
-  echo "Installing systemd Dask service..."
-  local -r dask_worker_local_dir="/tmp/rapids"
+  # Replace Dask Launcher file with dask-cuda config
+  systemctl stop ${DASK_SERVICE}
 
   if [[ "${ROLE}" == "Master" ]]; then
     cat <<EOF >"${DASK_LAUNCHER}"
@@ -162,47 +163,37 @@ install_systemd_dask_service() {
 if [[ "${RUN_WORKER_ON_MASTER}" == true ]]; then
   nvidia-smi -c DEFAULT
   echo "dask-cuda-worker starting, logging to /var/log/dask-cuda-worker.log."
-  $RAPIDS_ENV_BIN/dask-cuda-worker ${MASTER}:8786 --local-directory=${dask_worker_local_dir} --memory-limit=auto > /var/log/dask-cuda-worker.log 2>&1 &
+  ${conda_env_bin}/dask-cuda-worker ${MASTER}:8786 --local-directory=${dask_worker_local_dir} --memory-limit=auto > /var/log/dask-cuda-worker.log 2>&1 &
 fi
 echo "dask-scheduler starting, logging to /var/log/dask-scheduler.log."
-$RAPIDS_ENV_BIN/dask-scheduler > /var/log/dask-scheduler.log 2>&1
+${conda_env_bin}/dask-scheduler > /var/log/dask-scheduler.log 2>&1
 EOF
   else
     nvidia-smi -c DEFAULT
     cat <<EOF >"${DASK_LAUNCHER}"
 #!/bin/bash
-$RAPIDS_ENV_BIN/dask-cuda-worker ${MASTER}:8786 --local-directory=${dask_worker_local_dir} --memory-limit=auto > /var/log/dask-cuda-worker.log 2>&1
+${conda_env_bin}/dask-cuda-worker ${MASTER}:8786 --local-directory=${dask_worker_local_dir} --memory-limit=auto > /var/log/dask-cuda-worker.log 2>&1
 EOF
   fi
   chmod 750 "${DASK_LAUNCHER}"
 
-  local -r dask_service_file=/usr/lib/systemd/system/${DASK_SERVICE}.service
-  cat <<EOF >"${dask_service_file}"
-[Unit]
-Description=Dask Cluster Service
-[Service]
-Type=simple
-Restart=on-failure
-ExecStart=/bin/bash -c 'exec ${DASK_LAUNCHER}'
-[Install]
-WantedBy=multi-user.target
-EOF
-  chmod a+r "${dask_service_file}"
-
   systemctl daemon-reload
-  systemctl enable "${DASK_SERVICE}"
+  echo "Restarting Dask cluster..."
+  systemctl start "${DASK_SERVICE}"
 }
 
 function main() {
   if [[ "${RUNTIME}" == "DASK" ]]; then
-    create_conda_env
-    if [[ "${ROLE}" == "Master" ]]; then
-      install_conda_kernel
+    # RUNTIME is exposed by the Dask initialization action in
+    # "standalone" mode. This configuration is only necessary in 
+    # this case.
+    if [[ -f "${DASK_SERVICE}" ]]; then
+      configure_systemd_dask_service
     fi
-    install_systemd_dask_service
-    echo "Starting Dask cluster..."
-    systemctl start "${DASK_SERVICE}"
-    echo "RAPIDS initialized with Dask runtime"
+    
+    # Install RAPIDS
+    install_dask_rapids
+    echo "RAPIDS installed with Dask runtime"
   elif [[ "${RUNTIME}" == "SPARK" ]]; then
     install_spark_rapids
     configure_spark

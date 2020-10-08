@@ -8,10 +8,11 @@ py_test(
     srcs = ["test_rapids.py"],
     data = [
         "rapids.sh",
+        "//dask:dask.sh",
         "//gpu:install_gpu_driver.sh",
     ],
     local = True,
-    shard_count = 2,
+    shard_count = 4,
     deps = [
         ":verify_rapids",
         "//integration_tests:dataproc_test_case",
