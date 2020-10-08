@@ -19,18 +19,16 @@ class RapidsTestCase(DataprocTestCase):
   SPARK_TEST_SCRIPT_FILE_NAME = "verify_rapids_spark.py"
   XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME = "verify_xgboost_spark.py"
 
-  def verify_dask_instance(self, name, dask_runtime):
-    rapids_dir = os.path.dirname(os.path.abspath(__file__))
-    dask_dir = os.path.join(os.path.dirname(rapids_dir), "dask")
-
-    # Verify RAPIDS
-    self._run_dask_test_script(rapids_dir, self.DASK_RAPIDS_TEST_SCRIPT_FILE_NAME, name)
-
-  def _run_dask_test_script(self, parent, script, name):
-    self.upload_test_file(os.path.join(parent, script), name)
-    verify_cmd = "/opt/conda/default/bin/python {}".format(script)
+  def verify_dask_instance(self, name):
+    self.upload_test_file(
+        os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), 
+            self.DASK_RAPIDS_TEST_SCRIPT_FILE_NAME), name)
+    verify_cmd = "/opt/conda/default/bin/python {}".format(
+        self.DASK_RAPIDS_TEST_SCRIPT_FILE_NAME)
     self.assert_instance_command(name, verify_cmd)
-    self.remove_test_script(script, name)
+    self.remove_test_script(
+        self.DASK_RAPIDS_TEST_SCRIPT_FILE_NAME, name)
 
   def verify_spark_instance(self, name):
     self.assert_instance_command(name, "nvidia-smi")
@@ -72,8 +70,7 @@ class RapidsTestCase(DataprocTestCase):
 
     for machine_suffix in machine_suffixes:
       self.verify_dask_instance("{}-{}".format(self.getClusterName(),
-                                               machine_suffix),
-                                dask_runtime)
+                                               machine_suffix))
 
   @parameterized.parameters(("STANDARD", ["w-0"], GPU_P100))
   def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
@@ -86,7 +83,6 @@ class RapidsTestCase(DataprocTestCase):
       optional_components = ["ANACONDA"]
       metadata += ",cuda-version=10.1"
       
-
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
