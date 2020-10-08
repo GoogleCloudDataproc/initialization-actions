@@ -57,10 +57,8 @@ function execute_with_retries() {
 function install_dask_rapids() {
   local base
   base=$(conda info --base)
-  local pinned
-  pinned=${base}/conda-meta/pinned
-  local mamba_env
-  mamba_env=mamba
+  local -r pinned=${base}/conda-meta/pinned
+  local -r mamba_env=mamba
   
   # Using mamba significantly reduces the conda solve-time. Create a separate conda
   # environment with mamba installed to manage installations.
@@ -68,11 +66,10 @@ function install_dask_rapids() {
 
   # RAPIDS releases require fixed PyArrow versions. Unpin PyArrow to solve
   # for new environment.
-  sed -i 's/pyarrow [\.0-9\*]*/pyarrow/g' ${pinned}
+  sed -i '/pyarrow [\.0-9\*]*/d' ${pinned}
 
   # Install RAPIDS and cudatoolkit. Use mamba in new env to resolve base environment
-  installer=${base}/envs/${mamba_env}/bin/mamba
-  $installer install -y \
+  ${base}/envs/${mamba_env}/bin/mamba install -y \
     -c "rapidsai" -c "nvidia" -c "conda-forge" -c "defaults" \
     "cudatoolkit=${CUDA_VERSION}" "rapids=${RAPIDS_VERSION}" \
     -p ${base}
@@ -80,19 +77,16 @@ function install_dask_rapids() {
   # Repin PyArrow with new version
   local version
   version=$(conda list pyarrow | grep -E pyarrow 2>&1 | sed -n 's/pyarrow[[:blank:]]\+\([0-9\.]\+\).*/\1/p')
-  sed -i 's/pyarrow/pyarrow '"${version}"'\.\*/g' ${pinned}
+  echo "pyarrow ${version}.*" >> ${pinned}
 
   # Remove mamba env
   conda env remove -n ${mamba_env}
 }
 
 function install_spark_rapids() {
-  local rapids_repo_url
-  rapids_repo_url='https://repo1.maven.org/maven2/ai/rapids'
-  local nvidia_repo_url 
-  nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
-  local cudf_cuda_version
-  cudf_cuda_version="${CUDA_VERSION//\./-}"
+  local -r rapids_repo_url='https://repo1.maven.org/maven2/ai/rapids'
+  local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
+  local cudf_cuda_version="${CUDA_VERSION//\./-}"
   # Convert "11-0" to "11"
   cudf_cuda_version="${cudf_cuda_version%-0}"
 
@@ -157,7 +151,8 @@ EOF
 configure_systemd_dask_service() {
   echo "Configuring systemd Dask service for RAPIDS..."
   local -r dask_worker_local_dir="/tmp/dask"
-  local -r conda_env_bin=$(conda info --base)/bin
+  local conda_env_bin
+  conda_env_bin=$(conda info --base)/bin
 
   # Replace Dask Launcher file with dask-cuda config
   systemctl stop ${DASK_SERVICE}

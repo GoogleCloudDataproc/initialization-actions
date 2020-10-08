@@ -9,8 +9,6 @@ py_test(
     data = [
         "rapids.sh",
         "//dask:dask.sh",
-        "//dask:verify_dask_standalone.py",
-        "//dask:verify_dask_yarn.py",
         "//gpu:install_gpu_driver.sh",
     ],
     local = True,

@@ -19,24 +19,12 @@ class RapidsTestCase(DataprocTestCase):
   SPARK_TEST_SCRIPT_FILE_NAME = "verify_rapids_spark.py"
   XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME = "verify_xgboost_spark.py"
 
-  # Tests for validating Dask installation integrity,  under dask/ directory
-  DASK_YARN_TEST_SCRIPT_FILE_NAME = "verify_dask_yarn.py"
-  DASK_STANDALONE_TEST_SCRIPT_FILE_NAME = "verify_dask_standalone.py"
-
   def verify_dask_instance(self, name, dask_runtime):
     rapids_dir = os.path.dirname(os.path.abspath(__file__))
     dask_dir = os.path.join(os.path.dirname(rapids_dir), "dask")
 
     # Verify RAPIDS
     self._run_dask_test_script(rapids_dir, self.DASK_RAPIDS_TEST_SCRIPT_FILE_NAME, name)
-      
-    # Verify Dask installation integrity
-    if dask_runtime is "standalone":
-      runtime_test_script = self.DASK_STANDALONE_TEST_SCRIPT_FILE_NAME
-    else:
-      runtime_test_script = self.DASK_YARN_TEST_SCRIPT_FILE_NAME
-
-    self._run_dask_test_script(dask_dir, runtime_test_script, name)
 
   def _run_dask_test_script(self, parent, script, name):
     self.upload_test_file(os.path.join(parent, script), name)
@@ -77,7 +65,7 @@ class RapidsTestCase(DataprocTestCase):
         configuration,
         init_actions,
         metadata=metadata,
-        machine_type="n1-standard-8",
+        machine_type="n1-standard-4",
         master_accelerator=accelerator,
         worker_accelerator=accelerator,
         timeout_in_minutes=30)
@@ -93,18 +81,18 @@ class RapidsTestCase(DataprocTestCase):
       self.skipTest("Not supported in pre 1.5 images")
 
     optional_components = None
-
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
-      metadata += ",cuda-version=10.1"
       optional_components = ["ANACONDA"]
+      metadata += ",cuda-version=10.1"
+      
 
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
         optional_components=optional_components,
         metadata=metadata,
-        machine_type="n1-standard-8",
+        machine_type="n1-standard-4",
         worker_accelerator=accelerator,
         timeout_in_minutes=30)
 
