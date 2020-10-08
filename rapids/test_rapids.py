@@ -11,6 +11,10 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 class RapidsTestCase(DataprocTestCase):
   COMPONENT = "rapids"
   INIT_ACTIONS = ["gpu/install_gpu_driver.sh", "rapids/rapids.sh"]
+  DASK_INIT_ACTIONS = [
+    "gpu/install_gpu_driver.sh", 
+    "dask/dask.sh",
+    "rapids/rapids.sh"]
 
   GPU_P100 = "type=nvidia-tesla-p100"
 
@@ -52,16 +56,13 @@ class RapidsTestCase(DataprocTestCase):
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0 images")
 
-    init_actions = self.INIT_ACTIONS[:]
-    init_actions.insert(1, "dask/dask.sh")
-
     metadata="gpu-driver-provider=NVIDIA,rapids-runtime=DASK"
     if dask_runtime:
       metadata+=",dask-runtime={}".format(dask_runtime)
 
     self.createCluster(
         configuration,
-        init_actions,
+        self.DASK_INIT_ACTIONS,
         metadata=metadata,
         machine_type="n1-standard-4",
         master_accelerator=accelerator,
@@ -82,7 +83,7 @@ class RapidsTestCase(DataprocTestCase):
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
       optional_components = ["ANACONDA"]
       metadata += ",cuda-version=10.1"
-      
+
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
