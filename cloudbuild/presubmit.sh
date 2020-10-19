@@ -27,7 +27,6 @@ configure_gcloud_ssh_key() {
 # Fetches master branch from GitHub and "resets" local changes to be relative to it,
 # so we can diff what changed relatively to master branch.
 initialize_git_repo() {
-  git init
   git config user.email "ia-tests@presubmit.example.com"
   git config user.name "ia-tests"
 
