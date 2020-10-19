@@ -27,20 +27,27 @@ configure_gcloud_ssh_key() {
 # Fetches master branch from GitHub and "resets" local changes to be relative to it,
 # so we can diff what changed relatively to master branch.
 initialize_git_repo() {
-  git remote -vvv
-  git branch -vvv
-  git status -vvv
-
   git config user.email "ia-tests@presubmit.example.com"
   git config user.name "ia-tests"
 
+  local current_hash
+  current_hash=$(git show-ref --heads -s HEAD)
+  if [[ "${COMMIT_SHA}" !=  "${current_hash}" ]]; then
+    # Fetch all PRs to get history for PRs created from forked repos
+    git fetch origin +refs/pull/*/merge:refs/remotes/origin/pr/*
+    git reset --hard "${COMMIT_SHA}"
+  fi
+  
   git fetch origin master
-  # Fetch all PRs to get history for PRs created from forked repos
-  git fetch origin +refs/pull/*/merge:refs/remotes/origin/pr/*
+  local master_hash
+  master_hash=$(git show-ref --heads -s origin/master)
+  local base_hash
+  base_hash=$(git merge-base "${master_hash}" "${COMMIT_SHA}")
 
-  git reset --hard "${COMMIT_SHA}"
-
-  git rebase origin/master
+  # Rebase on master only if not already up to date
+  if [[ "${master_hash}" != "${base_hash}" ]]; then
+    git rebase origin/master
+  fi
 }
 
 # This function adds all changed files to git "index" and diffs them against master branch
