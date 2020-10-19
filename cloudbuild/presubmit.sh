@@ -39,8 +39,10 @@ initialize_git_repo() {
   fi
   
   git fetch origin master
+  git log --oneline --max-count=10
   local master_hash
   master_hash=$(git show-ref -s origin/master)
+  git merge-base "${master_hash}" "${COMMIT_SHA}" || true
   local base_hash
   base_hash=$(git merge-base "${master_hash}" "${COMMIT_SHA}")
 
