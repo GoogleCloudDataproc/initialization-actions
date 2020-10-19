@@ -31,7 +31,7 @@ initialize_git_repo() {
   git config user.name "ia-tests"
 
   local current_hash
-  current_hash=$(git show-ref --heads -s HEAD)
+  current_hash=$(git rev-parse --verify HEAD)
   if [[ "${COMMIT_SHA}" !=  "${current_hash}" ]]; then
     # Fetch all PRs to get history for PRs created from forked repos
     git fetch origin +refs/pull/*/merge:refs/remotes/origin/pr/*
@@ -40,7 +40,7 @@ initialize_git_repo() {
   
   git fetch origin master
   local master_hash
-  master_hash=$(git show-ref --heads -s origin/master)
+  master_hash=$(git show-ref -s origin/master)
   local base_hash
   base_hash=$(git merge-base "${master_hash}" "${COMMIT_SHA}")
 
