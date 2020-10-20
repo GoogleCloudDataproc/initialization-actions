@@ -20,7 +20,8 @@
 
 set -euxo pipefail
 
-readonly NOT_SUPPORTED_MESSAGE="Jupyter Spark Monitor initialization action is not supported on Dataproc ${DATAPROC_VERSION}."
+readonly NOT_SUPPORTED_MESSAGE="Jupyter Spark Monitor initialization action is not supported on Dataproc ${DATAPROC_VERSION}.
+Use Jupyter Component instead: https://cloud.google.com/dataproc/docs/concepts/components/jupyter"
 [[ $DATAPROC_VERSION != 1.* ]] && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
 
 source '/usr/local/share/google/dataproc/bdutil/bdutil_helpers.sh'

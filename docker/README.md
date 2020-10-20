@@ -1,3 +1,15 @@
+--------------------------------------------------------------------------------
+
+# NOTE: *The Docker initialization action has been deprecated. Please use the Docker Component*
+
+**The
+[Docker Component](https://cloud.google.com/dataproc/docs/concepts/components/docker)
+is the best way to use Docker with Cloud Dataproc. To learn more about
+Dataproc Components see
+[here](https://cloud.google.com/dataproc/docs/concepts/components/overview).**
+
+--------------------------------------------------------------------------------
+
 # Docker Initialization Action
 
 This initialization action installs a binary release of
