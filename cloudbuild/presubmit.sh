@@ -27,11 +27,17 @@ configure_gcloud_ssh_key() {
 # Fetches master branch from GitHub and "resets" local changes to be relative to it,
 # so we can diff what changed relatively to master branch.
 initialize_git_repo() {
+  rm -fr .git
+  
+  git init
+  
   git config user.email "ia-tests@presubmit.example.com"
   git config user.name "ia-tests"
+  
+  git remote add origin "https://github.com/GoogleCloudDataproc/initialization-actions.git"
 
   # Fetch all PRs to get history for PRs created from forked repos
-  git fetch origin +refs/pull/*/merge:refs/remotes/origin/pr/*
+  git fetch origin "+refs/pull/*/merge:refs/remotes/origin/pr/*"
   git reset --hard "${COMMIT_SHA}"
   
   git fetch origin master
