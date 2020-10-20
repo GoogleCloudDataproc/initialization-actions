@@ -36,7 +36,7 @@ initialize_git_repo() {
   git remote add origin "https://github.com/GoogleCloudDataproc/initialization-actions.git"
   git fetch origin master
   # Fetch all PRs to get history for PRs created from forked repos
-  git fetch origin "+refs/pull/*/merge:refs/remotes/origin/pr/*"
+  git fetch origin +refs/pull/*/merge:refs/remotes/origin/pr/*
 
   git reset --hard "${COMMIT_SHA}"
 
