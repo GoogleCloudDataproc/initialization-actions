@@ -32,7 +32,7 @@ initialize_git_repo() {
   
   git config user.email "ia-tests@presubmit.example.com"
   git config user.name "ia-tests"
-  
+
   git remote add origin "https://github.com/GoogleCloudDataproc/initialization-actions.git"
   git fetch origin master
   # Fetch all PRs to get history for PRs created from forked repos
