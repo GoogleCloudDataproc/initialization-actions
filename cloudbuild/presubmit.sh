@@ -40,17 +40,7 @@ initialize_git_repo() {
 
   git reset --hard "${COMMIT_SHA}"
   
-  git log --oneline --max-count=10
-  local master_hash
-  master_hash=$(git show-ref -s origin/master)
-  git merge-base "${master_hash}" "${COMMIT_SHA}" || true
-  local base_hash
-  base_hash=$(git merge-base "${master_hash}" "${COMMIT_SHA}")
-
-  # Rebase on master only if not already up to date
-  if [[ "${master_hash}" != "${base_hash}" ]]; then
-    git rebase origin/master
-  fi
+  git rebase origin/master
 }
 
 # This function adds all changed files to git "index" and diffs them against master branch
