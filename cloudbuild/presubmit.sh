@@ -39,7 +39,7 @@ initialize_git_repo() {
   git fetch origin "+refs/pull/*/merge:refs/remotes/origin/pr/*"
 
   git reset --hard "${COMMIT_SHA}"
-  
+
   git rebase origin/master
 }
 
