@@ -41,6 +41,10 @@ function retry_apt_command() {
 }
 
 function update_apt_get() {
+  if grep ubuntu /etc/apt/sources.list > /dev/null 2>&1; then
+    # Update ubuntu key
+    sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 51716619E084DAB9
+  fi
   retry_apt_command "apt-get update"
 }
 
