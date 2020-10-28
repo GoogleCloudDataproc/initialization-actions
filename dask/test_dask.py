@@ -19,8 +19,6 @@ class DaskTestCase(DataprocTestCase):
 
     def verify_dask_standalone(self, name):
         self._run_dask_test_script(name, self.DASK_STANDALONE_TEST_SCRIPT)
-        self.assert_instance_command(name, "set -u; echo $DASK_LAUNCHER")
-        self.assert_instance_command(name, "set -u; echo $DASK_SERVICE")
 
 
     def _run_dask_test_script(self, name, script):
