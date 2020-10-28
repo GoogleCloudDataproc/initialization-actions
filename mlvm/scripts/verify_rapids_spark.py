@@ -1,21 +1,15 @@
-import os
-from packaging import version
-
 from pyspark.sql import SparkSession
 from pyspark import SparkConf, SparkContext
 from ml.dmlc.xgboost4j.scala.spark import XGBoostClassificationModel
 
-conf = SparkConf().setAppName("NYTaxiXGBoost4j")
+conf = SparkConf().setAppName("RAPIDS_Accelerator_Spark_join_test")
 conf.set("spark.executor.instances", "1")
 # spark.executor.cores times spark.executor.instances should equal total cores.
 conf.set("spark.executor.cores", "1")
 conf.set("spark.task.cpus", "1")
 conf.set("spark.executor.memory", "2g")
-
-if version.parse(os.getenv("DATAPROC_VERSION")) >= version.parse("2.0"):
-  conf.set("spark.task.resource.gpu.amount", "1")
-  conf.set("spark.plugins", "com.nvidia.spark.SQLPlugin")
-
+conf.set("spark.task.resource.gpu.amount", "1")
+conf.set("spark.plugins", "com.nvidia.spark.SQLPlugin")
 spark = SparkSession.builder \
                     .config(conf=conf) \
                     .getOrCreate()

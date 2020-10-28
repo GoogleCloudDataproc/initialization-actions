@@ -152,6 +152,10 @@ function install_connectors() {
   ln -s -f "${CONNECTORS_DIR}/${jar_name}" "${CONNECTORS_DIR}/spark-bigquery-connector.jar"
 }
 
+function install_dask() {
+  "${INIT_ACTIONS_DIR}/dask/dask.sh"
+}
+
 function install_rapids() {
   # Only install RAPIDS if "rapids-runtime" metadata exists and GPUs requested.
   local rapids_runtime
@@ -191,6 +195,9 @@ function main() {
   # Install GCP Connectors
   echo "Installing GCP Connectors"
   install_connectors
+
+  # Install Dask
+  install_dask
 
   # Install RAPIDS
   echo "Installing rapids"
