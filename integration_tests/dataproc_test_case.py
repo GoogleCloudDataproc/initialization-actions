@@ -310,6 +310,8 @@ class DataprocTestCase(parameterized.TestCase):
                           "gcloud beta compute scp --internal-ip ") if (
                               INTERNAL_IP_SSH
                               and "gcloud compute scp " in cmd) else cmd
+        cmd = cmd + " -- -o \"ProxyCommand corp-ssh-helper %h %p\"" if "gcloud compute ssh" in cmd else cmd
+        cmd = cmd + " --scp-flag=\"-oProxyCommand corp-ssh-helper %h %p\"" if "gcloud compute scp" in cmd else cmd
         p = subprocess.Popen(
             cmd,
             shell=True,

@@ -33,32 +33,30 @@ readonly SPARK_BIGQUERY_VERSION="$(/usr/share/google/get_metadata_value attribut
   echo "0.17.0")"
 
 readonly R_VERSION="$(R --version | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p')"
-readonly TENSORFLOW_VERSION="2.3.0"
-readonly SPARK_NLP_VERSION="2.5.5"
+readonly TENSORFLOW_VERSION="2.3.*"
+readonly SPARK_NLP_VERSION="2.5"
 
 CONDA_PACKAGES=(
-  "matplotlib=3.2.2"
-  "mxnet=1.5.0"
-  "nltk=3.5.0"
-  "rpy2=2.9.4"
+  "rpy2~=3.3"
   "r-essentials=${R_VERSION}"
-  "r-xgboost=0.90.0.2"
-  "r-sparklyr=1.0.0"
-  "scikit-learn=0.23.1"
-  "spark-nlp=${SPARK_NLP_VERSION}"
-  "pytorch=1.6.0"
-  "torchvision=0.7.0"
+  "r-xgboost~=0.90"
+  "r-sparklyr~=1.0"
+  "scikit-learn~=0.23"
+  "spark-nlp~=${SPARK_NLP_VERSION}"
+  "pytorch~=1.7"
+  "torchvision~=0.8"
 )
 readonly CONDA_PACKAGES
 
 PIP_PACKAGES=(
-  "sparksql-magic==0.0.3"
-  "tensorflow-datasets==3.2.1"
+  "mxnet==1.7.*"
+  "sparksql-magic==0.0.*"
+  "tensorflow-datasets==3.2.*"
   "tensorflow-estimator==${TENSORFLOW_VERSION}"
-  "tensorflow-hub==0.8.0"
-  "tensorflow-io==0.15.0"
-  "tensorflow-probability==0.11.0"
-  "xgboost==1.1.1"
+  "tensorflow-hub==0.8.*"
+  "tensorflow-io==0.15.*"
+  "tensorflow-probability==0.11.*"
+  "xgboost==1.1.*"
 )
 if [[ -n ${INCLUDE_GPUS} ]]; then
   PIP_PACKAGES+=("tensorflow-gpu==${TENSORFLOW_VERSION}")
@@ -152,10 +150,6 @@ function install_connectors() {
   ln -s -f "${CONNECTORS_DIR}/${jar_name}" "${CONNECTORS_DIR}/spark-bigquery-connector.jar"
 }
 
-function install_dask() {
-  "${INIT_ACTIONS_DIR}/dask/dask.sh"
-}
-
 function install_rapids() {
   # Only install RAPIDS if "rapids-runtime" metadata exists and GPUs requested.
   local rapids_runtime
@@ -195,9 +189,6 @@ function main() {
   # Install GCP Connectors
   echo "Installing GCP Connectors"
   install_connectors
-
-  # Install Dask
-  install_dask
 
   # Install RAPIDS
   echo "Installing rapids"
