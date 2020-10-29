@@ -326,34 +326,31 @@ gcloud dataproc jobs submit pyspark \
 
 This section automates the process of setting up a Dataproc cluster with
 DASK and RAPIDS installed. This requires additionally using the
-[Dask initialization action]
-(https://github.com/GoogleCloudDataproc/initialization-actions/tree/master/dask).
+[Dask initialization action](https://github.com/GoogleCloudDataproc/initialization-actions/tree/master/dask).
 
 With the Dask initialization action, you can set up Dask to leverage `yarn`
 for orchestration or `standalone` to leverage the `dask-scheduler`. Learn
-more in the [Dask initialization action]
-(https://github.com/GoogleCloudDataproc/initialization-actions/tree/master/dask).
+more in the [Dask initialization action](https://github.com/GoogleCloudDataproc/initialization-actions/tree/master/dask).
 
 ### Create Dataproc cluster with Dask and RAPIDS
 
 Using the `gcloud` command to create a new cluster with this initialization
-action. We recommend users to use Dask with Dataproc 2.0+.
+action. RAPIDS with Dask is only supported on Dataproc 2.0+.
 
 ```bash
-GCS_BUCKET=<bucket_name>
 CLUSTER_NAME=<cluster_name>
 REGION=<region>
+DASK_RUNTIME=<yarn|standalone>
 gcloud dataproc clusters create $CLUSTER_NAME \
     --region $REGION \
     --image-version preview-ubuntu18 \
-    --master-machine-type n1-standard-16 \
+    --master-machine-type n1-standard-32 \
     --master-accelerator type=nvidia-tesla-t4,count=2 \
-    --worker-machine-type n1-standard-16 \
+    --worker-machine-type n1-standard-32 \
     --worker-accelerator type=nvidia-tesla-t4,count=2 \
-    --optional-components=ANACONDA \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/dask/dask.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
-    --initialization-action-timeout=30m \
-    --metadata gpu-driver-provider=NVIDIA,rapids-runtime=DASK \
+    --initialization-action-timeout=60m \
+    --metadata gpu-driver-provider=NVIDIA,dask-runtime=${DASK_RUNTIME},rapids-runtime=DASK \
     --enable-component-gateway
 ```
 
@@ -416,18 +413,17 @@ For example:
 ```bash
 CLUSTER_NAME=<cluster_name>
 REGION=<region>
+DASK_RUNTIME=<yarn|standalone>
 gcloud dataproc clusters create $CLUSTER_NAME \
     --region $REGION \
     --image-version preview-ubuntu18 \
     --master-machine-type n1-standard-32 \
+    --master-accelerator type=nvidia-tesla-t4,count=$NUM_GPUS \
     --worker-machine-type n1-standard-32 \
     --worker-accelerator type=nvidia-tesla-t4,count=$NUM_GPUS \
-    --optional-components=ANACONDA \
-    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/dask/dask.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
     --initialization-action-timeout=60m \
-    --metadata gpu-driver-provider=NVIDIA \
-    --metadata rapids-runtime=DASK \
-    --metadata dask-cuda-worker-on-master=false \
+    --metadata gpu-driver-provider=NVIDIA,dask-runtime=${DASK_RUNTIME},rapids-runtime=DASK,dask-cuda-worker-on-master=false \
     --enable-component-gateway
 ```
 
