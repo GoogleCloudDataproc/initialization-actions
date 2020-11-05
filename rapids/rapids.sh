@@ -67,6 +67,7 @@ function install_dask_rapids() {
   # RAPIDS releases require fixed PyArrow versions. Unpin PyArrow to solve
   # for new environment.
   sed -i '/pyarrow .*/d' ${pinned}
+  sed -i '/conda .*/d' ${pinned}
 
   # Install RAPIDS and cudatoolkit. Use mamba in new env to resolve base environment
   ${base}/envs/${mamba_env}/bin/mamba install -y \
