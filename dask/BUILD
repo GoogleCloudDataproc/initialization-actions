@@ -1,5 +1,7 @@
 package(default_visibility = ["//visibility:public"])
 
+exports_files(["dask.sh"])
+
 py_test(
     name = "test_dask",
     size = "enormous",

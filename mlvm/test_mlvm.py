@@ -11,14 +11,17 @@ class MLVMTestCase(DataprocTestCase):
   COMPONENT = "mlvm"
   INIT_ACTIONS = ["mlvm/mlvm.sh"]
   OPTIONAL_COMPONENTS = ["JUPYTER"]
-
+  
+  # Submit using the jobs API, stored in GCS
   PYTHON_SCRIPT = "mlvm/scripts/python_packages.py"
   R_SCRIPT = "mlvm/scripts/r_packages.R"
   SPARK_BQ_SCRIPT = "mlvm/scripts/spark_bq.py"
   RAPIDS_SPARK_SCRIPT = "mlvm/scripts/verify_rapids_spark.py"
+  
+  # Copied from local directories to cluster, then ran
   RAPIDS_DASK_SCRIPT = "verify_rapids_dask.py"
-  DASK_YARN_SCRIPT = 'verify_dask_yarn.py'
-  DASK_STANDALONE_SCRIPT = 'verify_dask_standalone.py'
+  DASK_YARN_SCRIPT = "verify_dask_yarn.py"
+  DASK_STANDALONE_SCRIPT = "verify_dask_standalone.py"
 
   def verify_python(self):
     self.assert_dataproc_job(
@@ -46,14 +49,14 @@ class MLVMTestCase(DataprocTestCase):
     else:
       script = self.DASK_YARN_SCRIPT
     
-    for machine_suffix in ["m", "w-0", "w-1"]:
-      name = "{}-{}".format(self.getClusterName(), machine_suffix)
-      verify_cmd = "/opt/conda/default/bin/python {}".format(script)
-      self.upload_test_file(
-          os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                       script), name)
-      self.assert_instance_command(name, verify_cmd)
-      self.remove_test_script(script, name)    
+
+    name = "{}-m".format(self.getClusterName())
+    verify_cmd = "/opt/conda/default/bin/python {}".format(script)
+    self.upload_test_file(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts",
+                      script), name)
+    self.assert_instance_command(name, verify_cmd)
+    self.remove_test_script(script, name)    
      
   def verify_rapids_spark(self):
     self.assert_dataproc_job(
@@ -61,27 +64,22 @@ class MLVMTestCase(DataprocTestCase):
                                              self.RAPIDS_SPARK_SCRIPT))
 
   def verify_rapids_dask(self):
-    for machine_suffix in ["m", "w-0", "w-1"]:
-      name = "{}-{}".format(self.name, machine_suffix)
-      self.upload_test_file(
-          os.path.join(
-              os.path.dirname(os.path.abspath(__file__)), "scripts",
-              self.RAPIDS_DASK_SCRIPT), name)
+    name = "{}-m".format(self.name)
+    self.upload_test_file(
+        os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "scripts",
+            self.RAPIDS_DASK_SCRIPT), name)
 
-      conda = "miniconda3"
-      if self.getImageVersion() < pkg_resources.parse_version("2.0"):
-        conda = "anaconda"
-      verify_cmd = "/opt/conda/{}/envs/RAPIDS/bin/python {}".format(
-          conda, self.RAPIDS_DASK_SCRIPT)
+    verify_cmd = "/opt/conda/default/bin/python {}".format(
+        self.RAPIDS_DASK_SCRIPT)
 
-      self.assert_instance_command(name, verify_cmd)
-
-      self.remove_test_script(self.RAPIDS_DASK_SCRIPT, name)
+    self.assert_instance_command(name, verify_cmd)
+    self.remove_test_script(self.RAPIDS_DASK_SCRIPT, name)
     
-    def verify_all(self):
-      self.verify_python()
-      self.verify_r()
-      self.verify_spark_bigquery_connector()     
+  def verify_all(self):
+    self.verify_python()
+    self.verify_r()
+    self.verify_spark_bigquery_connector()     
 
   @parameterized.parameters(("STANDARD", None),
                             ("STANDARD", "yarn"), 
@@ -118,14 +116,16 @@ class MLVMTestCase(DataprocTestCase):
     if self.getImageVersion() < pkg_resources.parse_version("1.5"):
       self.skipTest("Not supported in pre 1.5 images")
 
+    metadata = ("init-actions-repo={},include-gpus=true"
+                ",gpu-driver-provider=NVIDIA").format(self.INIT_ACTIONS_REPO)
+
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
       if rapids_runtime is "DASK":
         self.skipTest("RAPIDS with Dask not supported in pre 2.0 images.")
       else:
         self.OPTIONAL_COMPONENTS.append("ANACONDA")
+        metadata+=",cuda-version=10.1"
 
-    metadata = ("init-actions-repo={},include-gpus=true"
-                ",gpu-driver-provider=NVIDIA").format(self.INIT_ACTIONS_REPO)
 
     if dask_runtime:
       metadata += ",dask-runtime={}".format(dask_runtime)

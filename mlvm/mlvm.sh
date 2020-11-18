@@ -28,35 +28,43 @@ readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/in
   echo ${DEFAULT_INIT_ACTIONS_REPO})"
 readonly INIT_ACTIONS_DIR=$(mktemp -d -t dataproc-init-actions-XXXX)
 
+readonly RAPIDS_RUNTIME="$(/usr/share/google/get_metadata_value attributes/rapids-runtime || echo "")"
 readonly INCLUDE_GPUS="$(/usr/share/google/get_metadata_value attributes/include-gpus || echo "")"
 readonly SPARK_BIGQUERY_VERSION="$(/usr/share/google/get_metadata_value attributes/spark-bigquery-connector-version ||
   echo "0.17.0")"
 
 readonly R_VERSION="$(R --version | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p')"
 readonly TENSORFLOW_VERSION="2.3.*"
-readonly SPARK_NLP_VERSION="2.5"
+readonly SPARK_NLP_VERSION="2.6.3" # Must include subminor version here
 
 CONDA_PACKAGES=(
-  "rpy2~=3.3"
+  "r-dplyr=1.0"
   "r-essentials=${R_VERSION}"
-  "r-xgboost~=0.90"
-  "r-sparklyr~=1.0"
-  "scikit-learn~=0.23"
-  "spark-nlp~=${SPARK_NLP_VERSION}"
-  "pytorch~=1.7"
-  "torchvision~=0.8"
+  "r-sparklyr=1.4"
+  "scikit-learn=0.23"
+  "pytorch=1.7"
+  "torchvision=0.8"
+  "xgboost=1.2"
 )
+
+# rapids-xgboost (part of the RAPIDS library) requires a custom build of 
+# xgboost that is incompatible with r-xgboost. As such, r-xgboost is not
+# installed into the MLVM if RAPIDS support is desired.
+if [[ -z ${RAPIDS_RUNTIME} ]]; then
+  CONDA_PACKAGES+=("r-xgboost=1.2")
+fi
 readonly CONDA_PACKAGES
 
 PIP_PACKAGES=(
-  "mxnet==1.7.*"
+  "mxnet==1.6.*"
+  "rpy2==3.3.*"
+  "spark-nlp==${SPARK_NLP_VERSION}"
   "sparksql-magic==0.0.*"
   "tensorflow-datasets==3.2.*"
   "tensorflow-estimator==${TENSORFLOW_VERSION}"
   "tensorflow-hub==0.8.*"
   "tensorflow-io==0.15.*"
   "tensorflow-probability==0.11.*"
-  "xgboost==1.1.*"
 )
 if [[ -n ${INCLUDE_GPUS} ]]; then
   PIP_PACKAGES+=("tensorflow-gpu==${TENSORFLOW_VERSION}")
@@ -91,10 +99,11 @@ function download_spark_jar() {
 
 function download_init_actions() {
   # Download initialization actions locally.
-  mkdir "${INIT_ACTIONS_DIR}"/{gpu,rapids}
+  mkdir "${INIT_ACTIONS_DIR}"/{gpu,rapids,dask}
 
   gsutil -m rsync -r "${INIT_ACTIONS_REPO}/rapids/" "${INIT_ACTIONS_DIR}/rapids/"
   gsutil -m rsync -r "${INIT_ACTIONS_REPO}/gpu/" "${INIT_ACTIONS_DIR}/gpu/"
+  gsutil -m rsync -r "${INIT_ACTIONS_REPO}/dask/" "${INIT_ACTIONS_DIR}/dask/"
 
   find "${INIT_ACTIONS_DIR}" -name '*.sh' -exec chmod +x {} \;
 }
@@ -104,23 +113,34 @@ function install_gpu_drivers() {
 }
 
 function install_conda_packages() {
+  local base
+  base=$(conda info --base)
+  local -r mamba_env_name=mamba
+  local -r mamba_env=${base}/envs/mamba
   local -r extra_packages="$(/usr/share/google/get_metadata_value attributes/CONDA_PACKAGES || echo "")"
   local -r extra_channels="$(/usr/share/google/get_metadata_value attributes/CONDA_CHANNELS || echo "")"
-
+  
   conda config --add channels pytorch
-  conda config --add channels johnsnowlabs
+  conda config --add channels conda-forge
 
-  execute_with_retries "conda install -y ${CONDA_PACKAGES[*]}"
+  # Create a separate environment with mamba.
+  # Mamba provides significant decreases in installation times.
+  conda create -y -n ${mamba_env_name} mamba
+
+  execute_with_retries "${mamba_env}/bin/mamba install -y ${CONDA_PACKAGES[*]} -p ${base}"
 
   if [[ -n "${extra_channels}" ]]; then
     for channel in ${extra_channels}; do
-      conda config --add channels "${channel}"
+      ${mamba_env}/bin/conda config --add channels "${channel}"
     done
   fi
 
   if [[ -n "${extra_packages}" ]]; then
-    execute_with_retries "conda install -y ${extra_packages[*]}"
+    execute_with_retries "${mamba_env}/bin/mamba install -y ${extra_packages[*]} -p ${base}"
   fi
+
+  # Remove mamba env when done
+  conda env remove -n ${mamba_env_name}
 }
 
 function install_pip_packages() {
@@ -133,9 +153,13 @@ function install_pip_packages() {
   fi
 }
 
+function install_dask() {
+  "${INIT_ACTIONS_DIR}/dask/dask.sh"
+}
+
 function install_spark_nlp() {
   local -r name="spark-nlp"
-  local -r repo_url="http://dl.bintray.com/spark-packages/maven/JohnSnowLabs/"
+  local -r repo_url="http://dl.bintray.com/spark-packages/maven/JohnSnowLabs"
   download_spark_jar "${repo_url}/${name}/${SPARK_NLP_VERSION}/${name}-${SPARK_NLP_VERSION}.jar"
 }
 
@@ -152,10 +176,7 @@ function install_connectors() {
 
 function install_rapids() {
   # Only install RAPIDS if "rapids-runtime" metadata exists and GPUs requested.
-  local rapids_runtime
-  rapids_runtime="$(/usr/share/google/get_metadata_value attributes/rapids-runtime || echo "")"
-
-  if [[ -n ${rapids_runtime} ]]; then
+  if [[ -n ${RAPIDS_RUNTIME} ]]; then
     if [[ -n ${INCLUDE_GPUS} ]]; then
       "${INIT_ACTIONS_DIR}/rapids/rapids.sh"
     else
@@ -166,6 +187,11 @@ function install_rapids() {
 }
 
 function main() {
+  
+  #### Temporary workaround for b/172686137
+  pip uninstall -y pyarrow
+  ####
+
   # Download initialization actions
   echo "Downloading initialization actions"
   download_init_actions
@@ -174,13 +200,8 @@ function main() {
   echo "Installing GPU drivers"
   install_gpu_drivers
 
-  # Install Conda packages
-  echo "Installing Conda packages"
-  install_conda_packages
-
-  # Install Pip packages
-  echo "Installing Pip Packages"
-  install_pip_packages
+  # Install Dask
+  install_dask
 
   # Install Spark Libraries
   echo "Installing Spark-NLP jars"
@@ -193,6 +214,17 @@ function main() {
   # Install RAPIDS
   echo "Installing rapids"
   install_rapids
+
+  # Install Conda packages
+  echo "Installing Conda packages"
+  install_conda_packages
+
+  # Install Pip packages
+  echo "Installing Pip Packages"
+  install_pip_packages
+
+  # Clean up environment
+  conda clean -y --all
 }
 
 main

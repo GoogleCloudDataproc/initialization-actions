@@ -12,6 +12,7 @@ py_test(
         "scripts/verify_dask_standalone.py",
         "scripts/verify_dask_yarn.py",
         "//gpu:install_gpu_driver.sh",
+        "//dask:dask.sh",
         "//rapids:rapids.sh",
     ],
     local = True,

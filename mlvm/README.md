@@ -22,7 +22,11 @@ Features of this configuration include:
 
 **:warning: NOTICE:** See
 [best practices](/README.md#how-initialization-actions-are-used) of using
-initialization actions in production.
+initialization actions in production. As this initialization action relies
+on using other initialization actions, it is encouraged that you copy this
+repo to a GCS bucket. This initialization action allows you to provide the
+location of your initialization actions repo via the metadata flag
+`--metadata init-actions-repo=${YOUR_REPO}`.
 
 You can use this initialization action to create a new Dataproc cluster with a
 set of preconfigured machine learning packages.
@@ -51,6 +55,7 @@ installed on the cluster:
 ```bash
 REGION=<region>
 CLUSTER_NAME=<cluster_name>
+INIT_ACTIONS_REPO=<your_bucket_name>
 gcloud dataproc clusters create ${CLUSTER_NAME} \
     --region ${REGION} \
     --master-machine-type n1-standard-16 \
@@ -60,9 +65,10 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
     --metadata gpu-driver-provider=NVIDIA \
     --metadata rapids-runtime=SPARK \
     --metadata include-gpus=true \
+    --metadata init-actions-repo=${INIT_ACTIONS_REPO} \
     --optional-components JUPYTER \
     --initialization-actions gs://dataproc-initialization-actions/mlvm/mlvm.sh \
-    --initialization-action-timeout=45m
+    --initialization-action-timeout=45m \
     --enable-component-gateway
 ```
 
@@ -80,7 +86,7 @@ config:
       include-gpus: 'true'
       rapids-runtime: SPARK
   initializationActions:
-  - executableFile: gs://bmiro-test/dataproc-initialization-actions/mlvm/mlvm.sh
+  - executableFile: gs://dataproc-initialization-actions/mlvm/mlvm.sh
     executionTimeout: 1800s
   masterConfig:
     machineTypeUri: n1-standard-16
@@ -102,9 +108,9 @@ NVIDIA GPU Drivers:
 
 *   CUDA 10.2 (10.1 for Dataproc 1.x)
 *   NCCL 2.7.6
-*   RAPIDS 0.14.0
+*   RAPIDS 0.15.0
 *   Latest NVIDIA drivers for Ubuntu / Debian
-*   spark-bigquery-connector 0.17.0
+*   spark-bigquery-connector 0.18.0
 
 ### Python Libraries
 
@@ -115,34 +121,33 @@ All libraries are installed with their latest versions unless noted otherwise.
 #### Tensorflow (pip)
 
 ```
-tensorflow==2.3.0 (if no GPUs available)
-tensorflow-gpu==2.3.0 (if GPUs available)
-tensorflow-datasets==3.2.1
-tensorflow-estimator==2.3.0
-tensorflow-hub==0.8.0
-tensorflow-io==0.15.0
-tensorflow-probability==0.11.0
+tensorflow==2.3 (if no GPUs available)
+tensorflow-gpu==2.3 (if GPUs available)
+tensorflow-datasets==3.2
+tensorflow-estimator==2.3
+tensorflow-hub==0.8
+tensorflow-io==0.15
+tensorflow-probability==0.11
 ```
 
 #### Other pip libraries
 
 ```
+mxnet=1.6
+rpy2=3.3
 sparksql-magic==0.0.3
 spark-tensorflow-distributor==0.1.0  # Dataproc 2.0+
-xgboost==1.1.1
 ```
 
 #### Conda libraries
 
 ```
-matplotlib=3.2.2
-mxnet=1.5.0
-nltk=3.5.0
-rpy2=2.9.4
-scikit-learn=0.23.1
-spark-nlp=2.5.5
-pytorch=1.6.0
-torchvision=0.7.0
+dask-yarn=0.8
+scikit-learn=0.23
+spark-nlp=2.6.3
+pytorch=1.7
+torchvision=0.8
+xgboost==1.2
 ```
 
 For additional Python libraries you can use either of the following:
@@ -154,13 +159,16 @@ For additional Python libraries you can use either of the following:
 
 ### R libraries
 
-Conda is used to install R libraries.
+Conda is used to install R libraries. R version is 3.6 for Dataproc 1.5, and
+4.0 for Dataproc 2.0+
 
 ```
 r-essentials=${R_VERSION}
-r-xgboost=0.90.0.2
-r-sparklyr=1.0.0
+r-xgboost=1.2
+r-sparklyr=1.4
 ```
+Note: due to a version conflict, `r-xgboost` is not installed if
+`--metadata rapids-runtime` is provided.
 
 For additional R libraries you can use the following:
 
@@ -171,9 +179,9 @@ For additional R libraries you can use the following:
 ### Java Libraries
 
 ```
-spark-nlp - 2.5.5
-spark-bigquery-connector - 0.17.0
-RAPIDS XGBOOST libraries - 0.14.0
+spark-nlp - 2.6.3
+spark-bigquery-connector - 0.18.0
+RAPIDS XGBOOST libraries - 0.15.0
 ```
 
 You can find more information about using initialization actions with Dataproc
