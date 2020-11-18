@@ -312,7 +312,7 @@ function configure_yarn_nodemanager() {
 
   # When number of GPUs > 16, due to the slow nvidia-smi output,
   # it is required to hard code the GPUs in YARN configuration
-  local num_device=$(lspci | grep NVIDIA | wc -l)
+  local num_device
   num_device=$(lspci | grep NVIDIA | wc -l)
   if [[ num_device -ge 16 ]]; then 
     local gpu_device_indexes="0:0"
