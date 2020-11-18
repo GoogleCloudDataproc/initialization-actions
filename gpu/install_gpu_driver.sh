@@ -310,14 +310,15 @@ function configure_yarn() {
 function configure_yarn_nodemanager() {
   set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
 
-  # when number of GPU > 16, due to the slow nvidia-smi output, it is required to hard code the gpu
+  # When number of GPUs > 16, due to the slow nvidia-smi output,
+  # it is required to hard code the GPUs in YARN configuration
+  local num_device=$(lspci | grep NVIDIA | wc -l)
   num_device=$(lspci | grep NVIDIA | wc -l)
-  gpu_device_indexes="0:0"
-  for (( i = 1; i < num_device; i++ ))
-  do
-    gpu_device_indexes="${gpu_device_indexes},${i}:${i}"
-  done
-  if [[ num_device -eq 16 ]]; then 
+  if [[ num_device -ge 16 ]]; then 
+    local gpu_device_indexes="0:0"
+    for (( i = 1; i < num_device; i++ )); do
+      gpu_device_indexes="${gpu_device_indexes},${i}:${i}"
+    done
     set_hadoop_property 'yarn-site.xml' \
       'yarn.nodemanager.resource-plugins.gpu.allowed-gpu-devices' ${gpu_device_indexes}
   else
