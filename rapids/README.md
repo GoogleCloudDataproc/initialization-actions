@@ -135,7 +135,7 @@ To use XGBoost4j with Spark 2
     *   Multi-node clusters with homogenous GPU configuration
 *   Software Requirements
     *   NVIDIA driver 410.48+
-    *   CUDA v10.2/v10.1/v10.0/v9.2
+    *   CUDA v10.1/v10.0/v9.2
     *   NCCL 2.4.7+
 *   `EXCLUSIVE_PROCESS` must be set for all GPUs in each NodeManager (set by
     default in this initialization action)
