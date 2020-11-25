@@ -119,7 +119,7 @@ function install_conda_packages() {
   local -r mamba_env=${base}/envs/mamba
   local -r extra_packages="$(/usr/share/google/get_metadata_value attributes/CONDA_PACKAGES || echo "")"
   local -r extra_channels="$(/usr/share/google/get_metadata_value attributes/CONDA_CHANNELS || echo "")"
-  
+
   conda config --add channels pytorch
   conda config --add channels conda-forge
 
