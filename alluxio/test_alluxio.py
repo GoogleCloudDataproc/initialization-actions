@@ -19,7 +19,8 @@ class AlluxioTestCase(DataprocTestCase):
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
-        metadata=self.METADATA,
+        metadata="alluxio_root_ufs_uri={}/alluxio_ufs_root_{}".format(
+            self.INIT_ACTIONS_REPO, self.random_str()),
         machine_type="e2-standard-4")
     for machine_suffix in machine_suffixes:
       self.verify_instance("{}-{}".format(self.getClusterName(),

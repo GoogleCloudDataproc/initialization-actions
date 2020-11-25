@@ -17,26 +17,28 @@
 set -euxo pipefail
 
 # Variables for running this script
-readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-readonly MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
+ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+readonly ROLE
+MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
+readonly MASTER_FQDN
 
 ALLUXIO_VERSION=$(/usr/share/google/get_metadata_value attributes/alluxio_version || echo "2.4.1")
+readonly ALLUXIO_VERSION
 
-SPARK_HOME=${SPARK_HOME:-"/usr/lib/spark"}
-HIVE_HOME=${HIVE_HOME:-"/usr/lib/hive"}
-HADOOP_HOME=${HADOOP_HOME:-"/usr/lib/hadoop"}
+readonly SPARK_HOME=${SPARK_HOME:-"/usr/lib/spark"}
+readonly HIVE_HOME=${HIVE_HOME:-"/usr/lib/hive"}
+readonly HADOOP_HOME=${HADOOP_HOME:-"/usr/lib/hadoop"}
 
-# Script constants
-ALLUXIO_HOME=/opt/alluxio
-ALLUXIO_SITE_PROPERTIES=${ALLUXIO_HOME}/conf/alluxio-site.properties
-ALLUXIO_DOWNLOAD_URL=https://downloads.alluxio.io/downloads/files/${ALLUXIO_VERSION}/alluxio-${ALLUXIO_VERSION}-bin.tar.gz
+readonly ALLUXIO_HOME=/opt/alluxio
+readonly ALLUXIO_SITE_PROPERTIES=${ALLUXIO_HOME}/conf/alluxio-site.properties
+readonly ALLUXIO_DOWNLOAD_URL=https://downloads.alluxio.io/downloads/files/${ALLUXIO_VERSION}/alluxio-${ALLUXIO_VERSION}-bin.tar.gz
 
 # Downloads a file to the local machine from a remote HTTP(S) or GCS URI into the cwd
 #
 # Args:
 #   $1: URI - the remote location to retrieve the file from
 download_file() {
-  local uri="$1"
+  local -r uri="$1"
 
   if [[ "${uri}" == gs://* ]]; then
     gsutil cp "${uri}" ./
@@ -52,8 +54,8 @@ download_file() {
 #   $1: property name
 #   $2: property value
 append_alluxio_property() {
-  local property="$1"
-  local value="$2"
+  local -r property="$1"
+  local -r value="$2"
 
   echo "${property}=${value}" >>${ALLUXIO_SITE_PROPERTIES}
 }
@@ -63,7 +65,7 @@ append_alluxio_property() {
 # Echo's the result to stdout. To store the return value in a variable use
 # val=$(get_defaultmem_size)
 get_default_mem_size() {
-  local mem_div=3
+  local -r mem_div=3
   local phy_total
   phy_total=$(free -m | grep -oP '\d+' | head -n1)
   local mem_size
@@ -75,18 +77,19 @@ get_default_mem_size() {
 function bootstrap_alluxio() {
   mkdir ${ALLUXIO_HOME}
   download_file "${ALLUXIO_DOWNLOAD_URL}"
-  local tarball_name=${ALLUXIO_DOWNLOAD_URL##*/}
+  local -r tarball_name=${ALLUXIO_DOWNLOAD_URL##*/}
   tar -xzf "${tarball_name}" -C ${ALLUXIO_HOME} --strip-components 1
   ln -s "${ALLUXIO_HOME}/client/alluxio-${ALLUXIO_VERSION}-client.jar" "${ALLUXIO_HOME}/client/alluxio-client.jar"
 
   # Download files to /opt/alluxio/conf
   local download_files_list
   download_files_list=$(/usr/share/google/get_metadata_value attributes/alluxio_download_files_list || true)
-  local download_delimiter=";"
+  local -r download_delimiter=";"
   IFS="${download_delimiter}" read -ra files_to_be_downloaded <<<"${download_files_list}"
   if [ "${#files_to_be_downloaded[@]}" -gt "0" ]; then
+    local file
+    local filename
     for file in "${files_to_be_downloaded[@]}"; do
-      local filename
       filename="$(basename "${file}")"
       download_file "${file}"
       mv "${filename}" "${ALLUXIO_HOME}/conf/${filename}"
@@ -209,12 +212,15 @@ function configure_alluxio() {
 
   local site_properties
   site_properties=$(/usr/share/google/get_metadata_value attributes/alluxio_site_properties || true)
-  local property_delimiter=";"
+  local -r property_delimiter=";"
   if [[ "${site_properties}" ]]; then
     IFS="${property_delimiter}" read -ra conf <<<"${site_properties}"
+    local property
+    local key
+    local value
     for property in "${conf[@]}"; do
-      local key=${property%%"="*}
-      local value=${property#*"="}
+      key=${property%%"="*}
+      value=${property#*"="}
       append_alluxio_property "${key}" "${value}"
     done
   fi
