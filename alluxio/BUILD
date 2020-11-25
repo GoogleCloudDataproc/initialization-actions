@@ -6,7 +6,6 @@ py_test(
     srcs = ["test_alluxio.py"],
     data = [
         "alluxio.sh",
-        "//presto:presto.sh",
     ],
     local = True,
     shard_count = 2,
