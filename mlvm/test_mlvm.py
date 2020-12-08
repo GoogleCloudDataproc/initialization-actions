@@ -120,7 +120,7 @@ class MLVMTestCase(DataprocTestCase):
                 ",gpu-driver-provider=NVIDIA").format(self.INIT_ACTIONS_REPO)
 
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
-      if rapids_runtime is "DASK":
+      if rapids_runtime == "DASK":
         self.skipTest("RAPIDS with Dask not supported in pre 2.0 images.")
       else:
         self.OPTIONAL_COMPONENTS.append("ANACONDA")
@@ -145,9 +145,9 @@ class MLVMTestCase(DataprocTestCase):
     self.verify_all()
 
     self.verify_gpu()
-    if rapids_runtime is "SPARK":
+    if rapids_runtime == "SPARK":
       self.verify_rapids_spark()
-    elif rapids_runtime is "DASK":
+    elif rapids_runtime == "DASK":
       self.verify_rapids_dask()
     
 if __name__ == "__main__":
