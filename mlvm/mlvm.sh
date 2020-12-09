@@ -188,10 +188,6 @@ function install_rapids() {
 
 function main() {
   
-  #### Temporary workaround for b/172686137
-  pip uninstall -y pyarrow
-  ####
-
   # Download initialization actions
   echo "Downloading initialization actions"
   download_init_actions

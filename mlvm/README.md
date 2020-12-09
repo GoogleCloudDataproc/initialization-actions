@@ -61,20 +61,21 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
     --master-machine-type n1-standard-16 \
     --worker-machine-type n1-highmem-32 \
     --worker-accelerator type=nvidia-tesla-t4,count=2 \
-    --image-version preview-ubuntu \
+    --image-version 2.0.0-RC12-ubuntu18 \
     --metadata gpu-driver-provider=NVIDIA \
     --metadata rapids-runtime=SPARK \
     --metadata include-gpus=true \
     --metadata init-actions-repo=${INIT_ACTIONS_REPO} \
     --optional-components JUPYTER \
-    --initialization-actions gs://dataproc-initialization-actions/mlvm/mlvm.sh \
+    --initialization-actions gs://${INIT_ACTIONS_REPO}/mlvm/mlvm.sh \
     --initialization-action-timeout=45m \
     --enable-component-gateway
 ```
 
 You can use this initialization action with
 [Dataproc Hub](https://cloud.google.com/dataproc/docs/tutorials/dataproc-hub-admins)
-with the following YAML configuration:
+with the following YAML configuration, replacing `<INIT_ACTIONS_REPO>` with
+your ${INIT_ACTIONS_REPO} bucket:
 
 ```yaml
 config:
@@ -83,11 +84,12 @@ config:
   gceClusterConfig:
     metadata:
       gpu-driver-provider: NVIDIA
-      include-gpus: 'true'
       rapids-runtime: SPARK
+      include-gpus: 'true'
+      init-actions-repo: <INIT_ACTIONS_REPO>
   initializationActions:
-  - executableFile: gs://dataproc-initialization-actions/mlvm/mlvm.sh
-    executionTimeout: 1800s
+  - executableFile: gs://<INIT_ACTIONS_REPO>/mlvm/mlvm.sh
+    executionTimeout: 2700s
   masterConfig:
     machineTypeUri: n1-standard-16
   softwareConfig:
