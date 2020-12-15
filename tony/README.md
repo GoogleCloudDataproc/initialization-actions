@@ -19,7 +19,7 @@ You can use this initialization action to create a new Dataproc cluster with Ton
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/tony/tony.sh
     ```
 
-    You can also pass specific metadata:
+    You can pass specific metadata:
     
     ```bash
     REGION=<region>
@@ -27,6 +27,20 @@ You can use this initialization action to create a new Dataproc cluster with Ton
     gcloud dataproc clusters create ${CLUSTER_NAME} \
         --region ${REGION} \
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/tony/tony.sh \
+        --metadata name1=value1,name2=value2... 
+    ```
+
+    You can also create a cluster with GPUs:
+    
+    ```bash
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --master-aceelerator=nvidia-tesla-v100 \
+        --worker-aceelerator=nvidia-tesla-v100 \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/tony/tony.sh \
+        --metadata gpu-driver-provider=NVIDIA \
         --metadata name1=value1,name2=value2... 
     ```
     
@@ -37,8 +51,6 @@ You can use this initialization action to create a new Dataproc cluster with Ton
      - ps_instances
      - ps_memory
      - tensorflow version
-     - pytorch version
-     - torch vision version
      - tf_gpu
         
     These parameters are defined here: TonY [configurations](https://github.com/linkedin/TonY/wiki/TonY-Configurations)
@@ -70,10 +82,9 @@ You can use this initialization action to create a new Dataproc cluster with Ton
     ```bash
     /opt/tony/TonY-samples
     ```
-    By default we install two examples:
+    By default we install examples for Tensorflow.
     
     - TensorFlow
-    - PyTorch
     
 For more information and to run some TonY examples, take a look at [TonY examples](https://github.com/linkedin/TonY/tree/master/tony-examples)
 A working example can be found on validate.sh
@@ -84,13 +95,12 @@ You can easily test TonY is running by using ```validate.sh ${cluster_prefix} ${
 * ```cluster_prefix``` argument sets a prefix in created cluster name
 * ```bucket_name``` argument sets a place where init action will be placed
 
-This script is used for testing TonY using 1.3 Dataproc images with standard configurations. 
+This script is used for testing TonY using 1.5 Dataproc images with standard configurations.
 After clusters are created, script submits Hadoop jobs on them.
-
 
 ## Important notes
 
-* This script will install TonY in the master node only
-* Virtual environments are installed for both TensorFlow and PyTorch examples.
-* TonY is supported with STANDARD configuration (1 master/2+ workers) in Dataproc 1.3.
-* TonY supports GPU using Hadoop 3.1 (YARN-6223). Currently not supported with Dataproc
+* This script will install TonY in the master node only.
+* Virtual environments are installed for only for TensorFlow examples.
+* TonY is supported with STANDARD configuration (1 master/2+ workers) in Dataproc 1.5+.
+* TonY supports GPU using Hadoop 3.1 (YARN-6223). To access this, you must use Dataproc 2.0+.
