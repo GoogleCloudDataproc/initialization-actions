@@ -11,8 +11,8 @@ function get_metadata_attribute() {
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
 
 if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
-  readonly DEFAULT_CUDF_VERSION="0.15"
-  readonly DEFAULT_SPARK_RAPIDS_VERSION="0.2.0"
+  readonly DEFAULT_CUDF_VERSION="0.17"
+  readonly DEFAULT_SPARK_RAPIDS_VERSION="0.3.0"
   readonly SPARK_VERSION="${SPARK_VERSION_ENV}"
 else
   readonly DEFAULT_CUDF_VERSION="0.9.2"
@@ -30,7 +30,7 @@ readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-mast
 readonly DEFAULT_CUDA_VERSION="10.2"
 readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VERSION})
 readonly CUDF_VERSION=$(get_metadata_attribute 'cudf-version' ${DEFAULT_CUDF_VERSION})
-readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' '0.15')
+readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' '0.17')
 
 # SPARK config
 readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
