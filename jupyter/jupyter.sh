@@ -55,7 +55,7 @@ fi
 set +u
 # Install jupyter on all nodes to start with a consistent python environment
 # on all nodes. See issue #300 for more information.
-conda install jupyter matplotlib 'testpath<0.4'
+conda install jupyter matplotlib 'testpath<0.4' 'nbformat<5.1'
 set -u
 
 if [ -n "${JUPYTER_CONDA_CHANNELS}" ]; then
