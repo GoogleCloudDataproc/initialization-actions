@@ -1,4 +1,4 @@
-import os
+import platform
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -93,16 +93,14 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                 self.getClusterName(), machine_suffix))
 
     @parameterized.parameters(
-        ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "NVIDIA", "8.0"),
-        ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "NVIDIA", "7.6"),
-        ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "NVIDIA", "7.5"),
-        ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "NVIDIA", "8.0.3.33")
+        ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "NVIDIA",
+        "8.0.3.33"),
     )
     def test_install_gpu_with_cudnn(self, configuration, machine_suffixes,
                                     master_accelerator, worker_accelerator,
                                     driver_provider, cudnn_version):
         
-        if os.environ["OS_NAME"] == "debain":
+        if "Debian" in platform.uname().version:
             self.skipTest("Not supported on Debian.")
 
         metadata = 'cudnn-version={}'.format(cudnn_version)
@@ -118,10 +116,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
             timeout_in_minutes=30,
             scopes='https://www.googleapis.com/auth/monitoring.write')
         for machine_suffix in machine_suffixes:
-            self.verify_instance("{}-{}".format(self.getClusterName(),
+            self.verify_instance_cudnn("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
-            self.verify_instance_gpu_agent("{}-{}".format(
-                self.getClusterName(), machine_suffix))
+  
 
 if __name__ == '__main__':
     absltest.main()
