@@ -28,41 +28,34 @@ OS_DIST=$(lsb_release -cs)
 readonly OS_DIST
 
 # Dataproc role
-ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-readonly ROLE
-
-# CUDA Version
-CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '10.2')
-readonly CUDA_VERSION
+readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 
 # Parameters for NVIDIA-provided Debian GPU driver
-readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='455.45.01'
-readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL="https://us.download.nvidia.com/XFree86/Linux-x86_64/${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}.run"
-NVIDIA_DEBIAN_GPU_DRIVER_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL}")
-readonly NVIDIA_DEBIAN_GPU_DRIVER_URL
-
-readonly NVIDIA_BASE_DL_URL='https://developer.download.nvidia.com/compute'
-
-readonly -A DEFAULT_NVIDIA_DEBIAN_CUDA_URLS=(
-  [10.1]="${NVIDIA_BASE_DL_URL}/cuda/10.1/Prod/local_installers/cuda_10.1.243_418.87.00_linux.run"
-  [10.2]="${NVIDIA_BASE_DL_URL}/cuda/10.2/Prod/local_installers/cuda_10.2.89_440.33.01_linux.run"
-  [11.0]="${NVIDIA_BASE_DL_URL}/cuda/11.0.3/local_installers/cuda_11.0.3_450.51.06_linux.run"
-  [11.1]="${NVIDIA_BASE_DL_URL}/cuda/11.1.0/local_installers/cuda_11.1.0_455.23.05_linux.run")
-readonly DEFAULT_NVIDIA_DEBIAN_CUDA_URL=${DEFAULT_NVIDIA_DEBIAN_CUDA_URLS["${CUDA_VERSION}"]}
-NVIDIA_DEBIAN_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_DEBIAN_CUDA_URL}")
-readonly NVIDIA_DEBIAN_CUDA_URL
+readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL='http://us.download.nvidia.com/XFree86/Linux-x86_64/450.51/NVIDIA-Linux-x86_64-450.51.run'
+readonly NVIDIA_DEBIAN_GPU_DRIVER_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL}")
+readonly DEFAULT_NVIDIA_DEBIAN_CUDA_URL='http://developer.download.nvidia.com/compute/cuda/10.2/Prod/local_installers/cuda_10.2.89_440.33.01_linux.run'
+readonly NVIDIA_DEBIAN_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_DEBIAN_CUDA_URL}")
 
 # Parameters for NVIDIA-provided Ubuntu GPU driver
-readonly NVIDIA_UBUNTU_REPOSITORY_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/ubuntu1804/x86_64"
+readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '10.2')
+readonly NVIDIA_UBUNTU_REPOSITORY_URL='https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64'
 readonly NVIDIA_UBUNTU_REPOSITORY_KEY="${NVIDIA_UBUNTU_REPOSITORY_URL}/7fa2af80.pub"
 readonly NVIDIA_UBUNTU_REPOSITORY_CUDA_PIN="${NVIDIA_UBUNTU_REPOSITORY_URL}/cuda-ubuntu1804.pin"
 
 # Parameters for NVIDIA-provided NCCL library
-readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb"
-NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
-readonly NCCL_REPO_URL
-NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.7.8')
-readonly NCCL_VERSION
+readonly DEFAULT_NCCL_REPO_URL='https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb'
+readonly NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
+readonly NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.7.6')
+
+# Parameters for NVIDIA-provided CUDNN library
+readonly CUDNN_VERSION=$(get_metadata_attribute 'cudnn-version' '')
+declare -A CUDNN_UBUNTU_VERSIONS=(
+  ["8.0"]="8.0.4.30"
+  ["7.6"]="7.6.5.32"
+  ["7.5"]="7.5.1.10"
+)
+# Parameters for Ubuntu-provided NVIDIA GPU driver
+readonly NVIDIA_DRIVER_VERSION_UBUNTU='440'
 
 # Whether to install NVIDIA-provided or OS-provided GPU driver
 GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'OS')
@@ -103,6 +96,25 @@ function install_nvidia_nccl() {
   local -r nccl_version="${NCCL_VERSION}-1+cuda${CUDA_VERSION}"
   execute_with_retries \
     "apt-get install -y --allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
+}
+
+function install_nvidia_cudnn() {
+  local cudnn_version
+
+  if [[ ${OS_NAME} == ubuntu ]]; then 
+    if [[ -n ${CUDNN_UBUNTU_VERSIONS[${CUDNN_VERSION}]} ]]; then
+      cudnn_version=${CUDNN_UBUNTU_VERSIONS[${CUDNN_VERSION}]}
+    else
+      cudnn_version=${CUDNN_VERSION}
+    fi
+    local major_version=${cudnn_version%%.*}
+
+    apt-get install --no-install-recommends libcudnn${major_version}=${cudnn_version}-1+cuda${CUDA_VERSION}
+    apt-get install --no-install-recommends libcudnn${major_version}-dev=${cudnn_version}-1+cuda${CUDA_VERSION}
+  else
+    echo "CUDNN unsupported with this OS: '${OS_NAME}'"
+    exit 1
+  fi
 }
 
 # Install NVIDIA GPU driver provided by NVIDIA
@@ -158,17 +170,13 @@ function install_os_gpu_driver() {
     modules+=(nvidia-current)
     local -r nvblas_cpu_blas_lib=/usr/lib/libblas.so
   elif [[ ${OS_NAME} == ubuntu ]]; then
-    local nvidia_driver_version_ubuntu
-    nvidia_driver_version_ubuntu=$(apt list 2>/dev/null | grep -E "^nvidia-driver-[0-9]+/" |
-      cut -d/ -f1 | sort | tail -n1 | cut -d- -f3)
     # Ubuntu-specific NVIDIA driver packages and modules
-    packages+=(
-      "nvidia-driver-${nvidia_driver_version_ubuntu}"
-      "nvidia-kernel-common-${nvidia_driver_version_ubuntu}")
+    packages+=("nvidia-driver-${NVIDIA_DRIVER_VERSION_UBUNTU}"
+      "nvidia-kernel-common-${NVIDIA_DRIVER_VERSION_UBUNTU}")
     modules+=(nvidia)
     local -r nvblas_cpu_blas_lib=/usr/lib/x86_64-linux-gnu/libblas.so
   else
-    echo "Unsupported OS: '${OS_NAME}'"
+    echo "Unsupported CUDNN OS: '${OS_NAME}'"
     exit 1
   fi
 
@@ -283,7 +291,7 @@ function configure_yarn() {
   readarray -d ',' yarn_local_dirs < <(bdconfig get_property_value \
     --configuration_file "/etc/hadoop/conf/yarn-site.xml" \
     --name "yarn.nodemanager.local-dirs" 2>/dev/null | tr -d '\n')
-  chown yarn:yarn -R "${yarn_local_dirs[@]/,/}"
+  chown yarn:yarn -R "${yarn_local_dirs[@]/,}"
 }
 
 function configure_gpu_exclusive_mode() {
@@ -332,6 +340,10 @@ function main() {
     if [[ ${GPU_DRIVER_PROVIDER} == 'NVIDIA' ]]; then
       install_nvidia_gpu_driver
       install_nvidia_nccl
+
+      if [[ -n ${CUDNN_VERSION} ]]; then
+        install_nvidia_cudnn
+      fi
     elif [[ ${GPU_DRIVER_PROVIDER} == 'OS' ]]; then
       install_os_gpu_driver
     else
