@@ -119,8 +119,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                           machine_suffix))
 
   @parameterized.parameters(
-      ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "NVIDIA",
-      "8.0.3.33"),
+      ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "NVIDIA", "8.0.3.33"),
   )
   def test_install_gpu_with_cudnn(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,

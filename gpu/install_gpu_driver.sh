@@ -110,10 +110,10 @@ function install_nvidia_nccl() {
 
 function install_nvidia_cudnn() {
   if [[ ${OS_NAME} == ubuntu ]]; then 
-    local major_version=${CUDNN_VERSION%%.*}
-
-    apt-get install --no-install-recommends libcudnn${major_version}=${CUDNN_VERSION}-1+cuda${CUDA_VERSION}
-    apt-get install --no-install-recommends libcudnn${major_version}-dev=${CUDNN_VERSION}-1+cuda${CUDA_VERSION}
+    local major_version="${CUDNN_VERSION%%.*}"
+    local cudnn_pkg_version="${CUDNN_VERSION}-1+cuda${CUDA_VERSION}"
+    execute_with_retries \
+        "apt-get install --no-install-recommends libcudnn${major_version}=${cudnn_pkg_version} libcudnn${major_version}-dev=${cudnn_pkg_version}"
   else
     echo "CUDNN unsupported with this OS: '${OS_NAME}'"
     exit 1
