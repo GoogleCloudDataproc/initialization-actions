@@ -144,6 +144,5 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       self.verify_instance_cudnn("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
 
-
 if __name__ == "__main__":
   absltest.main()
