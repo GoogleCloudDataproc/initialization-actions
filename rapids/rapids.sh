@@ -11,9 +11,11 @@ function get_metadata_attribute() {
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
 
 if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
-  readonly DEFAULT_CUDF_VERSION="0.15"
-  readonly DEFAULT_SPARK_RAPIDS_VERSION="0.2.0"
-  readonly SPARK_VERSION="${SPARK_VERSION_ENV}"
+  readonly DEFAULT_CUDF_VERSION="0.17"
+  readonly DEFAULT_SPARK_RAPIDS_VERSION="0.3.0"
+  # TODO: uncomment when Spark 3.1 jars will be released.
+  # readonly SPARK_VERSION="${SPARK_VERSION_ENV}"
+  readonly SPARK_VERSION="3.0"
 else
   readonly DEFAULT_CUDF_VERSION="0.9.2"
   readonly DEFAULT_SPARK_RAPIDS_VERSION="Beta5"
