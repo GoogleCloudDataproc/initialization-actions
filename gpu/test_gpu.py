@@ -125,7 +125,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_with_cudnn(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider, cudnn_version):
-    if "Debian" in platform.uname().version:
+    if self.getBaseOS() == "debian":
         self.skipTest("Not supported on Debian.")
 
     metadata = "cudnn-version={}".format(cudnn_version)
