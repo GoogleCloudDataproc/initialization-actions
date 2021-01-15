@@ -19,10 +19,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         name, "systemctl status gpu-utilization-agent.service")
 
   def verify_instance_cudnn(self, name):
-    # "find" will always returns zero regardless of a match.
-    # "grep ." returns a nonzero exit code if the output of "find" is empty.
     self.assert_instance_command(
-        name, "sudo find /usr -iname libcudnn.so | grep .")
+        name, "[[ $(sudo find /usr -iname libcudn.so | wc -l) -ne 0 ]]")
 
   @parameterized.parameters(
       ("STANDARD", ["m"], GPU_V100, None, None),
