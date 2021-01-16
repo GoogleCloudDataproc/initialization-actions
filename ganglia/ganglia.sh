@@ -41,6 +41,7 @@ function setup_ganglia_host() {
 
   ln -s /etc/ganglia-webfrontend/apache.conf /etc/apache2/sites-enabled/ganglia.conf
   sed -i "s/my cluster/${master_hostname}/" /etc/ganglia/gmetad.conf
+  sed -i '26s/ \$context_metrics \= \"\"\;/ \$context_metrics \= array\(\)\;/g' /usr/share/ganglia-webfrontend/cluster_view.php
   systemctl restart ganglia-monitor gmetad apache2
 }
 
