@@ -94,8 +94,6 @@ class DataprocTestCase(parameterized.TestCase):
                       beta=False,
                       master_accelerator=None,
                       worker_accelerator=None,
-                      image=None,
-                      image_version=None,
                       optional_components=None,
                       machine_type="e2-standard-2",
                       boot_disk_size="50GB"):
@@ -108,12 +106,8 @@ class DataprocTestCase(parameterized.TestCase):
         ]
 
         args = self.DEFAULT_ARGS[configuration].copy()
-        if image:
-            args.append("--image={}".format(image))
-        elif FLAGS.image:
+        if FLAGS.image:
             args.append("--image={}".format(FLAGS.image))
-        elif image_version:
-            args.append("--image-version={}".format(image_version))
         elif FLAGS.image_version:
             args.append("--image-version={}".format(FLAGS.image_version))
 
@@ -204,15 +198,6 @@ class DataprocTestCase(parameterized.TestCase):
 
     def getClusterName(self):
         return self.name
-
-    @staticmethod
-    def getBaseOS():
-        # Get the base operating system: '1.5-debian10' -> 'debian'
-        # Dataproc default version is Debian, therfore "debian" is returned
-        # if another OS cannot be identified.
-        search = re.search("([a-z]+)[0-9]*$", FLAGS.image_version)
-        return search.groups()[0] if search and search.groups()[0] != "preview" \
-            else "debian"
 
     @staticmethod
     def getImageVersion():

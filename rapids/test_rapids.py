@@ -77,16 +77,6 @@ class RapidsTestCase(DataprocTestCase):
   def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
     if self.getImageVersion() < pkg_resources.parse_version("1.5"):
       self.skipTest("Not supported in pre 1.5 images")
-    
-    # Pin preview image as RAPIDS is not yet supported on Spark 3.1
-    image_version = None
-    if self.getImageVersion() == pkg_resources.parse_version("2.0"):
-      if self.getBaseOS() == "debian":
-        image_version == "2.0.0-RC22-debian10"
-      elif self.getBaseOS == "ubuntu":
-        image_version == "2.0.0-RC22-ubuntu18"
-      else:
-        self.skipTest("Unsupported OS")
 
     optional_components = None
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
@@ -101,7 +91,6 @@ class RapidsTestCase(DataprocTestCase):
         metadata=metadata,
         machine_type="n1-standard-4",
         worker_accelerator=accelerator,
-        image_version=image_version
         timeout_in_minutes=30)
 
     for machine_suffix in machine_suffixes:
