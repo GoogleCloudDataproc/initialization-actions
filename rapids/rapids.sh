@@ -12,7 +12,7 @@ readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[
 
 if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
   readonly DEFAULT_CUDF_VERSION="0.17"
-  readonly DEFAULT_SPARK_RAPIDS_VERSION="0.1.0"
+  readonly DEFAULT_SPARK_RAPIDS_VERSION="0.3.0"
   # TODO: uncomment when Spark 3.1 jars will be released.
   # readonly SPARK_VERSION="${SPARK_VERSION_ENV}"
   readonly SPARK_VERSION="3.0"
