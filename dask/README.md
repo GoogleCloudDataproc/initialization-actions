@@ -42,7 +42,7 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
   --region ${REGION} \
   --master-machine-type n1-standard-16 \
   --worker-machine-type n1-highmem-32 \
-  --image-version preview-ubuntu \
+  --image-version 2.0 \
   --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/dask/dask.sh \
   --initialization-action-timeout 20m
 ```
@@ -60,8 +60,8 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
   --region ${REGION} \
   --master-machine-type n1-standard-16 \
   --worker-machine-type n1-highmem-32 \
-  --image-version preview-ubuntu \
-  --optional-components ANACONDA,JUPYTER \
+  --image-version 2.0 \
+  --optional-components JUPYTER \
   --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/dask/dask.sh \
   --initialization-action-timeout 45m \
   --enable-component-gateway
