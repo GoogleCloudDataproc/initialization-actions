@@ -23,3 +23,8 @@ Once the cluster has been created, Dr. Elephant is configured to run on port
 [connecting to cluster web interfaces](https://cloud.google.com/dataproc/docs/concepts/cluster-web-interfaces).
 
 Your jobs statistics should be there.
+
+## Supported Spark Versions
+
+As of Janurary 19th, 2021,
+[Dr. Elephant only supports Spark < 2.2.3](https://github.com/linkedin/dr-elephant/issues/683)
