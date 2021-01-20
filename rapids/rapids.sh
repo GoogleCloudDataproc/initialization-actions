@@ -9,10 +9,10 @@ function get_metadata_attribute() {
 }
 
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
+readonly DEFAULT_SPARK_RAPIDS_VERSION="0.3.0"
 
 if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
   readonly DEFAULT_CUDF_VERSION="0.17"
-  readonly DEFAULT_SPARK_RAPIDS_VERSION="0.3.0"
   readonly DEFAULT_XGBOOST_VERSION="1.3.0"
   readonly DEFAULT_XGBOOST_GPU_SUB_VERSION="0.1.0"
   # TODO: uncomment when Spark 3.1 jars will be released.
@@ -21,7 +21,7 @@ if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
 else
   readonly DEFAULT_CUDF_VERSION="0.9.2"
   readonly DEFAULT_XGBOOST_VERSION="1.0.0"
-  readonly DEFAULT_SPARK_RAPIDS_VERSION="Beta5"
+  readonly DEFAULT_XGBOOST_GPU_SUB_VERSION="Beta5"
   readonly SPARK_VERSION="2.x"
 fi
 
@@ -103,10 +103,10 @@ function install_spark_rapids() {
       -P /usr/lib/spark/jars/
   else
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
-      "${rapids_repo_url}/xgboost4j-spark_${SPARK_VERSION}/${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}/xgboost4j-spark_${SPARK_VERSION}-${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}.jar" \
+      "${rapids_repo_url}/xgboost4j-spark_${SPARK_VERSION}/${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}/xgboost4j-spark_${SPARK_VERSION}-${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}.jar" \
       -P /usr/lib/spark/jars/
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
-      "${rapids_repo_url}/xgboost4j_${SPARK_VERSION}/${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}/xgboost4j_${SPARK_VERSION}-${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}.jar" \
+      "${rapids_repo_url}/xgboost4j_${SPARK_VERSION}/${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}/xgboost4j_${SPARK_VERSION}-${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}.jar" \
       -P /usr/lib/spark/jars/
   fi
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
@@ -141,7 +141,7 @@ EOF
     cat >>${SPARK_CONF_DIR}/spark-defaults.conf <<EOF
 
 ###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
-spark.submit.pyFiles=/usr/lib/spark/jars/xgboost4j-spark_${SPARK_VERSION}-${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}.jar
+spark.submit.pyFiles=/usr/lib/spark/jars/xgboost4j-spark_${SPARK_VERSION}-${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}.jar
 spark.dynamicAllocation.enabled=false
 spark.shuffle.service.enabled=false
 ###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
