@@ -93,7 +93,7 @@ function install_spark_rapids() {
 
   if [[ "${SPARK_VERSION}" == "3"* ]]; then
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
-      "${nvidia_repo_url}/xgboost4j-spark_${SPARK_VERSION}/${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}/xgboost4j-spark_${SPARK_VERSION}-${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}.jar" \
+      "${nvidia_repo_url}/xgboost4j-spark_${SPARK_VERSION}/${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}/xgboost4j-spark_${SPARK_VERSION}-${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}.jar" \
       -P /usr/lib/spark/jars/
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
       "${nvidia_repo_url}/xgboost4j_${SPARK_VERSION}/${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}/xgboost4j_${SPARK_VERSION}-${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}.jar" \
@@ -132,7 +132,7 @@ spark.locality.wait=0s
 spark.executor.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh
 spark.sql.shuffle.partitions=48
 spark.sql.files.maxPartitionBytes=512m
-spark.submit.pyFiles=/usr/lib/spark/jars/xgboost4j-spark_${SPARK_VERSION}-${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}.jar
+spark.submit.pyFiles=/usr/lib/spark/jars/xgboost4j-spark_${SPARK_VERSION}-${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}.jar
 spark.dynamicAllocation.enabled=false
 spark.shuffle.service.enabled=false
 ###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
