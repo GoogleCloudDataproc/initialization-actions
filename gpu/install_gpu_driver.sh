@@ -66,6 +66,8 @@ readonly NCCL_VERSION
 
 # Parameters for NVIDIA-provided CUDNN library
 readonly CUDNN_VERSION=$(get_metadata_attribute 'cudnn-version' '')
+readonly CUDNN_TARBALL="cudnn-${CUDA_VERSION}-linux-x64-v${CUDNN_VERSION}.tgz"
+readonly CUDNN_TARBALL_URL="http://developer.download.nvidia.com/compute/redist/cudnn/v${CUDNN_VERSION%.*}/${CUDNN_TARBALL}"
 
 # Whether to install NVIDIA-provided or OS-provided GPU driver
 GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'OS')
@@ -113,11 +115,22 @@ function install_nvidia_cudnn() {
     local major_version="${CUDNN_VERSION%%.*}"
     local cudnn_pkg_version="${CUDNN_VERSION}-1+cuda${CUDA_VERSION}"
     execute_with_retries \
-        "apt-get install --no-install-recommends libcudnn${major_version}=${cudnn_pkg_version} libcudnn${major_version}-dev=${cudnn_pkg_version}"
+        "apt-get install -y --no-install-recommends libcudnn${major_version}=${cudnn_pkg_version} libcudnn${major_version}-dev=${cudnn_pkg_version}"
   else
-    echo "CUDNN unsupported with this OS: '${OS_NAME}'"
-    exit 1
+    local tmp_dir
+    tmp_dir=$(mktemp -d -t gpu-init-action-cudnn-XXXX)
+    
+    curl -fSsL --retry-connrefused --retry 10 --retry-max-time 30 \
+      "${CUDNN_TARBALL_URL}" -o "${tmp_dir}/${CUDNN_TARBALL}"
+
+    tar -xzf "${tmp_dir}/${CUDNN_TARBALL}" -C /usr/local
+
+    cat <<'EOF' >>/etc/profile.d/cudnn.sh
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
+EOF
   fi
+
+  echo "NVIDIA CuDNN successfully installed for ${OS_NAME}."
 }
 
 # Install NVIDIA GPU driver provided by NVIDIA
