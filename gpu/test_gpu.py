@@ -17,8 +17,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         name, "systemctl status gpu-utilization-agent.service")
 
   def verify_instance_cudnn(self, name):
+    # Add "tee /dev/tty" to easier debug failures
     self.assert_instance_command(
-        name, "[[ $(ldconfig -p | grep libcudnn | wc -l) -gt 0 ]]" )
+        name,
+        "[[ $(ldconfig -p | tee /dev/tty | grep libcudnn | wc -l) -gt 0 ]]" )
 
   @parameterized.parameters(
       ("STANDARD", ["m"], GPU_V100, None, None),
