@@ -151,9 +151,9 @@ sometimes found in the "building from source" sections.
 -   `cuda-version: 10.1|10.2|<VERSION>` - this is an optional parameter for
     customizing NVIDIA-provided CUDA version. Default is `10.2`.
 
--   `cudnn-version: <VERSION` - this is an optional paramter for
-    installing NVIDIA [CUDNN](https://developer.nvidia.com/CUDNN) version
-    `x.x.x.x` on Ubuntu-based Dataproc images. There is no default value.
+-   `cudnn-version: <VERSION>` - this is an optional parameter for installing
+    [NVIDIA cuDNN](https://developer.nvidia.com/CUDNN) version `x.x.x.x` on
+    Ubuntu-based Dataproc images. There is no default value.
 
 #### Verification
 
