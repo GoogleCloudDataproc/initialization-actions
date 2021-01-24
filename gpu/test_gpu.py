@@ -19,8 +19,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def verify_instance_cudnn(self, name):
     # Run `ldconfig -p` first to simlify debugging
     self.assert_instance_command(
-        name,
-        "ldconfig -p; [[ $(ldconfig -p | grep libcudnn | wc -l) -gt 0 ]]" )
+        name, "[[ $(sudo ldconfig -p | grep libcudnn | wc -l) -gt 0 ]]" )
 
   @parameterized.parameters(
       ("STANDARD", ["m"], GPU_V100, None, None),
