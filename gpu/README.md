@@ -103,30 +103,31 @@ In current Dataproc set up, we enable GPU resource isolation by initialization
 script without NVIDIA Docker, you can find more information at
 [NVIDIA Spark RAPIDS getting started guide](https://nvidia.github.io/spark-rapids/).
 
-#### CUDNN
+#### cuDNN
 
-You can also install [CUDNN](https://developer.nvidia.com/CUDNN) on your
-cluster.CUDNN is used as a backend for Deep Learning frameworks, such as
+You can also install [cuDNN](https://developer.nvidia.com/CUDNN) on your
+cluster. cuDNN is used as a backend for Deep Learning frameworks, such as
 TensorFlow. This feature is currently only supported on Ubuntu-based Dataproc
-images. To select a version, include the metadata parameter
-`--metadata cudnn-version=x.x.x.x`. You can find the list of archived versions [here](https://developer.nvidia.com/rdp/cudnn-archive) 
-which includes all versions except the latest. To locate the version you need,
-click on Download option for the correct CUDNN + CUDA version you desire,
-copy the link address for the `cuDNN Runtime Library for Ubuntu18.04 x86_64 (Deb)` file
-of the matching CUDA version and find the full version from the deb file. For instance,
-for `libcudnn8_8.0.4.30-1+cuda11.0_amd64.deb`, the version is `8.0.4.30`.
-Below is a table for mapping some recent major.minor versions to full versions
+images. To select a version, include the metadata parameter `--metadata
+cudnn-version=x.x.x.x`. You can find the list of archived versions
+[here](https://developer.nvidia.com/rdp/cudnn-archive) which includes all
+versions except the latest. To locate the version you need, click on Download
+option for the correct cuDNN + CUDA version you desire, copy the link address
+for the `cuDNN Runtime Library for Ubuntu18.04 x86_64 (Deb)` file of the
+matching CUDA version and find the full version from the deb file. For instance,
+for `libcudnn8_8.0.4.30-1+cuda11.0_amd64.deb`, the version is `8.0.4.30`. Below
+is a table for mapping some recent major.minor cuDNN versions to full versions
 and compatible CUDA versions:
 
-| Major.Minor | Full Version | CUDA Versions|
-| ----------- | ------------ | ------------ |
-| 8.0 | 8.0.5.39 | 10.1, 10.2, 11.0, 11.0 |
-| 7.6 | 7.6.5.32 | 9.0, 9.2, 10.0, 10.1, 10.2 |
-| 7.5 | 7.5.1.10 | 9.0, 9.2, 10.0, 10.1 |
+Major.Minor | Full Version | CUDA Versions
+----------- | ------------ | --------------------------
+8.0         | 8.0.5.39     | 10.1, 10.2, 11.0, 11.0
+7.6         | 7.6.5.32     | 9.0, 9.2, 10.0, 10.1, 10.2
+7.5         | 7.5.1.10     | 9.0, 9.2, 10.0, 10.1
 
 To figure out which version you need, refer to the framework's documentation,
-sometimes found in the "building from source" sections. [Here](https://www.tensorflow.org/install/source#gpu)
-is TensorFlow's.
+sometimes found in the "building from source" sections.
+[Here](https://www.tensorflow.org/install/source#gpu) is TensorFlow's.
 
 #### Metadata parameters:
 
