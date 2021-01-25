@@ -131,7 +131,7 @@ EOF
   fi
 
   ldconfig
-  
+
   echo "NVIDIA cuDNN successfully installed for ${OS_NAME}."
 }
 
@@ -274,7 +274,7 @@ EOF
   # Reload systemd manager configuration
   systemctl daemon-reload
   # Enable gpu-utilization-agent service
-  systemctl --now enable gpu-utilization-agent.service
+  systemctl --no-reload --now enable gpu-utilization-agent.service
 }
 
 function set_hadoop_property() {
