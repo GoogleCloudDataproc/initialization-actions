@@ -64,7 +64,7 @@ export NUM_WORKERS=2
 
 gcloud dataproc clusters create $CLUSTER_NAME  \
     --region $REGION \
-    --image-version=preview-ubuntu18 \
+    --image-version=2.0-ubuntu18 \
     --master-machine-type n1-standard-4 \
     --master-boot-disk-size 200 \
     --num-workers $NUM_WORKERS \
@@ -180,7 +180,7 @@ export GCS_BUCKET=<your bucket for the logs and notebooks>
 export REGION=<region>
 gcloud dataproc clusters create $CLUSTER_NAME \
     --region $REGION \
-    --image-version preview-ubuntu18 \
+    --image-version 2.0-ubuntu18 \
     --master-machine-type n1-standard-4 \
     --worker-machine-type n1-highmem-16 \
     --worker-accelerator type=nvidia-tesla-t4,count=1 \
@@ -343,7 +343,7 @@ REGION=<region>
 DASK_RUNTIME=<yarn|standalone>
 gcloud dataproc clusters create $CLUSTER_NAME \
     --region $REGION \
-    --image-version preview-ubuntu18 \
+    --image-version 2.0-ubuntu18 \
     --master-machine-type n1-standard-32 \
     --master-accelerator type=nvidia-tesla-t4,count=2 \
     --worker-machine-type n1-standard-32 \
@@ -416,7 +416,7 @@ REGION=<region>
 DASK_RUNTIME=<yarn|standalone>
 gcloud dataproc clusters create $CLUSTER_NAME \
     --region $REGION \
-    --image-version preview-ubuntu18 \
+    --image-version 2.0-ubuntu18 \
     --master-machine-type n1-standard-32 \
     --master-accelerator type=nvidia-tesla-t4,count=$NUM_GPUS \
     --worker-machine-type n1-standard-32 \
