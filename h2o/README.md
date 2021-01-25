@@ -48,7 +48,7 @@ Sparkling Water installed:
     REGION=<region>
     CLUSTER_NAME=<cluster_name>
     gcloud dataproc clusters create ${CLUSTER_NAME} \
-        --image-version preview \
+        --image-version 2.0 \
         --scopes "cloud-platform" \
         --initialization-actions "gs://goog-dataproc-initialization-actions-${REGION}/h2o/h2o.sh"
     ```

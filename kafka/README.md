@@ -96,4 +96,3 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
 * This script will install Kafka on all **worker nodes** by default (but not the master(s))
 * This script assumes you have zookeeper installed, either through the zookeeper.sh init action or by creating a high-availability cluster with `--num-masters 3`
 * The `delete.topic.enable` property has been set to `true` by default so topics can be deleted
-* This init action is only targeted to work on Dataproc's 1.2 version or later including preview version. If you have a strong dependency on Kafka on Dataproc 1.1 or older, please reach out to dataproc-feedback@google.com
