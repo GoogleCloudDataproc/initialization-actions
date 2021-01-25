@@ -42,9 +42,6 @@ CUDA_VERSION="$(/usr/share/google/get_metadata_value attributes/mxnet-version ||
 readonly CUDA_VERSION
 
 HOROVOD_ENV_VARS="$(/usr/share/google/get_metadata_value attributes/horovod-env-vars || echo "")"
-if (lspci | grep -q NVIDIA); then
-  HOROVOD_ENV_VARS+=" HOROVOD_GPU_OPERATIONS=NCCL"
-fi
 readonly HOROVOD_ENV_VARS
 
 INSTALL_MPI="$(/usr/share/google/get_metadata_value attributes/install-mpi || echo "")"

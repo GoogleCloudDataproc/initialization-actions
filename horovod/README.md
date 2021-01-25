@@ -45,14 +45,17 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
   --master-machine-type n1-standard-16 \
   --worker-machine-type n1-standard-16 \
   --master-accelerator nvidia-tesla-v100 \
-  --worker-accelerator nvidia-telsa-v100
+  --worker-accelerator nvidia-telsa-v100 \
   --image-version preview-ubuntu \
   --metadata gpu-provider=NVIDIA \
-  --metadata cuda-version=10.1 \
-  --metadata cudnn-version=7.6.5.32 \
+  --metadata cuda-version=11.0 \
+  --metadata cudnn-version=8.0.5.39 \
   --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/horovod/horovod.sh \
   --initialization-action-timeout=60m
 ```
+
+If you wish to use Horovod with GPU support without Spark, you must provide
+the metadata flag `horovod-env-vars='HOROVOD_GPU_OPERATIONS=NCCL'".
 
 ### Using Horovod
 
@@ -60,7 +63,7 @@ There are two ways to take advantage of Horovod's ability to scale out Deep
 Learning jobs. The first is by using `horovod.spark.run`, which enables you
 to scale out your own Deep Learning jobs:
 
-```
+```python
 import horovod.spark
 from pyspark.sql import SparkSession
 
@@ -78,7 +81,7 @@ horovod.spark.run(train)
 Horovod with Spark also provides a series of [estimators](https://horovod.readthedocs.io/en/stable/spark_include.html#horovod-spark-estimators)
 for training Keras models on Spark Dataframes.
 
-```
+```python
 from tensorflow import keras
 import tensorflow as tf
 import horovod.spark.keras as hvd
@@ -114,17 +117,17 @@ keras_model = keras_estimator.fit(train_df) \
 predict_df = keras_model.transform(test_df)
 ```
 
-Check out the official Horovod repo for [end-to-end examples](https://github.com/horovod/horovod/tree/master/examples/spark/keras).
+Check out the official Horovod reposotory for [end-to-end examples](https://github.com/horovod/horovod/tree/master/examples/spark/keras).
 
 ### Supported Libraries
 
 This initialization action will build Horovod based on the following package versions:
 ```bash
 horovod==0.21.0
-tensorflow: 2.3.0
+tensorflow: 2.4.0
 torch==1.7.1
 torchvision==0.8.2
-mxnet==1.7.0
+mxnet==1.7.0.post0
 ```
 
 This initialization action can also be configurd with GPUs and the appropriate libraries.
@@ -134,7 +137,7 @@ Mote: MXNet with GPU support is not available with this initialization action.
 This initialization action supports a series of metadata fields.
 The following allow you to configure a specific version of one of
 the libraries shown above. It is generally recommended to avoid
-doing this, as these versions have been carefully selected to be
+doing this, as the versions above have been carefully selected to be
 compatible with each other.
 
 * horovod-version=VERSION
