@@ -130,7 +130,7 @@ export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 EOF
   fi
 
-  echo "NVIDIA CuDNN successfully installed for ${OS_NAME}."
+  echo "NVIDIA cuDNN successfully installed for ${OS_NAME}."
 }
 
 # Install NVIDIA GPU driver provided by NVIDIA
