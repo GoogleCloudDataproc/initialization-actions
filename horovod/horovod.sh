@@ -15,17 +15,17 @@
 # limitations under the License.
 #
 # This initialization action will install Horovod for TensorFlow, PyTorch,
-# Keras, MXNet, and Spark. For more information, refer to the Horovod repo
+# MXNet, and Spark. For more information, refer to the Horovod repo
 # on Github: https://github.com/horovod/horovod.
 
 set -euxo pipefail
 
 readonly DEFAULT_HOROVOD_VERSION="0.21.0"
-readonly DEFAULT_TENSORFLOW_VERSION="2.3.0"
+readonly DEFAULT_TENSORFLOW_VERSION="2.4.0"
 readonly DEFAULT_PYTORCH_VERSION="1.7.1"
 readonly DEFAULT_TORCHVISION_VERSION="0.8.2"
-readonly DEFAULT_MXNET_VERSION="1.7.0"
-readonly DEFAULT_CUDA_VERSION="10.1"
+readonly DEFAULT_MXNET_VERSION="1.7.0.post1"
+readonly DEFAULT_CUDA_VERSION="11.0"
 
 HOROVOD_VERSION="$(/usr/share/google/get_metadata_value attributes/horovod-version || echo ${DEFAULT_HOROVOD_VERSION})"
 readonly HOROVOD_VERSION
@@ -76,19 +76,22 @@ EOF
 }
 
 function install_frameworks() {
-  local frameworks=()
+  frameworks=("mxnet==${MXNET_VERSION}")
 
-  # Install TensorFlow
-  frameworks+=("tensorflow==${TENSORFLOW_VERSION}")
-
-  #Install PyTorch
-  frameworks+=("torch==${PYTORCH_VERSION}" "torchvision==${TORCHVISION_VERSION}")
-
-  #Install MXNet
+  # Add gpu-versions of libraries
   if (lspci | grep -q NVIDIA); then
-    frameworks+=("mxnet-cu${CUDA_VERSION//.}==${MXNET_VERSION}")
+    pip install "torch==${PYTORCH_VERSION}+cu${CUDA_VERSION//.}" "torchvision==${TORCHVISION_VERSION}+cu${CUDA_VERSION//.}" -f "https://download.pytorch.org/whl/torch_stable.html"
+    if [[ ${TENSORFLOW_VERSION} == "1."* ]]; then
+      frameworks+=("tensorflow-gpu==${TENSORFLOW_VERSION}")
+    else
+      frameworks+=("tensorflow==${TENSORFLOW_VERSION}")
+    fi
   else
-    frameworks+=("mxnet==${MXNET_VERSION}")
+    frameworks+=(
+      "torch=${PYTORCH_VERSION}" 
+      "torchvision==${TORCHVISION_VERSION}"
+      "tensorflow==${TENSORFLOW_VERSION}"
+      )
   fi
 
   pip install "${frameworks[@]}"

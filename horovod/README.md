@@ -119,15 +119,16 @@ Check out the official Horovod repo for [end-to-end examples](https://github.com
 ### Supported Libraries
 
 This initialization action will build Horovod based on the following package versions:
-  * Horovod: 0.21.0
-  * Tensorflow: 2.3.0
-  * PyTorch: 1.7.1
-  * Torchvision: 0.8.2
-  * MXNet: 1.7.0
+```bash
+horovod==0.21.0
+tensorflow: 2.3.0
+torch==1.7.1
+torchvision==0.8.2
+mxnet==1.7.0
+```
 
-With GPUs:
-  * CUDA: 10.1
-  * MXNet-cu10.1: - 1.7.0
+This initialization action can also be configurd with GPUs and the appropriate libraries.
+Mote: MXNet with GPU support is not available with this initialization action.
 
 ### Supported metadata parameters
 This initialization action supports a series of metadata fields.
@@ -148,3 +149,8 @@ via the following flag. Please note this will increase setup time by
 about 20 minutes:
 
 * install-mpi=true
+
+Additionally, you may also provide any Horovod [environment variables](https://horovod.readthedocs.io/en/stable/install_include.html#environment-variables) via
+a space-separated value.
+
+* horovod-env-vars="HOROVOD_ENV_VAR2=VAL2 HOROVOD_ENV_VAR2=VAL2"

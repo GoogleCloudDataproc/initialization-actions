@@ -50,9 +50,9 @@ class HorovodTestCase(DataprocTestCase):
         if self.getImageVersion() < pkg_resources.parse_version("1.3"):
             return
 
-        metadata=""
+        metadata="cuda-version=10.1,cudnn-version=7.6.5.32"
         if controller == "mpi":
-            metadata+="install-mpi=true"
+            metadata+=",install-mpi=true"
         
         self.createCluster(
             configuration,
