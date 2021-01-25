@@ -51,7 +51,7 @@ gpu-driver-provider=<OS|NVIDIA>` metadata value.
 
 1.  Use the `gcloud` command to create a new cluster with OS-provided GPU driver
     and CUDA installed by initialization action. Additionally, it installs GPU
-    monitoring service.
+    monitoring service. The monitoring service is supported on Dataproc 1.4+ images.
 
     *Prerequisite:* Create GPU metrics in
     [Cloud Monitoring](https://cloud.google.com/monitoring/docs/) using Google
