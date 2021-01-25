@@ -85,7 +85,7 @@ function install_frameworks() {
     fi
   else
     frameworks+=(
-      "torch=${PYTORCH_VERSION}" 
+      "torch==${PYTORCH_VERSION}" 
       "torchvision==${TORCHVISION_VERSION}"
       "tensorflow==${TENSORFLOW_VERSION}"
       )
