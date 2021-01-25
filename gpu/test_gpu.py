@@ -17,7 +17,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         name, "systemctl status gpu-utilization-agent.service")
 
   def verify_instance_cudnn(self, name):
-    # Run `ldconfig -p` first to simlify debugging
     self.assert_instance_command(
         name, "[[ $(sudo ldconfig -p | grep libcudnn | wc -l) -gt 0 ]]" )
 
