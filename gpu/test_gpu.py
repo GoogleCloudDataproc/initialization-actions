@@ -19,7 +19,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
   def verify_instance_cudnn(self, name):
     self.assert_instance_command(
-        name, "/usr/sbin/ldconfig -p | grep libcudnn" )
+        name, "/sbin/ldconfig -p | grep libcudnn" )
 
   @parameterized.parameters(
       ("STANDARD", ["m"], GPU_V100, None, None),
@@ -77,7 +77,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                   driver_provider):
     # GPU agent supported on Dataproc 1.4+
     if self.getImageVersion() < pkg_resources.parse_version("1.4"):
-      return
+      self.skipTest("GPU utiliziation metrics supported on Dataproc 1.4+")
     
     metadata = "install-gpu-agent=true"
     if driver_provider is not None:
