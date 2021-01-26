@@ -51,7 +51,7 @@ class HorovodTestCase(DataprocTestCase):
         if self.getImageVersion() < pkg_resources.parse_version("1.3"):
             return
 
-        metadata="cuda-version=11.0,cudnn-version=8.0.5.39"
+        metadata="cuda-version=11.0,cudnn-version=8.0.5.39,gpu-driver-provider=NVIDIA"
         if controller == "mpi":
             metadata+=",install-mpi=true"
         

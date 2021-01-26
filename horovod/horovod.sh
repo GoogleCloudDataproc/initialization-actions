@@ -20,7 +20,7 @@
 
 set -euxo pipefail
 
-readonly DEFAULT_HOROVOD_VERSION="0.21.0"
+readonly DEFAULT_HOROVOD_VERSION="0.21.1"
 readonly DEFAULT_TENSORFLOW_VERSION="2.4.0"
 readonly DEFAULT_PYTORCH_VERSION="1.7.1"
 readonly DEFAULT_TORCHVISION_VERSION="0.8.2"
@@ -38,7 +38,7 @@ readonly TORCHVISION_VERSION
 MXNET_VERSION="$(/usr/share/google/get_metadata_value attributes/mxnet-version || echo ${DEFAULT_MXNET_VERSION})"
 readonly MXNET_VERSION
 
-CUDA_VERSION="$(/usr/share/google/get_metadata_value attributes/mxnet-version || echo ${DEFAULT_CUDA_VERSION})"
+CUDA_VERSION="$(/usr/share/google/get_metadata_value attributes/cuda-version || echo ${DEFAULT_CUDA_VERSION})"
 readonly CUDA_VERSION
 
 HOROVOD_ENV_VARS="$(/usr/share/google/get_metadata_value attributes/horovod-env-vars || echo "")"
@@ -97,7 +97,7 @@ function install_frameworks() {
 
 function install_horovod() {
   # Install cmake
-  apt install -y cmake
+  apt-get install -y cmake
 
   # Install Horovod
   horovod_build_frameworks="tensorflow,pytorch,spark"
@@ -111,7 +111,7 @@ function install_horovod() {
 }
 
 function main() {
-  # Optionally install MPI 
+  # Optionally install MPI pip un
   if [[ -n "${INSTALL_MPI}" ]]; then
     install_mpi
   fi
