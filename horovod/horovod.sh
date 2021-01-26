@@ -73,7 +73,7 @@ EOF
 }
 
 function install_frameworks() {
-  frameworks=("mxnet==${MXNET_VERSION}")
+  local frameworks=()
 
   # Add gpu-versions of libraries
   if (lspci | grep -q NVIDIA); then
@@ -88,6 +88,7 @@ function install_frameworks() {
       "torch==${PYTORCH_VERSION}" 
       "torchvision==${TORCHVISION_VERSION}"
       "tensorflow==${TENSORFLOW_VERSION}"
+      "mxnet==${MXNET_VERSION}"
       )
   fi
 
@@ -99,7 +100,14 @@ function install_horovod() {
   apt install -y cmake
 
   # Install Horovod
-  eval "${HOROVOD_ENV_VARS} pip install --no-cache-dir horovod[tensorflow,pytorch,mxnet,spark]==${HOROVOD_VERSION}"
+  horovod_build_frameworks="tensorflow,pytorch,spark"
+  
+  # Horovod on Dataproc with MXNet only supported with CPUs
+  if ! (lspci | grep -q NVIDIA); then
+    horovod_build_frameworks+=",mxnet"
+  fi
+
+  eval "${HOROVOD_ENV_VARS} pip install --no-cache-dir horovod[${horovod_build_frameworks}]==${HOROVOD_VERSION}"
 }
 
 function main() {

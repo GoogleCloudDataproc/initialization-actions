@@ -23,7 +23,7 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
   --region ${REGION} \
   --master-machine-type n1-standard-16 \
   --worker-machine-type n1-standard-16 \
-  --image-version preview-ubuntu \
+  --image-version 2.0-ubuntu18 \
   --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/horovod/horovod.sh \
   --initialization-action-timeout 30m
 ```
@@ -46,7 +46,7 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
   --worker-machine-type n1-standard-16 \
   --master-accelerator nvidia-tesla-v100 \
   --worker-accelerator nvidia-telsa-v100 \
-  --image-version preview-ubuntu \
+  --image-version 2.0-ubuntu18 \
   --metadata gpu-provider=NVIDIA \
   --metadata cuda-version=11.0 \
   --metadata cudnn-version=8.0.5.39 \
@@ -55,7 +55,7 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
 ```
 
 If you wish to use Horovod with GPU support without Spark, you must provide
-the metadata flag `horovod-env-vars='HOROVOD_GPU_OPERATIONS=NCCL'".
+the metadata flag `horovod-env-vars="HOROVOD_GPU_OPERATIONS=NCCL"`.
 
 ### Using Horovod
 
@@ -127,11 +127,11 @@ horovod==0.21.0
 tensorflow: 2.4.0
 torch==1.7.1
 torchvision==0.8.2
-mxnet==1.7.0.post0
+mxnet==1.7.0.post0 # CPUs only
 ```
 
 This initialization action can also be configurd with GPUs and the appropriate libraries.
-Mote: MXNet with GPU support is not available with this initialization action.
+Mote: MXNet is not installed if GPUs are present.
 
 ### Supported metadata parameters
 This initialization action supports a series of metadata fields.
