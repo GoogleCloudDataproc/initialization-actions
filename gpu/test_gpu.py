@@ -129,7 +129,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                   driver_provider, cudnn_version):
     metadata = "cudnn-version={}".format(cudnn_version)
     if driver_provider is not None:
-        metadata += ",gpu-driver-provider={}".format(driver_provider)
+      metadata += ",gpu-driver-provider={}".format(driver_provider)
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,

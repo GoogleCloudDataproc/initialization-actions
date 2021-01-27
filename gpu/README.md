@@ -107,8 +107,7 @@ script without NVIDIA Docker, you can find more information at
 
 You can also install [cuDNN](https://developer.nvidia.com/CUDNN) on your
 cluster. cuDNN is used as a backend for Deep Learning frameworks, such as
-TensorFlow. This feature is currently only supported on Ubuntu-based Dataproc
-images. To select a version, include the metadata parameter `--metadata
+TensorFlow. To select a version, include the metadata parameter `--metadata
 cudnn-version=x.x.x.x`. You can find the list of archived versions
 [here](https://developer.nvidia.com/rdp/cudnn-archive) which includes all
 versions except the latest. To locate the version you need, click on Download
@@ -152,8 +151,8 @@ sometimes found in the "building from source" sections.
     customizing NVIDIA-provided CUDA version. Default is `10.2`.
 
 -   `cudnn-version: <VERSION>` - this is an optional parameter for installing
-    [NVIDIA cuDNN](https://developer.nvidia.com/CUDNN) version `x.x.x.x` on
-    Ubuntu-based Dataproc images. There is no default value.
+    [NVIDIA cuDNN](https://developer.nvidia.com/CUDNN) version `x.x.x.x`.
+    There is no default value.
 
 #### Verification
 
