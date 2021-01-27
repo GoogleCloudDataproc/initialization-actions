@@ -145,6 +145,9 @@ function install_conda_packages() {
     execute_with_retries "${mamba_env}/bin/mamba install -y ${extra_packages[*]} -p ${base}"
   fi
 
+  # Clean up environment
+  ${mamba_env}/bin/mamba clean -y --all
+
   # Remove mamba env when done
   conda env remove -n ${mamba_env_name}
 }
@@ -224,9 +227,6 @@ function main() {
   # Install Pip packages
   echo "Installing Pip Packages"
   install_pip_packages
-
-  # Clean up environment
-  conda clean -y --all
 }
 
 main
