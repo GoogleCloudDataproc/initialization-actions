@@ -349,12 +349,12 @@ function main() {
     exit 1
   fi
 
+  export DEBIAN_FRONTEND=noninteractive
+  execute_with_retries "apt-get update"
+  execute_with_retries "apt-get install -y -q pciutils"
+
   # Detect NVIDIA GPU
   if (lspci | grep -q NVIDIA); then
-    export DEBIAN_FRONTEND=noninteractive
-    execute_with_retries "apt-get update"
-    execute_with_retries "apt-get install -y -q pciutils"
-
     configure_gpu_isolation
     configure_yarn
 
