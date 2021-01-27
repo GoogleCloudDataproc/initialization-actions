@@ -31,48 +31,54 @@ readonly INIT_ACTIONS_DIR=$(mktemp -d -t dataproc-init-actions-XXXX)
 readonly RAPIDS_RUNTIME="$(/usr/share/google/get_metadata_value attributes/rapids-runtime || echo "")"
 readonly INCLUDE_GPUS="$(/usr/share/google/get_metadata_value attributes/include-gpus || echo "")"
 readonly SPARK_BIGQUERY_VERSION="$(/usr/share/google/get_metadata_value attributes/spark-bigquery-connector-version ||
-  echo "0.17.0")"
+  echo "0.18.0")"
 
 readonly R_VERSION="$(R --version | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p')"
-readonly TENSORFLOW_VERSION="2.3.*"
-readonly SPARK_NLP_VERSION="2.6.3" # Must include subminor version here
+readonly TENSORFLOW_VERSION="2.4.*"
+readonly TENSORFLOW_VERSION_DATAPROC_1_5="2.3.*"
+readonly SPARK_NLP_VERSION="2.7.2" # Must include subminor version here
 
 CONDA_PACKAGES=(
   "r-dplyr=1.0"
   "r-essentials=${R_VERSION}"
-  "r-sparklyr=1.4"
-  "scikit-learn=0.23"
+  "r-sparklyr=1.5"
+  "scikit-learn=0.24"
   "pytorch=1.7"
   "torchvision=0.8"
-  "xgboost=1.2"
+  "xgboost=1.3"
 )
 
 # rapids-xgboost (part of the RAPIDS library) requires a custom build of 
 # xgboost that is incompatible with r-xgboost. As such, r-xgboost is not
 # installed into the MLVM if RAPIDS support is desired.
 if [[ -z ${RAPIDS_RUNTIME} ]]; then
-  CONDA_PACKAGES+=("r-xgboost=1.2")
+  CONDA_PACKAGES+=("r-xgboost=1.3")
 fi
 readonly CONDA_PACKAGES
 
 PIP_PACKAGES=(
   "mxnet==1.6.*"
-  "rpy2==3.3.*"
+  "rpy2==3.4.*"
   "spark-nlp==${SPARK_NLP_VERSION}"
   "sparksql-magic==0.0.*"
-  "tensorflow-datasets==3.2.*"
-  "tensorflow-estimator==${TENSORFLOW_VERSION}"
-  "tensorflow-hub==0.8.*"
-  "tensorflow-io==0.15.*"
-  "tensorflow-probability==0.11.*"
+  "tensorflow-datasets==4.2.*"
+  "tensorflow-hub==0.11.*"
+  "tensorflow-probability==0.12.*"
 )
-if [[ -n ${INCLUDE_GPUS} ]]; then
-  PIP_PACKAGES+=("tensorflow-gpu==${TENSORFLOW_VERSION}")
-else
-  PIP_PACKAGES+=("tensorflow==${TENSORFLOW_VERSION}")
-fi
+
 if [ "$(echo "$DATAPROC_VERSION >= 2.0" | bc)" -eq 1 ]; then
-  PIP_PACKAGES+=("spark-tensorflow-distributor==0.1.0")
+  PIP_PACKAGES+=(
+    "spark-tensorflow-distributor==0.1.0"
+    "tensorflow-io=0.17"
+    "tensorflow==${TENSORFLOW_VERSION}"
+    "tensorflow-estimator==${TENSORFLOW_VERSION}"
+    )
+else
+  PIP_PACKAGES+=(
+    "tensorflow-io=0.16"
+    "tensorflow==${TENSORFLOW_VERSION_DATAPROC_1_5}"
+    "tensorflow-estimator==${TENSORFLOW_VERSION_DATAPROC_1_5}"
+    )
 fi
 readonly PIP_PACKAGES
 

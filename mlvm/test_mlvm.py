@@ -126,12 +126,22 @@ class MLVMTestCase(DataprocTestCase):
                 ",gpu-driver-provider=NVIDIA").format(self.INIT_ACTIONS_REPO)
 
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+      cudnn_version="7.6.5.32"
+      cuda_version="10.1"
       if rapids_runtime == "DASK":
         self.skipTest("RAPIDS with Dask not supported in pre 2.0 images.")
       else:
         self.OPTIONAL_COMPONENTS.append("ANACONDA")
-        metadata+=",cuda-version=10.1"
+    else:
+      cudnn_version="8.0.5.39"
+      cuda_version="11.0"
 
+    metadata = ("init-actions-repo={},include-gpus=true"
+                ",gpu-driver-provider=NVIDIA"
+                "cuda-version={},cudnn-version={}"
+                ).format(self.INIT_ACTIONS_REPO,
+                         cuda_version, 
+                         cudnn_version)
 
     if dask_runtime:
       metadata += ",dask-runtime={}".format(dask_runtime)
