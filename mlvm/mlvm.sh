@@ -69,13 +69,13 @@ PIP_PACKAGES=(
 if [ "$(echo "$DATAPROC_VERSION >= 2.0" | bc)" -eq 1 ]; then
   PIP_PACKAGES+=(
     "spark-tensorflow-distributor==0.1.0"
-    "tensorflow-io=0.17"
+    "tensorflow-io==0.17"
     "tensorflow==${TENSORFLOW_VERSION}"
     "tensorflow-estimator==${TENSORFLOW_VERSION}"
     )
 else
   PIP_PACKAGES+=(
-    "tensorflow-io=0.16"
+    "tensorflow-io==0.16"
     "tensorflow==${TENSORFLOW_VERSION_DATAPROC_1_5}"
     "tensorflow-estimator==${TENSORFLOW_VERSION_DATAPROC_1_5}"
     )
