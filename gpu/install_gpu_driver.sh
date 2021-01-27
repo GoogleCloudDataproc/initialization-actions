@@ -64,6 +64,11 @@ readonly NCCL_REPO_URL
 NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.7.8')
 readonly NCCL_VERSION
 
+# Parameters for NVIDIA-provided CUDNN library
+readonly CUDNN_VERSION=$(get_metadata_attribute 'cudnn-version' '')
+readonly CUDNN_TARBALL="cudnn-${CUDA_VERSION}-linux-x64-v${CUDNN_VERSION}.tgz"
+readonly CUDNN_TARBALL_URL="http://developer.download.nvidia.com/compute/redist/cudnn/v${CUDNN_VERSION%.*}/${CUDNN_TARBALL}"
+
 # Whether to install NVIDIA-provided or OS-provided GPU driver
 GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'OS')
 readonly GPU_DRIVER_PROVIDER
@@ -103,6 +108,31 @@ function install_nvidia_nccl() {
   local -r nccl_version="${NCCL_VERSION}-1+cuda${CUDA_VERSION}"
   execute_with_retries \
     "apt-get install -y --allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
+}
+
+function install_nvidia_cudnn() {
+  if [[ ${OS_NAME} == ubuntu ]]; then 
+    local major_version="${CUDNN_VERSION%%.*}"
+    local cudnn_pkg_version="${CUDNN_VERSION}-1+cuda${CUDA_VERSION}"
+    execute_with_retries \
+        "apt-get install -y --no-install-recommends libcudnn${major_version}=${cudnn_pkg_version} libcudnn${major_version}-dev=${cudnn_pkg_version}"
+  else
+    local tmp_dir
+    tmp_dir=$(mktemp -d -t gpu-init-action-cudnn-XXXX)
+    
+    curl -fSsL --retry-connrefused --retry 10 --retry-max-time 30 \
+      "${CUDNN_TARBALL_URL}" -o "${tmp_dir}/${CUDNN_TARBALL}"
+
+    tar -xzf "${tmp_dir}/${CUDNN_TARBALL}" -C /usr/local
+
+    cat <<'EOF' >>/etc/profile.d/cudnn.sh
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
+EOF
+  fi
+
+  ldconfig
+
+  echo "NVIDIA cuDNN successfully installed for ${OS_NAME}."
 }
 
 # Install NVIDIA GPU driver provided by NVIDIA
@@ -244,7 +274,7 @@ EOF
   # Reload systemd manager configuration
   systemctl daemon-reload
   # Enable gpu-utilization-agent service
-  systemctl --now enable gpu-utilization-agent.service
+  systemctl --no-reload --now enable gpu-utilization-agent.service
 }
 
 function set_hadoop_property() {
@@ -323,15 +353,18 @@ function main() {
   execute_with_retries "apt-get update"
   execute_with_retries "apt-get install -y -q pciutils"
 
-  configure_gpu_isolation
-  configure_yarn
-
   # Detect NVIDIA GPU
   if (lspci | grep -q NVIDIA); then
+    configure_gpu_isolation
+    configure_yarn
+
     execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
     if [[ ${GPU_DRIVER_PROVIDER} == 'NVIDIA' ]]; then
       install_nvidia_gpu_driver
       install_nvidia_nccl
+      if [[ -n ${CUDNN_VERSION} ]]; then
+        install_nvidia_cudnn
+      fi
     elif [[ ${GPU_DRIVER_PROVIDER} == 'OS' ]]; then
       install_os_gpu_driver
     else

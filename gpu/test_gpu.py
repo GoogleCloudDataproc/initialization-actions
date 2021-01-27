@@ -1,3 +1,4 @@
+import pkg_resources
 from absl.testing import absltest
 from absl.testing import parameterized
 
@@ -15,6 +16,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def verify_instance_gpu_agent(self, name):
     self.assert_instance_command(
         name, "systemctl status gpu-utilization-agent.service")
+
+  def verify_instance_cudnn(self, name):
+    self.assert_instance_command(
+        name, "sudo ldconfig -p | grep -q libcudnn" )
 
   @parameterized.parameters(
       ("STANDARD", ["m"], GPU_V100, None, None),
@@ -70,6 +75,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_with_agent(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider):
+    # GPU agent supported on Dataproc 1.4+
+    if self.getImageVersion() < pkg_resources.parse_version("1.4"):
+      self.skipTest("GPU utiliziation metrics only supported on Dataproc 1.4+")
+    
     metadata = "install-gpu-agent=true"
     if driver_provider is not None:
       metadata += ",gpu-driver-provider={}".format(driver_provider)
@@ -112,6 +121,27 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       self.verify_instance("{}-{}".format(self.getClusterName(),
                                           machine_suffix))
 
+  @parameterized.parameters(
+      ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "NVIDIA", "8.0.5.39"),
+  )
+  def test_install_gpu_with_cudnn(self, configuration, machine_suffixes,
+                                  master_accelerator, worker_accelerator,
+                                  driver_provider, cudnn_version):
+    metadata = "cudnn-version={}".format(cudnn_version)
+    if driver_provider is not None:
+      metadata += ",gpu-driver-provider={}".format(driver_provider)
+    self.createCluster(
+        configuration,
+        self.INIT_ACTIONS,
+        machine_type="n1-standard-2",
+        master_accelerator=master_accelerator,
+        worker_accelerator=worker_accelerator,
+        metadata=metadata,
+        timeout_in_minutes=30,
+        scopes="https://www.googleapis.com/auth/monitoring.write")
+    for machine_suffix in machine_suffixes:
+      self.verify_instance_cudnn("{}-{}".format(self.getClusterName(),
+                                                machine_suffix))
 
 if __name__ == "__main__":
   absltest.main()
