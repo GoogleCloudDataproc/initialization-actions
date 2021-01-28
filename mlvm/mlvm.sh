@@ -196,7 +196,6 @@ function install_rapids() {
 }
 
 function main() {
-  
   # Download initialization actions
   echo "Downloading initialization actions"
   download_init_actions
