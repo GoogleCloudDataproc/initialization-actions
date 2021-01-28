@@ -27,8 +27,8 @@ class HorovodTestCase(DataprocTestCase):
         ("STANDARD", "gloo"),
     )
     def test_horovod_cpu(self,configuration, controller):
-        # Init action supported on Dataproc 1.3+
-        if self.getImageVersion() < pkg_resources.parse_version("1.3"):
+        # Init action supported on Dataproc 1.4+
+        if self.getImageVersion() < pkg_resources.parse_version("1.4"):
             return
         
         metadata=""
@@ -47,8 +47,8 @@ class HorovodTestCase(DataprocTestCase):
         ("STANDARD","gloo"),
     )
     def test_horovod_gpu(self, configuration, controller):
-        # Init action supported on Dataproc 1.3+
-        if self.getImageVersion() < pkg_resources.parse_version("1.3"):
+        # Init action supported on Dataproc 1.4+
+        if self.getImageVersion() < pkg_resources.parse_version("1.4"):
             return
 
         metadata="cuda-version=11.0,cudnn-version=8.0.5.39,gpu-driver-provider=NVIDIA"

@@ -1,4 +1,4 @@
-# Dataproc - Horovod
+# Horovod
 
 [Horovod](horovod.ai) is an open source framework designed to distribute deep
 learning jobs across multiple machines. You can distribute your own models or
@@ -11,7 +11,7 @@ cluster. You may configure Horovod to distribute its workloads using either
 MPI, Gloo, or NCCL with GPUS.
 
 Using this initialization action
-⚠️ NOTICE: See best practices of using initialization actions in production.
+⚠️ NOTICE: See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
 
 ## Creating Dataproc Cluster with Horovod
 The following command will create a Google Cloud Dataproc cluster with Horovod installed.

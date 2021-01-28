@@ -47,17 +47,28 @@ readonly HOROVOD_ENV_VARS
 INSTALL_MPI="$(/usr/share/google/get_metadata_value attributes/install-mpi || echo "")"
 readonly INSTALL_MPI
 
+function execute_with_retries() {
+  local -r cmd=$1
+  for ((i = 0; i < 10; i++)); do
+    if eval "$cmd"; then
+      return 0
+    fi
+    sleep 5
+  done
+  return 1
+}
+
 function install_mpi() {
-  local -r MPI_VERSION="4.1.0"
-  local -r MPI_URL="https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-${MPI_VERSION}.tar.gz"
-  #apt install openmpi
-  
+  local -r mpi_version="4.1.0"
+  local -r mpi_url="https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-${mpi_version}.tar.gz"
+  local tmp_dir
   tmp_dir=$(mktemp -d -t mlvm-horovod-mpi-XXXX)
-  wget -nv --timeout=30 --tries=5 --retry-connrefused -P ${tmp_dir} "${MPI_URL}" 
-  gunzip -c "${tmp_dir}/openmpi-${MPI_VERSION}.tar.gz" | tar xf - -C ${tmp_dir}
+  
+  wget -nv --timeout=30 --tries=5 --retry-connrefused -P ${tmp_dir} "${mpi_url}" 
+  gunzip -c "${tmp_dir}/openmpi-${mpi_version}.tar.gz" | tar xf - -C ${tmp_dir}
 
   cur_dir=$(pwd)  
-  cd "${tmp_dir}/openmpi-${MPI_VERSION}"
+  cd "${tmp_dir}/openmpi-${mpi_version}"
   ./configure --prefix=/usr/local --enable-mpirun-prefix-by-default
   make all install
   ldconfig
@@ -97,10 +108,10 @@ function install_frameworks() {
 
 function install_horovod() {
   # Install cmake
-  apt-get install -y cmake
+  execute_with_retries "apt-get install -y cmake"
 
   # Install Horovod
-  horovod_build_frameworks="tensorflow,pytorch,spark"
+  local horovod_build_frameworks="tensorflow,pytorch,spark"
   
   # Horovod on Dataproc with MXNet only supported with CPUs
   if ! (lspci | grep -q NVIDIA); then
