@@ -88,8 +88,8 @@ function install_spark_rapids() {
   local -r rapids_repo_url='https://repo1.maven.org/maven2/ai/rapids'
   local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
   local cudf_cuda_version="${CUDA_VERSION//\./-}"
-  # Convert "11-0" to "11"
-  cudf_cuda_version="${cudf_cuda_version%-0}"
+  # Convert "11-0" to "11", or "10-2" to "10", etc.
+  cudf_cuda_version="${cudf_cuda_version%-*}"
 
   if [[ "${SPARK_VERSION}" == "3"* ]]; then
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
