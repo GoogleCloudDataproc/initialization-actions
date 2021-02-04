@@ -31,7 +31,7 @@ readonly INIT_ACTIONS_DIR=$(mktemp -d -t dataproc-init-actions-XXXX)
 readonly RAPIDS_RUNTIME="$(/usr/share/google/get_metadata_value attributes/rapids-runtime || echo "")"
 readonly INCLUDE_GPUS="$(/usr/share/google/get_metadata_value attributes/include-gpus || echo "")"
 readonly SPARK_BIGQUERY_VERSION="$(/usr/share/google/get_metadata_value attributes/spark-bigquery-connector-version ||
-  echo "0.18.0")"
+  echo "0.18.1")"
 
 readonly R_VERSION="$(R --version | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p')"
 readonly TENSORFLOW_VERSION="2.4.*"
@@ -226,6 +226,8 @@ function main() {
   # Install Pip packages
   echo "Installing Pip Packages"
   install_pip_packages
+
+  sleep 300
 }
 
 main

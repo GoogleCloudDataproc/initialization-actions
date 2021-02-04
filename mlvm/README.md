@@ -137,7 +137,7 @@ NVIDIA GPU Drivers:
 *   NCCL 2.7.8
 *   RAPIDS 0.17.0
 *   Latest NVIDIA drivers for Ubuntu / Debian
-*   spark-bigquery-connector 0.18.0
+*   spark-bigquery-connector 0.18.1
 
 ### Python Libraries
 
@@ -206,7 +206,7 @@ For additional R libraries you can use the following:
 
 ```
 spark-nlp - 2.7.2
-spark-bigquery-connector - 0.18.0
+spark-bigquery-connector - 0.18.1
 RAPIDS XGBOOST libraries - 0.17.0
 ```
 
