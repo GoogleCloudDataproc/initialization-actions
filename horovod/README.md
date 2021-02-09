@@ -25,7 +25,7 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
   --worker-machine-type n1-standard-16 \
   --image-version 2.0-ubuntu18 \
   --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/horovod/horovod.sh \
-  --initialization-action-timeout 30m
+  --initialization-action-timeout=30m
 ```
 
 By default, this will install Horovod with the `gloo` controller. You can use
