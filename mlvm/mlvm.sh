@@ -226,8 +226,6 @@ function main() {
   # Install Pip packages
   echo "Installing Pip Packages"
   install_pip_packages
-
-  sleep 300
 }
 
 main
