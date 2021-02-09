@@ -52,11 +52,12 @@ installed on the cluster:
 ```bash
 REGION=<region>
 CLUSTER_NAME=<cluster_name>
-INIT_ACTIONS_REPO=<your_bucket_name>
+INIT_ACTIONS_REPO=gs://<your_bucket_name>
 gcloud dataproc clusters create ${CLUSTER_NAME} \
     --region ${REGION} \
     --master-machine-type n1-standard-16 \
     --worker-machine-type n1-highmem-32 \
+    --master-accelerator type=nvidia-tesla-t4,count=2 \
     --worker-accelerator type=nvidia-tesla-t4,count=2 \
     --image-version 2.0-ubuntu18 \
     --metadata gpu-driver-provider=NVIDIA \
@@ -66,7 +67,7 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
     --metadata cuda-version=11.0 \
     --metadata cudnn-version=8.0.5.39 \
     --optional-components JUPYTER \
-    --initialization-actions gs://${INIT_ACTIONS_REPO}/mlvm/mlvm.sh \
+    --initialization-actions ${INIT_ACTIONS_REPO}/mlvm/mlvm.sh \
     --initialization-action-timeout=45m \
     --enable-component-gateway
 ```
@@ -75,11 +76,12 @@ You can make a Dataproc 1.5 cluster with the following command:
 ```bash
 REGION=<region>
 CLUSTER_NAME=<cluster_name>
-INIT_ACTIONS_REPO=<your_bucket_name>
+INIT_ACTIONS_REPO=gs://<your_bucket_name>
 gcloud dataproc clusters create ${CLUSTER_NAME} \
     --region ${REGION} \
     --master-machine-type n1-standard-16 \
     --worker-machine-type n1-highmem-32 \
+    --master-accelerator type=nvidia-tesla-t4,count=2 \
     --worker-accelerator type=nvidia-tesla-t4,count=2 \
     --image-version 1.5-ubuntu18 \
     --metadata gpu-driver-provider=NVIDIA \
@@ -89,7 +91,7 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
     --metadata cuda-version=10.1 \
     --metadata cudnn-version=7.6.5.32 \
     --optional-components ANACONDA,JUPYTER \
-    --initialization-actions gs://${INIT_ACTIONS_REPO}/mlvm/mlvm.sh \
+    --initialization-actions ${INIT_ACTIONS_REPO}/mlvm/mlvm.sh \
     --initialization-action-timeout=45m \
     --enable-component-gateway
 ```
@@ -115,6 +117,9 @@ config:
   - executableFile: gs://<INIT_ACTIONS_REPO>/mlvm/mlvm.sh
     executionTimeout: 2700s
   masterConfig:
+    accelerators:
+    - acceleratorCount: 2
+      acceleratorTypeUri: nvidia-tesla-t4
     machineTypeUri: n1-standard-16
   softwareConfig:
     imageVersion: 2.0-ubuntu18
