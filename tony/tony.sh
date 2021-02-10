@@ -19,20 +19,18 @@ set -euxo pipefail
 # TonY settings
 readonly TONY_INSTALL_FOLDER='/opt/tony'
 readonly TONY_SAMPLES_FOLDER="${TONY_INSTALL_FOLDER}/TonY-samples"
-readonly TONY_DEFAULT_VERSION='0c4bd4095d21b2d1ebbf7441d59fe42022714464'
+readonly TONY_DEFAULT_VERSION='0.4.0'
 
 # Tony configurations: https://github.com/linkedin/TonY/wiki/TonY-Configurations
 readonly PS_INSTANCES=1
 readonly PS_MEMORY='2g'
 readonly WORKER_INSTANCES=2
 readonly WORKER_MEMORY='4g'
-readonly WORKER_GPUS=0 # GPU isolation is not supported in Dataproc 1.3
+readonly WORKER_GPUS=1
 
 # ML frameworks versions
-readonly TENSORFLOW_VERSION='1.13.2'
+readonly TENSORFLOW_VERSION='2.4.1'
 readonly TENSORFLOW_GPU=false
-readonly TORCH_VERSION='0.4.1.post2'
-readonly TORCHVISION_VERSION='0.2.1'
 
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 readonly ROLE
@@ -43,9 +41,60 @@ function download_and_build_tony() {
   cd "${TONY_INSTALL_FOLDER}"
   git clone https://github.com/linkedin/TonY.git
   cd TonY
-  git checkout "${TONY_DEFAULT_VERSION}"
+  git checkout tags/v"${TONY_DEFAULT_VERSION}" -b "${TONY_DEFAULT_VERSION}"
   # Build TonY without tests.
   ./gradlew build -x test
+}
+
+function tf_gpu_config() {
+  cat <<EOF >tony.xml
+<configuration>
+ <property>
+  <name>tony.application.security.enabled</name>
+  <value>false</value>
+ </property>
+ <property>
+  <name>tony.worker.instances</name>
+  <value>${worker_instances}</value>
+ </property>
+ <property>
+  <name>tony.worker.memory</name>
+  <value>${worker_memory}</value>
+ </property>
+ <property>
+  <name>tony.worker.gpus</name>
+  <value>${worker_gpus}</value>
+ </property>
+ <property>
+  <name>tony.application.framework</name>
+  <value>tensorflow</value>
+ </property>
+</configuration>
+EOF
+}
+
+
+function tf_cpu_config() {
+  cat <<EOF >tony.xml
+<configuration>
+ <property>
+  <name>tony.application.security.enabled</name>
+  <value>false</value>
+ </property>
+ <property>
+  <name>tony.worker.instances</name>
+  <value>${worker_instances}</value>
+ </property>
+ <property>
+  <name>tony.worker.memory</name>
+  <value>${worker_memory}</value>
+ </property>
+ <property>
+  <name>tony.application.framework</name>
+  <value>tensorflow</value>
+ </property>
+</configuration>
+EOF
 }
 
 function install_samples() {
@@ -53,18 +102,18 @@ function install_samples() {
   mkdir -p "${TONY_SAMPLES_FOLDER}/deps"
   # Create TensorFlow directory
   mkdir -p "${TONY_SAMPLES_FOLDER}/jobs/TFJob/src"
-  # Create PyTorch directory
-  mkdir -p "${TONY_SAMPLES_FOLDER}/jobs/PTJob/src"
 
   # Copy jar file.
-  cp "${TONY_INSTALL_FOLDER}"/TonY/tony-cli/build/libs/tony-cli-*-all.jar "${TONY_SAMPLES_FOLDER}"
-  ln -s "${TONY_SAMPLES_FOLDER}"/tony-cli-*-all.jar "${TONY_SAMPLES_FOLDER}/tony-cli-all.jar"
+  cp "${TONY_INSTALL_FOLDER}"/TonY/tony-cli/build/libs/tony-cli-${TONY_DEFAULT_VERSION}-uber.jar "${TONY_SAMPLES_FOLDER}"
+  ln -s "${TONY_SAMPLES_FOLDER}"/tony-cli-${TONY_DEFAULT_VERSION}-uber.jar "${TONY_SAMPLES_FOLDER}/tony-cli.jar"
 
   # Collect metadata
   local worker_instances
   worker_instances="$(/usr/share/google/get_metadata_value attributes/worker_instances || echo ${WORKER_INSTANCES})"
   local worker_memory
   worker_memory="$(/usr/share/google/get_metadata_value attributes/worker_memory || echo ${WORKER_MEMORY})"
+  local worker_gpus
+  worker_gpus="$(/usr/share/google/get_metadata_value attributes/worker_gpus || echo ${WORKER_GPUS})"
   local ps_instances
   ps_instances="$(/usr/share/google/get_metadata_value attributes/ps_instances || echo ${PS_INSTANCES})"
   local ps_memory
@@ -75,12 +124,6 @@ function install_samples() {
   tf_version="$(/usr/share/google/get_metadata_value attributes/tf_version || echo ${TENSORFLOW_VERSION})"
   local tf_gpu
   tf_gpu="$(/usr/share/google/get_metadata_value attributes/tf_gpu || echo ${TENSORFLOW_GPU})"
-
-  # PyTorch version
-  local torch_version
-  torch_version="$(/usr/share/google/get_metadata_value attributes/torch_version || echo ${TORCH_VERSION})"
-  local torchvision_version
-  torchvision_version="$(/usr/share/google/get_metadata_value attributes/torchvision_version || echo ${TORCHVISION_VERSION})"
 
   # Install TensorFlow sample
   cd "${TONY_SAMPLES_FOLDER}/deps"
@@ -105,100 +148,29 @@ function install_samples() {
   fi
   zip -r tf.zip tf
 
-  cp "${TONY_INSTALL_FOLDER}/TonY/tony-examples/mnist-tensorflow/mnist_distributed.py" \
+  cp "${TONY_INSTALL_FOLDER}/TonY/tony-examples/mnist-tensorflow/mnist_keras_distributed.py" \
     "${TONY_SAMPLES_FOLDER}/jobs/TFJob/src"
   cd "${TONY_SAMPLES_FOLDER}/jobs/TFJob"
 
   # Additional configuration settings: https://github.com/linkedin/TonY/wiki/TonY-Configurations
-  cat <<EOF >tony.xml
-<configuration>
- <property>
-  <name>tony.application.security.enabled</name>
-  <value>false</value>
- </property>
- <property>
-  <name>tony.worker.instances</name>
-  <value>${worker_instances}</value>
- </property>
- <property>
-  <name>tony.worker.memory</name>
-  <value>${worker_memory}</value>
- </property>
- <property>
-  <name>tony.ps.instances</name>
-  <value>${ps_instances}</value>
- </property>
- <property>
-  <name>tony.ps.memory</name>
-  <value>${ps_memory}</value>
- </property>
- <property>
-  <name>tony.worker.gpus</name>
-  <value>${WORKER_GPUS}</value>
- </property>
-</configuration>
-EOF
-
-  # Install PyTorch sample
-  cd "${TONY_SAMPLES_FOLDER}/deps"
-  virtualenv -p python3 pytorch
-  set +u
-  source pytorch/bin/activate
-  set -u
-
-  pip install "torch==${torch_version}" "torchvision==${torchvision_version}"
-  pip install -I numpy
-  zip -r pytorch.zip pytorch
-  cp "${TONY_INSTALL_FOLDER}/TonY/tony-examples/mnist-pytorch/mnist_distributed.py" \
-    "${TONY_SAMPLES_FOLDER}/jobs/PTJob/src"
-  cd "${TONY_SAMPLES_FOLDER}/jobs/PTJob/"
-
-  # Additional configuration settings: https://github.com/linkedin/TonY/wiki/TonY-Configurations
-  cat <<EOF >tony.xml
-<configuration>
- <property>
-  <name>tony.application.name</name>
-  <value>PyTorch</value>
- </property>
- <property>
-  <name>tony.application.security.enabled</name>
-  <value>false</value>
- </property>
- <property>
-  <name>tony.worker.instances</name>
-  <value>${worker_instances}</value>
- </property>
- <property>
-  <name>tony.worker.memory</name>
-  <value>${worker_memory}</value>
- </property>
- <property>
-  <name>tony.ps.instances</name>
-  <value>${ps_instances}</value>
- </property>
- <property>
-  <name>tony.ps.memory</name>
-  <value>${ps_memory}</value>
- </property>
- <property>
-  <name>tony.application.framework</name>
-  <value>pytorch</value>
- </property>
- <property>
-  <name>tony.worker.gpus</name>
-  <value>${WORKER_GPUS}</value>
- </property>
-</configuration>
-EOF
+  if [[ "${tf_gpu}" == 'true' ]]; then
+    tf_gpu_config 
+  else
+    tf_cpu_config
+  fi
 
   echo 'TonY successfully added samples'
 }
 
-# Only run on the master node of the cluster
-if [[ "${ROLE}" == "Master" ]]; then
-  download_and_build_tony
-  install_samples
-  echo 'TonY successfully deployed.'
-else
-  echo 'TonY can be installed only on master node - skipped for worker node'
-fi
+function main() {
+  # Only run on the master node of the cluster
+  if [[ "${ROLE}" == "Master" ]]; then
+    download_and_build_tony
+    install_samples
+    echo 'TonY successfully deployed.'
+  else
+    echo 'TonY can be installed only on master node - skipped for worker node'
+  fi
+}
+
+main
