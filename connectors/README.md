@@ -2,8 +2,8 @@
 
 # NOTE: *Updating Cloud Storage connector with this initialization action is not recommended*
 
-**You can update Cloud Storage Connector through `GCS_CONNECTOR_VERSION`
-metadata value on supported Dataproc images.**
+**Instead of using this initialization action you can update Cloud Storage Connector through
+`GCS_CONNECTOR_VERSION` metadata value on supported Dataproc images.**
 
 --------------------------------------------------------------------------------
 
