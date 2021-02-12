@@ -302,7 +302,7 @@ function run_validation() {
   # Validate it's functioning.
   # On newer Dataproc images, we start hive-server2 after init actions are run,
   # so skip this step if hive-server2 isn't already running.
-  if (systemctl is-running --quiet hive-server2); then
+  if (systemctl show -p SubState --value hive-server2 | grep -q running); then
     local hiveserver_uri
     hiveserver_uri=$(get_hiveserver_uri)
     if ! timeout 60s beeline -u "${hiveserver_uri}" -e 'SHOW TABLES;' >&/dev/null; then
