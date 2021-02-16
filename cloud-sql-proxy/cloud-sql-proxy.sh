@@ -1,4 +1,5 @@
 #!/bin/bash
+
 # Copyright 2016 Google, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,65 +21,91 @@
 # Do not use "set -x" to avoid printing passwords in clear in the logs
 set -euo pipefail
 
-# Whether to configure the Hive metastore to point to a Cloud SQL database.
-# This is not required for Hive & Spark I/O.
-readonly enable_cloud_sql_metastore="$(/usr/share/google/get_metadata_value attributes/enable-cloud-sql-hive-metastore || echo 'true')"
-
-# Whether to enable the proxy on workers. This is not necessary for the
-# Metastore, but is required for Hive & Spark I/O.
-readonly enable_proxy_on_workers="$(/usr/share/google/get_metadata_value attributes/enable-cloud-sql-proxy-on-workers || echo 'true')"
-
-# Whether to use the private IP address of the cloud sql instance.
-readonly use_cloud_sql_private_ip="$(/usr/share/google/get_metadata_value attributes/use-cloud-sql-private-ip || echo 'false')"
-
-# Database user to use to access metastore.
-readonly db_hive_user="$(/usr/share/google/get_metadata_value attributes/db-hive-user || echo 'hive')"
-
-readonly db_admin_user="$(/usr/share/google/get_metadata_value attributes/db-admin-user || echo 'root')"
-
-readonly kms_key_uri="$(/usr/share/google/get_metadata_value attributes/kms-key-uri)"
-
-# Database admin user password used to create the metastore database and user.
-readonly db_admin_password_uri="$(/usr/share/google/get_metadata_value attributes/db-admin-password-uri)"
-if [[ -n "${db_admin_password_uri}" ]]; then
-  # Decrypt password
-  readonly db_admin_password="$(gsutil cat "${db_admin_password_uri}" |
-    gcloud kms decrypt \
-      --ciphertext-file - \
-      --plaintext-file - \
-      --key "${kms_key_uri}")"
-else
-  readonly db_admin_password=''
-fi
-if [[ -z ${db_admin_password} ]]; then
-  readonly db_admin_password_parameter=""
-else
-  readonly db_admin_password_parameter="-p${db_admin_password}"
-fi
-
-# Database password used to access metastore.
-readonly db_hive_password_uri="$(/usr/share/google/get_metadata_value attributes/db-hive-password-uri)"
-if [[ -n "${db_hive_password_uri}" ]]; then
-  # Decrypt password
-  readonly db_hive_password="$(gsutil cat "${db_hive_password_uri}" |
-    gcloud kms decrypt \
-      --ciphertext-file - \
-      --plaintext-file - \
-      --key "${kms_key_uri}")"
-else
-  readonly db_hive_password='hive-password'
-fi
-if [[ -z ${db_hive_password} ]]; then
-  readonly db_hive_password_parameter=""
-else
-  readonly db_hive_password_parameter="-p${db_hive_password}"
-fi
+readonly ADDITIONAL_INSTANCES_KEY='attributes/additional-cloud-sql-instances'
 
 readonly PROXY_DIR='/var/run/cloud_sql_proxy'
 readonly PROXY_BIN='/usr/local/bin/cloud_sql_proxy'
 readonly INIT_SCRIPT='/usr/lib/systemd/system/cloud-sql-proxy.service'
-readonly ADDITIONAL_INSTANCES_KEY='attributes/additional-cloud-sql-instances'
 readonly PROXY_LOG_DIR='/var/log/cloud-sql-proxy'
+
+# Whether to configure the Hive metastore to point to a Cloud SQL database.
+# This is not required for Hive & Spark I/O.
+ENABLE_CLOUD_SQL_METASTORE="$(/usr/share/google/get_metadata_value attributes/enable-cloud-sql-hive-metastore || echo 'true')"
+readonly ENABLE_CLOUD_SQL_METASTORE
+
+# Whether to enable the proxy on workers. This is not necessary for the
+# Metastore, but is required for Hive & Spark I/O.
+ENABLE_PROXY_ON_WORKERS="$(/usr/share/google/get_metadata_value attributes/enable-cloud-sql-proxy-on-workers || echo 'true')"
+readonly ENABLE_PROXY_ON_WORKERS
+
+METASTORE_PROXY_PORT="$(/usr/share/google/get_metadata_value attributes/metastore-proxy-port || echo '3306')"
+readonly METASTORE_PROXY_PORT
+
+# Whether to use the private IP address of the cloud sql instance.
+USE_CLOUD_SQL_PRIVATE_IP="$(/usr/share/google/get_metadata_value attributes/use-cloud-sql-private-ip || echo 'false')"
+readonly USE_CLOUD_SQL_PRIVATE_IP
+
+# Database user to use to access metastore.
+DB_HIVE_USER="$(/usr/share/google/get_metadata_value attributes/db-hive-user || echo 'hive')"
+readonly DB_HIVE_USER
+
+DB_ADMIN_USER="$(/usr/share/google/get_metadata_value attributes/db-admin-user || echo 'root')"
+readonly DB_ADMIN_USER
+
+KMS_KEY_URI="$(/usr/share/google/get_metadata_value attributes/kms-key-uri || echo '')"
+readonly KMS_KEY_URI
+
+# Database admin user password used to create the metastore database and user.
+DB_ADMIN_PASSWORD_URI="$(/usr/share/google/get_metadata_value attributes/db-admin-password-uri || echo '')"
+readonly DB_ADMIN_PASSWORD_URI
+if [[ -n "${DB_ADMIN_PASSWORD_URI}" ]]; then
+  # Decrypt password
+  DB_ADMIN_PASSWORD="$(gsutil cat "${DB_ADMIN_PASSWORD_URI}" |
+    gcloud kms decrypt \
+      --ciphertext-file - \
+      --plaintext-file - \
+      --key "${KMS_KEY_URI}")"
+  readonly DB_ADMIN_PASSWORD
+else
+  readonly DB_ADMIN_PASSWORD=''
+fi
+if [[ -z ${DB_ADMIN_PASSWORD} ]]; then
+  readonly DB_ADMIN_PASSWORD_PARAMETER=''
+else
+  DB_ADMIN_PASSWORD_PARAMETER="-p${DB_ADMIN_PASSWORD}"
+  readonly DB_ADMIN_PASSWORD_PARAMETER
+fi
+
+# Database password used to access metastore.
+DB_HIVE_PASSWORD_URI="$(/usr/share/google/get_metadata_value attributes/db-hive-password-uri || echo '')"
+readonly DB_HIVE_PASSWORD_URI
+if [[ -n "${DB_HIVE_PASSWORD_URI}" ]]; then
+  # Decrypt password
+  DB_HIVE_PASSWORD="$(gsutil cat "${DB_HIVE_PASSWORD_URI}" |
+    gcloud kms decrypt \
+      --ciphertext-file - \
+      --plaintext-file - \
+      --key "${KMS_KEY_URI}")"
+  readonly DB_HIVE_PASSWORD
+else
+  readonly DB_HIVE_PASSWORD='hive-password'
+fi
+if [[ -z ${DB_HIVE_PASSWORD} ]]; then
+  readonly DB_HIVE_PASSWORD_PARAMETER=''
+else
+  readonly DB_HIVE_PASSWORD_PARAMETER="-p${DB_HIVE_PASSWORD}"
+fi
+
+METASTORE_INSTANCE="$(/usr/share/google/get_metadata_value attributes/hive-metastore-instance || true)"
+readonly METASTORE_INSTANCE
+
+ADDITIONAL_INSTANCES="$(/usr/share/google/get_metadata_value ${ADDITIONAL_INSTANCES_KEY} || true)"
+readonly ADDITIONAL_INSTANCES
+
+# Name of MySQL database to use for the metastore.
+# Will be created if it doesn't exist.
+METASTORE_DB="$(/usr/share/google/get_metadata_value attributes/hive-metastore-db || echo 'hive_metastore')"
+readonly METASTORE_DB
 
 # Dataproc master nodes information
 readonly DATAPROC_MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
@@ -112,7 +139,8 @@ function is_component_selected() {
   return 1
 }
 
-readonly KERBEROS_ENABLED=$(is_component_selected 'kerberos' && echo 'true' || echo 'false')
+KERBEROS_ENABLED=$(is_component_selected 'kerberos' && echo 'true' || echo 'false')
+readonly KERBEROS_ENABLED
 
 function get_hive_principal() {
   # Hostname is fully qualified
@@ -163,26 +191,26 @@ function run_with_retries() {
 }
 
 function configure_proxy_flags() {
-  # If a cloud sql instance has both public and private IP, use private IP.
-  if [[ $use_cloud_sql_private_ip == "true" ]]; then
-    proxy_instances_flags+=" --ip_address_types=PRIVATE"
+  # If a Cloud SQL instance has both public and private IP, use private IP.
+  if [[ ${USE_CLOUD_SQL_PRIVATE_IP} == "true" ]]; then
+    PROXY_INSTANCES_FLAGS+=" --ip_address_types=PRIVATE"
   fi
-  if [[ $enable_cloud_sql_metastore == "true" ]]; then
-    if [[ -z "${metastore_instance}" ]]; then
+  if [[ ${ENABLE_CLOUD_SQL_METASTORE} == "true" ]]; then
+    if [[ -z "${METASTORE_INSTANCE}" ]]; then
       err 'Must specify hive-metastore-instance VM metadata'
-    elif ! [[ "${metastore_instance}" =~ .+:.+:.+ ]]; then
+    elif ! [[ "${METASTORE_INSTANCE}" =~ .+:.+:.+ ]]; then
       err 'hive-metastore-instance must be of form project:region:instance'
-    elif ! [[ "${metastore_instance}" =~ =tcp:[0-9]+$ ]]; then
-      metastore_instance+="=tcp:${metastore_proxy_port}"
+    elif ! [[ "${METASTORE_INSTANCE}" =~ =tcp:[0-9]+$ ]]; then
+      METASTORE_INSTANCE+="=tcp:${METASTORE_PROXY_PORT}"
     else
-      metastore_proxy_port="${metastore_instance##*:}"
+      METASTORE_PROXY_PORT="${METASTORE_INSTANCE##*:}"
     fi
-    proxy_instances_flags+=" -instances=${metastore_instance}"
+    PROXY_INSTANCES_FLAGS+=" -instances=${METASTORE_INSTANCE}"
   fi
 
-  if [[ -n "${additional_instances}" ]]; then
+  if [[ -n "${ADDITIONAL_INSTANCES}" ]]; then
     # Pass additional instances straight to the proxy.
-    proxy_instances_flags+=" -instances_metadata=instance/${ADDITIONAL_INSTANCES_KEY}"
+    PROXY_INSTANCES_FLAGS+=" -instances_metadata=instance/${ADDITIONAL_INSTANCES_KEY}"
   fi
 }
 
@@ -207,7 +235,7 @@ Before=shutdown.target
 Type=simple
 ExecStart=/bin/sh -c '${PROXY_BIN} \
   -dir=${PROXY_DIR} \
-  ${proxy_instances_flags} >> /var/log/cloud-sql-proxy/cloud-sql-proxy.log 2>&1'
+  ${PROXY_INSTANCES_FLAGS} >> /var/log/cloud-sql-proxy/cloud-sql-proxy.log 2>&1'
 
 [Install]
 WantedBy=multi-user.target
@@ -217,30 +245,30 @@ EOF
   systemctl start cloud-sql-proxy ||
     err 'Unable to start cloud-sql-proxy service'
 
-  if [[ $enable_cloud_sql_metastore == "true" ]]; then
-    run_with_retries nc -zv localhost "${metastore_proxy_port}"
+  if [[ $ENABLE_CLOUD_SQL_METASTORE == "true" ]]; then
+    run_with_retries nc -zv localhost "${METASTORE_PROXY_PORT}"
   fi
 
   echo 'Cloud SQL Proxy installation succeeded' >&2
   echo 'Logs can be found in /var/log/cloud-sql-proxy/cloud-sql-proxy.log' >&2
 
-  if [[ $enable_cloud_sql_metastore == "true" ]]; then
+  if [[ $ENABLE_CLOUD_SQL_METASTORE == "true" ]]; then
     # Update hive-site.xml
     cat <<EOF >hive-template.xml
 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
 <configuration>
   <property>
     <name>javax.jdo.option.ConnectionURL</name>
-    <value>jdbc:mysql://localhost:${metastore_proxy_port}/${metastore_db}</value>
+    <value>jdbc:mysql://localhost:${METASTORE_PROXY_PORT}/${METASTORE_DB}</value>
     <description>the URL of the MySQL database</description>
   </property>
   <property>
     <name>javax.jdo.option.ConnectionUserName</name>
-    <value>${db_hive_user}</value>
+    <value>${DB_HIVE_USER}</value>
   </property>
   <property>
     <name>javax.jdo.option.ConnectionPassword</name>
-    <value>${db_hive_password}</value>
+    <value>${DB_HIVE_PASSWORD}</value>
   </property>
 </configuration>
 EOF
@@ -253,32 +281,23 @@ EOF
 }
 
 function configure_sql_client() {
-  # Configure mysql client to talk to metastore
+  # Configure MySQL client to talk to metastore
   cat <<EOF >/etc/mysql/conf.d/cloud-sql-proxy.cnf
 [client]
 protocol = tcp
-port = ${metastore_proxy_port}
+port = ${METASTORE_PROXY_PORT}
 EOF
 
   # Check if metastore is initialized.
-  if ! mysql -u "${db_hive_user}" "${db_hive_password_parameter}" -e ''; then
-    mysql -u "${db_admin_user}" "${db_admin_password_parameter}" -e \
-      "CREATE USER '${db_hive_user}' IDENTIFIED BY '${db_hive_password}';"
+  if ! mysql -u "${DB_HIVE_USER}" "${DB_HIVE_PASSWORD_PARAMETER}" -e ''; then
+    mysql -u "${DB_ADMIN_USER}" "${DB_ADMIN_PASSWORD_PARAMETER}" -e \
+      "CREATE USER '${DB_HIVE_USER}' IDENTIFIED BY '${DB_HIVE_PASSWORD}';"
   fi
-  if mysql -u "${db_hive_user}" "${db_hive_password_parameter}" -e "use ${metastore_db}"; then
-    # Extract the warehouse URI.
-    HIVE_WAREHOURSE_URI=$(mysql -u "${db_hive_user}" "${db_hive_password_parameter}" -Nse \
-      "SELECT DB_LOCATION_URI FROM ${metastore_db}.DBS WHERE NAME = 'default';")
-    bdconfig set_property \
-      --name 'hive.metastore.warehouse.dir' \
-      --value "${HIVE_WAREHOURSE_URI}" \
-      --configuration_file /etc/hive/conf/hive-site.xml \
-      --clobber
-  else
-    # Initialize a database with current warehouse URI.
-    mysql -u "${db_admin_user}" "${db_admin_password_parameter}" -e \
-      "CREATE DATABASE ${metastore_db};
-       GRANT ALL PRIVILEGES ON ${metastore_db}.* TO '${db_hive_user}';"
+  if ! mysql -u "${DB_HIVE_USER}" "${DB_HIVE_PASSWORD_PARAMETER}" -e "use ${METASTORE_DB}"; then
+    # Initialize a Hive metastore DB
+    mysql -u "${DB_ADMIN_USER}" "${DB_ADMIN_PASSWORD_PARAMETER}" -e \
+      "CREATE DATABASE ${METASTORE_DB};
+       GRANT ALL PRIVILEGES ON ${METASTORE_DB}.* TO '${DB_HIVE_USER}';"
     /usr/lib/hive/bin/schematool -dbType mysql -initSchema ||
       err 'Failed to set mysql schema.'
   fi
@@ -313,68 +332,21 @@ function run_validation() {
   fi
 }
 
-function configure_hive_warehouse_dir() {
-  # Wait for master 0 to create the metastore db if necessary.
-  run_with_retries run_validation
-
-  local hiveserver_uri
-  hiveserver_uri=$(get_hiveserver_uri)
-  HIVE_WAREHOURSE_URI=$(beeline -u "${hiveserver_uri}" -e "describe database default;" |
-    sed '4q;d' | cut -d "|" -f4 | tr -d '[:space:]')
-
-  echo "Hive warehouse uri: $HIVE_WAREHOURSE_URI"
-
-  bdconfig set_property \
-    --name 'hive.metastore.warehouse.dir' \
-    --value "${HIVE_WAREHOURSE_URI}" \
-    --configuration_file /etc/hive/conf/hive-site.xml \
-    --clobber
-  echo "Updated hive warehouse dir"
-}
-
-function reload_function() {
-  beeline -u "$(get_hiveserver_uri)" -e "reload function;"
-  echo "Reloaded permanent functions"
-}
-
 function main() {
   local role
   role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 
-  local metastore_instance
-  metastore_instance="$(/usr/share/google/get_metadata_value attributes/hive-metastore-instance || true)"
-
-  local additional_instances
-  additional_instances="$(/usr/share/google/get_metadata_value ${ADDITIONAL_INSTANCES_KEY} || true)"
-
-  local metastore_db
-  metastore_db="$(/usr/share/google/get_metadata_value attributes/hive-metastore-db || true)"
-
-  # Name of CloudSQL instance to use for the metastore. Must already exist.
-  # Uncomment to hard code an instance. Metadata will still take precedence.
-  metastore_instance_default= # my-project:my-region:my-instance
-  metastore_instance="${metastore_instance:-${metastore_instance_default}}"
-
-  # Name of MySQL database to use for the metastore. Will be created if
-  # it doesn't exist.
-
-  metastore_db="${metastore_db:-hive_metastore}"
-
-  local metastore_proxy_port
-  metastore_proxy_port="$(/usr/share/google/get_metadata_value attributes/metastore-proxy-port || echo '3306')"
-
   # Validation
-  if [[ $enable_cloud_sql_metastore != "true" ]] && [[ -z "${additional_instances}" ]]; then
+  if [[ $ENABLE_CLOUD_SQL_METASTORE != "true" ]] && [[ -z "${ADDITIONAL_INSTANCES}" ]]; then
     err 'No Cloud SQL instances to proxy'
   fi
 
-  local proxy_instances_flags
-  proxy_instances_flags=''
+  PROXY_INSTANCES_FLAGS=''
   configure_proxy_flags
 
   if [[ "${role}" == 'Master' ]]; then
     # Disable Hive Metastore and MySql Server.
-    if [[ $enable_cloud_sql_metastore == "true" ]]; then
+    if [[ $ENABLE_CLOUD_SQL_METASTORE == "true" ]]; then
       if (systemctl is-enabled --quiet hive-metastore); then
         # Stop hive-metastore if it is enabled
         systemctl stop hive-metastore
@@ -389,23 +361,16 @@ function main() {
       fi
     fi
     install_cloud_sql_proxy
-    if [[ $enable_cloud_sql_metastore == "true" ]]; then
+    if [[ $ENABLE_CLOUD_SQL_METASTORE == "true" ]]; then
       if [[ "${HOSTNAME}" == "${DATAPROC_MASTER}" ]]; then
-        # Initialize metastore db instance and set hive.metastore.warehouse.dir
-        # on master 0.
+        # Initialize metastore DB instance.
         configure_sql_client
-      else
-        # Set hive.metastore.warehouse.dir only on other masters.
-        configure_hive_warehouse_dir
       fi
-      # Execute the Hive "reload function" DDL to reflect permanent functions
-      # that have already been created in the HiveServer.
-      reload_function
     fi
   else
     # This part runs on workers.
-    # Run installation on workers when enable_proxy_on_workers is set.
-    if [[ $enable_proxy_on_workers == "true" ]]; then
+    # Run installation on workers when ENABLE_PROXY_ON_WORKERS is set.
+    if [[ $ENABLE_PROXY_ON_WORKERS == "true" ]]; then
       install_cloud_sql_proxy
     fi
   fi

@@ -96,8 +96,7 @@ shared hive metastore.
     set `hive.metastore.warehouse.dir` to a shared locations (such as the Cloud
     Storage directory in the example above). This directory gets baked into the
     Cloud SQL metastore, so it is recommended to set even if you intend to
-    mostly use external tables. If you place this directory in Cloud Storage.
-    You may want to use the shared NFS consistency cache as well.
+    mostly use external tables.
 *   The initialization action can be configured to install the proxy only on the
     master, in the case where you wish to have a shared metastore. For that, set
     the `enable-cloud-sql-proxy-on-workers` metadata key to `false`.
