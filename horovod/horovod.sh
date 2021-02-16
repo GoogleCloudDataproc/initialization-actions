@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2020 Google LLC
+# Copyright 2021 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ readonly CUDA_VERSION
 HOROVOD_ENV_VARS="$(/usr/share/google/get_metadata_value attributes/horovod-env-vars || echo "")"
 readonly HOROVOD_ENV_VARS
 
-INSTALL_MPI="$(/usr/share/google/get_metadata_value attributes/install-mpi || echo "")"
+INSTALL_MPI="$(/usr/share/google/get_metadata_value attributes/install-mpi || echo 'false')"
 readonly INSTALL_MPI
 
 function execute_with_retries() {
@@ -60,50 +60,53 @@ function execute_with_retries() {
 
 function install_mpi() {
   local -r mpi_version="4.1.0"
-  local -r mpi_url="https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-${mpi_version}.tar.gz"
+  local -r mpi_url="https://download.open-mpi.org/release/open-mpi/v${mpi_version%.*}/openmpi-${mpi_version}.tar.gz"
   local tmp_dir
   tmp_dir=$(mktemp -d -t mlvm-horovod-mpi-XXXX)
-  
-  wget -nv --timeout=30 --tries=5 --retry-connrefused -P ${tmp_dir} "${mpi_url}" 
-  gunzip -c "${tmp_dir}/openmpi-${mpi_version}.tar.gz" | tar xf - -C ${tmp_dir}
 
-  cur_dir=$(pwd)  
-  cd "${tmp_dir}/openmpi-${mpi_version}"
+  wget -nv --timeout=30 --tries=5 --retry-connrefused -P "${tmp_dir}" "${mpi_url}"
+  gunzip -c "${tmp_dir}/openmpi-${mpi_version}.tar.gz" | tar xf - -C "${tmp_dir}"
+
+  pushd "${tmp_dir}/openmpi-${mpi_version}"
   ./configure --prefix=/usr/local --enable-mpirun-prefix-by-default
   make all install
   ldconfig
-  cd ${cur_dir}
+  popd
 }
 
 function configure_hadoop_env() {
   # Horovod relies on CLASSPATH being set in the environment. This needs to
   # contain the Hadoop jars.
-  cat << 'EOF' >> /etc/profile.d/horovod.sh
+  cat <<'EOF' >>/etc/profile.d/horovod.sh
 export CLASSPATH=$(hadoop classpath --glob)
 EOF
 }
 
 function install_frameworks() {
-  local frameworks=()
+  local framework_packages=()
 
   # Add gpu-versions of libraries
   if (lspci | grep -q NVIDIA); then
-    pip install "torch==${PYTORCH_VERSION}+cu${CUDA_VERSION//.}" "torchvision==${TORCHVISION_VERSION}+cu${CUDA_VERSION//.}" -f "https://download.pytorch.org/whl/torch_stable.html"
+    local torch_packages=(
+      "torch==${PYTORCH_VERSION}+cu${CUDA_VERSION//./}"
+      "torchvision==${TORCHVISION_VERSION}+cu${CUDA_VERSION//./}"
+    )
+    pip install "${torch_packages[@]}" -f "https://download.pytorch.org/whl/torch_stable.html"
     if [[ ${TENSORFLOW_VERSION} == "1."* ]]; then
-      frameworks+=("tensorflow-gpu==${TENSORFLOW_VERSION}")
+      framework_packages+=("tensorflow-gpu==${TENSORFLOW_VERSION}")
     else
-      frameworks+=("tensorflow==${TENSORFLOW_VERSION}")
+      framework_packages+=("tensorflow==${TENSORFLOW_VERSION}")
     fi
   else
-    frameworks+=(
-      "torch==${PYTORCH_VERSION}" 
+    framework_packages+=(
+      "torch==${PYTORCH_VERSION}"
       "torchvision==${TORCHVISION_VERSION}"
       "tensorflow==${TENSORFLOW_VERSION}"
       "mxnet==${MXNET_VERSION}"
-      )
+    )
   fi
 
-  pip install "${frameworks[@]}"
+  pip install "${framework_packages[@]}"
 }
 
 function install_horovod() {
@@ -112,7 +115,7 @@ function install_horovod() {
 
   # Install Horovod
   local horovod_build_frameworks="tensorflow,pytorch,spark"
-  
+
   # Horovod on Dataproc with MXNet only supported with CPUs
   if ! (lspci | grep -q NVIDIA); then
     horovod_build_frameworks+=",mxnet"
@@ -123,7 +126,7 @@ function install_horovod() {
 
 function main() {
   # Optionally install MPI pip un
-  if [[ -n "${INSTALL_MPI}" ]]; then
+  if [[ "${INSTALL_MPI}" == 'true' ]]; then
     install_mpi
   fi
 
