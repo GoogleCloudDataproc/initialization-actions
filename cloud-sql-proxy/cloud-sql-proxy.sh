@@ -93,7 +93,7 @@ else
   readonly DB_HIVE_PASSWORD_PARAMETER="-p${DB_HIVE_PASSWORD}"
 fi
 
-METASTORE_INSTANCE="$(/usr/share/google/get_metadata_value attributes/hive-metastore-instance)"
+METASTORE_INSTANCE="$(/usr/share/google/get_metadata_value attributes/hive-metastore-instance || echo '')"
 readonly METASTORE_INSTANCE
 
 ADDITIONAL_INSTANCES="$(/usr/share/google/get_metadata_value ${ADDITIONAL_INSTANCES_KEY} || echo '')"
