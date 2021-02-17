@@ -39,7 +39,6 @@ ENABLE_PROXY_ON_WORKERS="$(/usr/share/google/get_metadata_value attributes/enabl
 readonly ENABLE_PROXY_ON_WORKERS
 
 METASTORE_PROXY_PORT="$(/usr/share/google/get_metadata_value attributes/metastore-proxy-port || echo '3306')"
-readonly METASTORE_PROXY_PORT
 
 # Whether to use the private IP address of the cloud sql instance.
 USE_CLOUD_SQL_PRIVATE_IP="$(/usr/share/google/get_metadata_value attributes/use-cloud-sql-private-ip || echo 'false')"
@@ -96,10 +95,9 @@ else
   readonly DB_HIVE_PASSWORD_PARAMETER="-p${DB_HIVE_PASSWORD}"
 fi
 
-METASTORE_INSTANCE="$(/usr/share/google/get_metadata_value attributes/hive-metastore-instance || true)"
-readonly METASTORE_INSTANCE
+METASTORE_INSTANCE="$(/usr/share/google/get_metadata_value attributes/hive-metastore-instance || echo '')"
 
-ADDITIONAL_INSTANCES="$(/usr/share/google/get_metadata_value ${ADDITIONAL_INSTANCES_KEY} || true)"
+ADDITIONAL_INSTANCES="$(/usr/share/google/get_metadata_value ${ADDITIONAL_INSTANCES_KEY} || echo '')"
 readonly ADDITIONAL_INSTANCES
 
 # Name of MySQL database to use for the metastore.
@@ -301,13 +299,11 @@ EOF
     /usr/lib/hive/bin/schematool -dbType mysql -initSchema ||
       err 'Failed to set mysql schema.'
   fi
-
-  run_with_retries run_validation
 }
 
 function run_validation() {
   if (systemctl is-enabled --quiet hive-metastore); then
-    # Start metastore back up.
+    # Re-start metastore to pickup config changes.
     systemctl restart hive-metastore ||
       err 'Unable to start hive-metastore service'
   else
@@ -329,6 +325,11 @@ function run_validation() {
     else
       echo 'Cloud SQL Hive Metastore initialization succeeded' >&2
     fi
+
+    # Execute the Hive "reload function" DDL to reflect permanent functions
+    # that have already been created in the HiveServer.
+    beeline -u "${hiveserver_uri}" -e "reload function;"
+    echo "Reloaded permanent functions"
   fi
 }
 
@@ -366,10 +367,13 @@ function main() {
         # Initialize metastore DB instance.
         configure_sql_client
       fi
+
+      # Make sure that Hive metastore properly configured.
+      run_with_retries run_validation
     fi
   else
     # This part runs on workers.
-    # Run installation on workers when ENABLE_PROXY_ON_WORKERS is set.
+    # Run installation on workers whe ENABLE_PROXY_ON_WORKERS is set.
     if [[ $ENABLE_PROXY_ON_WORKERS == "true" ]]; then
       install_cloud_sql_proxy
     fi
