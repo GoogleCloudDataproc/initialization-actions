@@ -38,6 +38,18 @@ export SPARK_CONF_DIR=/etc/spark/conf
 export HADOOP_CONF_DIR=/etc/hadoop/conf
 export LIVY_LOG_DIR=/var/log/livy
 EOF
+
+  if [[ -e /opt/conda/anaconda/bin/python3 ]]; then
+    cat <<EOF >>"${LIVY_CONF}/livy-env.sh"
+export PYSPARK_PYTHON=/opt/conda/anaconda/bin/python3
+export PYSPARK_DRIVER_PYTHON=/opt/conda/anaconda/bin/python3
+EOF
+  elif [[ -e /opt/conda/miniconda3/bin/python3 ]]; then
+    cat <<EOF >>"${LIVY_CONF}/livy-env.sh"
+export PYSPARK_PYTHON=/opt/conda/miniconda3/bin/python3
+export PYSPARK_DRIVER_PYTHON=/opt/conda/miniconda3/bin/python3
+EOF
+  fi
 }
 
 # Create Livy service.
