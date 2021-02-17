@@ -36,12 +36,11 @@ class HorovodTestCase(DataprocTestCase):
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
-        timeout_in_minutes=30,
+        timeout_in_minutes=60,
         machine_type="e2-standard-8",
         metadata=metadata)
 
   @parameterized.parameters(
-      ("STANDARD", "mpi"),
       ("STANDARD", "gloo"),
   )
   def test_horovod_gpu(self, configuration, controller):
@@ -50,8 +49,6 @@ class HorovodTestCase(DataprocTestCase):
       return
 
     metadata = "cuda-version=11.0,cudnn-version=8.0.5.39,gpu-driver-provider=NVIDIA"
-    if controller == "mpi":
-      metadata += ",install-mpi=true"
 
     self.createCluster(
         configuration,
