@@ -373,7 +373,7 @@ function main() {
     fi
   else
     # This part runs on workers.
-    # Run installation on workers whe ENABLE_PROXY_ON_WORKERS is set.
+    # Run installation on workers when ENABLE_PROXY_ON_WORKERS is set.
     if [[ $ENABLE_PROXY_ON_WORKERS == "true" ]]; then
       install_cloud_sql_proxy
     fi
