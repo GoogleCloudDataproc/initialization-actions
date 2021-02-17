@@ -16,8 +16,8 @@ sqlContext = pyspark.sql.HiveContext(sc)
 table_names = sqlContext.tableNames()
 test_table_name = None
 while not test_table_name or test_table_name in table_names:
-    test_table_name = 'table_' + ''.join(
-        [random.choice(string.ascii_lowercase) for x in range(4)])
+  test_table_name = 'table_' + ''.join(
+      [random.choice(string.ascii_lowercase) for x in range(4)])
 
 # Create table.
 sqlContext.range(10).write.saveAsTable(test_table_name)
