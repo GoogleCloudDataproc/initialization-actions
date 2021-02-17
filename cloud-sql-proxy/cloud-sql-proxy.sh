@@ -239,8 +239,8 @@ function install_cloud_sql_proxy() {
   mkdir -p ${PROXY_DIR}
   mkdir -p ${PROXY_LOG_DIR}
 
-  local PROXY_INSTANCES_FLAGS
-  PROXY_INSTANCES_FLAGS="$(configure_proxy_flags)"
+  local proxy_flags
+  proxy_flags="$(get_proxy_flags)"
 
   # Install proxy as systemd service for reboot tolerance.
   cat <<EOF >${INIT_SCRIPT}
@@ -254,7 +254,7 @@ Before=shutdown.target
 Type=simple
 ExecStart=/bin/sh -c '${PROXY_BIN} \
   -dir=${PROXY_DIR} \
-  ${PROXY_INSTANCES_FLAGS} >> /var/log/cloud-sql-proxy/cloud-sql-proxy.log 2>&1'
+  ${proxy_flags} >> /var/log/cloud-sql-proxy/cloud-sql-proxy.log 2>&1'
 
 [Install]
 WantedBy=multi-user.target
@@ -300,7 +300,7 @@ EOF
 }
 
 function configure_sql_client() {
-  # Configure MySQL client to talk to Metastore
+  # Configure MySQL client to talk to metastore
   cat <<EOF >/etc/mysql/conf.d/cloud-sql-proxy.cnf
 [client]
 protocol = tcp
