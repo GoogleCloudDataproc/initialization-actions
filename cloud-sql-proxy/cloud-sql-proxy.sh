@@ -38,8 +38,6 @@ readonly ENABLE_CLOUD_SQL_METASTORE
 ENABLE_PROXY_ON_WORKERS="$(/usr/share/google/get_metadata_value attributes/enable-cloud-sql-proxy-on-workers || echo 'true')"
 readonly ENABLE_PROXY_ON_WORKERS
 
-METASTORE_PROXY_PORT="$(/usr/share/google/get_metadata_value attributes/metastore-proxy-port || echo '3306')"
-
 # Whether to use the private IP address of the cloud sql instance.
 USE_CLOUD_SQL_PRIVATE_IP="$(/usr/share/google/get_metadata_value attributes/use-cloud-sql-private-ip || echo 'false')"
 readonly USE_CLOUD_SQL_PRIVATE_IP
@@ -95,10 +93,19 @@ else
   readonly DB_HIVE_PASSWORD_PARAMETER="-p${DB_HIVE_PASSWORD}"
 fi
 
-METASTORE_INSTANCE="$(/usr/share/google/get_metadata_value attributes/hive-metastore-instance || echo '')"
+METASTORE_INSTANCE="$(/usr/share/google/get_metadata_value attributes/hive-metastore-instance)"
+readonly METASTORE_INSTANCE
 
 ADDITIONAL_INSTANCES="$(/usr/share/google/get_metadata_value ${ADDITIONAL_INSTANCES_KEY} || echo '')"
 readonly ADDITIONAL_INSTANCES
+
+METASTORE_PROXY_PORT="$(/usr/share/google/get_metadata_value attributes/metastore-proxy-port || echo '')"
+if [[ "${METASTORE_INSTANCE}" =~ =tcp:[0-9]+$ ]]; then
+  METASTORE_PROXY_PORT="${METASTORE_INSTANCE##*:}"
+else
+  METASTORE_PROXY_PORT='3306'
+fi
+readonly METASTORE_PROXY_PORT
 
 # Name of MySQL database to use for the metastore.
 # Will be created if it doesn't exist.
@@ -188,28 +195,38 @@ function run_with_retries() {
   "${cmd[@]}"
 }
 
-function configure_proxy_flags() {
+function get_metastore_instance() {
+  local metastore_instance="${METASTORE_INSTANCE}"
+  if [[ -z "${metastore_instance}" ]]; then
+    err 'Must specify hive-metastore-instance VM metadata'
+  fi
+  if ! [[ "${metastore_instance}" =~ .+:.+:.+ ]]; then
+    err 'hive-metastore-instance must be of form project:region:instance'
+  fi
+  if ! [[ "${metastore_instance}" =~ =tcp:[0-9]+$ ]]; then
+    metastore_instance+="=tcp:${METASTORE_PROXY_PORT}"
+  fi
+  echo "${metastore_instance}"
+}
+
+function get_proxy_flags() {
+  local proxy_instances_flags=''
   # If a Cloud SQL instance has both public and private IP, use private IP.
   if [[ ${USE_CLOUD_SQL_PRIVATE_IP} == "true" ]]; then
-    PROXY_INSTANCES_FLAGS+=" --ip_address_types=PRIVATE"
+    proxy_instances_flags+=" --ip_address_types=PRIVATE"
   fi
   if [[ ${ENABLE_CLOUD_SQL_METASTORE} == "true" ]]; then
-    if [[ -z "${METASTORE_INSTANCE}" ]]; then
-      err 'Must specify hive-metastore-instance VM metadata'
-    elif ! [[ "${METASTORE_INSTANCE}" =~ .+:.+:.+ ]]; then
-      err 'hive-metastore-instance must be of form project:region:instance'
-    elif ! [[ "${METASTORE_INSTANCE}" =~ =tcp:[0-9]+$ ]]; then
-      METASTORE_INSTANCE+="=tcp:${METASTORE_PROXY_PORT}"
-    else
-      METASTORE_PROXY_PORT="${METASTORE_INSTANCE##*:}"
-    fi
-    PROXY_INSTANCES_FLAGS+=" -instances=${METASTORE_INSTANCE}"
+    local metastore_instance
+    metastore_instance=$(get_metastore_instance)
+    proxy_instances_flags+=" -instances=${metastore_instance}"
   fi
 
   if [[ -n "${ADDITIONAL_INSTANCES}" ]]; then
     # Pass additional instances straight to the proxy.
-    PROXY_INSTANCES_FLAGS+=" -instances_metadata=instance/${ADDITIONAL_INSTANCES_KEY}"
+    proxy_instances_flags+=" -instances_metadata=instance/${ADDITIONAL_INSTANCES_KEY}"
   fi
+
+  echo "${proxy_instances_flags}"
 }
 
 function install_cloud_sql_proxy() {
@@ -221,6 +238,10 @@ function install_cloud_sql_proxy() {
 
   mkdir -p ${PROXY_DIR}
   mkdir -p ${PROXY_LOG_DIR}
+
+  local PROXY_INSTANCES_FLAGS
+  PROXY_INSTANCES_FLAGS="$(configure_proxy_flags)"
+
   # Install proxy as systemd service for reboot tolerance.
   cat <<EOF >${INIT_SCRIPT}
 [Unit]
@@ -279,13 +300,15 @@ EOF
 }
 
 function configure_sql_client() {
-  # Configure MySQL client to talk to metastore
+  # Configure MySQL client to talk to Metastore
   cat <<EOF >/etc/mysql/conf.d/cloud-sql-proxy.cnf
 [client]
 protocol = tcp
 port = ${METASTORE_PROXY_PORT}
 EOF
+}
 
+function initialize_metastore_db() {
   # Check if metastore is initialized.
   if ! mysql -u "${DB_HIVE_USER}" "${DB_HIVE_PASSWORD_PARAMETER}" -e ''; then
     mysql -u "${DB_ADMIN_USER}" "${DB_ADMIN_PASSWORD_PARAMETER}" -e \
@@ -342,9 +365,6 @@ function main() {
     err 'No Cloud SQL instances to proxy'
   fi
 
-  PROXY_INSTANCES_FLAGS=''
-  configure_proxy_flags
-
   if [[ "${role}" == 'Master' ]]; then
     # Disable Hive Metastore and MySql Server.
     if [[ $ENABLE_CLOUD_SQL_METASTORE == "true" ]]; then
@@ -361,11 +381,14 @@ function main() {
         echo "Service mysql is not enabled"
       fi
     fi
+
     install_cloud_sql_proxy
+    configure_sql_client
+
     if [[ $ENABLE_CLOUD_SQL_METASTORE == "true" ]]; then
       if [[ "${HOSTNAME}" == "${DATAPROC_MASTER}" ]]; then
         # Initialize metastore DB instance.
-        configure_sql_client
+        initialize_metastore_db
       fi
 
       # Make sure that Hive metastore properly configured.
@@ -378,7 +401,6 @@ function main() {
       install_cloud_sql_proxy
     fi
   fi
-
 }
 
 main
