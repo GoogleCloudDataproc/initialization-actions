@@ -20,6 +20,7 @@ test_suite(
         "//gpu:test_gpu",
         "//h2o:test_h2o",
         "//hbase:test_hbase",
+        "//horovod:test_horovod",
         "//hue:test_hue",
         "//jupyter:test_jupyter",
         "//jupyter_sparkmonitor:test_jupyter_sparkmonitor",
