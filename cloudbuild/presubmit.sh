@@ -13,7 +13,9 @@ configure_gcloud() {
 configure_gcloud_ssh_key() {
   mkdir "${HOME}/.ssh"
 
-  gcloud kms decrypt --location=global --keyring=presubmit --key=presubmit \
+  gcloud auth list
+  
+  gcloud ckms decrypt --location=global --keyring=presubmit --key=presubmit \
     --ciphertext-file=cloudbuild/ssh-key.enc \
     --plaintext-file="${HOME}/.ssh/google_compute_engine"
 
