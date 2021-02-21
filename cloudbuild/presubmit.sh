@@ -12,7 +12,7 @@ configure_gcloud() {
 
 configure_gcloud_ssh_key() {
   mkdir "${HOME}/.ssh"
-  
+
   gcloud kms decrypt --location=global --keyring=presubmit --key=presubmit \
     --ciphertext-file=cloudbuild/ssh-key.enc \
     --plaintext-file="${HOME}/.ssh/google_compute_engine"
@@ -29,7 +29,7 @@ configure_gcloud_ssh_key() {
 initialize_git_repo() {
   rm -fr .git
   git init
-  
+
   git config user.email "ia-tests@presubmit.example.com"
   git config user.name "ia-tests"
 
