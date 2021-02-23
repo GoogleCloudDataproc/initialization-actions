@@ -353,10 +353,12 @@ function main() {
   execute_with_retries "apt-get update"
   execute_with_retries "apt-get install -y -q pciutils"
 
+  # both configurations need to be ran on master as well
+  configure_gpu_isolation
+  configure_yarn
+  
   # Detect NVIDIA GPU
   if (lspci | grep -q NVIDIA); then
-    configure_gpu_isolation
-    configure_yarn
 
     execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
     if [[ ${GPU_DRIVER_PROVIDER} == 'NVIDIA' ]]; then
