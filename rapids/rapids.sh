@@ -13,7 +13,7 @@ readonly DEFAULT_SPARK_RAPIDS_VERSION="0.3.0"
 
 if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
   readonly DEFAULT_CUDA_VERSION="10.2"
-  readonly DEFAULT_CUDF_VERSION="0.17"
+  readonly DEFAULT_CUDF_VERSION="0.18"
   readonly DEFAULT_XGBOOST_VERSION="1.3.0"
   readonly DEFAULT_XGBOOST_GPU_SUB_VERSION="0.1.0"
   # TODO: uncomment when Spark 3.1 jars will be released.
@@ -70,15 +70,11 @@ function install_dask_rapids() {
   # environment with mamba installed to manage installations.
   conda create -y -n ${mamba_env} -c conda-forge mamba
 
-  # Uninstall dependency "icu"
-  conda remove --force icu
-
   # Install RAPIDS, cudatoolkit. Use mamba in new env to resolve base environment
   # Dependency "icu" is also reinstalled here. 
   ${base}/envs/${mamba_env}/bin/mamba install -y \
     -c "rapidsai" -c "nvidia" -c "conda-forge" -c "defaults" \
     "cudatoolkit=${CUDA_VERSION}" "rapids=${RAPIDS_VERSION}" \
-    "icu" \
     -p ${base}
 
   # Remove mamba env
