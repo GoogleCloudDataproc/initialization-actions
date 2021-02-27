@@ -298,13 +298,17 @@ function configure_yarn() {
     'yarn.scheduler.capacity.resource-calculator' \
     'org.apache.hadoop.yarn.util.resource.DominantResourceCalculator'
 
+  if [[ ! -f ${HADOOP_CONF_DIR}/resource-types.xml ]]; then
+    printf '<?xml version="1.0" ?>\n<configuration/>' >"${HADOOP_CONF_DIR}/resource-types.xml"
+  fi
+  set_hadoop_property 'resource-types.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
+
   set_hadoop_property 'yarn-site.xml' 'yarn.resource-types' 'yarn.io/gpu'
 }
 
 # This configuration should be applied only if GPU is attached to the node
 function configure_yarn_nodemanager() {
   set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
-  set_hadoop_property 'resource-types.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
   set_hadoop_property 'yarn-site.xml' \
     'yarn.nodemanager.resource-plugins.gpu.allowed-gpu-devices' 'auto'
   set_hadoop_property 'yarn-site.xml' \
@@ -323,7 +327,7 @@ function configure_yarn_nodemanager() {
   # Fix local dirs access permissions
   local yarn_local_dirs=()
   readarray -d ',' yarn_local_dirs < <(bdconfig get_property_value \
-    --configuration_file "/etc/hadoop/conf/yarn-site.xml" \
+    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
     --name "yarn.nodemanager.local-dirs" 2>/dev/null | tr -d '\n')
   chown yarn:yarn -R "${yarn_local_dirs[@]/,/}"
 }
@@ -348,8 +352,8 @@ function configure_gpu_isolation() {
   chmod a+rwx -R ${spark_gpu_script_dir}
 
   # enable GPU isolation
-  sed -i "s/yarn.nodemanager\.linux\-container\-executor\.group\=/yarn\.nodemanager\.linux\-container\-executor\.group\=yarn/g" /etc/hadoop/conf/container-executor.cfg
-  printf '\n[gpu]\nmodule.enabled=true\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' >>/etc/hadoop/conf/container-executor.cfg
+  sed -i "s/yarn.nodemanager\.linux\-container\-executor\.group\=/yarn\.nodemanager\.linux\-container\-executor\.group\=yarn/g" "${HADOOP_CONF_DIR}/container-executor.cfg"
+  printf '\n[gpu]\nmodule.enabled=true\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' >>"${HADOOP_CONF_DIR}/container-executor.cfg"
 
   chmod a+rwx -R /sys/fs/cgroup/cpu,cpuacct
   chmod a+rwx -R /sys/fs/cgroup/devices
