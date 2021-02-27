@@ -22,6 +22,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         name, "sudo ldconfig -p | grep -q libcudnn" )
 
   @parameterized.parameters(
+      ("SINGLE", ["m"], GPU_V100, None, None),
       ("STANDARD", ["m"], GPU_V100, None, None),
       ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "OS"),
       ("STANDARD", ["w-0", "w-1"], None, GPU_V100, "NVIDIA"),
@@ -98,11 +99,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                                     machine_suffix))
 
   @parameterized.parameters(
-      ("STANDARD", ["m"], GPU_V100, None, "10.1"),
-      ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "10.1"),
-      ("STANDARD", ["w-0", "w-1"], None, GPU_V100, "10.1"),
-      ("STANDARD", ["w-0", "w-1"], None, GPU_V100, "10.2"),
-      ("STANDARD", ["w-0", "w-1"], None, GPU_V100, "11.0"),
+      ("SINGLE", ["m"], GPU_V100, None, "10.1"),
+      ("STANDARD", ["m"], GPU_V100, None, "10.2"),
+      ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "11.0"),
       ("STANDARD", ["w-0", "w-1"], None, GPU_V100, "11.1"),
   )
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
