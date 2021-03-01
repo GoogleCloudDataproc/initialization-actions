@@ -56,10 +56,10 @@ get_connector_url() {
     # DATAPROC_VERSION is an environment variable set on the cluster.
     # We will use this to determine the appropriate connector to use
     # based on the scala version.
-    if [[ $(min_version "$DATAPROC_VERSION" 1.5) != 1.5 ]]; then
-      local -r scala_version=2.11
-    else
+    if [[ $(min_version "$DATAPROC_VERSION" 1.5) == 1.5 ]]; then
       local -r scala_version=2.12
+    else
+      local -r scala_version=2.11
     fi
 
     local -r jar_name="spark-bigquery-with-dependencies_${scala_version}-${version}.jar"
@@ -68,11 +68,17 @@ get_connector_url() {
     return
   fi
 
+  if [[ $(min_version "$DATAPROC_VERSION" 2.0) == 2.0 ]]; then
+    local -r hadoop_version_suffix=hadoop3
+  else
+    local -r hadoop_version_suffix=hadoop2
+  fi
+
   if [[ $name == gcs && $(min_version "$version" 1.9.5) != 1.9.5 ]] ||
     [[ $name == bigquery && $(min_version "$version" 0.13.5) != 0.13.5 ]]; then
-    local -r jar_name="${name}-connector-${version}-hadoop2.jar"
+    local -r jar_name="${name}-connector-${version}-${hadoop_version_suffix}.jar"
   else
-    local -r jar_name="${name}-connector-hadoop2-${version}.jar"
+    local -r jar_name="${name}-connector-${hadoop_version_suffix}-${version}.jar"
   fi
 
   echo "gs://hadoop-lib/${name}/${jar_name}"
@@ -180,7 +186,7 @@ restart_dataproc_agent() {
     sleep 1
   done
   # If Dataproc Agent didn't create a sentinel file that signals initialization
-  # failure then it means that initialization succeded and it should be restarted
+  # failure then it means that initialization succeeded and it should be restarted
   if [[ ! -f /var/lib/google/dataproc/has_failed_before ]]; then
     systemctl kill -s KILL google-dataproc-agent
   fi
@@ -188,7 +194,7 @@ restart_dataproc_agent() {
 export -f restart_dataproc_agent
 
 # Schedule asynchronous Dataproc Agent restart so it will use updated connectors.
-# It could not be restarted sycnhronously because Dataproc Agent should be restarted
+# It could not be restarted synchronously because Dataproc Agent should be restarted
 # after its initialization, including init actions execution, has been completed.
 bash -c restart_dataproc_agent &
 disown

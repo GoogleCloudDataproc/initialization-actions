@@ -36,9 +36,9 @@ BigQuery connector installed:
     gcloud dataproc clusters create ${CLUSTER_NAME} \
         --region ${REGION} \
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/connectors/connectors.sh \
-        --metadata gcs-connector-version=2.1.1 \
-        --metadata bigquery-connector-version=1.1.1 \
-        --metadata spark-bigquery-connector-version=0.13.1-beta
+        --metadata gcs-connector-version=2.2.0 \
+        --metadata bigquery-connector-version=1.2.0 \
+        --metadata spark-bigquery-connector-version=0.19.1
     ```
 
 -   to update connector by specifying URL, use `gcs-connector-url`,
@@ -71,9 +71,9 @@ BigQuery or Spark BigQuery) then only this connector will be updated.
 
 For example:
 
-*   if Google Cloud Storage connector 2.1.1 version is specified and neither
+*   if Google Cloud Storage connector 2.2.0 version is specified and neither
     Hadoop BigQuery connector not Spark BigQuery connector versions are
-    specified, then only Google Cloud Storage connector will be updated to 2.1.1
+    specified, then only Google Cloud Storage connector will be updated to 2.2.0
     version:
 
     ```
@@ -82,5 +82,5 @@ For example:
     gcloud dataproc clusters create ${CLUSTER_NAME} \
         --region ${REGION} \
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/connectors/connectors.sh \
-        --metadata gcs-connector-version=2.1.1
+        --metadata gcs-connector-version=2.2.0
     ```
