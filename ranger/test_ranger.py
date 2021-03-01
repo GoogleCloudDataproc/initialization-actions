@@ -32,6 +32,9 @@ class RangerTestCase(DataprocTestCase):
         ("HA", ["m-0"]),
     )
     def test_ranger(self, configuration, machine_suffixes):
+        if self.getImageOs() == 'centos':
+            self.skipTest("Not supported in CentOS-based images")
+
         # Skip on 2.0+ version of Dataproc because it's not supported
         if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
             self.skipTest("Not supported in 2.0+ images")

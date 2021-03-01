@@ -85,6 +85,9 @@ class MLVMTestCase(DataprocTestCase):
                             ("STANDARD", "yarn"), 
                             ("STANDARD", "standalone"))
   def test_mlvm(self, configuration, dask_runtime):
+    if self.getImageOs() == 'centos':
+      self.skipTest("Not supported in CentOS-based images")
+
     # Supported on Dataproc 1.5+
     if self.getImageVersion() < pkg_resources.parse_version("1.5"):
       self.skipTest("Not supported in pre 1.5 images")
@@ -112,7 +115,10 @@ class MLVMTestCase(DataprocTestCase):
                             ("STANDARD", "yarn", "DASK"), 
                             ("STANDARD", "standalone", "DASK"))
   def test_mlvm_gpu(self, configuration, dask_runtime, rapids_runtime):
-    # Supported on Dataproc 1.5+    
+    if self.getImageOs() == 'centos':
+      self.skipTest("Not supported in CentOS-based images")
+
+    # Supported on Dataproc 1.5+
     if self.getImageVersion() < pkg_resources.parse_version("1.5"):
       self.skipTest("Not supported in pre 1.5 images")
 

@@ -29,6 +29,9 @@ class OozieTestCase(DataprocTestCase):
         ("HA", ["m-0", "m-1", "m-2"]),
     )
     def test_oozie(self, configuration, machine_suffixes):
+        if self.getImageOs() == 'centos':
+            self.skipTest("Not supported in CentOS-based images")
+
         self.createCluster(
             configuration,
             self.INIT_ACTIONS,

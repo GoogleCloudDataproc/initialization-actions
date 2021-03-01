@@ -15,6 +15,9 @@ class RStudioTestCase(DataprocTestCase):
         ("SINGLE", "", ""),  # default username and no auth
     )
     def test_rstudio(self, configuration, user, password):
+        if self.getImageOs() == 'centos':
+            self.skipTest("Not supported in CentOS-based images")
+
         metadata = "rstudio-password={}".format(password)
         if user:
             metadata += ",rstudio-user={}".format(user)

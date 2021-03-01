@@ -23,9 +23,12 @@ class JupyterTestCase(DataprocTestCase):
       ("STANDARD", ["m"]),
   )
   def test_sparkmonitor(self, configuration, machine_suffixes):
-    # Use 1.4 version of Dataproc to test because it requires Python 3
-    if self.getImageVersion() < pkg_resources.parse_version("1.4"):
-      return
+    if self.getImageOs() == 'centos':
+      self.skipTest("Not supported in CentOS-based images")
+
+    # Use 1.4+ version of Dataproc to test because it requires Python 3
+    if self.getImageVersion() <= pkg_resources.parse_version("1.3"):
+      self.skipTest("Not supported in pre-1.3 images")
 
     if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in 2.0+ images")

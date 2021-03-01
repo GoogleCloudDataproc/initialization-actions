@@ -85,6 +85,9 @@ class StarburstPrestoTestCase(DataprocTestCase):
     )
     def test_starburst_presto(self, configuration, machine_suffixes,
                               coordinators, workers):
+        if self.getImageOs() == 'centos':
+            self.skipTest("Not supported in CentOS-based images")
+
         self.createCluster(configuration, self.INIT_ACTIONS)
         for machine_suffix in machine_suffixes:
             self.verify_instance(
@@ -95,6 +98,9 @@ class StarburstPrestoTestCase(DataprocTestCase):
         ("SINGLE", ["m"], 1, 0), )
     def test_starburst_presto_custom_port(
             self, configuration, machine_suffixes, coordinators, workers):
+        if self.getImageOs() == 'centos':
+            self.skipTest("Not supported in CentOS-based images")
+
         self.createCluster(
             configuration,
             self.INIT_ACTIONS,
