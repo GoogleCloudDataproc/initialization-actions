@@ -298,16 +298,16 @@ function configure_yarn() {
     'yarn.scheduler.capacity.resource-calculator' \
     'org.apache.hadoop.yarn.util.resource.DominantResourceCalculator'
 
-  if [[ ! -f ${HADOOP_CONF_DIR}/resource-types.xml ]]; then
-    printf '<?xml version="1.0" ?>\n<configuration/>' >"${HADOOP_CONF_DIR}/resource-types.xml"
-  fi
-  set_hadoop_property 'resource-types.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
-
   set_hadoop_property 'yarn-site.xml' 'yarn.resource-types' 'yarn.io/gpu'
 }
 
 # This configuration should be applied only if GPU is attached to the node
 function configure_yarn_nodemanager() {
+  if [[ ! -f ${HADOOP_CONF_DIR}/resource-types.xml ]]; then
+    printf '<?xml version="1.0" ?>\n<configuration/>' >"${HADOOP_CONF_DIR}/resource-types.xml"
+  fi
+  set_hadoop_property 'resource-types.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
+
   set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
   set_hadoop_property 'yarn-site.xml' \
     'yarn.nodemanager.resource-plugins.gpu.allowed-gpu-devices' 'auto'
