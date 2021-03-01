@@ -1,5 +1,5 @@
-import pkg_resources
 import os
+import pkg_resources
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -29,9 +29,9 @@ class KnoxTestCase(DataprocTestCase):
                               ("STANDARD", ["m", "w-0"]),
                               ("HA", ["m-2", "w-0"]))
     def test_knox_localhost_cert(self, configuration, machine_suffixes):
-        # Init action supported on Dataproc 1.3+
-        if self.getImageVersion() < pkg_resources.parse_version("1.3"):
-            self.skipTest("Not supported in pre 1.3 images")
+        if self.getImageOs() == 'debian':
+            if self.getImageVersion() <= pkg_resources.parse_version("1.4"):
+                self.skipTest("Not supported in pre 1.5 Debian images")
 
         self.createCluster(
             configuration,
@@ -52,9 +52,9 @@ class KnoxTestCase(DataprocTestCase):
     @parameterized.parameters(("STANDARD", ["w-0", "m"]),
                               ("HA", ["m-1", "m-0"]))
     def test_knox_hostname_cert(self, configuration, machine_suffixes):
-        # Init action supported on Dataproc 1.3+
-        if self.getImageVersion() < pkg_resources.parse_version("1.3"):
-            self.skipTest("Not supported in pre 1.3 images")
+        if self.getImageOs() == 'debian':
+            if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+                self.skipTest("Not supported in pre 1.5 Debian images")
 
         self.createCluster(
             configuration,

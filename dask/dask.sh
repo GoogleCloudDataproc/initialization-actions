@@ -47,7 +47,7 @@ fi
 readonly CONDA_PACKAGES
 
 function configure_dask_yarn() {
-  # Minimal custom configuarion is required for this
+  # Minimal custom configuration is required for this
   # setup. Please see https://yarn.dask.org/en/latest/quickstart.html#usage
   # for information on tuning Dask-Yarn environments.
   mkdir -p ${DASK_YARN_CONFIG_DIR}
@@ -115,7 +115,6 @@ function main() {
   if [[ "${DASK_RUNTIME}" == "yarn" ]]; then
     # Create Dask Yarn config file
     configure_dask_yarn
-
   elif [[ "${DASK_RUNTIME}" == "standalone" ]]; then
     # Create Dask service
     install_systemd_dask_service

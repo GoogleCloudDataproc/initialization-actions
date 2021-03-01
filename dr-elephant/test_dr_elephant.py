@@ -1,3 +1,5 @@
+import pkg_resources
+
 from absl.testing import absltest
 from absl.testing import parameterized
 
@@ -30,6 +32,9 @@ class DrElephantTestCase(DataprocTestCase):
         ("HA", ["m-0"]),
     )
     def test_dr_elephant(self, configuration, machine_suffixes):
+        if self.getImageVersion() >= pkg_resources.parse_version("1.3"):
+            self.skipTest("Not supported in the 1.3+ images")
+
         self.createCluster(
             configuration,
             self.INIT_ACTIONS,

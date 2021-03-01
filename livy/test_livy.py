@@ -1,4 +1,5 @@
 import os
+import pkg_resources
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -33,6 +34,9 @@ class LivyTestCase(DataprocTestCase):
         ("HA", ["m-0", "m-1", "m-2"]),
     )
     def test_livy(self, configuration, machine_suffixes):
+        if self.getImageVersion() >= pkg_resources.parse_version("1.5"):
+            self.skipTest("Not supported in 1.5+ images")
+
         self.createCluster(configuration, self.INIT_ACTIONS)
         for machine_suffix in machine_suffixes:
             self._verify_instance("{}-{}".format(self.getClusterName(),
