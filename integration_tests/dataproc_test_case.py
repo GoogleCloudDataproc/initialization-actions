@@ -123,9 +123,7 @@ class DataprocTestCase(parameterized.TestCase):
                 timeout_in_minutes))
 
         if properties:
-            args.append("--properties={},dataproc:startup.component.service-binding-timeout.hdfs=3600".format(properties))
-        else:
-            args.append("--properties=dataproc:startup.component.service-binding-timeout.hdfs=3600")
+            args.append("--properties={}".format(properties))
         if metadata:
             args.append("--metadata={}".format(metadata))
 
