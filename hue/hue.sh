@@ -42,7 +42,7 @@ function retry_command() {
 
 function install_packages() {
   local -r packages="$*"
-  if command -v apt >/dev/null; then
+  if command -v apt-get >/dev/null; then
     retry_command "apt-get install -t $(lsb_release -sc)-backports -y ${packages}"
   else
     retry_command "yum install -y ${packages}"
@@ -50,7 +50,7 @@ function install_packages() {
 }
 
 function update_repo() {
-  if command -v apt >/dev/null; then
+  if command -v apt-get >/dev/null; then
     retry_command "apt-get update"
   else
     retry_command "yum -y update"
@@ -58,13 +58,14 @@ function update_repo() {
 }
 
 function install_hue_and_configure() {
-  local old_hdfs_url='## webhdfs_url\=http:\/\/localhost:50070'
+  local -r old_hdfs_url='## webhdfs_url\=http:\/\/localhost:50070'
   local new_hdfs_url
   new_hdfs_url="webhdfs_url\=http:\/\/$(hdfs getconf -confKey dfs.namenode.http-address)"
-  local hue_password='hue-password'
-  local old_mysql_settings='## engine=sqlite3(\s+)## host=(\s+)## port=(\s+)## user=(\s+)## password='
-  local new_mysql_settings="engine=mysql\$1host=127.0.0.1\$2port=3306\$3user=hue\$4password=${hue_password}"
-  local hadoop_conf_dir='/etc/hadoop/conf'
+  local -r hue_password='hue-password'
+  local -r old_mysql_settings='## engine=sqlite3(\s+)## host=(\s+)## port=(\s+)## user=(\s+)## password='
+  local new_mysql_settings
+  new_mysql_settings="engine=mysql\$1host=127.0.0.1\$2port=3306\$3user=hue\$4password=${hue_password}"
+  local -r hadoop_conf_dir='/etc/hadoop/conf'
 
   # Install Hue
   install_packages hue || err "Failed to install Hue"
@@ -168,7 +169,7 @@ EOF
     /etc/hue/conf/hue.ini
 
   # Make hive warehouse directory
-  local warehause_dir="/user/hive/warehouse"
+  local -r warehause_dir="/user/hive/warehouse"
   hdfs dfs -mkdir "${warehause_dir}" || hdfs dfs -stat "${warehause_dir}"
 
   bdconfig set_property \
