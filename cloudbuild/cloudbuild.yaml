@@ -55,7 +55,7 @@ steps:
 
   # Run presubmit tests in parallel for 1.5 CentOS image
   - name: 'gcr.io/cloud-builders/kubectl'
-    id: 'dataproc-1.5-centos10-tests'
+    id: 'dataproc-1.5-centos8-tests'
     waitFor: ['gcr-push']
     entrypoint: 'bash'
     args: ['cloudbuild/run-presubmit-on-k8s.sh', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID', '$BUILD_ID', '1.5-centos8']
