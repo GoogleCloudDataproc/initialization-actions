@@ -1,4 +1,5 @@
 import os
+import pkg_resources
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -31,6 +32,9 @@ class DrillTestCase(DataprocTestCase):
         ("HA", [("m-0", "w-0"), ("w-0", "m-1")]),
     )
     def test_drill(self, configuration, verify_options):
+        if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
+            self.skipTest("Not supported in the 2.0+ images")
+
         init_actions = self.INIT_ACTIONS
         if configuration == "STANDARD":
             init_actions = self.INIT_ACTIONS_FOR_STANDARD + init_actions

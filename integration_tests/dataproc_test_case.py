@@ -211,6 +211,15 @@ class DataprocTestCase(parameterized.TestCase):
         return pkg_resources.parse_version('999') if version.startswith(
             'preview') else pkg_resources.parse_version(version.split('-')[0])
 
+    @staticmethod
+    def getImageOs():
+        # Get OS string from the version flag: '1.5-debian10' -> 'debian'.
+        # If image version specified without OS suffix ('2.0')
+        # then return 'debian' by default
+        version = FLAGS.image_version
+        image_os = re.match('[^-]+-([a-z]+)[0-9]*', version)
+        return image_os.group(1) if image_os else 'debian'
+
     def upload_test_file(self, testfile, name):
         self.assert_command('gcloud compute scp {} {}:'.format(testfile, name))
 
