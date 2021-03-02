@@ -56,9 +56,6 @@ class CloudSqlProxyTestCase(DataprocTestCase):
       'HA',
   )
   def test_cloud_sql_proxy(self, configuration):
-    if self.getImageOs() == 'centos':
-      self.skipTest("Not supported in CentOS-based images")
-
     metadata = 'hive-metastore-instance={}:{}'.format(self.PROJECT_METADATA,
                                                       self.DB_NAME)
     self.createCluster(

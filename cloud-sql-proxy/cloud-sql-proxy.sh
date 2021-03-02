@@ -120,16 +120,6 @@ function is_centos() {
   return $?
 }
 
-function is_debian() {
-  [[ "$(. /etc/os-release && echo "${ID}")" == 'debian' ]]
-  return $?
-}
-
-function is_ubuntu() {
-  [[ "$(. /etc/os-release && echo "${ID}")" == 'ubuntu' ]]
-  return $?
-}
-
 function get_java_property() {
   local property_file=$1
   local property_name=$2
@@ -316,11 +306,10 @@ EOF
 
 function configure_sql_client() {
   # Configure MySQL client to talk to metastore
-  local mysql_conf_dir
   if is_centos; then
-    mysql_conf_dir="/etc/my.cnf.d"
+    local -r mysql_conf_dir="/etc/my.cnf.d"
   else
-    mysql_conf_dir="/etc/mysql/conf.d"
+    local -r mysql_conf_dir="/etc/mysql/conf.d"
   fi
 
   cat <<EOF >"${mysql_conf_dir}/cloud-sql-proxy.cnf"
@@ -396,11 +385,10 @@ function main() {
       else
         echo "Service hive-metastore is not enabled"
       fi
-      local mysql_service
       if is_centos; then
-        mysql_service="mysqld"
+        local -r mysql_service="mysqld"
       else
-        mysql_service="mysql"
+        local -r mysql_service="mysql"
       fi
       if (systemctl is-enabled --quiet "${mysql_service}"); then
         systemctl stop "${mysql_service}"
