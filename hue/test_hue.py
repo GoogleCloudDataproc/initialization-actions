@@ -30,9 +30,6 @@ class HueTestCase(DataprocTestCase):
         ("HA", ["m-0"]),
     )
     def test_hue(self, configuration, machine_suffixes):
-        if self.getImageOs() == 'centos':
-            self.skipTest("Not supported in CentOS-based images")
-
         if self.getImageOs() == 'ubuntu':
             if self.getImageVersion() <= pkg_resources.parse_version("1.4"):
                 self.skipTest("Not supported in pre 1.5 Ubuntu images")

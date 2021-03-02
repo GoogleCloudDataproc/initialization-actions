@@ -40,45 +40,20 @@ function retry_command() {
   return 1
 }
 
-function is_centos() {
-  [[ "$(. /etc/os-release && echo "${ID}")" == 'centos' ]]
-  return $?
-}
-
-function is_debian() {
-  [[ "$(. /etc/os-release && echo "${ID}")" == 'debian' ]]
-  return $?
-}
-
-function is_ubuntu() {
-  [[ "$(. /etc/os-release && echo "${ID}")" == 'ubuntu' ]]
-  return $?
-}
-
-function install_yum() {
-  local pkgs="$*"
-  retry_command "yum install -y $pkgs"
-}
-
-function install_apt_get() {
-  local pkgs="$*"
-  retry_command "apt-get install -t $(lsb_release -sc)-backports -y $pkgs"
-}
-
 function install_packages() {
-  local pkgs="$*"
-  if is_centos; then
-    install_yum "$pkgs"
+  local -r packages="$*"
+  if command -v apt >/dev/null; then
+    retry_command "apt-get install -t $(lsb_release -sc)-backports -y ${packages}"
   else
-    install_apt_get "$pkgs"
+    retry_command "yum install -y ${packages}"
   fi
 }
 
 function update_repo() {
-  if is_centos; then
-    retry_command "yum -y update"
-  else
+  if command -v apt >/dev/null; then
     retry_command "apt-get update"
+  else
+    retry_command "yum -y update"
   fi
 }
 
