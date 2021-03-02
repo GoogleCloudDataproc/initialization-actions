@@ -93,6 +93,9 @@ class AtlasTestCase(DataprocTestCase):
         ("HA", ["m-0", "m-1", "m-2"]),
     )
     def test_atlas(self, configuration, machine_suffixes):
+        if self.getImageOs() == 'centos':
+            self.skipTest("Not supported in CentOS-based images")
+
         image_version = self.getImageVersion()
         if image_version < pkg_resources.parse_version("1.5") or \
             image_version >= pkg_resources.parse_version("2.0"):
@@ -144,6 +147,9 @@ class AtlasTestCase(DataprocTestCase):
     @parameterized.parameters(("SINGLE", ["m"]))
     def test_atlas_overrides_admin_credentials(self, configuration,
                                                machine_suffixes):
+      if self.getImageOs() == 'centos':
+        self.skipTest("Not supported in CentOS-based images")
+
       image_version = self.getImageVersion()
       if image_version < pkg_resources.parse_version("1.5") or \
           image_version >= pkg_resources.parse_version("2.0"):
@@ -169,6 +175,9 @@ class AtlasTestCase(DataprocTestCase):
 
     @parameterized.parameters("ZOOKEEPER", "HBASE", "SOLR")
     def test_atlas_fails_without_component(self, component):
+      if self.getImageOs() == 'centos':
+        self.skipTest("Not supported in CentOS-based images")
+
       image_version = self.getImageVersion()
       if image_version < pkg_resources.parse_version("1.5") or \
           image_version >= pkg_resources.parse_version("2.0"):
@@ -184,6 +193,9 @@ class AtlasTestCase(DataprocTestCase):
               optional_components=self.OPTIONAL_COMPONENTS.remove(component))
 
     def test_atlas_ha_fails_without_kafka(self):
+        if self.getImageOs() == 'centos':
+            self.skipTest("Not supported in CentOS-based images")
+
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             self.skipTest("Not supported in pre 1.5 images")
 

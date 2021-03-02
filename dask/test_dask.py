@@ -20,7 +20,6 @@ class DaskTestCase(DataprocTestCase):
     def verify_dask_standalone(self, name):
         self._run_dask_test_script(name, self.DASK_STANDALONE_TEST_SCRIPT)
 
-
     def _run_dask_test_script(self, name, script):
         verify_cmd = "/opt/conda/default/bin/python {}".format(
             script)
@@ -36,7 +35,10 @@ class DaskTestCase(DataprocTestCase):
         ("STANDARD", ["m", "w-0"], "yarn"),
         ("STANDARD", ["m"], "standalone"))
     def test_dask(self, configuration, instances, runtime):
-        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+        if self.getImageOs() == 'centos':
+            self.skipTest("Not supported in CentOS-based images")
+
+        if self.getImageVersion() <= pkg_resources.parse_version("1.4"):
             self.skipTest("Not supported in pre 1.5 images")
 
         metadata = None

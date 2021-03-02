@@ -16,6 +16,9 @@ class AlluxioTestCase(DataprocTestCase):
   @parameterized.parameters(
       ("STANDARD", ["m"]),)
   def test_alluxio(self, configuration, machine_suffixes):
+    if self.getImageOs() == 'centos':
+      self.skipTest("Not supported in CentOS-based images")
+
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
@@ -29,6 +32,9 @@ class AlluxioTestCase(DataprocTestCase):
   @parameterized.parameters(
       ("STANDARD", ["m"]),)
   def test_alluxio_with_presto(self, configuration, machine_suffixes):
+    if self.getImageOs() == 'centos':
+      self.skipTest("Not supported in CentOS-based images")
+
     self.createCluster(
         configuration,
         init_actions=self.INIT_ACTIONS,
