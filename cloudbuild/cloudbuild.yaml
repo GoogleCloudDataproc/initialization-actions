@@ -58,7 +58,7 @@ steps:
     id: 'dataproc-1.5-centos10-tests'
     waitFor: ['gcr-push']
     entrypoint: 'bash'
-    args: ['cloudbuild/run-presubmit-on-k8s.sh', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID', '$BUILD_ID', '1.5-centos10']
+    args: ['cloudbuild/run-presubmit-on-k8s.sh', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID', '$BUILD_ID', '1.5-centos8']
     env:
       - 'COMMIT_SHA=$COMMIT_SHA'
       - 'CLOUDSDK_COMPUTE_REGION=us-central1'
