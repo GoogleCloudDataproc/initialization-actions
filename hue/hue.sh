@@ -29,7 +29,7 @@ function err() {
   exit 1
 }
 
-function retry_apt_command() {
+function retry_command() {
   local cmd="$1"
   for ((i = 0; i < 10; i++)); do
     if eval "$cmd"; then
@@ -40,22 +40,35 @@ function retry_apt_command() {
   return 1
 }
 
-function update_apt_get() {
-  retry_apt_command "apt-get update"
+function install_packages() {
+  local -r packages="$*"
+  if command -v apt-get >/dev/null; then
+    retry_command "apt-get install -t $(lsb_release -sc)-backports -y ${packages}"
+  else
+    retry_command "yum install -y ${packages}"
+  fi
+}
+
+function update_repo() {
+  if command -v apt-get >/dev/null; then
+    retry_command "apt-get update"
+  else
+    retry_command "yum -y update"
+  fi
 }
 
 function install_hue_and_configure() {
-  local old_hdfs_url='## webhdfs_url\=http:\/\/localhost:50070'
+  local -r old_hdfs_url='## webhdfs_url\=http:\/\/localhost:50070'
   local new_hdfs_url
   new_hdfs_url="webhdfs_url\=http:\/\/$(hdfs getconf -confKey dfs.namenode.http-address)"
-  local hue_password='hue-password'
-  local old_mysql_settings='## engine=sqlite3(\s+)## host=(\s+)## port=(\s+)## user=(\s+)## password='
-  local new_mysql_settings="engine=mysql\$1host=127.0.0.1\$2port=3306\$3user=hue\$4password=${hue_password}"
-  local hadoop_conf_dir='/etc/hadoop/conf'
+  local -r hue_password='hue-password'
+  local -r old_mysql_settings='## engine=sqlite3(\s+)## host=(\s+)## port=(\s+)## user=(\s+)## password='
+  local new_mysql_settings
+  new_mysql_settings="engine=mysql\$1host=127.0.0.1\$2port=3306\$3user=hue\$4password=${hue_password}"
+  local -r hadoop_conf_dir='/etc/hadoop/conf'
 
   # Install Hue
-  retry_apt_command "apt-get install -t $(lsb_release -sc)-backports -y hue" ||
-    err "Failed to install Hue"
+  install_packages hue || err "Failed to install Hue"
 
   # Stop Hue
   systemctl stop hue || err "Hue stop action not performed"
@@ -156,7 +169,7 @@ EOF
     /etc/hue/conf/hue.ini
 
   # Make hive warehouse directory
-  local warehause_dir="/user/hive/warehouse"
+  local -r warehause_dir="/user/hive/warehouse"
   hdfs dfs -mkdir "${warehause_dir}" || hdfs dfs -stat "${warehause_dir}"
 
   bdconfig set_property \
@@ -199,6 +212,6 @@ EOF
 
 # Only run on the master node ("0"-master in HA mode) of the cluster
 if [[ "${HOSTNAME}" == "${MASTER_HOSTNAME}" ]]; then
-  update_apt_get || err "Unable to update apt-get"
+  update_repo || err "Unable to update repository"
   install_hue_and_configure || err "Hue install process failed"
 fi
