@@ -306,7 +306,7 @@ function configure_yarn_nodemanager() {
   if [[ ! -f ${HADOOP_CONF_DIR}/resource-types.xml ]]; then
     printf '<?xml version="1.0" ?>\n<configuration/>' >"${HADOOP_CONF_DIR}/resource-types.xml"
   fi
-  set_hadoop_property 'resource-types.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
+  set_hadoop_property 'resource-types.xml' 'yarn.resource-types' 'yarn.io/gpu'
 
   set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
   set_hadoop_property 'yarn-site.xml' \
