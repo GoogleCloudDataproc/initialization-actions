@@ -76,7 +76,9 @@ class RapidsTestCase(DataprocTestCase):
       self.verify_dask_instance("{}-{}".format(self.getClusterName(),
                                                machine_suffix))
 
-  @parameterized.parameters(("STANDARD", ["w-0"], GPU_P100))
+  @parameterized.parameters(
+    ("SINGLE", ["m"], GPU_P100),
+    ("STANDARD", ["w-0"], GPU_P100))
   def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
     if self.getImageOs() == 'centos':
       self.skipTest("Not supported in CentOS-based images")
