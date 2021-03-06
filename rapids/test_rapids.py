@@ -98,6 +98,7 @@ class RapidsTestCase(DataprocTestCase):
         optional_components=optional_components,
         metadata=metadata,
         machine_type="n1-standard-4",
+        master_accelerator=accelerator if configuration == "SINGLE" else None,
         worker_accelerator=accelerator,
         timeout_in_minutes=30)
 
