@@ -86,7 +86,8 @@ function configure_bigtable_client_1x() {
 SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH}:/usr/lib/spark/external/shc-core.jar"
 EOF
 
-  cat <<EOF >hbase-site.xml
+  local -r hbase_config=$(mktemp /tmp/hbase-site.xml-XXXX)
+  cat <<EOF >${hbase_config}
 <?xml version="1.0"?>
 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
 <configuration>
@@ -104,12 +105,13 @@ EOF
 
   bdconfig merge_configurations \
     --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
-    --source_configuration_file hbase-site.xml \
+    --source_configuration_file "$hbase_config" \
     --clobber
 }
 
 function configure_bigtable_client_2x() {
-  cat <<EOF >hbase-site.xml
+  local -r hbase_config=$(mktemp /tmp/hbase-site.xml-XXXX)
+  cat <<EOF >${hbase_config}
 <?xml version="1.0"?>
 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
 <configuration>
@@ -135,12 +137,11 @@ EOF
 
   bdconfig merge_configurations \
     --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
-    --source_configuration_file hbase-site.xml \
+    --source_configuration_file "$hbase_config" \
     --clobber
 }
 
 function configure_bigtable_client() {
-  local -r hbase_version=$(get_hbase_major_version)
   #Update classpaths
   cat <<'EOF' >>/etc/hadoop/conf/mapred-env.sh
 HADOOP_CLASSPATH="${HADOOP_CLASSPATH}:/usr/lib/hbase/*"
@@ -154,28 +155,18 @@ SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH}:/usr/lib/hbase/lib/*"
 SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH}:/etc/hbase/conf"
 EOF
 
-  if [ "$hbase_version" == "2" ]
-  then
+  if [[ ${DATAPROC_VERSION%%.*} -ge 2 ]]; then
     configure_bigtable_client_2x || err 'Failed to configure big table 2.x client.'
   else
     configure_bigtable_client_1x || err 'Failed to configure big table 1.x client.'
   fi
 }
 
-function get_hbase_major_version() {
-  version_str=$(hbase version | grep "HBase")
-  version=${version_str#"HBase "}
-  major_version=${version%%.*}
-  echo "$major_version"
-}
-
 function main() {
   retry_apt_command "apt-get update" || err 'Unable to update packages lists.'
   retry_apt_command "apt-get install -y hbase" || err 'Unable to install HBase.'
 
-  local -r hbase_version=$(get_hbase_major_version)
-  if [ "$hbase_version" = "2" ]
-  then
+  if [[ ${DATAPROC_VERSION%%.*} -ge 2 ]]; then
     install_bigtable_client "$BIGTABLE_HBASE_CLIENT_2X_JAR" "$BIGTABLE_HBASE_CLIENT_2X_URL" || err 'Unable to install big table client.'
   else
     install_bigtable_client "$BIGTABLE_HBASE_CLIENT_1X_JAR" "$BIGTABLE_HBASE_CLIENT_1X_URL" || err 'Unable to install big table client.'
@@ -183,7 +174,7 @@ function main() {
     install_shc || err 'Failed to install Spark-HBase connector.'
   fi
 
-  configure_bigtable_client "$hbase_version" || err 'Failed to configure big table client.'
+  configure_bigtable_client || err 'Failed to configure big table client.'
 }
 
 main
