@@ -105,7 +105,7 @@ class MLVMTestCase(DataprocTestCase):
         configuration,
         self.INIT_ACTIONS,
         optional_components=self.OPTIONAL_COMPONENTS,
-        machine_type="n1-standard-8",
+        machine_type="n1-standard-4",
         timeout_in_minutes=60,
         metadata=metadata)
 
@@ -154,7 +154,7 @@ class MLVMTestCase(DataprocTestCase):
         configuration,
         self.INIT_ACTIONS,
         optional_components=self.OPTIONAL_COMPONENTS,
-        machine_type="n1-standard-8",
+        machine_type="n1-standard-4",
         master_accelerator="type=nvidia-tesla-v100",
         worker_accelerator="type=nvidia-tesla-v100",
         timeout_in_minutes=60,
