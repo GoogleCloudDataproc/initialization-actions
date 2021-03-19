@@ -8,6 +8,9 @@ function get_metadata_attribute() {
   /usr/share/google/get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
 }
 
+readonly DEFAULT_RAPIDS_VERSION="0.18"
+readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' ${DEFAULT_RAPIDS_VERSION})
+
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
 readonly DEFAULT_SPARK_RAPIDS_VERSION="0.4.0"
 
@@ -36,17 +39,6 @@ readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-mast
 # RAPIDS config
 readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VERSION})
 readonly CUDF_VERSION=$(get_metadata_attribute 'cudf-version' ${DEFAULT_CUDF_VERSION})
-
-# TODO: standardize versions when Spark 3.1 jars will be released. 
-if [[ "${RUNTIME}" == "DASK" ]]; then
-  DEFAULT_RAPIDS_VERSION="0.18"
-elif [[ "${RUNTIME}" == "SPARK" ]]; then
-  DEFAULT_RAPIDS_VERSION="0.17"
-else
-  echo "Unsupported RAPIDS Runtime: ${RUNTIME}"
-  exit 1
-fi
-readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' ${DEFAULT_RAPIDS_VERSION})
 
 # SPARK config
 readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
