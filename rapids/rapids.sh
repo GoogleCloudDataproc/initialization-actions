@@ -118,6 +118,8 @@ function configure_spark() {
     cat >>${SPARK_CONF_DIR}/spark-defaults.conf <<EOF
 
 ###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
+# turn off aqe to avoid confusion, user can turn it on to work with GPU, but explain output won't show GPU operator
+spark.sql.adaptive.enabled=false
 spark.rapids.sql.concurrentGpuTasks=2
 spark.executor.resource.gpu.amount=1
 spark.executor.cores=2
