@@ -9,11 +9,11 @@ function get_metadata_attribute() {
 }
 
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
-readonly DEFAULT_SPARK_RAPIDS_VERSION="0.3.0"
+readonly DEFAULT_SPARK_RAPIDS_VERSION="0.4.0"
 
 if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
   readonly DEFAULT_CUDA_VERSION="10.2"
-  readonly DEFAULT_CUDF_VERSION="0.18"
+  readonly DEFAULT_CUDF_VERSION="0.18.1"
   readonly DEFAULT_XGBOOST_VERSION="1.3.0"
   readonly DEFAULT_XGBOOST_GPU_SUB_VERSION="0.1.0"
   # TODO: uncomment when Spark 3.1 jars will be released.
