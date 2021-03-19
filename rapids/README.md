@@ -15,15 +15,15 @@ action supports Dask and Spark runtimes for RAPIDS on
 initialization actions in production.
 
 This initialization action will install RAPIDS on Dataproc for either Spark or
-Dask. RAPIDS for Spark is supported on Dataproc 2.0+ (Spark 3.0)+. 
-Spark with XGBoost is support on Dataproc 1.5+ with Spark 2.4.
-RAPIDS for Dask is only supported on Dataproc 2.0+.
+Dask. RAPIDS Accelerator For Apache Spark is supported on Dataproc 2.0+ (Spark 3.0)+. 
+Spark with RAPIDS XGBoost is support on Dataproc 1.5+ with Spark 2.4.
+RAPIDS Accelerator For Dask is only supported on Dataproc 2.0+.
 
-## Spark RAPIDS Accelerator
+## RAPIDS Accelerator For Apache Spark
 
 ### Prerequisites
 
-To use Spark Rapids SQL plugin, XGBoost4j with Spark 3
+To use RAPIDS Accelerator For Apache Spark, XGBoost4j with Spark 3
 
 *   Apache Spark 3.0+
 *   Hardware Requirements
@@ -36,13 +36,13 @@ To use Spark Rapids SQL plugin, XGBoost4j with Spark 3
 
 This section describes how to create
 [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster with
-[Spark RAPIDS SQL plugin](https://github.com/NVIDIA/spark-rapids) and
+[RAPIDS Accelerator For Apache Spark](https://github.com/NVIDIA/spark-rapids) and
 [XGBoost4j](https://github.com/NVIDIA/spark-xgboost-examples).
 
-### Step 1. Create Dataproc cluster with Spark RAPIDS Accelerator
+### Step 1. Create Dataproc cluster with RAPIDS Accelerator For Apache Spark
 
 The following command will create a new Dataproc cluster named `CLUSTER_NAME`
-with installed GPU drivers, Spark RAPIDS Accelerator, Spark RAPIDS XGBoost
+with installed GPU drivers, RAPIDS Accelerator For Apache Spark, Spark RAPIDS XGBoost
 libraries and Jupyter Notebook.
 
 A few notes:
@@ -126,7 +126,7 @@ This section describes how to create
 
 ### Prerequisites
 
-To use XGBoost4j with Spark 2
+To use Spark RAPIDS XGBoost4j with Spark 2
 
 *   Apache Spark 2.3+
 *   Hardware Requirements
@@ -321,7 +321,7 @@ gcloud dataproc jobs submit pyspark \
     host-memory for buffering data to and from GPUs. When running with a single
     attached GPU, GCP only permits machine types up to 24 vCPUs.
 
-## Dask RAPIDS
+## RAPIDS Accelerator For Dask
 
 This section automates the process of setting up a Dataproc cluster with
 DASK and RAPIDS installed. This requires additionally using the
@@ -353,7 +353,7 @@ gcloud dataproc clusters create $CLUSTER_NAME \
     --enable-component-gateway
 ```
 
-### Run Dask RAPIDS workload
+### Run RAPIDS Accelerator For Dask workload
 
 Once the cluster has been created, if using `standalone` mode, the Dask
 scheduler listens for workers on port `8786`, and its status dashboard is on
@@ -431,7 +431,7 @@ gcloud dataproc clusters create $CLUSTER_NAME \
 *   RAPIDS initialization action depends on the
     [Anaconda](https://cloud.google.com/dataproc/docs/concepts/components/anaconda)
     component, which should be included at cluster creation time via the
-    `--optional-components=ANACONDA` argument.
+    `--optional-components=ANACONDA` argument. - this is no longer needed for Dataproc 2.0
 *   RAPIDS initialization action depends on the [GPU](/gpu/README.md)
     initialization action, which should be included at cluster creation time via
     the `--initialization-actions
