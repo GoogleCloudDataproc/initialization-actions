@@ -43,7 +43,6 @@ class DataprocTestCase(parameterized.TestCase):
 
     PROJECT = None
     REGION = None
-    ZONE = None
 
     COMPONENT = None
     INIT_ACTIONS = None
@@ -56,13 +55,11 @@ class DataprocTestCase(parameterized.TestCase):
         _, project, _ = cls.run_command("gcloud config get-value project")
         cls.PROJECT = project.strip()
 
-        _, zone, _ = cls.run_command("gcloud config get-value compute/zone")
-        cls.ZONE = zone.strip()
-        cls.REGION = cls.ZONE[:-2]
+        _, region, _ = cls.run_command("gcloud config get-value compute/region")
+        cls.REGION = region.strip()
 
         assert cls.PROJECT
         assert cls.REGION
-        assert cls.ZONE
 
         cls.INIT_ACTIONS_REPO = DataprocTestCase().stage_init_actions(
             cls.PROJECT)
