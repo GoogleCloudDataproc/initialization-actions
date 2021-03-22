@@ -372,11 +372,14 @@ function main() {
   # This configuration should be ran on all nodes
   # regardless if they have attached GPUs
   configure_yarn
-  configure_yarn_nodemanager
-  configure_gpu_isolation
-    
+  
+  if [[ "${ROLE}" == "Master" ]]; then
+    configure_yarn_nodemanager
+    configure_gpu_isolation    
   # Detect NVIDIA GPU
-  if (lspci | grep -q NVIDIA); then
+  elif (lspci | grep -q NVIDIA); then
+    configure_yarn_nodemanager
+    configure_gpu_isolation
     execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
 
     if [[ ${GPU_DRIVER_PROVIDER} == 'NVIDIA' ]]; then
@@ -400,9 +403,7 @@ function main() {
       echo 'GPU metrics agent will not be installed.'
     fi
 
-    if [[ "${ROLE}" != "Master" ]]; then
-      configure_gpu_exclusive_mode
-    fi
+    configure_gpu_exclusive_mode
   fi
 }
 
