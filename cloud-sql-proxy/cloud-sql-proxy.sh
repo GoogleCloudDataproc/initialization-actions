@@ -242,6 +242,13 @@ function install_cloud_sql_proxy() {
   local proxy_flags
   proxy_flags="$(get_proxy_flags)"
 
+  # Validate db_hive_password and escape invalid xml characters if found.
+  local db_hive_password_xml_escaped
+  db_hive_password_xml_escaped=${DB_HIVE_PASSWORD//&/&amp;}
+  db_hive_password_xml_escaped=${db_hive_password_xml_escaped//</&lt;}
+  db_hive_password_xml_escaped=${db_hive_password_xml_escaped//>/&gt;}
+  db_hive_password_xml_escaped=${db_hive_password_xml_escaped//'"'/&quot;}
+
   # Install proxy as systemd service for reboot tolerance.
   cat <<EOF >${INIT_SCRIPT}
 [Unit]
@@ -287,7 +294,7 @@ EOF
   </property>
   <property>
     <name>javax.jdo.option.ConnectionPassword</name>
-    <value>${DB_HIVE_PASSWORD}</value>
+    <value>${db_hive_password_xml_escaped}</value>
   </property>
 </configuration>
 EOF
