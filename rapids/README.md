@@ -113,6 +113,8 @@ out.explain()
 
 From `out.explain()`, you should see `GpuRowToColumn`, `GpuFilter`,
 `GpuColumnarExchange`, those all indicate things that would run on the GPU.
+In some releases, you might not see that due to AQE has not finalized the plan. Please see
+[RAPIDS Spark Q&A for more details](https://nvidia.github.io/spark-rapids/docs/FAQ.html#is-adaptive-query-execution-aqe-supported)
 
 Or go to the Spark UI and click on the application you ran and on the "SQL" tab.
 If you click the operation "count at ...", you should see the graph of Spark
