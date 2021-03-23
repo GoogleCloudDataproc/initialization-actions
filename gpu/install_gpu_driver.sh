@@ -373,11 +373,8 @@ function main() {
   # regardless if they have attached GPUs
   configure_yarn
   
-  if [[ "${ROLE}" == "Master" ]]; then
-    configure_yarn_nodemanager
-    configure_gpu_isolation    
   # Detect NVIDIA GPU
-  elif (lspci | grep -q NVIDIA); then
+  if (lspci | grep -q NVIDIA); then
     configure_yarn_nodemanager
     configure_gpu_isolation
     execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
@@ -404,6 +401,9 @@ function main() {
     fi
 
     configure_gpu_exclusive_mode
+  elif [[ "${ROLE}" == "Master" ]]; then
+    configure_yarn_nodemanager
+    configure_gpu_isolation
   fi
 }
 
