@@ -377,6 +377,7 @@ function main() {
   if (lspci | grep -q NVIDIA); then
     configure_yarn_nodemanager
     configure_gpu_isolation
+
     execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
 
     if [[ ${GPU_DRIVER_PROVIDER} == 'NVIDIA' ]]; then
