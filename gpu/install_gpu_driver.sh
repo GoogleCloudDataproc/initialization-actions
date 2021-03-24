@@ -372,7 +372,7 @@ function main() {
   # This configuration should be ran on all nodes
   # regardless if they have attached GPUs
   configure_yarn
-  
+
   # Detect NVIDIA GPU
   if (lspci | grep -q NVIDIA); then
     configure_yarn_nodemanager
