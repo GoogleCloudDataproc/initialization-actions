@@ -35,7 +35,6 @@ readonly SPARK_BIGQUERY_VERSION="$(/usr/share/google/get_metadata_value attribut
 
 readonly R_VERSION="$(R --version | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p')"
 readonly TENSORFLOW_VERSION="2.4.*"
-readonly TENSORFLOW_VERSION_DATAPROC_1_5="2.3.*"
 readonly SPARK_NLP_VERSION="2.7.2" # Must include subminor version here
 
 CONDA_PACKAGES=(
@@ -76,8 +75,8 @@ if [ "$(echo "$DATAPROC_VERSION >= 2.0" | bc)" -eq 1 ]; then
 else
   PIP_PACKAGES+=(
     "tensorflow-io==0.16"
-    "tensorflow==${TENSORFLOW_VERSION_DATAPROC_1_5}"
-    "tensorflow-estimator==${TENSORFLOW_VERSION_DATAPROC_1_5}"
+    "tensorflow==${TENSORFLOW_VERSION}"
+    "tensorflow-estimator==${TENSORFLOW_VERSION}"
     )
 fi
 readonly PIP_PACKAGES
