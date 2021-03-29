@@ -168,6 +168,5 @@ class MLVMTestCase(DataprocTestCase):
     elif rapids_runtime == "DASK":
       self.verify_rapids_dask()
 
-
 if __name__ == "__main__":
   absltest.main()
