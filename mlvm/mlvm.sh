@@ -33,8 +33,8 @@ readonly INCLUDE_GPUS="$(/usr/share/google/get_metadata_value attributes/include
 readonly SPARK_BIGQUERY_VERSION="$(/usr/share/google/get_metadata_value attributes/spark-bigquery-connector-version ||
   echo "0.18.1")"
 
-readonly R_VERSION="$(R --version | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p')"
-readonly TENSORFLOW_VERSION="2.4.*"
+R_VERSION="$(R --version | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p')"
+readonly R_VERSION
 readonly SPARK_NLP_VERSION="2.7.2" # Must include subminor version here
 
 CONDA_PACKAGES=(
@@ -47,13 +47,12 @@ CONDA_PACKAGES=(
   "xgboost=1.3"
 )
 
-# rapids-xgboost (part of the RAPIDS library) requires a custom build of 
+# rapids-xgboost (part of the RAPIDS library) requires a custom build of
 # xgboost that is incompatible with r-xgboost. As such, r-xgboost is not
 # installed into the MLVM if RAPIDS support is desired.
 if [[ -z ${RAPIDS_RUNTIME} ]]; then
   CONDA_PACKAGES+=("r-xgboost=1.3")
 fi
-readonly CONDA_PACKAGES
 
 PIP_PACKAGES=(
   "mxnet==1.6.*"
@@ -62,23 +61,28 @@ PIP_PACKAGES=(
   "sparksql-magic==0.0.*"
   "tensorflow-datasets==4.2.*"
   "tensorflow-hub==0.11.*"
-  "tensorflow-probability==0.12.*"
 )
 
-if [ "$(echo "$DATAPROC_VERSION >= 2.0" | bc)" -eq 1 ]; then
+if [[ "$(echo "$DATAPROC_VERSION >= 2.0" | bc)" -eq 1 ]]; then
   PIP_PACKAGES+=(
     "spark-tensorflow-distributor==0.1.0"
+    "tensorflow==2.4.*"
+    "tensorflow-estimator==2.4.*"
     "tensorflow-io==0.17"
-    "tensorflow==${TENSORFLOW_VERSION}"
-    "tensorflow-estimator==${TENSORFLOW_VERSION}"
-    )
+    "tensorflow-probability==0.12.*"
+  )
 else
+  CONDA_PACKAGES+=(
+    "protobuf=3.15"
+  )
   PIP_PACKAGES+=(
+    "tensorflow==2.3.*"
+    "tensorflow-estimator==2.3.*"
     "tensorflow-io==0.16"
-    "tensorflow==${TENSORFLOW_VERSION}"
-    "tensorflow-estimator==${TENSORFLOW_VERSION}"
-    )
+    "tensorflow-probability==0.11.*"
+  )
 fi
+readonly CONDA_PACKAGES
 readonly PIP_PACKAGES
 
 mkdir -p ${SPARK_JARS_DIR} ${CONNECTORS_DIR}
@@ -91,7 +95,7 @@ function execute_with_retries() {
     fi
     sleep 5
   done
-  echo "Cmd \"${cmd}\" failed."
+  echo "Cmd '${cmd}' failed."
   return 1
 }
 
@@ -136,7 +140,7 @@ function install_conda_packages() {
 
   if [[ -n "${extra_channels}" ]]; then
     for channel in ${extra_channels}; do
-      ${mamba_env}/bin/conda config --add channels "${channel}"
+      "${mamba_env}/bin/conda" config --add channels "${channel}"
     done
   fi
 
@@ -145,7 +149,7 @@ function install_conda_packages() {
   fi
 
   # Clean up environment
-  ${mamba_env}/bin/mamba clean -y --all
+  "${mamba_env}/bin/mamba" clean -y --all
 
   # Remove mamba env when done
   conda env remove -n ${mamba_env_name}
