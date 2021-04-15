@@ -39,7 +39,7 @@ class BigTableTestCase(DataprocTestCase):
             'gcloud bigtable instances create {}'
             ' --cluster {} --cluster-zone {}'
             ' --display-name={} --instance-type=DEVELOPMENT'.format(
-                self.db_name, self.db_name, self.ZONE, self.db_name))
+                self.db_name, self.db_name, self.cluster_zone, self.db_name))
 
     def tearDown(self):
         super().tearDown()
