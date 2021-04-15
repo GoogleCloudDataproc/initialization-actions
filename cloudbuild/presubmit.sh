@@ -8,6 +8,7 @@ declare -a TESTS_TO_RUN
 configure_gcloud() {
   gcloud config set core/disable_prompts TRUE
   gcloud config set compute/region us-central1
+  gcloud config set compute/zone us-central1-f
 }
 
 configure_gcloud_ssh_key() {
