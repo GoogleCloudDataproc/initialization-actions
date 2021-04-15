@@ -181,8 +181,11 @@ fi
 # to work in the future. Use at your own risk!
 restart_dataproc_agent() {
   # Because Dataproc Agent should be restarted after initialization, we need to wait until
-  # it will create a sentinel file that signals initialization competition (success or failure)
-  while [[ ! -f /var/lib/google/dataproc/has_run_before ]]; do
+  # it will create a sentinel file that signals initialization competition (success or failure).
+  # NOTE: has_run_before will no longer be published by upcoming image releases
+  while [[ !(-f /var/lib/google/dataproc/has_run_before \
+    || -f /var/lib/google/dataproc/has_succeeded_before \
+    || -f /var/lib/google/dataproc/has_failed_before)]]; do
     sleep 1
   done
   # If Dataproc Agent didn't create a sentinel file that signals initialization

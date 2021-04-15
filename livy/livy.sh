@@ -90,8 +90,10 @@ function main() {
   ln -s "/usr/local/lib/${LIVY_PKG_NAME}" "${LIVY_DIR}"
 
   # Create Livy user.
-  useradd -G hadoop livy
-
+  useradd -G hadoop livy -d /home/livy
+  mkdir -p /home/livy
+  chown livy:hadoop /home/livy
+  
   # Setup livy package.
   chown -R -L livy:livy "${LIVY_DIR}"
 

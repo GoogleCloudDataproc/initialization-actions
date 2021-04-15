@@ -36,7 +36,7 @@ CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '10.2')
 readonly CUDA_VERSION
 
 # Parameters for NVIDIA-provided Debian GPU driver
-readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='455.45.01'
+readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='460.56'
 readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL="https://us.download.nvidia.com/XFree86/Linux-x86_64/${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}.run"
 NVIDIA_DEBIAN_GPU_DRIVER_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL}")
 readonly NVIDIA_DEBIAN_GPU_DRIVER_URL
@@ -70,7 +70,7 @@ readonly CUDNN_TARBALL="cudnn-${CUDA_VERSION}-linux-x64-v${CUDNN_VERSION}.tgz"
 readonly CUDNN_TARBALL_URL="http://developer.download.nvidia.com/compute/redist/cudnn/v${CUDNN_VERSION%.*}/${CUDNN_TARBALL}"
 
 # Whether to install NVIDIA-provided or OS-provided GPU driver
-GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'OS')
+GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'NVIDIA')
 readonly GPU_DRIVER_PROVIDER
 
 # Stackdriver GPU agent parameters
@@ -294,6 +294,11 @@ function set_hadoop_property() {
 }
 
 function configure_yarn() {
+  if [[ ! -f ${HADOOP_CONF_DIR}/resource-types.xml ]]; then
+    printf '<?xml version="1.0" ?>\n<configuration/>' >"${HADOOP_CONF_DIR}/resource-types.xml"
+  fi
+  set_hadoop_property 'resource-types.xml' 'yarn.resource-types' 'yarn.io/gpu'
+
   set_hadoop_property 'capacity-scheduler.xml' \
     'yarn.scheduler.capacity.resource-calculator' \
     'org.apache.hadoop.yarn.util.resource.DominantResourceCalculator'
@@ -303,11 +308,6 @@ function configure_yarn() {
 
 # This configuration should be applied only if GPU is attached to the node
 function configure_yarn_nodemanager() {
-  if [[ ! -f ${HADOOP_CONF_DIR}/resource-types.xml ]]; then
-    printf '<?xml version="1.0" ?>\n<configuration/>' >"${HADOOP_CONF_DIR}/resource-types.xml"
-  fi
-  set_hadoop_property 'resource-types.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
-
   set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
   set_hadoop_property 'yarn-site.xml' \
     'yarn.nodemanager.resource-plugins.gpu.allowed-gpu-devices' 'auto'
@@ -401,9 +401,10 @@ function main() {
       echo 'GPU metrics agent will not be installed.'
     fi
 
-    if [[ "${ROLE}" != "Master" ]]; then
-      configure_gpu_exclusive_mode
-    fi
+    configure_gpu_exclusive_mode
+  elif [[ "${ROLE}" == "Master" ]]; then
+    configure_yarn_nodemanager
+    configure_gpu_isolation
   fi
 }
 

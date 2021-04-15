@@ -8,15 +8,18 @@ function get_metadata_attribute() {
   /usr/share/google/get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
 }
 
+readonly DEFAULT_RAPIDS_VERSION="0.18"
+readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' ${DEFAULT_RAPIDS_VERSION})
+
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
-readonly DEFAULT_SPARK_RAPIDS_VERSION="0.3.0"
+readonly DEFAULT_SPARK_RAPIDS_VERSION="0.4.1"
 
 if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
   readonly DEFAULT_CUDA_VERSION="10.2"
-  readonly DEFAULT_CUDF_VERSION="0.17"
+  readonly DEFAULT_CUDF_VERSION="0.18.1"
   readonly DEFAULT_XGBOOST_VERSION="1.3.0"
   readonly DEFAULT_XGBOOST_GPU_SUB_VERSION="0.1.0"
-  # TODO: uncomment when Spark 3.1 jars will be released.
+  # TODO: uncomment when Spark 3.1 jars will be released - RAPIDS work with Spark 3.1, this is just for Maven URL
   # readonly SPARK_VERSION="${SPARK_VERSION_ENV}"
   readonly SPARK_VERSION="3.0"
 else
@@ -36,7 +39,6 @@ readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-mast
 # RAPIDS config
 readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VERSION})
 readonly CUDF_VERSION=$(get_metadata_attribute 'cudf-version' ${DEFAULT_CUDF_VERSION})
-readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' '0.17')
 
 # SPARK config
 readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
@@ -70,15 +72,11 @@ function install_dask_rapids() {
   # environment with mamba installed to manage installations.
   conda create -y -n ${mamba_env} -c conda-forge mamba
 
-  # Uninstall dependency "icu"
-  conda remove --force icu
-
   # Install RAPIDS, cudatoolkit. Use mamba in new env to resolve base environment
   # Dependency "icu" is also reinstalled here. 
   ${base}/envs/${mamba_env}/bin/mamba install -y \
     -c "rapidsai" -c "nvidia" -c "conda-forge" -c "defaults" \
     "cudatoolkit=${CUDA_VERSION}" "rapids=${RAPIDS_VERSION}" \
-    "icu" \
     -p ${base}
 
   # Remove mamba env
@@ -120,6 +118,10 @@ function configure_spark() {
     cat >>${SPARK_CONF_DIR}/spark-defaults.conf <<EOF
 
 ###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
+# Rapids Accelerator for Spark can utilize AQE, but when plan is not finalized, 
+# query explain output won't show GPU operator, if user have doubt
+# they can uncomment the line before to see the GPU plan explan, but AQE on give user the best performance.
+# spark.sql.adaptive.enabled=false
 spark.rapids.sql.concurrentGpuTasks=2
 spark.executor.resource.gpu.amount=1
 spark.executor.cores=2
@@ -202,6 +204,10 @@ function main() {
 
     if [[ "${ROLE}" == "Master" ]]; then
       systemctl restart hadoop-yarn-resourcemanager.service
+      # Restart NodeManager on Master as well if this is a single-node-cluster.
+      if systemctl status hadoop-yarn-nodemanager; then
+        systemctl restart hadoop-yarn-nodemanager.service
+      fi
     else
       systemctl restart hadoop-yarn-nodemanager.service
     fi

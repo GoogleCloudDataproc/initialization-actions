@@ -43,7 +43,6 @@ class DataprocTestCase(parameterized.TestCase):
 
     PROJECT = None
     REGION = None
-    ZONE = None
 
     COMPONENT = None
     INIT_ACTIONS = None
@@ -56,13 +55,12 @@ class DataprocTestCase(parameterized.TestCase):
         _, project, _ = cls.run_command("gcloud config get-value project")
         cls.PROJECT = project.strip()
 
-        _, zone, _ = cls.run_command("gcloud config get-value compute/zone")
-        cls.ZONE = zone.strip()
-        cls.REGION = cls.ZONE[:-2]
+        _, region, _ = cls.run_command(
+            "gcloud config get-value compute/region")
+        cls.REGION = region.strip()
 
         assert cls.PROJECT
         assert cls.REGION
-        assert cls.ZONE
 
         cls.INIT_ACTIONS_REPO = DataprocTestCase().stage_init_actions(
             cls.PROJECT)
@@ -99,6 +97,7 @@ class DataprocTestCase(parameterized.TestCase):
                       boot_disk_size="50GB"):
         self.initClusterName(configuration)
         self.cluster_version = None
+        self.cluster_zone = None
 
         init_actions = [
             "{}/{}".format(self.INIT_ACTIONS_REPO, i)
@@ -153,8 +152,11 @@ class DataprocTestCase(parameterized.TestCase):
 
         _, stdout, _ = self.assert_command(
             cmd, timeout_in_minutes=timeout_in_minutes or DEFAULT_TIMEOUT)
-        self.cluster_version = json.loads(stdout).get("config", {}).get(
-            "softwareConfig", {}).get("imageVersion")
+        config = json.loads(stdout).get("config", {})
+        self.cluster_version = config.get("softwareConfig",
+                                          {}).get("imageVersion")
+        zone_uri = config.get("gceClusterConfig", {}).get("zoneUri")
+        self.cluster_zone = zone_uri[zone_uri.rindex("/") + 1:]
 
     def stage_init_actions(self, project):
         bucket = "gs://dataproc-init-actions-test-{}".format(
@@ -221,7 +223,8 @@ class DataprocTestCase(parameterized.TestCase):
         return image_os.group(1) if image_os else 'debian'
 
     def upload_test_file(self, testfile, name):
-        self.assert_command('gcloud compute scp {} {}:'.format(testfile, name))
+        self.assert_command('gcloud compute scp {} {}: --zone={}'.format(
+            testfile, name, self.cluster_zone))
 
     def remove_test_script(self, testfile, name):
         self.assert_instance_command(name, "rm {}".format(testfile))
@@ -248,8 +251,8 @@ class DataprocTestCase(parameterized.TestCase):
         """
 
         ret_code, stdout, stderr = self.assert_command(
-            'gcloud compute ssh {} --command="{}"'.format(instance, cmd),
-            timeout_in_minutes)
+            'gcloud compute ssh {} --zone={} --command="{}"'.format(
+                instance, self.cluster_zone, cmd), timeout_in_minutes)
         return ret_code, stdout, stderr
 
     def assert_dataproc_job(self,
