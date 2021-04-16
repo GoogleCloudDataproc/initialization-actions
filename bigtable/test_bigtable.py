@@ -41,7 +41,7 @@ class BigTableTestCase(DataprocTestCase):
 
         self.assert_command(
             'gcloud bigtable instances create {}'
-            ' --cluster-config=id={},zone={}'
+            ' --cluster {} --cluster-zone {}'
             ' --display-name={}'.format(
                 self.db_name, self.db_name, self.bigtable_zone, self.db_name))
 
