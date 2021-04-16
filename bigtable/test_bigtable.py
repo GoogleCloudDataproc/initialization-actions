@@ -27,7 +27,7 @@ class BigTableTestCase(DataprocTestCase):
         super().__init__(method_name)
         self.metadata = None
         self.db_name = None
-        self.bigtable_zone = None
+        self.bigtable_zone = "us-central1-f"
 
     def setUp(self):
         super().setUp()
@@ -35,9 +35,6 @@ class BigTableTestCase(DataprocTestCase):
                                               self.random_str())
         self.metadata = "bigtable-instance={},bigtable-project={}".format(
             self.db_name, self.PROJECT)
-
-        _, zone, _ = self.run_command("gcloud config get-value compute/zone")
-        self.bigtable_zone = zone.strip()
 
         self.assert_command(
             'gcloud bigtable instances create {}'
