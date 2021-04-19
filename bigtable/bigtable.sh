@@ -23,10 +23,15 @@ export PATH=/usr/bin:$PATH
 
 readonly HBASE_HOME='/usr/lib/hbase'
 
-readonly BIGTABLE_HBASE_CLIENT_REPO="https://repo1.maven.org/maven2/com/google/cloud/bigtable/bigtable-hbase-1.x-hadoop"
-readonly BIGTABLE_HBASE_CLIENT_VERSION='1.13.0'
-readonly BIGTABLE_HBASE_CLIENT_JAR="bigtable-hbase-1.x-hadoop-${BIGTABLE_HBASE_CLIENT_VERSION}.jar"
-readonly BIGTABLE_HBASE_CLIENT_URL="${BIGTABLE_HBASE_CLIENT_REPO}/${BIGTABLE_HBASE_CLIENT_VERSION}/${BIGTABLE_HBASE_CLIENT_JAR}"
+readonly BIGTABLE_HBASE_CLIENT_1X_REPO="https://repo1.maven.org/maven2/com/google/cloud/bigtable/bigtable-hbase-1.x-hadoop"
+readonly BIGTABLE_HBASE_CLIENT_1X_VERSION='1.13.0'
+readonly BIGTABLE_HBASE_CLIENT_1X_JAR="bigtable-hbase-1.x-hadoop-${BIGTABLE_HBASE_CLIENT_1X_VERSION}.jar"
+readonly BIGTABLE_HBASE_CLIENT_1X_URL="${BIGTABLE_HBASE_CLIENT_1X_REPO}/${BIGTABLE_HBASE_CLIENT_1X_VERSION}/${BIGTABLE_HBASE_CLIENT_1X_JAR}"
+
+readonly BIGTABLE_HBASE_CLIENT_2X_REPO="https://repo1.maven.org/maven2/com/google/cloud/bigtable/bigtable-hbase-2.x-hadoop"
+readonly BIGTABLE_HBASE_CLIENT_2X_VERSION='1.19.1'
+readonly BIGTABLE_HBASE_CLIENT_2X_JAR="bigtable-hbase-2.x-hadoop-${BIGTABLE_HBASE_CLIENT_2X_VERSION}.jar"
+readonly BIGTABLE_HBASE_CLIENT_2X_URL="${BIGTABLE_HBASE_CLIENT_2X_REPO}/${BIGTABLE_HBASE_CLIENT_2X_VERSION}/${BIGTABLE_HBASE_CLIENT_2X_JAR}"
 
 readonly SCH_REPO="https://repo.hortonworks.com/content/groups/public/com/hortonworks"
 readonly SHC_VERSION='1.1.1-2.1-s_2.11'
@@ -56,9 +61,11 @@ function err() {
 }
 
 function install_bigtable_client() {
-  local out="${HBASE_HOME}/lib/${BIGTABLE_HBASE_CLIENT_JAR}"
+  local -r bigtable_hbase_client_jar="$1"
+  local -r bigtable_hbase_client_url="$2"
+  local out="${HBASE_HOME}/lib/${bigtable_hbase_client_jar}"
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${BIGTABLE_HBASE_CLIENT_URL}" -O "${out}"
+    "${bigtable_hbase_client_url}" -O "${out}"
 }
 
 function install_shc() {
@@ -73,21 +80,14 @@ function install_shc() {
   ln -s "${example_out}" "/usr/lib/spark/examples/jars/shc-examples.jar"
 }
 
-function configure_bigtable_client() {
-  #Update classpaths
-  cat <<'EOF' >>/etc/hadoop/conf/mapred-env.sh
-HADOOP_CLASSPATH="${HADOOP_CLASSPATH}:/usr/lib/hbase/*"
-HADOOP_CLASSPATH="${HADOOP_CLASSPATH}:/usr/lib/hbase/lib/*"
-HADOOP_CLASSPATH="${HADOOP_CLASSPATH}:/etc/hbase/conf"
-EOF
+function configure_bigtable_client_1x() {
+  #Update classpath with shc location
   cat <<'EOF' >>/etc/spark/conf/spark-env.sh
-SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH}:/usr/lib/hbase/*"
-SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH}:/usr/lib/hbase/lib/*"
-SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH}:/etc/hbase/conf"
 SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH}:/usr/lib/spark/external/shc-core.jar"
 EOF
 
-  cat <<EOF >hbase-site.xml
+  local -r hbase_config=$(mktemp /tmp/hbase-site.xml-XXXX)
+  cat <<EOF >${hbase_config}
 <?xml version="1.0"?>
 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
 <configuration>
@@ -105,18 +105,76 @@ EOF
 
   bdconfig merge_configurations \
     --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
-    --source_configuration_file hbase-site.xml \
+    --source_configuration_file "$hbase_config" \
     --clobber
+}
+
+function configure_bigtable_client_2x() {
+  local -r hbase_config=$(mktemp /tmp/hbase-site.xml-XXXX)
+  cat <<EOF >${hbase_config}
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+  <property><name>google.bigtable.project.id</name><value>${BIGTABLE_PROJECT}</value></property>
+  <property><name>google.bigtable.instance.id</name><value>${BIGTABLE_INSTANCE}</value></property>
+  <property>
+    <name>hbase.client.connection.impl</name>
+    <value>com.google.cloud.bigtable.hbase2_x.BigtableConnection</value>
+  </property>
+  <property>
+    <name>hbase.client.registry.impl</name>
+    <value>org.apache.hadoop.hbase.client.BigtableAsyncRegistry</value>
+  </property>
+  <property>
+    <name>hbase.client.async.connection.impl</name>
+    <value>org.apache.hadoop.hbase.client.BigtableAsyncConnection</value>
+  </property>
+  <!-- Spark-HBase-connector uses namespaces, which bigtable doesn't support. This has the
+  Bigtable client log warns rather than throw -->
+  <property><name>google.bigtable.namespace.warnings</name><value>true</value></property>
+</configuration>
+EOF
+
+  bdconfig merge_configurations \
+    --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
+    --source_configuration_file "$hbase_config" \
+    --clobber
+}
+
+function configure_bigtable_client() {
+  #Update classpaths
+  cat <<'EOF' >>/etc/hadoop/conf/mapred-env.sh
+HADOOP_CLASSPATH="${HADOOP_CLASSPATH}:/usr/lib/hbase/*"
+HADOOP_CLASSPATH="${HADOOP_CLASSPATH}:/usr/lib/hbase/lib/*"
+HADOOP_CLASSPATH="${HADOOP_CLASSPATH}:/etc/hbase/conf"
+EOF
+
+  cat <<'EOF' >>/etc/spark/conf/spark-env.sh
+SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH}:/usr/lib/hbase/*"
+SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH}:/usr/lib/hbase/lib/*"
+SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH}:/etc/hbase/conf"
+EOF
+
+  if [[ ${DATAPROC_VERSION%%.*} -ge 2 ]]; then
+    configure_bigtable_client_2x || err 'Failed to configure big table 2.x client.'
+  else
+    configure_bigtable_client_1x || err 'Failed to configure big table 1.x client.'
+  fi
 }
 
 function main() {
   retry_apt_command "apt-get update" || err 'Unable to update packages lists.'
   retry_apt_command "apt-get install -y hbase" || err 'Unable to install HBase.'
 
-  install_bigtable_client || err 'Unable to install big table client.'
-  configure_bigtable_client || err 'Failed to configure big table client.'
+  if [[ ${DATAPROC_VERSION%%.*} -ge 2 ]]; then
+    install_bigtable_client "$BIGTABLE_HBASE_CLIENT_2X_JAR" "$BIGTABLE_HBASE_CLIENT_2X_URL" || err 'Unable to install big table client.'
+  else
+    install_bigtable_client "$BIGTABLE_HBASE_CLIENT_1X_JAR" "$BIGTABLE_HBASE_CLIENT_1X_URL" || err 'Unable to install big table client.'
 
-  install_shc || err 'Failed to install Spark-HBase connector.'
+    install_shc || err 'Failed to install Spark-HBase connector.'
+  fi
+
+  configure_bigtable_client || err 'Failed to configure big table client.'
 }
 
 main

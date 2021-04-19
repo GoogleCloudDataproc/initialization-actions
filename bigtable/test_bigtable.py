@@ -27,6 +27,7 @@ class BigTableTestCase(DataprocTestCase):
         super().__init__(method_name)
         self.metadata = None
         self.db_name = None
+        self.bigtable_zone = "us-central1-f"
 
     def setUp(self):
         super().setUp()
@@ -39,7 +40,7 @@ class BigTableTestCase(DataprocTestCase):
             'gcloud bigtable instances create {}'
             ' --cluster {} --cluster-zone {}'
             ' --display-name={} --instance-type=DEVELOPMENT'.format(
-                self.db_name, self.db_name, self.ZONE, self.db_name))
+                self.db_name, self.db_name, self.bigtable_zone, self.db_name))
 
     def tearDown(self):
         super().tearDown()
