@@ -38,13 +38,30 @@ readonly DASK_SERVICE=dask-cluster
 CONDA_PACKAGES=("dask")
 
 if [[ "${DASK_RUNTIME}" == "yarn" ]]; then
-  if [ "$(echo "$DATAPROC_VERSION < 2.0" | bc)" -eq 1 ]; then
-    CONDA_PACKAGES+=("dask-yarn=0.8")
-  else
-    CONDA_PACKAGES+=("dask-yarn")
-  fi
+    CONDA_PACKAGES+=("dask-yarn=0.9")
 fi
 readonly CONDA_PACKAGES
+
+function install_conda_packages() {
+  local base
+  base=$(conda info --base)
+  local -r mamba_env_name=mamba
+  local -r mamba_env=${base}/envs/mamba
+
+  conda config --add channels conda-forge
+
+  # Create a separate environment with mamba.
+  # Mamba provides significant decreases in installation times.
+  conda create -y -n ${mamba_env_name} mamba
+
+  "${mamba_env}/bin/mamba" install -y "${CONDA_PACKAGES[*]}" -p "${base}"
+
+  # Clean up environment
+  "${mamba_env}/bin/mamba" clean -y --all
+
+  # Remove mamba env when done
+  conda env remove -n ${mamba_env_name}
+}
 
 function configure_dask_yarn() {
   # Minimal custom configuration is required for this
