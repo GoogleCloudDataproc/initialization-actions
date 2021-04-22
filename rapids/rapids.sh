@@ -203,8 +203,8 @@ yarn:
 
   worker:
     count: 2
-    class: "dask_cuda.DASKWorker"
     gpus: 1
+    class: "dask_cuda.CUDAWorker"
 EOF
 }
 
