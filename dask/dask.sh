@@ -38,13 +38,47 @@ readonly DASK_SERVICE=dask-cluster
 CONDA_PACKAGES=("dask")
 
 if [[ "${DASK_RUNTIME}" == "yarn" ]]; then
+  CONDA_PACKAGES+=("dask-yarn=0.9")
+  
+  # Update protobuf on Dataproc 1.x
   if [ "$(echo "$DATAPROC_VERSION < 2.0" | bc)" -eq 1 ]; then
-    CONDA_PACKAGES+=("dask-yarn=0.8")
-  else
-    CONDA_PACKAGES+=("dask-yarn")
+    CONDA_PACKAGES+=("protobuf>=3.12")
   fi
 fi
 readonly CONDA_PACKAGES
+
+function execute_with_retries() {
+  local -r cmd=$1
+  for ((i = 0; i < 10; i++)); do
+    if eval "$cmd"; then
+      return 0
+    fi
+    sleep 5
+  done
+  echo "Cmd '${cmd}' failed."
+  return 1
+}
+
+function install_conda_packages() {
+  local base
+  base=$(conda info --base)
+  local -r mamba_env_name=mamba
+  local -r mamba_env=${base}/envs/mamba
+
+  conda config --add channels conda-forge
+
+  # Create a separate environment with mamba.
+  # Mamba provides significant decreases in installation times.
+  conda create -y -n ${mamba_env_name} mamba
+
+  execute_with_retries "${mamba_env}/bin/mamba install -y ${CONDA_PACKAGES[*]} -p ${base}"
+
+  # Clean up environment
+  "${mamba_env}/bin/mamba" clean -y --all
+
+  # Remove mamba env when done
+  conda env remove -n ${mamba_env_name}
+}
 
 function configure_dask_yarn() {
   # Minimal custom configuration is required for this
@@ -110,7 +144,7 @@ EOF
 
 function main() {
   # Install conda packages
-  conda install -c conda-forge "${CONDA_PACKAGES[@]}"
+  install_conda_packages
 
   if [[ "${DASK_RUNTIME}" == "yarn" ]]; then
     # Create Dask Yarn config file

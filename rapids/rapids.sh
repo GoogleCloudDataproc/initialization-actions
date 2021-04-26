@@ -48,6 +48,7 @@ readonly XGBOOST_GPU_SUB_VERSION=$(get_metadata_attribute 'spark-gpu-sub-version
 # Dask config
 readonly DASK_LAUNCHER=dask-launcher.sh
 readonly DASK_SERVICE=dask-cluster
+readonly DASK_YARN_CONFIG_FILE=/etc/dask/config.yaml
 
 # Dataproc configurations
 readonly SPARK_CONF_DIR='/etc/spark/conf'
@@ -186,13 +187,35 @@ EOF
   systemctl start "${DASK_SERVICE}"
 }
 
+function configure_dask_yarn() {
+  local base
+  base=$(conda info --base)
+
+  # Replace config file on cluster.
+  cat <<EOF >"${DASK_YARN_CONFIG_FILE}"
+# Config file for Dask Yarn.
+#
+# These values are joined on top of the default config, found at
+# https://yarn.dask.org/en/latest/configuration.html#default-configuration
+
+yarn:
+  environment: python://${base}/bin/python
+
+  worker:
+    count: 2
+    gpus: 1
+    class: "dask_cuda.CUDAWorker"
+EOF
+}
+
 function main() {
   if [[ "${RUNTIME}" == "DASK" ]]; then
     # RUNTIME is exposed by the Dask initialization action in
-    # "standalone" mode. This configuration is only necessary in 
-    # this case.
+    # "standalone" mode. In "YARN" mode, there is a config.yaml file.
     if [[ -f "${DASK_SERVICE}" ]]; then
       configure_systemd_dask_service
+    elif [[ -f "${DASK_YARN_CONFIG_FILE}" ]]; then
+      configure_dask_yarn
     fi
     
     # Install RAPIDS
@@ -201,20 +224,20 @@ function main() {
   elif [[ "${RUNTIME}" == "SPARK" ]]; then
     install_spark_rapids
     configure_spark
-
-    if [[ "${ROLE}" == "Master" ]]; then
-      systemctl restart hadoop-yarn-resourcemanager.service
-      # Restart NodeManager on Master as well if this is a single-node-cluster.
-      if systemctl status hadoop-yarn-nodemanager; then
-        systemctl restart hadoop-yarn-nodemanager.service
-      fi
-    else
-      systemctl restart hadoop-yarn-nodemanager.service
-    fi
     echo "RAPIDS initialized with Spark runtime"
   else
     echo "Unsupported RAPIDS Runtime: ${RUNTIME}"
     exit 1
+  fi
+
+  if [[ "${ROLE}" == "Master" ]]; then
+    systemctl restart hadoop-yarn-resourcemanager.service
+    # Restart NodeManager on Master as well if this is a single-node-cluster.
+    if systemctl status hadoop-yarn-nodemanager; then
+      systemctl restart hadoop-yarn-nodemanager.service
+    fi
+  else
+    systemctl restart hadoop-yarn-nodemanager.service
   fi
 }
 
