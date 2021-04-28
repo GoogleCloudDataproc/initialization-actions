@@ -117,8 +117,3 @@ You can find more information about using initialization actions with Dataproc i
 * LLAP enables extending the cache pool to include SSD's. Users can deploy dataproc workers with local SSD's to extend LLAP's cache pool. To enable the SSD configuration, simply deploy dataproc with 1 local SSD and apply custom cluster metadata SSD=True to trigger the configuration of the SSD in LLAP cache. 
 * Only 1 Hive Server is deployed. hiveserver2-interactive is the zookeeper namespace for HA deployments.
 * Hive has been configured to support ACID transactions with this deployment. 
-
-
-
-
-gcloud beta dataproc clusters create llap --enable-component-gateway --region us-central1 --zone us-central1-c --master-machine-type n1-standard-8 --master-boot-disk-size 500 --num-workers 2 --worker-machine-type n1-highmem-16 --worker-boot-disk-size 500 --num-worker-local-ssds 1 --image-version 2.0-debian10 --optional-components ZOOKEEPER --metadata SSD=True --project retail-data-specialists
