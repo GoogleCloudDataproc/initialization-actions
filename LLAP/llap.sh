@@ -398,6 +398,7 @@ function configure_llap(){
 	replace_core_llap_files
 	get_log4j
 	configure_tez_site_xml
+  start_llap
  fi
 
 if [[ "${ROLE}" == "Worker" ]] || [["${ROLE}" == "Master"]]; then
@@ -413,10 +414,12 @@ fi
 
 ###run llapstatus command to determine if running
 function wait_for_llap_ready() {
+  if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
+    echo "wait for LLAP to launch...."
+    sudo -u hive hive --service llapstatus --name llap0 -w -r 1 -i 5
+    echo "LLAP started...."; else
+    echo "skipping...."
 
-	echo "wait for LLAP to launch...."
-	sudo -u hive hive --service llapstatus --name llap0 -w -r 1 -i 5
-	echo "LLAP started...."
 }
 
 echo "Running configuration process...."
