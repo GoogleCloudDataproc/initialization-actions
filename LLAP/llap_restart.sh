@@ -16,7 +16,8 @@
 
 
 ###This script is for users that want to use the start/stop functionality with Dataproc. This
-###script will automatically restart LLAP with the same paramaters as previously. 
+###script will automatically restart LLAP with the same configuration as previously. This script must be 
+###run on the primary master node (0)
 
 
 set -euxo pipefail
