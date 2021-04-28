@@ -419,6 +419,7 @@ function wait_for_llap_ready() {
     sudo -u hive hive --service llapstatus --name llap0 -w -r 1 -i 5
     echo "LLAP started...."; else
     echo "skipping...."
+  fi
 
 }
 
