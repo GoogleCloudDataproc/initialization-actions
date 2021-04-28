@@ -58,6 +58,7 @@ fi
 ###add configurations to hive-site for LLAP
 function configure_hive_site(){
 
+##different configuration if HA
 echo "configure hive-site.xml..."
 if [[ $IS_HA == "YES" ]];then
 sudo xmlstarlet edit --inplace --omit-decl \
