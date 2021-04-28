@@ -14,6 +14,11 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+
+###This script is for users that want to use the start/stop functionality with Dataproc. This
+###script will automatically restart LLAP with the same paramaters as previously. 
+
+
 set -euxo pipefail
 
 readonly LLAP_MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
