@@ -398,7 +398,6 @@ function configure_llap(){
 	replace_core_llap_files
 	get_log4j
 	configure_tez_site_xml
-  start_llap
  fi
 
 if [[ "${ROLE}" == "Worker" ]] || [["${ROLE}" == "Master"]]; then
