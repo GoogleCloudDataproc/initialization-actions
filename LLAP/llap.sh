@@ -301,7 +301,7 @@ fi
 #	sudo rm log4j-slf4j-impl-2.10.0.jar
 #	sudo rm main.zip
 #	sudo rm -f tez.tar.gz
-}
+#}
 
 
 ##start LLAP - Master Node
