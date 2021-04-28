@@ -297,10 +297,10 @@ fi
 }
 
 ##cleanup files that were downloaded during the configuration process
-function cleanup(){
-	sudo rm log4j-slf4j-impl-2.10.0.jar
-	sudo rm main.zip
-	sudo rm -f tez.tar.gz
+#function cleanup(){
+#	sudo rm log4j-slf4j-impl-2.10.0.jar
+#	sudo rm main.zip
+#	sudo rm -f tez.tar.gz
 }
 
 
@@ -431,7 +431,7 @@ start_llap
 echo "Verify full start...."
 wait_for_llap_ready
 
-echo "cleanup install files...."
-cleanup
+#echo "cleanup install files...."
+#cleanup
 
 echo "LLAP Setup Complete!"
