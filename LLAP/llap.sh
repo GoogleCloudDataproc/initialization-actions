@@ -32,13 +32,13 @@ readonly YARN_MAX_CONTAINER_MEMORY=$(xmlstarlet sel -t -v '/configuration/proper
 readonly LAST_CHAR_MASTER=${LLAP_MASTER_FQDN: -1}
 readonly HAS_SSD=$(/usr/share/google/get_metadata_value attributes/ssd)
 
-
+###check to see if HA or not
 if [[ $LAST_CHAR_MASTER == 'm' ]];then
 	IS_HA="NO";else
 	IS_HA="YES"
 fi
 
-
+##add xml doc tool for editing hadoop configuration files
 function configure_yarn_site(){
 	echo "configure yarn-site.xml..."
 
@@ -55,6 +55,7 @@ fi
 
 }
 
+###add configurations to hive-site for LLAP
 function configure_hive_site(){
 
 echo "configure hive-site.xml..."
@@ -164,9 +165,9 @@ fi
 
 }
 
+###add configurations to core-site for LLAP
 function configure_core_site(){
 	echo "configure core-site.xml..."
-
 
 if [[ $IS_HA == "YES" ]];then
 	sudo xmlstarlet edit --inplace --omit-decl \
@@ -203,7 +204,7 @@ fi
 }
 
 
-# Download missing log4j library
+##add missing log4j file on all nodes
 function get_log4j() {
 	echo "import missing log4j library..."
  	wget -nv --timeout=30 --tries=5 --retry-connrefused \
@@ -211,7 +212,7 @@ function get_log4j() {
     sudo cp log4j-slf4j-impl-2.10.0.jar /usr/lib/hive/lib
  }
 
-# Only master noe
+##repackage tez_lib_uris and place on HDFS; only need to do this on one node. 
 function package_tez_lib_uris(){
 	echo "repackage tez lib uris..."
 	cp /usr/lib/tez/lib/* /usr/lib/tez
@@ -222,13 +223,13 @@ function package_tez_lib_uris(){
 	
 }
 
-# All nodes need to run this
+#reconfigure tez.lib.uris to point to hdfs rather than local filesytem; run on all nodes so we have compatiable config files
  function configure_tez_site_xml() {
  	echo "reconfigure tez-site.xml..."
 	sudo sed -i 's@file:/usr/lib/tez,file:/usr/lib/tez/lib,file:/usr/local/share/google/dataproc/lib@${fs.defaultFS}/tez/tez.tar.gz@g' /etc/tez/conf/tez-site.xml
  }
 
-# Only on master node
+###add yarn service directory for hive; run only on one node
  function add_yarn_service_dir(){
  	echo "adding yarn service directory on the hive user..."
  	hdfs dfs -mkdir /user/hive/.yarn
@@ -237,7 +238,7 @@ function package_tez_lib_uris(){
 	sudo -u hdfs hdfs dfs -chown hive:hive  /user/hive/.yarn/package/LLAP
  }
 
-# All nodes need to run this
+# All nodes need to run this. These files 
 function replace_core_llap_files() {
 	echo "replacing llap files..."
 	wget https://github.com/jster1357/llap/archive/refs/heads/main.zip
@@ -250,13 +251,14 @@ function replace_core_llap_files() {
 	sudo cp /usr/lib/hive/conf/llap-daemon-log4j2.properties.template /usr/lib/hive/conf/llap-daemon-log4j2.properties
 }
 
+
+
+##if the metadata value exists, then we want to configure the local ssd as a caching location.
 function configure_SSD_caching_worker(){
-
-
 if [[ $HAS_SSD == 'true' ]];then
 	echo "ssd"
     sudo mkdir /mnt/1/llap
-	sudo chmod 775 /mnt/1/llap
+	sudo chmod 777 /mnt/1/llap
 	sudo chown hive /mnt/1/llap
 	sudo xmlstarlet edit --inplace --omit-decl \
   -s '//configuration' -t elem -n "property" \
@@ -273,9 +275,10 @@ fi
 
 }
 
+
+##if the metadata value exists, then we want to configure the local ssd as a caching location. We don't need to make any directory changes since master nodes don't 
+##run YARN. We do need to ensure that the configuration files are equal across master and worker nodes
 function configure_SSD_caching_master(){
-
-
 if [[ $HAS_SSD == 'true' ]];then
 	echo "ssd"
 	sudo xmlstarlet edit --inplace --omit-decl \
@@ -293,6 +296,7 @@ fi
 
 }
 
+##cleanup files that were downloaded during the configuration process
 function cleanup(){
 	sudo rm log4j-slf4j-impl-2.10.0.jar
 	sudo rm main.zip
@@ -306,14 +310,18 @@ function start_llap(){
 
 	if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
 
+
+    ##restart service after all configuration changes
 		echo "restart hive server prior..."
 		sudo systemctl restart hive-server2.service 
+
 
 		echo "starting yarn app fastlaunch...."
 		yarn app -enableFastLaunch
 
 		echo "Setting Parameters for LLAP start"
 		
+    ### we want LLAP to have the entire YARN memory allocation for a node; easier to manage
 		LLAP_SIZE=$NODE_MANAGER_MEMORY
 		echo "LLAP daemon size: $LLAP_SIZE"
 
@@ -322,9 +330,10 @@ function start_llap(){
 		LLAP_XMX=0
 		LLAP_EXECUTORS=0
 
-		###Get the number of exeuctors based on memory
+		###Get the number of exeuctors based on memory; we want to do a rolling calcualtion of the number of exec based on the available yarn mem pool.
 		for ((i = 1; i <= $NODE_MANAGER_vCPU; i++)); do
         LLAP_MEMORY_ALLO=$(($i * 4096))
+        ###we take into account headroom here to give some space for cache; this is to prevent situations where we have too little headroom
         if (( $LLAP_MEMORY_ALLO < $(expr $NODE_MANAGER_MEMORY - 6114) )); then
                 LLAP_EXECUTORS=$i
                 LLAP_XMX=$LLAP_MEMORY_ALLO
@@ -334,7 +343,7 @@ function start_llap(){
 		echo "LLAP executors: ${LLAP_EXECUTORS}"
 		echo "LLAP xmx memory: ${LLAP_XMX}"
 
-		### 6% of xmx or max 6GB for jvm headroom
+		### 6% of xmx or max 6GB for jvm headroom; calculate headroom and convert to int
 		LLAP_XMX_6=$(echo "scale=0;${LLAP_XMX}*.06" |bc)
 		LLAP_XMX_6_INT=${LLAP_XMX_6%.*}
 
@@ -375,6 +384,7 @@ function start_llap(){
 	fi
 }
 
+##main driver function for the script
 function configure_llap(){
 
  if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
@@ -401,13 +411,13 @@ if [[ "${ROLE}" == "Worker" ]] || [["${ROLE}" == "Master"]]; then
 fi
 }
 
+###run llapstatus command to determine if running
 function wait_for_llap_ready() {
 
 	echo "wait for LLAP to launch...."
 	sudo -u hive hive --service llapstatus --name llap0 -w -r 1 -i 5
 	echo "LLAP started...."
 }
-
 
 echo "Running configuration process...."
 configure_llap
