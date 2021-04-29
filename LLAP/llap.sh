@@ -216,11 +216,12 @@ function get_log4j() {
 ##repackage tez_lib_uris and place on HDFS; only need to do this on one node. 
 function package_tez_lib_uris(){
 	echo "repackage tez lib uris..."
-	cp /usr/lib/tez/lib/* /usr/lib/tez
-	cp /usr/local/share/google/dataproc/lib/* /usr/lib/tez
+	sudo cp /usr/lib/tez/lib/* /usr/lib/tez
+	sudo cp /usr/local/share/google/dataproc/lib/* /usr/lib/tez
 	tar -czvf tez.tar.gz /usr/lib/tez
 	sudo -u hdfs hdfs dfs -mkdir /tez
-	until `hdfs dfs -put tez.tar.gz /tez`; do echo "Retrying"; sleep 5; done
+  sleep 100
+	until `hdfs dfs -copyFromLocal tez.tar.gz /tez`; do echo "Retrying"; sleep 10; done
 	
 }
 
@@ -242,7 +243,7 @@ function package_tez_lib_uris(){
 # All nodes need to run this. These files 
 function replace_core_llap_files() {
 	echo "replacing llap files..."
-	wget https://github.com/jster1357/llap/archive/refs/heads/main.zip
+	wget https://github.com/jster1357/llap/archive/refs/heads/main.zip -O main.zip
 	unzip main.zip
 	sudo cp llap-main/package.py /usr/lib/hive/scripts/llap/yarn/package.py 
 	sudo cp llap-main/runLlapDaemon.sh /usr/lib/hive/scripts/llap/bin/runLlapDaemon.sh
@@ -296,13 +297,13 @@ if [[ $HAS_SSD == 'true' ]];then
 fi
 
 }
-
 ##cleanup files that were downloaded during the configuration process
 #function cleanup(){
-#	sudo rm log4j-slf4j-impl-2.10.0.jar
-#	sudo rm main.zip
-#	sudo rm -f tez.tar.gz
+# sudo rm log4j-slf4j-impl-2.10.0.jar
+# sudo rm main.zip
+# sudo rm -f tez.tar.gz
 #}
+
 
 
 ##start LLAP - Master Node
@@ -388,8 +389,8 @@ function start_llap(){
 ##main driver function for the script
 function configure_llap(){
 
- if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
- 	sleep 100
+if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
+  echo "running primary master config...."
  	package_tez_lib_uris
  	add_yarn_service_dir
  	configure_yarn_site
@@ -399,9 +400,11 @@ function configure_llap(){
 	replace_core_llap_files
 	get_log4j
 	configure_tez_site_xml
- fi
+  return 0
+fi
 
-if [[ "${ROLE}" == "Worker" ]] || [["${ROLE}" == "Master"]]; then
+if [[ "${ROLE}" == "Worker" ]]; then
+  echo "running worker config...."
 	configure_yarn_site
 	configure_core_site
 	configure_hive_site
@@ -409,7 +412,23 @@ if [[ "${ROLE}" == "Worker" ]] || [["${ROLE}" == "Master"]]; then
 	get_log4j
 	configure_tez_site_xml
 	replace_core_llap_files
+  #systemctl restart hadoop-hdfs-datanode.service
+  #systemctl restart hadoop-yarn-nodemanager.service
+
+  return 0
 fi
+
+if [[ "${ROLE}" == "Master" && "${HOSTNAME}" != "${LLAP_MASTER_FQDN}"  ]]; then
+  echo "running master config...."
+  configure_yarn_site
+  configure_core_site
+  configure_hive_site
+  get_log4j
+  configure_tez_site_xml
+  replace_core_llap_files
+  return 0
+fi
+
 }
 
 ###run llapstatus command to determine if running
