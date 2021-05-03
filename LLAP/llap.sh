@@ -53,7 +53,7 @@ function configure_yarn_site(){
 
 xmlstarlet edit --inplace --omit-decl \
 --update '//configuration/property[name="yarn.application.classpath"]/value' \
--x 'concat(.,",\$HADOOP_CONF_DIR,/usr/local/share/google/dataproc/lib/*,/usr/lib/hadoop/*,/usr/lib/hadoop/lib/*,/usr/lib/hadoop-hdfs/*,/usr/lib/hadoop-hdfs/lib/*,/usr/lib/hadoop-yarn/*,/usr/lib/hadoop-yarn/lib/*,/usr/lib/tez/*,/usr/lib/tez/lib/*")' \
+-x 'concat(.,",\$HADOOP_CONF_DIR,/usr/local/share/google/dataproc/lib/*,/usr/lib/hadoop/*,/usr/lib/hadoop-mapreduce/*,/usr/lib/hadoop/lib/*,/usr/lib/hadoop-hdfs/*,/usr/lib/hadoop-hdfs/lib/*,/usr/lib/hadoop-yarn/*,/usr/lib/hadoop-yarn/lib/*,/usr/lib/tez/*,/usr/lib/tez/lib/*")' \
  /etc/hadoop/conf/yarn-site.xml
 
 
@@ -211,7 +211,6 @@ if [[ $IS_HA == "YES" ]];then
 fi
 
 }
-
 
 ##add missing log4j file on all nodes
 function get_log4j() {
