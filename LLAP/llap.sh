@@ -54,7 +54,7 @@ function configure_yarn_site(){
 xmlstarlet edit --inplace --omit-decl \
 --update '//configuration/property[name="hive.execution.engine"]/value' \
 -x 'concat(.,",\$HADOOP_CONF_DIR,/usr/local/share/google/dataproc/lib/*,/usr/lib/hadoop/*,/usr/lib/hadoop/lib/*,/usr/lib/hadoop-hdfs/*,/usr/lib/hadoop-hdfs/lib/*,/usr/lib/hadoop-yarn/*,/usr/lib/hadoop-yarn/lib/*,/usr/lib/tez/*,/usr/lib/tez/lib/*")' \
-hive-site.xml
+ /etc/hadoop/conf/yarn-site.xml
 
 
 if [[ "${NODE_MANAGER_MEMORY}" != "${YARN_MAX_CONTAINER_MEMORY}" ]]; then
