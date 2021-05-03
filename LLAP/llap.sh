@@ -17,6 +17,8 @@
 set -euxo pipefail
 
 ##install xml modifiction tool....
+
+
 sudo apt-get install -y xmlstarlet
 
 readonly NOT_SUPPORTED_MESSAGE="LLAP initialization action is not supported on Dataproc ${DATAPROC_VERSION}."
@@ -42,12 +44,18 @@ fi
 function configure_yarn_site(){
 	echo "configure yarn-site.xml..."
 
-sudo xmlstarlet edit --inplace --omit-decl \
-  -s '//configuration' -t elem -n "property" \
-  -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-  -s '//configuration/property[last()]' -t elem -n "name" -v "yarn.application.classpath" \
-  -s '//configuration/property[last()]' -t elem -n "value" -v "\$HADOOP_CONF_DIR,/usr/local/share/google/dataproc/lib/*,/usr/lib/hadoop/*,/usr/lib/hadoop/lib/*,/usr/lib/hadoop-hdfs/*,/usr/lib/hadoop-hdfs/lib/*,/usr/lib/hadoop-yarn/*,/usr/lib/hadoop-yarn/lib/*,/usr/lib/tez/*,/usr/lib/tez/lib/*"\
-  /etc/hadoop/conf/yarn-site.xml
+#sudo xmlstarlet edit --inplace --omit-decl \
+#  -s '//configuration' -t elem -n "property" \
+#  -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+#  -s '//configuration/property[last()]' -t elem -n "name" -v "yarn.application.classpath" \
+#  -s '//configuration/property[last()]' -t elem -n "value" -v "\$HADOOP_CONF_DIR,/usr/local/share/google/dataproc/lib/*,/usr/lib/hadoop/*,/usr/lib/hadoop/lib/*,/usr/lib/hadoop-hdfs/*,/usr/lib/hadoop-hdfs/lib/*,/usr/lib/hadoop-yarn/*,/usr/lib/hadoop-yarn/lib/*,/usr/lib/tez/*,/usr/lib/tez/lib/*"\
+#  /etc/hadoop/conf/yarn-site.xml
+
+xmlstarlet edit --inplace --omit-decl \
+--update '//configuration/property[name="hive.execution.engine"]/value' \
+-x 'concat(.,",\$HADOOP_CONF_DIR,/usr/local/share/google/dataproc/lib/*,/usr/lib/hadoop/*,/usr/lib/hadoop/lib/*,/usr/lib/hadoop-hdfs/*,/usr/lib/hadoop-hdfs/lib/*,/usr/lib/hadoop-yarn/*,/usr/lib/hadoop-yarn/lib/*,/usr/lib/tez/*,/usr/lib/tez/lib/*")' \
+hive-site.xml
+
 
 if [[ "${NODE_MANAGER_MEMORY}" != "${YARN_MAX_CONTAINER_MEMORY}" ]]; then
 	echo "not configured properly..."
