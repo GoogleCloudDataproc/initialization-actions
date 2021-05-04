@@ -9,3 +9,4 @@
 # based on the name of the directory bazel is cloned into.
 /bazel-*
 .DS_Store
+.DS_Store
