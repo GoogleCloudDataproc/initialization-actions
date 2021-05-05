@@ -218,7 +218,7 @@ function package_tez_lib_uris(){
 	cp /usr/lib/tez/lib/* /usr/lib/tez
   cp /usr/local/share/google/dataproc/lib/* /usr/lib/tez
 	tar -czvf tez.tar.gz /usr/lib/tez
-	su -u hdfs hdfs dfs -mkdir /tez
+	runuser -l hdfs -c 'hdfs dfs -mkdir /tez'
   sleep 100
 	until `hdfs dfs -copyFromLocal tez.tar.gz /tez`; do echo "Retrying"; sleep 10; done
 }
@@ -232,10 +232,11 @@ function configure_tez_site_xml() {
 ###add yarn service directory for hive; run only on one node
 function add_yarn_service_dir(){
   echo "adding yarn service directory on the hive user..."
-  hdfs dfs -mkdir /user/hive/.yarn
-	hdfs dfs -mkdir /user/hive/.yarn/package
-	hdfs dfs -mkdir /user/hive/.yarn/package/LLAP
-	su -u hdfs hdfs dfs -chown hive:hive  /user/hive/.yarn/package/LLAP
+
+  runuser -l hdfs -c 'hdfs dfs -mkdir /user/hive/.yarn'
+	runuser -l hdfs -c 'hdfs dfs -mkdir /user/hive/.yarn/package'
+	runuser -l hdfs -c 'hdfs dfs -mkdir /user/hive/.yarn/package/LLAP'
+	runuser -l hdfs -c 'hdfs dfs -chown hive:hive  /user/hive/.yarn/package/LLAP'
 }
 
 # All nodes need to run this. These files 
@@ -366,7 +367,7 @@ function start_llap(){
 		echo "LLAP daemon instances: ${LLAP_INSTANCES}"
 
 		echo "Starting LLAP..."
-		su -u hive hive --service llap \
+		sudo -u hive hive --service llap \
 		--instances "${LLAP_INSTANCES}" \
 		--size "${LLAP_SIZE}"m \
 		--executors "${LLAP_EXECUTORS}" \
@@ -428,7 +429,7 @@ fi
 function wait_for_llap_ready() {
   if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
     echo "wait for LLAP to launch...."
-    su -u hive hive --service llapstatus --name llap0 -w -r 1 -i 5
+    sudo -u hive hive --service llapstatus --name llap0 -w -r 1 -i 5
     echo "LLAP started...."
     else
     echo "skipping...."
