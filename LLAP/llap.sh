@@ -30,13 +30,14 @@ readonly WORKER_NODE_COUNT=$(/usr/share/google/get_metadata_value attributes/dat
 readonly NODE_MANAGER_vCPU=$(xmlstarlet sel -t -v '/configuration/property[name = "yarn.nodemanager.resource.cpu-vcores"]/value' -nl /etc/hadoop/conf/yarn-site.xml)
 readonly NODE_MANAGER_MEMORY=$(xmlstarlet sel -t -v '/configuration/property[name = "yarn.nodemanager.resource.memory-mb"]/value' -nl /etc/hadoop/conf/yarn-site.xml)
 readonly YARN_MAX_CONTAINER_MEMORY=$(xmlstarlet sel -t -v '/configuration/property[name = "yarn.scheduler.maximum-allocation-mb"]/value' -nl /etc/hadoop/conf/yarn-site.xml)
-readonly LAST_CHAR_MASTER=${LLAP_MASTER_FQDN: -1}
+readonly ADDITIONAL_MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)
 readonly HAS_SSD=$(/usr/share/google/get_metadata_value attributes/ssd)
 
 ###check to see if HA or not
-if [[ $LAST_CHAR_MASTER == 'm' ]];then
-	IS_HA="NO";else
+if [[ -n "$ADDITIONAL_MASTER" ]]; then
 	IS_HA="YES"
+else
+	IS_HA="NO"
 fi
 
 ##add xml doc tool for editing hadoop configuration files
@@ -60,7 +61,7 @@ function configure_hive_site(){
 
   ##different configuration if HA
   echo "configure hive-site.xml...."
-  if [[ $IS_HA == "YES" ]];then
+  if [[ $IS_HA == "YES" ]]; then
     xmlstarlet edit --inplace --omit-decl \
     -s '//configuration' -t elem -n "property" \
     -s '//configuration/property[last()]' -t elem -n "desription" -v "the yarn service name for llap" \
@@ -106,8 +107,8 @@ function configure_hive_site(){
     -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
     -s '//configuration/property[last()]' -t elem -n "name" -v "hive.compactor.worker.threads" \
     -s '//configuration/property[last()]' -t elem -n "value" -v "1"\
-    /etc/hive/conf/hive-site.xml;else 
-
+    /etc/hive/conf/hive-site.xml
+  else 
     xmlstarlet edit --inplace --omit-decl \
     -s '//configuration' -t elem -n "property" \
     -s '//configuration/property[last()]' -t elem -n "desription" -v "the yarn service name for llap" \
@@ -170,8 +171,8 @@ fi
 function configure_core_site(){
 	echo "configure core-site.xml..."
 
-  if [[ $IS_HA == "YES" ]];then
-    sudo xmlstarlet edit --inplace --omit-decl \
+  if [[ $IS_HA == "YES" ]]; then
+    xmlstarlet edit --inplace --omit-decl \
     -s '//configuration' -t elem -n "property" \
     -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
     -s '//configuration/property[last()]' -t elem -n "name" -v "hadoop.registry.zk.quorum" \
@@ -184,9 +185,9 @@ function configure_core_site(){
     -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
     -s '//configuration/property[last()]' -t elem -n "name" -v "hadoop.registry.rm.enabled" \
     -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
-    /etc/hadoop/conf/core-site.xml;else
-
-    sudo xmlstarlet edit --inplace --omit-decl \
+    /etc/hadoop/conf/core-site.xml
+  else
+    xmlstarlet edit --inplace --omit-decl \
     -s '//configuration' -t elem -n "property" \
     -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
     -s '//configuration/property[last()]' -t elem -n "name" -v "hadoop.registry.zk.quorum" \
@@ -201,7 +202,6 @@ function configure_core_site(){
     -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
     /etc/hadoop/conf/core-site.xml
 fi
-
 }
 
 ##add missing log4j file on all nodes
@@ -218,7 +218,7 @@ function package_tez_lib_uris(){
 	cp /usr/lib/tez/lib/* /usr/lib/tez
   cp /usr/local/share/google/dataproc/lib/* /usr/lib/tez
 	tar -czvf tez.tar.gz /usr/lib/tez
-	sudo -u hdfs hdfs dfs -mkdir /tez
+	su -u hdfs hdfs dfs -mkdir /tez
   sleep 100
 	until `hdfs dfs -copyFromLocal tez.tar.gz /tez`; do echo "Retrying"; sleep 10; done
 }
@@ -235,7 +235,7 @@ function add_yarn_service_dir(){
   hdfs dfs -mkdir /user/hive/.yarn
 	hdfs dfs -mkdir /user/hive/.yarn/package
 	hdfs dfs -mkdir /user/hive/.yarn/package/LLAP
-	sudo -u hdfs hdfs dfs -chown hive:hive  /user/hive/.yarn/package/LLAP
+	su -u hdfs hdfs dfs -chown hive:hive  /user/hive/.yarn/package/LLAP
 }
 
 # All nodes need to run this. These files 
@@ -253,7 +253,7 @@ function replace_core_llap_files() {
 
 ##if the metadata value exists, then we want to configure the local ssd as a caching location.
 function configure_SSD_caching_worker(){
-if [[ $HAS_SSD == 'true' ]];then
+if [[ -n "$HAS_SSD" ]]; then
 	echo "ssd"
   mkdir /mnt/1/llap
 	chmod 777 /mnt/1/llap
@@ -267,7 +267,8 @@ if [[ $HAS_SSD == 'true' ]];then
   -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
   -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.allocator.mmap.path" \
   -s '//configuration/property[last()]' -t elem -n "value" -v "/mnt/1/llap"\
-  /etc/hive/conf/hive-site.xml;else
+  /etc/hive/conf/hive-site.xml
+else
   echo "NO SSD to configure..."
 fi
 
@@ -276,7 +277,7 @@ fi
 ##if the metadata value exists, then we want to configure the local ssd as a caching location. We don't need to make any directory changes since master nodes don't 
 ##run YARN. We do need to ensure that the configuration files are equal across master and worker nodes
 function configure_SSD_caching_master(){
-if [[ $HAS_SSD == 'true' ]];then
+if [[ -n "$HAS_SSD" ]]; then
 	echo "ssd"
 	xmlstarlet edit --inplace --omit-decl \
   -s '//configuration' -t elem -n "property" \
@@ -287,11 +288,17 @@ if [[ $HAS_SSD == 'true' ]];then
   -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
   -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.allocator.mmap.path" \
   -s '//configuration/property[last()]' -t elem -n "value" -v "/mnt/1/llap"\
-  /etc/hive/conf/hive-site.xml;else
+  /etc/hive/conf/hive-site.xml
+else
   echo "NO SSD to configure..."
 fi
-
 }
+
+function get_llap_restart_script(){
+  echo "downloading llap restart script..." 
+}
+
+
 
 ##start LLAP - Master Node
 function start_llap(){
@@ -338,7 +345,8 @@ function start_llap(){
 
 		### jvm headroom for the llap executors
 		if  (( $LLAP_XMX_6_INT > 6144 )); then
-			LLAP_HEADROOM=6114; else
+			LLAP_HEADROOM=6114
+    else
 			LLAP_HEADROOM=$LLAP_XMX_6_INT
 		fi
 		echo "LLAP daemon headroom: ${LLAP_HEADROOM}"
@@ -358,7 +366,7 @@ function start_llap(){
 		echo "LLAP daemon instances: ${LLAP_INSTANCES}"
 
 		echo "Starting LLAP..."
-		sudo -u hive hive --service llap \
+		su -u hive hive --service llap \
 		--instances "${LLAP_INSTANCES}" \
 		--size "${LLAP_SIZE}"m \
 		--executors "${LLAP_EXECUTORS}" \
@@ -387,6 +395,7 @@ if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
 	replace_core_llap_files
 	get_log4j
 	configure_tez_site_xml
+  get_llap_restart_script
   return 0
 fi
 
@@ -419,8 +428,9 @@ fi
 function wait_for_llap_ready() {
   if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
     echo "wait for LLAP to launch...."
-    sudo -u hive hive --service llapstatus --name llap0 -w -r 1 -i 5
-    echo "LLAP started...."; else
+    su -u hive hive --service llapstatus --name llap0 -w -r 1 -i 5
+    echo "LLAP started...."
+    else
     echo "skipping...."
   fi
 
