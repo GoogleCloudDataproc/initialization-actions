@@ -88,7 +88,7 @@ function start_llap(){
 		echo "LLAP daemon instances: ${LLAP_INSTANCES}"
 
 		echo "Starting LLAP..."
-		sudo -u hive hive --service llap \
+		su -u hive hive --service llap \
 		--instances "${LLAP_INSTANCES}" \
 		--size "${LLAP_SIZE}"m \
 		--executors "${LLAP_EXECUTORS}" \
@@ -106,7 +106,7 @@ function start_llap(){
 function wait_for_llap_ready() {
 
 	echo "wait for LLAP to launch...."
-	sudo -u hive hive --service llapstatus --name llap0 -w -r 1 -i 5
+	su -u hive hive --service llapstatus --name llap0 -w -r 1 -i 5
 	echo "LLAP started...."
 }
 

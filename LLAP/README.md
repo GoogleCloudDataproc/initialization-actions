@@ -102,7 +102,10 @@ insert overwrite table citibike_orc select * from citibike;
 update citibike_orc set start_station_name="foo" where start_station_id=3735;
 
 select count(*),start_station_name from citibike_orc where start_station_name="foo" group by start_station_name;
+
+select count(*),start_station_id from citibike_orc group by start_station_id;
 ```
+
 
 You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
 
@@ -114,6 +117,6 @@ You can find more information about using initialization actions with Dataproc i
 * Clusters must have at least 2 worker nodes to deploy LLAP. The script will automatically reserve one node in the cluster for running the TEZ AM's and the remainder will be running LLAP daemons on the entire YARN node.
 * Clusters must be deployed with the zookeeper optional component selected
 * This initialization action will auto configure LLAP based upon the specs of the machine type. It is highly recommended to deploy machine types with high memory to ensure LLAP will have space available for cache
-* LLAP enables extending the cache pool to include SSD's. Users can deploy dataproc workers with local SSD's to extend LLAP's cache pool. To enable the SSD configuration, simply deploy dataproc with 1 local SSD and apply custom cluster metadata SSD=True to trigger the configuration of the SSD in LLAP cache. 
+* LLAP enables extending the cache pool to include SSD's. Users can deploy dataproc workers with local SSD's to extend LLAP's cache pool. To enable the SSD configuration, simply deploy dataproc with 1 local SSD and apply custom cluster metadata SSD=true to trigger the configuration of the SSD in LLAP cache. 
 * Only 1 Hive Server is deployed. hiveserver2-interactive is the zookeeper namespace for HA deployments.
 * Hive has been configured to support ACID transactions with this deployment. 
