@@ -52,11 +52,11 @@ function start_llap(){
 
 		###Get the number of exeuctors based on memory
 		for ((i = 1; i <= $NODE_MANAGER_vCPU; i++)); do
-        LLAP_MEMORY_ALLO=$(($i * 4096))
-        if (( $LLAP_MEMORY_ALLO < $(expr $NODE_MANAGER_MEMORY - 6114) )); then
-                LLAP_EXECUTORS=$i
-                LLAP_XMX=$LLAP_MEMORY_ALLO
-        fi
+		LLAP_MEMORY_ALLO=$(($i * 4096))
+		if (( $LLAP_MEMORY_ALLO < $(expr $NODE_MANAGER_MEMORY - 6114) )); then
+			LLAP_EXECUTORS=$i
+			LLAP_XMX=$LLAP_MEMORY_ALLO
+		fi
 		done
 
 		echo "LLAP executors: ${LLAP_EXECUTORS}"
@@ -77,13 +77,13 @@ function start_llap(){
  		LLAP_CACHE=$(expr ${LLAP_SIZE} - ${LLAP_HEADROOM} - ${LLAP_XMX})
 
 
- 		##if there is no additional room, then no cache will be used
- 		if (( $LLAP_CACHE < 0 )); then
- 			LLAP_CACHE=0
- 		fi
- 		echo "LLAP in-memory cache: ${LLAP_CACHE}"
+		##if there is no additional room, then no cache will be used
+		if (( $LLAP_CACHE < 0 )); then
+			LLAP_CACHE=0
+		fi
+		echo "LLAP in-memory cache: ${LLAP_CACHE}"
 
- 		###keep one node in reserve for handling the duties of Tez AM
+		###keep one node in reserve for handling the duties of Tez AM
 		LLAP_INSTANCES=$(expr ${WORKER_NODE_COUNT} - 1)
 		echo "LLAP daemon instances: ${LLAP_INSTANCES}"
 
