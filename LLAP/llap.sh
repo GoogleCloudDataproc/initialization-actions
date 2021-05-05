@@ -42,198 +42,195 @@ fi
 
 ##add xml doc tool for editing hadoop configuration files
 function configure_yarn_site(){
-	echo "configure yarn-site.xml..."
+    echo "configure yarn-site.xml..."
 
-xmlstarlet edit --inplace --omit-decl \
---update '//configuration/property[name="yarn.application.classpath"]/value' \
--x 'concat(.,",\$HADOOP_CONF_DIR,/usr/local/share/google/dataproc/lib/*,/usr/lib/hadoop/*,/usr/lib/hadoop-mapreduce/*,/usr/lib/hadoop/lib/*,/usr/lib/hadoop-hdfs/*,/usr/lib/hadoop-hdfs/lib/*,/usr/lib/hadoop-yarn/*,/usr/lib/hadoop-yarn/lib/*,/usr/lib/tez/*,/usr/lib/tez/lib/*")' \
- /etc/hadoop/conf/yarn-site.xml
+    xmlstarlet edit --inplace --omit-decl \
+    --update '//configuration/property[name="yarn.application.classpath"]/value' \
+    -x 'concat(.,",\$HADOOP_CONF_DIR,/usr/local/share/google/dataproc/lib/*,/usr/lib/hadoop/*,/usr/lib/hadoop-mapreduce/*,/usr/lib/hadoop/lib/*,/usr/lib/hadoop-hdfs/*,/usr/lib/hadoop-hdfs/lib/*,/usr/lib/hadoop-yarn/*,/usr/lib/hadoop-yarn/lib/*,/usr/lib/tez/*,/usr/lib/tez/lib/*")' \
+    /etc/hadoop/conf/yarn-site.xml
 
 
-if [[ "${NODE_MANAGER_MEMORY}" != "${YARN_MAX_CONTAINER_MEMORY}" ]]; then
-	echo "not configured properly..."
-fi
-
+    if [[ "${NODE_MANAGER_MEMORY}" != "${YARN_MAX_CONTAINER_MEMORY}" ]]; then
+	   echo "not configured properly..."
+    fi
 }
 
 ###add configurations to hive-site for LLAP
 function configure_hive_site(){
 
-  ##different configuration if HA
-  echo "configure hive-site.xml...."
-  if [[ $IS_HA == "YES" ]]; then
+    ##different configuration if HA
+    echo "configure hive-site.xml...."
+    if [[ $IS_HA == "YES" ]]; then
     xmlstarlet edit --inplace --omit-decl \
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "the yarn service name for llap" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.daemon.service.hosts" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "@llap0"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "zookeepr namespace for hive interactive server" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.server2.zookeeper.namespace" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "hiveserver2-interactive"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "hive execution mode, default LLAP" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.execution.mode" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "llap"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.execution.mode" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "only"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.enabled" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.server2.enable.doAs" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "false"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.txn.manager" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "org.apache.hadoop.hive.ql.lockmgr.DbTxnManager"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.support.concurrency" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.allocator.alloc.min" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "256Kb"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.compactor.initiator.on" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.compactor.worker.threads" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "1"\
-    /etc/hive/conf/hive-site.xml
-  else 
-    xmlstarlet edit --inplace --omit-decl \
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "the yarn service name for llap" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.daemon.service.hosts" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "@llap0"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "zookeepr namespace for hive interactive server" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.server2.zookeeper.namespace" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "hiveserver2-interactive"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "hive execution mode, default LLAP" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.execution.mode" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "llap"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.execution.mode" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "only"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.enabled" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.server2.enable.doAs" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "false"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.zookeeper.quorum" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "${LLAP_MASTER_FQDN}:2181"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.zookeeper.client.port" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "2181"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.txn.manager" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "org.apache.hadoop.hive.ql.lockmgr.DbTxnManager"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.support.concurrency" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.allocator.alloc.min" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "256Kb"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.compactor.initiator.on" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hive.compactor.worker.threads" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "1"\
-    /etc/hive/conf/hive-site.xml
-fi
-
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "the yarn service name for llap" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.daemon.service.hosts" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "@llap0"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "zookeepr namespace for hive interactive server" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.server2.zookeeper.namespace" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "hiveserver2-interactive"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "hive execution mode, default LLAP" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.execution.mode" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "llap"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.execution.mode" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "only"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.enabled" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.server2.enable.doAs" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "false"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.txn.manager" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "org.apache.hadoop.hive.ql.lockmgr.DbTxnManager"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.support.concurrency" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.allocator.alloc.min" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "256Kb"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.compactor.initiator.on" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.compactor.worker.threads" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "1"\
+        /etc/hive/conf/hive-site.xml
+    else 
+        xmlstarlet edit --inplace --omit-decl \
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "the yarn service name for llap" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.daemon.service.hosts" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "@llap0"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "zookeepr namespace for hive interactive server" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.server2.zookeeper.namespace" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "hiveserver2-interactive"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "hive execution mode, default LLAP" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.execution.mode" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "llap"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.execution.mode" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "only"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.enabled" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.server2.enable.doAs" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "false"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.zookeeper.quorum" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "${LLAP_MASTER_FQDN}:2181"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.zookeeper.client.port" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "2181"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.txn.manager" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "org.apache.hadoop.hive.ql.lockmgr.DbTxnManager"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.support.concurrency" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.allocator.alloc.min" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "256Kb"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.compactor.initiator.on" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.compactor.worker.threads" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "1"\
+        /etc/hive/conf/hive-site.xml
+    fi
 }
 
 ###add configurations to core-site for LLAP
 function configure_core_site(){
 	echo "configure core-site.xml..."
 
-  if [[ $IS_HA == "YES" ]]; then
-    xmlstarlet edit --inplace --omit-decl \
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hadoop.registry.zk.quorum" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "\${hadoop.zk.address}"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hadoop.registry.zk.root" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "/registry"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hadoop.registry.rm.enabled" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
-    /etc/hadoop/conf/core-site.xml
-  else
-    xmlstarlet edit --inplace --omit-decl \
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hadoop.registry.zk.quorum" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "${LLAP_MASTER_FQDN}:2181"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hadoop.registry.zk.root" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "/registry"\
-    -s '//configuration' -t elem -n "property" \
-    -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-    -s '//configuration/property[last()]' -t elem -n "name" -v "hadoop.registry.rm.enabled" \
-    -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
-    /etc/hadoop/conf/core-site.xml
-fi
+    if [[ $IS_HA == "YES" ]]; then
+        xmlstarlet edit --inplace --omit-decl \
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hadoop.registry.zk.quorum" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "\${hadoop.zk.address}"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hadoop.registry.zk.root" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "/registry"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hadoop.registry.rm.enabled" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
+        /etc/hadoop/conf/core-site.xml
+    else
+        xmlstarlet edit --inplace --omit-decl \
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hadoop.registry.zk.quorum" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "${LLAP_MASTER_FQDN}:2181"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hadoop.registry.zk.root" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "/registry"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hadoop.registry.rm.enabled" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
+        /etc/hadoop/conf/core-site.xml
+    fi
 }
 
 ##add missing log4j file on all nodes
 function get_log4j() {
-	echo "import missing log4j library..."
-  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    echo "import missing log4j library..."
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
     	https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-slf4j-impl/2.10.0/log4j-slf4j-impl-2.10.0.jar
-  cp log4j-slf4j-impl-2.10.0.jar /usr/lib/hive/lib
+    cp log4j-slf4j-impl-2.10.0.jar /usr/lib/hive/lib
 }
 
 ##repackage tez_lib_uris and place on HDFS; only need to do this on one node. 
 function package_tez_lib_uris(){
 	echo "repackage tez lib uris..."
 	cp /usr/lib/tez/lib/* /usr/lib/tez
-  cp /usr/local/share/google/dataproc/lib/* /usr/lib/tez
+    cp /usr/local/share/google/dataproc/lib/* /usr/lib/tez
 	tar -czvf tez.tar.gz /usr/lib/tez
 	runuser -l hdfs -c 'hdfs dfs -mkdir /tez'
-  sleep 100
+    sleep 100
 	until `hdfs dfs -copyFromLocal tez.tar.gz /tez`; do echo "Retrying"; sleep 10; done
 }
 
 #reconfigure tez.lib.uris to point to hdfs rather than local filesytem; run on all nodes so we have compatiable config files
 function configure_tez_site_xml() {
-  echo "reconfigure tez-site.xml..."
+    echo "reconfigure tez-site.xml..."
 	sed -i 's@file:/usr/lib/tez,file:/usr/lib/tez/lib,file:/usr/local/share/google/dataproc/lib@${fs.defaultFS}/tez/tez.tar.gz@g' /etc/tez/conf/tez-site.xml
 }
 
 ###add yarn service directory for hive; run only on one node
 function add_yarn_service_dir(){
-  echo "adding yarn service directory on the hive user..."
-
-  runuser -l hdfs -c 'hdfs dfs -mkdir /user/hive/.yarn'
+    echo "adding yarn service directory on the hive user..."
+    runuser -l hdfs -c 'hdfs dfs -mkdir /user/hive/.yarn'
 	runuser -l hdfs -c 'hdfs dfs -mkdir /user/hive/.yarn/package'
 	runuser -l hdfs -c 'hdfs dfs -mkdir /user/hive/.yarn/package/LLAP'
 	runuser -l hdfs -c 'hdfs dfs -chown hive:hive  /user/hive/.yarn/package/LLAP'
@@ -246,6 +243,7 @@ function replace_core_llap_files() {
 	unzip main.zip
 	cp llap-main/package.py /usr/lib/hive/scripts/llap/yarn/package.py 
 	cp llap-main/runLlapDaemon.sh /usr/lib/hive/scripts/llap/bin/runLlapDaemon.sh
+    cp llap-main/llap_restart.sh /usr/lib/hive/scripts/llap/bin/llap_restart.sh 
 
 	#open missing properties files
 	cp /usr/lib/hive/conf/llap-cli-log4j2.properties.template /usr/lib/hive/conf/llap-cli-log4j2.properties
@@ -254,52 +252,45 @@ function replace_core_llap_files() {
 
 ##if the metadata value exists, then we want to configure the local ssd as a caching location.
 function configure_SSD_caching_worker(){
-if [[ -n "$HAS_SSD" ]]; then
-	echo "ssd"
-  mkdir /mnt/1/llap
-	chmod 777 /mnt/1/llap
-	chown hive /mnt/1/llap
-	xmlstarlet edit --inplace --omit-decl \
-  -s '//configuration' -t elem -n "property" \
-  -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-  -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.allocator.mmap" \
-  -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
-  -s '//configuration' -t elem -n "property" \
-  -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-  -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.allocator.mmap.path" \
-  -s '//configuration/property[last()]' -t elem -n "value" -v "/mnt/1/llap"\
-  /etc/hive/conf/hive-site.xml
-else
-  echo "NO SSD to configure..."
-fi
-
+    if [[ -n "$HAS_SSD" ]]; then
+        echo "ssd"
+        mkdir /mnt/1/llap
+        chmod 777 /mnt/1/llap
+        chown hive /mnt/1/llap
+        xmlstarlet edit --inplace --omit-decl \
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.allocator.mmap" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.allocator.mmap.path" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "/mnt/1/llap"\
+        /etc/hive/conf/hive-site.xml
+    else
+        echo "NO SSD to configure..."
+    fi
 }
 
 ##if the metadata value exists, then we want to configure the local ssd as a caching location. We don't need to make any directory changes since master nodes don't 
 ##run YARN. We do need to ensure that the configuration files are equal across master and worker nodes
 function configure_SSD_caching_master(){
-if [[ -n "$HAS_SSD" ]]; then
-	echo "ssd"
-	xmlstarlet edit --inplace --omit-decl \
-  -s '//configuration' -t elem -n "property" \
-  -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-  -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.allocator.mmap" \
-  -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
-  -s '//configuration' -t elem -n "property" \
-  -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
-  -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.allocator.mmap.path" \
-  -s '//configuration/property[last()]' -t elem -n "value" -v "/mnt/1/llap"\
-  /etc/hive/conf/hive-site.xml
-else
-  echo "NO SSD to configure..."
+    if [[ -n "$HAS_SSD" ]]; then
+	   echo "ssd"
+	   xmlstarlet edit --inplace --omit-decl \
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.allocator.mmap" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.allocator.mmap.path" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "/mnt/1/llap"\
+        /etc/hive/conf/hive-site.xml
+    else
+        echo "NO SSD to configure..."
 fi
 }
-
-function get_llap_restart_script(){
-  echo "downloading llap restart script..." 
-}
-
-
 
 ##start LLAP - Master Node
 function start_llap(){
@@ -307,18 +298,16 @@ function start_llap(){
 
 	if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
 
-
-    ##restart service after all configuration changes
+        ##restart service after all configuration changes
 		echo "restart hive server prior..."
 		systemctl restart hive-server2.service 
-
 
 		echo "starting yarn app fastlaunch...."
 		yarn app -enableFastLaunch
 
 		echo "Setting Parameters for LLAP start"
 		
-    ### we want LLAP to have the entire YARN memory allocation for a node; easier to manage
+        ###we want LLAP to have the entire YARN memory allocation for a node; easier to manage
 		LLAP_SIZE=$NODE_MANAGER_MEMORY
 		echo "LLAP daemon size: $LLAP_SIZE"
 
@@ -347,7 +336,7 @@ function start_llap(){
 		### jvm headroom for the llap executors
 		if  (( $LLAP_XMX_6_INT > 6144 )); then
 			LLAP_HEADROOM=6114
-    else
+        else
 			LLAP_HEADROOM=$LLAP_XMX_6_INT
 		fi
 		echo "LLAP daemon headroom: ${LLAP_HEADROOM}"
@@ -386,22 +375,21 @@ function start_llap(){
 function configure_llap(){
 
 if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
-  echo "running primary master config...."
- 	package_tez_lib_uris
- 	add_yarn_service_dir
- 	configure_yarn_site
+    echo "running primary master config...."
+	package_tez_lib_uris
+	add_yarn_service_dir
+	configure_yarn_site
 	configure_core_site
 	configure_hive_site
 	configure_SSD_caching_master
 	replace_core_llap_files
 	get_log4j
 	configure_tez_site_xml
-  get_llap_restart_script
-  return 0
+    return 0
 fi
 
 if [[ "${ROLE}" == "Worker" ]]; then
-  echo "running worker config...."
+    echo "running worker config...."
 	configure_yarn_site
 	configure_core_site
 	configure_hive_site
@@ -409,32 +397,31 @@ if [[ "${ROLE}" == "Worker" ]]; then
 	get_log4j
 	configure_tez_site_xml
 	replace_core_llap_files
-  return 0
+    return 0
 fi
 
 if [[ "${ROLE}" == "Master" && "${HOSTNAME}" != "${LLAP_MASTER_FQDN}"  ]]; then
-  echo "running master config...."
-  configure_yarn_site
-  configure_core_site
-  configure_hive_site
-  get_log4j
-  configure_tez_site_xml
-  replace_core_llap_files
-  return 0
+    echo "running master config...."
+    configure_yarn_site
+    configure_core_site
+    configure_hive_site
+    get_log4j
+    configure_tez_site_xml
+    replace_core_llap_files
+    return 0
 fi
 
 }
 
 ###run llapstatus command to determine if running
 function wait_for_llap_ready() {
-  if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
-    echo "wait for LLAP to launch...."
-    sudo -u hive hive --service llapstatus --name llap0 -w -r 1 -i 5
-    echo "LLAP started...."
+    if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
+        echo "wait for LLAP to launch...."
+        sudo -u hive hive --service llapstatus --name llap0 -w -r 1 -i 5
+        echo "LLAP started...."
     else
-    echo "skipping...."
-  fi
-
+        echo "skipping...."
+    fi
 }
 
 echo "Running configuration process...."
