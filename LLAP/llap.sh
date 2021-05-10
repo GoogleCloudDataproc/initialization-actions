@@ -32,13 +32,23 @@ readonly NODE_MANAGER_MEMORY=$(xmlstarlet sel -t -v '/configuration/property[nam
 readonly YARN_MAX_CONTAINER_MEMORY=$(xmlstarlet sel -t -v '/configuration/property[name = "yarn.scheduler.maximum-allocation-mb"]/value' -nl /etc/hadoop/conf/yarn-site.xml)
 readonly ADDITIONAL_MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)
 readonly HAS_SSD=$(/usr/share/google/get_metadata_value attributes/ssd)
+readonly NUM_LLAP_NODES=$(/usr/share/google/get_metadata_value attributes/num-llap-nodes)
+
+
+function pre_flight_checks(){
+
+##check for bad configurations
+if [[ "${NUM_LLAP_NODES}" -ge "${WORKER_NODE_COUNT}" ]]; then
+    echo "LLAP node count equals total worker count. There are no nodes to support Tez AM's. Please reduce LLAP instance count and re-deploy." && exit 1
 
 ###check to see if HA or not
 if [[ -n "$ADDITIONAL_MASTER" ]]; then
-	IS_HA="YES"
+    IS_HA=true
 else
-	IS_HA="NO"
+    IS_HA=false
 fi
+}
+
 
 ##add xml doc tool for editing hadoop configuration files
 function configure_yarn_site(){
@@ -60,7 +70,7 @@ function configure_hive_site(){
 
     ##different configuration if HA
     echo "configure hive-site.xml...."
-    if [[ $IS_HA == "YES" ]]; then
+    if [[ -n $IS_HA ]]; then
     xmlstarlet edit --inplace --omit-decl \
         -s '//configuration' -t elem -n "property" \
         -s '//configuration/property[last()]' -t elem -n "desription" -v "the yarn service name for llap" \
@@ -169,7 +179,7 @@ function configure_hive_site(){
 function configure_core_site(){
 	echo "configure core-site.xml..."
 
-    if [[ $IS_HA == "YES" ]]; then
+    if [[ -n $IS_HA ]]; then
         xmlstarlet edit --inplace --omit-decl \
         -s '//configuration' -t elem -n "property" \
         -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
@@ -266,6 +276,14 @@ function configure_SSD_caching_worker(){
         -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
         -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.allocator.mmap.path" \
         -s '//configuration/property[last()]' -t elem -n "value" -v "/mnt/1/llap"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.memory.mode" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "cache"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.use.lrfu" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
         /etc/hive/conf/hive-site.xml
     else
         echo "NO SSD to configure..."
@@ -286,6 +304,14 @@ function configure_SSD_caching_master(){
         -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
         -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.allocator.mmap.path" \
         -s '//configuration/property[last()]' -t elem -n "value" -v "/mnt/1/llap"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.memory.mode" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "cache"\
+        -s '//configuration' -t elem -n "property" \
+        -s '//configuration/property[last()]' -t elem -n "desription" -v "" \
+        -s '//configuration/property[last()]' -t elem -n "name" -v "hive.llap.io.use.lrfu" \
+        -s '//configuration/property[last()]' -t elem -n "value" -v "true"\
         /etc/hive/conf/hive-site.xml
     else
         echo "NO SSD to configure..."
@@ -351,8 +377,14 @@ function start_llap(){
  		fi
  		echo "LLAP in-memory cache: ${LLAP_CACHE}"
 
- 		###keep one node in reserve for handling the duties of Tez AM
-		LLAP_INSTANCES=$(expr ${WORKER_NODE_COUNT} - 1)
+ 		
+        ###if user didn't pass in num llap instances, take worker node count -1
+        if [[ -z $NUM_LLAP_NODES ]]; then
+            LLAP_INSTANCES=$(expr ${WORKER_NODE_COUNT} - 1) 
+        else
+            LLAP_INSTANCES=$NUM_LLAP_NODES
+        fi 
+
 		echo "LLAP daemon instances: ${LLAP_INSTANCES}"
 
 		echo "Starting LLAP..."
@@ -364,10 +396,11 @@ function start_llap(){
 		--cache "${LLAP_CACHE}"m \
 		--name llap0 \
 		--auxhbase=false \
+        --skiphadoopversion \
 		--directory /tmp/llap_staging \
 		--output /tmp/llap_output \
 		--loglevel INFO \
-		--startImmediately
+		--startImmediately 
 	fi
 }
 
@@ -376,6 +409,7 @@ function configure_llap(){
 
 if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
     echo "running primary master config...."
+    pre_flight_checks
 	package_tez_lib_uris
 	add_yarn_service_dir
 	configure_yarn_site
@@ -390,6 +424,7 @@ fi
 
 if [[ "${ROLE}" == "Worker" ]]; then
     echo "running worker config...."
+    pre_flight_checks
 	configure_yarn_site
 	configure_core_site
 	configure_hive_site
@@ -402,6 +437,7 @@ fi
 
 if [[ "${ROLE}" == "Master" && "${HOSTNAME}" != "${LLAP_MASTER_FQDN}"  ]]; then
     echo "running master config...."
+    pre_flight_checks
     configure_yarn_site
     configure_core_site
     configure_hive_site

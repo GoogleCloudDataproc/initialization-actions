@@ -8,7 +8,8 @@ This initial action configures Google Cloud Dataproc to run Hive LLAP.
 
 You can use this initialization action to create a new Dataproc cluster with LLAP enabled:
 
-1. Use the `gcloud` command to create a new cluster with this initialization action.
+1. Use the `gcloud` command to create a new cluster with this initialization action. By default, LLAP will consume all nodes but one. If you want to customize the number
+of nodes LLAP runs on, please use the metadata paramater, num-llap-nodes to specifiy how many nodes to deploy LLAP on. You need at least 1 node open to run Tez AM's. 
 
    ```bash
     REGION=<region>
@@ -17,10 +18,11 @@ You can use this initialization action to create a new Dataproc cluster with LLA
         --region ${REGION} \
         --optional-components ZOOKEEPER \
         --image-version 2.0-debian10 \
+        --metadata num-llap-nodes=1
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/llap/llap.sh
     ```
 
-2. Use the `gcloud` command to create a new cluster with this initialization action with SSD's configured
+2. Use the `gcloud` command to create a new cluster with this initialization action with SSD's configured.
 
    ```bash
     REGION=<region>
@@ -30,7 +32,7 @@ You can use this initialization action to create a new Dataproc cluster with LLA
         --optional-components ZOOKEEPER \
         --image-version 2.0-debian10 \
         --num-worker-local-ssds 1 \
-        --metadata ssd=true \
+        --metadata ssd=true,num-llap-nodes=1
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/llap/llap.sh
     ```
 
@@ -114,9 +116,9 @@ You can find more information about using initialization actions with Dataproc i
 * This initialization action will only work with Debian Dataproc 2.x + images. 
 * This initialization action doesn't currently support Kerberos
 * This initialization action supports HA and non-HA depolyments. 
-* Clusters must have at least 2 worker nodes to deploy LLAP. The script will automatically reserve one node in the cluster for running the TEZ AM's and the remainder will be running LLAP daemons on the entire YARN node.
+* Clusters must have at least 2 worker nodes to deploy LLAP. Set num-llap-nodes=[num llap nodes] to tell the script how many LLAP instances to run. If the number of LLAP instances exceeds the worker node count, the provisioning will fail. 
 * Clusters must be deployed with the zookeeper optional component selected
-* This initialization action will auto configure LLAP based upon the specs of the machine type. It is highly recommended to deploy machine types with high memory to ensure LLAP will have space available for cache
-* LLAP enables extending the cache pool to include SSD's. Users can deploy dataproc workers with local SSD's to extend LLAP's cache pool. To enable the SSD configuration, simply deploy dataproc with 1 local SSD and apply custom cluster metadata SSD=true to trigger the configuration of the SSD in LLAP cache. 
+* This initialization action will auto configure LLAP based upon the specs of the machine type. It is highly recommended to deploy high memory machine types to ensure LLAP will have space available for cache
+* LLAP enables extending the cache pool to include SSD's. Users can deploy dataproc workers with local SSD's to extend LLAP's cache pool. To enable the SSD configuration, simply deploy dataproc with 1 local SSD and apply custom cluster metadata SSD=1 to trigger the configuration of the SSD in LLAP cache. 
 * Only 1 Hive Server is deployed. hiveserver2-interactive is the zookeeper namespace for HA deployments.
 * Hive has been configured to support ACID transactions with this deployment. 
