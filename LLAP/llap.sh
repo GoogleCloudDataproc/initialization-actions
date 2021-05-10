@@ -40,6 +40,7 @@ function pre_flight_checks(){
 ##check for bad configurations
 if [[ "${NUM_LLAP_NODES}" -ge "${WORKER_NODE_COUNT}" ]]; then
     echo "LLAP node count equals total worker count. There are no nodes to support Tez AM's. Please reduce LLAP instance count and re-deploy." && exit 1
+fi
 
 ###check to see if HA or not
 if [[ -n "$ADDITIONAL_MASTER" ]]; then
