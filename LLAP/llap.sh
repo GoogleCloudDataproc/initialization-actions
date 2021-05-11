@@ -250,15 +250,35 @@ function add_yarn_service_dir(){
 # All nodes need to run this. These files 
 function replace_core_llap_files() {
 	echo "replacing llap files..."
-	wget https://github.com/jster1357/llap/archive/refs/heads/main.zip -O main.zip
-	unzip main.zip
-	cp llap-main/package.py /usr/lib/hive/scripts/llap/yarn/package.py 
-	cp llap-main/runLlapDaemon.sh /usr/lib/hive/scripts/llap/bin/runLlapDaemon.sh
-    cp llap-main/llap_restart.sh /usr/lib/hive/scripts/llap/bin/llap_restart.sh 
+	#wget https://github.com/jster1357/llap/archive/refs/heads/main.zip -O main.zip
+	#unzip main.zip
+	#cp llap-main/package.py /usr/lib/hive/scripts/llap/yarn/package.py 
+	#cp llap-main/runLlapDaemon.sh /usr/lib/hive/scripts/llap/bin/runLlapDaemon.sh
+    #cp llap-main/llap_restart.sh /usr/lib/hive/scripts/llap/bin/llap_restart.sh 
 
 	#open missing properties files
 	cp /usr/lib/hive/conf/llap-cli-log4j2.properties.template /usr/lib/hive/conf/llap-cli-log4j2.properties
 	cp /usr/lib/hive/conf/llap-daemon-log4j2.properties.template /usr/lib/hive/conf/llap-daemon-log4j2.properties
+
+    ##modify file runLlapDaemon.sh
+    sed -i '78s/$/:`hadoop classpath`/' /usr/lib/hive/scripts/llap/bin/runLlapDaemon.sh
+    
+    ##modify file package.py
+    sed -i 's/print \"Cannot find input files\"/print(\"Cannot find input files\")/g' /usr/lib/hive/scripts/llap/yarn/package.py
+    sed -i 's/print \"Cannot determine the container size\"/print(\"Cannot determine the container size\")/g' /usr/lib/hive/scripts/llap/yarn/package.py
+    sed -i 's/print \"%s Running as a child of LlapServiceDriver\" % (strftime(\"%H:%M:%S\", gmtime()))/print("%s Running as a child of LlapServiceDriver" % (strftime("%H:%M:%S", gmtime())))/g' /usr/lib/hive/scripts/llap/yarn/package.py
+    sed -i 's/print \"%s Running after LlapServiceDriver\" % (strftime(\"%H:%M:%S\", gmtime()))/print(\"%s Running after LlapServiceDriver\" % (strftime(\"%H:%M:%S\", gmtime())))/g' /usr/lib/hive/scripts/llap/yarn/package.py
+    sed -i 's/print \"%s Prepared the files\" % (strftime(\"%H:%M:%S\", gmtime()))/print(\"%s Prepared the files\" % (strftime(\"%H:%M:%S\", gmtime())))/g' /usr/lib/hive/scripts/llap/yarn/package.py
+    sed -i 's/print \"%s Packaged the files\" % (strftime(\"%H:%M:%S\", gmtime()))/print(\"%s Packaged the files\" % (strftime(\"%H:%M:%S\", gmtime())))/g' /usr/lib/hive/scripts/llap/yarn/package.py
+    sed -i 's/0700/0o700/g' /usr/lib/hive/scripts/llap/yarn/package.py
+    sed -i 's/print \"%s Prepared %s\/run.sh for running LLAP on YARN\" % (strftime(\"%H:%M:%S\", gmtime()), output)/print(\"%s Prepared %s\/run.sh for running LLAP on YARN\" % (strftime(\"%H:%M:%S\", gmtime()), output))/g' /usr/lib/hive/scripts/llap/yarn/package.py
+    sed -i 's/long(max_direct_memory)/int(max_direct_memory)/g' /usr/lib/hive/scripts/llap/yarn/package.py
+
+
+
+    print \"%s Prepared %s\/run.sh for running LLAP on YARN\" % (strftime(\"%H:%M:%S\", gmtime()), output)
+    print(\"%s Prepared %s\/run.sh for running LLAP on YARN\" % (strftime(\"%H:%M:%S\", gmtime()), output))
+
 }
 
 ##if the metadata value exists, then we want to configure the local ssd as a caching location.
