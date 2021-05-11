@@ -116,8 +116,6 @@ function configure_hive_site(){
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
         --name 'hive.compactor.worker.threads' --value '1' \
         --clobber
-
-
     else 
         echo "non HA deployment..."
 
