@@ -38,7 +38,7 @@ BigQuery connector installed:
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/connectors/connectors.sh \
         --metadata gcs-connector-version=2.2.0 \
         --metadata bigquery-connector-version=1.2.0 \
-        --metadata spark-bigquery-connector-version=0.19.1
+        --metadata spark-bigquery-connector-version=0.20.0
     ```
 
 -   to update connector by specifying URL, use `gcs-connector-url`,
