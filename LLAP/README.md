@@ -1,6 +1,6 @@
 
 # Hive LLAP Initialization Action
-This initial action configures Google Cloud Dataproc to run Hive LLAP. 
+This initial action configures Google Cloud Dataproc to run Hive LLAP. For more information on Hive LLAP please visit: https://cwiki.apache.org/confluence/display/Hive/LLAP
 
 ## Using this initialization action
 
