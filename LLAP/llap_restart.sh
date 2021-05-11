@@ -24,9 +24,9 @@ set -euxo pipefail
 
 readonly LLAP_MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 readonly WORKER_NODE_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
-readonly NODE_MANAGER_vCPU=$(bdconfig get_property_value --configuration_file='${HADOOP_CONF_DIR}/yarn-site.xml' --name yarn.nodemanager.resource.cpu-vcores)
-readonly NODE_MANAGER_MEMORY=$(bdconfig get_property_value --configuration_file='${HADOOP_CONF_DIR}/yarn-site.xml' --name yarn.nodemanager.resource.memory-mb)
-readonly YARN_MAX_CONTAINER_MEMORY=$(bdconfig get_property_value --configuration_file='${HADOOP_CONF_DIR}/yarn-site.xml' --name yarn.scheduler.maximum-allocation-mb)
+readonly NODE_MANAGER_vCPU=$(bdconfig get_property_value --configuration_file='/etc/hadoop/conf/yarn-site.xml' --name yarn.nodemanager.resource.cpu-vcores)
+readonly NODE_MANAGER_MEMORY=$(bdconfig get_property_value --configuration_file='/etc/hadoop/conf/yarn-site.xml' --name yarn.nodemanager.resource.memory-mb)
+readonly YARN_MAX_CONTAINER_MEMORY=$(bdconfig get_property_value --configuration_file='/etc/hadoop/conf/yarn-site.xml' --name yarn.scheduler.maximum-allocation-mb)
 readonly NUM_LLAP_NODES=$(/usr/share/google/get_metadata_value attributes/num-llap-nodes)
 
 ##start LLAP - Master Node
