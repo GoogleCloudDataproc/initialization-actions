@@ -39,7 +39,7 @@ class LLAPTestCase(DataprocTestCase):
                             master_accelerator=None,
                             worker_accelerator=None,
                             optional_components=None,
-                            machine_type="e2-standard-16",
+                            machine_type="e2-standard-8",
                             boot_disk_size="500GB")
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),

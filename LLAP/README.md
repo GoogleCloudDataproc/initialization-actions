@@ -114,11 +114,12 @@ You can find more information about using initialization actions with Dataproc i
 ## Important notes
 
 * This initialization action will only work with Debian Dataproc 2.x + images. 
+* Clusters must be deployed with the zookeeper optional component selected
 * This initialization action doesn't currently support Kerberos
 * This initialization action supports HA and non-HA depolyments. 
-* Clusters must have at least 2 worker nodes to deploy LLAP. Set num-llap-nodes=[num llap nodes] to tell the script how many LLAP instances to run. If the number of LLAP instances exceeds the worker node count, the provisioning will fail. 
-* Clusters must be deployed with the zookeeper optional component selected
-* This initialization action will auto configure LLAP based upon the specs of the machine type. It is highly recommended to deploy high memory machine types to ensure LLAP will have space available for cache
+* It is highly recommended to deploy high memory machine types to ensure LLAP will have space available for cache
+* LLAP will auto configure based on the machine shape. It will adhere to 4GB/executor and ensure that the LLAP Container itself has enough headroom for the JVM (6% or 6GB MAX). Any remainder is treated as off heap cache
+* Clusters must have at least 2 worker nodes to deploy LLAP. Set num-llap-nodes=[num llap nodes] to tell the script how many LLAP instances to run. If the number of LLAP instances are >= the worker node count, the provisioning will fail. 
 * LLAP enables extending the cache pool to include SSD's. Users can deploy dataproc workers with local SSD's to extend LLAP's cache pool. To enable the SSD configuration, simply deploy dataproc with 1 local SSD and apply custom cluster metadata SSD=1 to trigger the configuration of the SSD in LLAP cache. 
 * Only 1 Hive Server is deployed. hiveserver2-interactive is the zookeeper namespace for HA deployments.
 * Hive has been configured to support ACID transactions with this deployment. 

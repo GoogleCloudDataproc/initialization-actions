@@ -24,9 +24,10 @@ set -euxo pipefail
 
 readonly LLAP_MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 readonly WORKER_NODE_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
-readonly NODE_MANAGER_vCPU=$(xmlstarlet sel -t -v '/configuration/property[name = "yarn.nodemanager.resource.cpu-vcores"]/value' -nl /etc/hadoop/conf/yarn-site.xml)
-readonly NODE_MANAGER_MEMORY=$(xmlstarlet sel -t -v '/configuration/property[name = "yarn.nodemanager.resource.memory-mb"]/value' -nl /etc/hadoop/conf/yarn-site.xml)
-readonly YARN_MAX_CONTAINER_MEMORY=$(xmlstarlet sel -t -v '/configuration/property[name = "yarn.scheduler.maximum-allocation-mb"]/value' -nl /etc/hadoop/conf/yarn-site.xml)
+readonly NODE_MANAGER_vCPU=$(bdconfig get_property_value --configuration_file='${HADOOP_CONF_DIR}/yarn-site.xml' --name yarn.nodemanager.resource.cpu-vcores)
+readonly NODE_MANAGER_MEMORY=$(bdconfig get_property_value --configuration_file='${HADOOP_CONF_DIR}/yarn-site.xml' --name yarn.nodemanager.resource.memory-mb)
+readonly YARN_MAX_CONTAINER_MEMORY=$(bdconfig get_property_value --configuration_file='${HADOOP_CONF_DIR}/yarn-site.xml' --name yarn.scheduler.maximum-allocation-mb)
+readonly NUM_LLAP_NODES=$(/usr/share/google/get_metadata_value attributes/num-llap-nodes)
 
 ##start LLAP - Master Node
 function start_llap(){
@@ -84,7 +85,13 @@ function start_llap(){
 		echo "LLAP in-memory cache: ${LLAP_CACHE}"
 
 		###keep one node in reserve for handling the duties of Tez AM
-		LLAP_INSTANCES=$(expr ${WORKER_NODE_COUNT} - 1)
+		###if user didn't pass in num llap instances, take worker node count -1
+        if [[ -z $NUM_LLAP_NODES ]]; then
+            LLAP_INSTANCES=$(expr ${WORKER_NODE_COUNT} - 1) 
+        else
+            LLAP_INSTANCES=$NUM_LLAP_NODES
+        fi 
+        
 		echo "LLAP daemon instances: ${LLAP_INSTANCES}"
 
 		echo "Starting LLAP..."

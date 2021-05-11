@@ -21,7 +21,7 @@ flags.DEFINE_string('image_version', None, 'Dataproc image version, e.g. 1.4')
 flags.DEFINE_boolean('skip_cleanup', False, 'Skip cleanup of test resources')
 FLAGS(sys.argv)
 
-INTERNAL_IP_SSH = os.getenv("INTERNAL_IP_SSH", "false").lower() == "true"
+INTERNAL_IP_SSH = os.getenv("EXTERNAL_IP_SSH", "false").lower() == "true"
 
 DEFAULT_TIMEOUT = 15  # minutes
 
