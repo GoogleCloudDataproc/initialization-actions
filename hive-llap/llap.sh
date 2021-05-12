@@ -126,6 +126,10 @@ function configure_hive_site(){
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
         --name 'hive.tez.container.size' --value '4096' \
         --clobber
+        bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'tez.am.resource.memory.mb' --value '2048' \
+        --clobber
     else 
         echo "non HA deployment..."
         bdconfig set_property \
@@ -183,6 +187,10 @@ function configure_hive_site(){
         bdconfig set_property \
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
         --name 'hive.tez.container.size' --value '4096' \
+        --clobber
+        bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'tez.am.resource.memory.mb' --value '2048' \
         --clobber
     fi
 }
