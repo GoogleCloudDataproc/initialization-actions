@@ -31,6 +31,8 @@ readonly HAS_SSD=$(/usr/share/google/get_metadata_value attributes/ssd)
 readonly NUM_LLAP_NODES=$(/usr/share/google/get_metadata_value attributes/num-llap-nodes)
 readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
 readonly HIVE_CONF_DIR='/etc/hive/conf'
+readonly REGION=$(/usr/share/google/get_metadata_value attributes/dataproc-region)
+readonly DEFAULT_INIT_ACTIONS_REPO="gs://dataproc-initialization-actions"
 
 ##user supplied location for file to ingest
 readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/init-actions-repo || echo ${DEFAULT_INIT_ACTIONS_REPO})"
@@ -44,6 +46,7 @@ function pre_flight_checks(){
         echo "LLAP node count equals total worker count. There are no nodes to support Tez AM's. Please reduce LLAP instance count and re-deploy." && exit 1
     fi
 
+}
 
 ##add xml doc tool for editing hadoop configuration files
 function configure_yarn_site(){
@@ -62,12 +65,10 @@ function configure_yarn_site(){
 
 function download_init_actions() {
     # Download initialization actions locally. Check if metadata is supplied
-
-    if [[ -n "$INIT_ACTIONS_REPO" ]]; then
-        mkdir "${INIT_ACTIONS_DIR}"/hive-llap
-        gsutil -m rsync -r "${INIT_ACTIONS_REPO}/hive-llap/" "${INIT_ACTIONS_DIR}/hive-llap/"
-        find "${INIT_ACTIONS_DIR}" -name '*.sh' -exec chmod +x {} \;
-    fi
+    echo "downalod init actions supplied as metadata..."
+    mkdir "${INIT_ACTIONS_DIR}"/hive-llap
+    gsutil -m rsync -r "${INIT_ACTIONS_REPO}/hive-llap/" "${INIT_ACTIONS_DIR}/hive-llap/"
+    find "${INIT_ACTIONS_DIR}" -name '*.sh' -exec chmod +x {} \;
 }
 
 ###add configurations to hive-site for LLAP
