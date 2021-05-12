@@ -10,9 +10,10 @@ class LLAPTestCase(DataprocTestCase):
     COMPONENT = 'llap'
     INIT_ACTIONS = ['llap/llap.sh']
     TEST_SCRIPT_FILE_NAME = 'run_hive_commands.py'
+    OPTIONAL_COMPONENTS = ["ZOOKEEPER"]
 
     def verify_instance(self, name):
-        self.upload_test_file(
+        self.upload_test_file( 
             os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
                 self.TEST_SCRIPT_FILE_NAME), name)
@@ -24,7 +25,11 @@ class LLAPTestCase(DataprocTestCase):
             name, "python {}".format(self.TEST_SCRIPT_FILE_NAME))
 
     @parameterized.parameters(
-        ("HA", ["m-0", "m-1", "m-2"]), )
+        ("HA", ["m-0"]),
+        ("SINGLE", ["m"]),
+        ("STANDARD", ["m"])
+        )
+
     def test_llap(self, configuration, machine_suffixes):
         if self.getImageOs() == 'centos':
             self.skipTest("Not supported in CentOS-based images")
@@ -38,7 +43,7 @@ class LLAPTestCase(DataprocTestCase):
                             beta=False,
                             master_accelerator=None,
                             worker_accelerator=None,
-                            optional_components=None,
+                            optional_components=self.OPTIONAL_COMPONENTS,
                             machine_type="e2-standard-8",
                             boot_disk_size="500GB")
         for machine_suffix in machine_suffixes:

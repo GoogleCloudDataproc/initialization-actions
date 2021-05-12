@@ -2,9 +2,9 @@
 import subprocess
 def create_commands_file():
     with open("commands.sql", "w+") as file:
+        ###create dummy table and populate with test data locally on the master node 0
         file.write("use default;\n"
                     "show tables;\n"
-                    "drop table if exists test;\n"
                     "create table test (a int, b string) STORED AS ORC TBLPROPERTIES (\"transactional\"=\"true\");\n"
                     "insert into test (a,b) values (1, \"hello\");\n"
                     "insert into test (a,b) values (2, \"world\");\n"

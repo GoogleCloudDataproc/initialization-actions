@@ -18,7 +18,7 @@ of nodes LLAP runs on, please use the metadata paramater, num-llap-nodes to spec
         --region ${REGION} \
         --optional-components ZOOKEEPER \
         --image-version 2.0-debian10 \
-        --metadata num-llap-nodes=1
+        --metadata num-llap-nodes=1 \
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/llap/llap.sh
     ```
 
@@ -32,7 +32,7 @@ of nodes LLAP runs on, please use the metadata paramater, num-llap-nodes to spec
         --optional-components ZOOKEEPER \
         --image-version 2.0-debian10 \
         --num-worker-local-ssds 1 \
-        --metadata ssd=true,num-llap-nodes=1
+        --metadata ssd=true,num-llap-nodes=1 \
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/llap/llap.sh
     ```
 
@@ -47,6 +47,7 @@ hdfs dfs -put 202008-citibike-tripdata.csv /tmp
 ```
 
 Use beeline to connect to hive to run test queries on the downloaded data. These tests will demonstrate simple queries on data with LLAP as well as issuing ACID transactions on the data. 
+
 
 set hive.tez.exec.print.summary=true  will provide statistics on the effectiveness of LLAP as you run queries on the data. This is important when looking at metrics like cache hit rate. 
 
@@ -107,7 +108,6 @@ select count(*),start_station_name from citibike_orc where start_station_name="f
 
 select count(*),start_station_id from citibike_orc group by start_station_id;
 ```
-
 
 You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
 

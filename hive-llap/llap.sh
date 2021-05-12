@@ -61,7 +61,7 @@ function configure_yarn_site(){
     /etc/hadoop/conf/yarn-site.xml
 
     if [[ "${NODE_MANAGER_MEMORY}" != "${YARN_MAX_CONTAINER_MEMORY}" ]]; then
-	   echo "not configured properly..."
+       echo "not configured properly..."
     fi
 }
 
@@ -176,7 +176,7 @@ function configure_hive_site(){
 
 ###add configurations to core-site for LLAP
 function configure_core_site(){
-	echo "configure core-site.xml..."
+    echo "configure core-site.xml..."
 
     if IS_HA; then
         echo "HA deployment...."
@@ -215,43 +215,43 @@ function configure_core_site(){
 function get_log4j() {
     echo "import missing log4j library..."
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    	https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-slf4j-impl/2.10.0/log4j-slf4j-impl-2.10.0.jar
+        https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-slf4j-impl/2.10.0/log4j-slf4j-impl-2.10.0.jar
     cp log4j-slf4j-impl-2.10.0.jar /usr/lib/hive/lib
 }
 
 ##repackage tez_lib_uris and place on HDFS; only need to do this on one node. 
 function package_tez_lib_uris(){
-	echo "repackage tez lib uris..."
-	cp /usr/lib/tez/lib/* /usr/lib/tez
+    echo "repackage tez lib uris..."
+    cp /usr/lib/tez/lib/* /usr/lib/tez
     cp /usr/local/share/google/dataproc/lib/* /usr/lib/tez
-	tar -czvf tez.tar.gz /usr/lib/tez
-	runuser -l hdfs -c 'hdfs dfs -mkdir /tez'
+    tar -czvf tez.tar.gz /usr/lib/tez
+    runuser -l hdfs -c 'hdfs dfs -mkdir /tez'
     sleep 100
-	until `hdfs dfs -copyFromLocal tez.tar.gz /tez`; do echo "Retrying"; sleep 10; done
+    until `hdfs dfs -copyFromLocal tez.tar.gz /tez`; do echo "Retrying"; sleep 10; done
 }
 
 #reconfigure tez.lib.uris to point to hdfs rather than local filesytem; run on all nodes so we have compatiable config files
 function configure_tez_site_xml() {
     echo "reconfigure tez-site.xml..."
-	sed -i 's@file:/usr/lib/tez,file:/usr/lib/tez/lib,file:/usr/local/share/google/dataproc/lib@${fs.defaultFS}/tez/tez.tar.gz@g' /etc/tez/conf/tez-site.xml
+    sed -i 's@file:/usr/lib/tez,file:/usr/lib/tez/lib,file:/usr/local/share/google/dataproc/lib@${fs.defaultFS}/tez/tez.tar.gz@g' /etc/tez/conf/tez-site.xml
 }
 
 ###add yarn service directory for hive; run only on one node
 function add_yarn_service_dir(){
     echo "adding yarn service directory on the hive user..."
     runuser -l hdfs -c 'hdfs dfs -mkdir /user/hive/.yarn'
-	runuser -l hdfs -c 'hdfs dfs -mkdir /user/hive/.yarn/package'
-	runuser -l hdfs -c 'hdfs dfs -mkdir /user/hive/.yarn/package/LLAP'
-	runuser -l hdfs -c 'hdfs dfs -chown hive:hive /user/hive/.yarn/package/LLAP'
+    runuser -l hdfs -c 'hdfs dfs -mkdir /user/hive/.yarn/package'
+    runuser -l hdfs -c 'hdfs dfs -mkdir /user/hive/.yarn/package/LLAP'
+    runuser -l hdfs -c 'hdfs dfs -chown hive:hive /user/hive/.yarn/package/LLAP'
 }
 
 # All nodes need to run this. These files 
 function replace_core_llap_files() {
-	echo "replacing llap files..."
+    echo "replacing llap files..."
 
-	#open missing properties files
-	cp /usr/lib/hive/conf/llap-cli-log4j2.properties.template /usr/lib/hive/conf/llap-cli-log4j2.properties
-	cp /usr/lib/hive/conf/llap-daemon-log4j2.properties.template /usr/lib/hive/conf/llap-daemon-log4j2.properties
+    #open missing properties files
+    cp /usr/lib/hive/conf/llap-cli-log4j2.properties.template /usr/lib/hive/conf/llap-cli-log4j2.properties
+    cp /usr/lib/hive/conf/llap-daemon-log4j2.properties.template /usr/lib/hive/conf/llap-daemon-log4j2.properties
 
     ##modify file runLlapDaemon.sh
     sed -i '78s/$/:`hadoop classpath`/' /usr/lib/hive/scripts/llap/bin/runLlapDaemon.sh
@@ -301,7 +301,7 @@ function configure_SSD_caching_worker(){
 ##run YARN. We do need to ensure that the configuration files are equal across master and worker nodes
 function configure_SSD_caching_master(){
     if [[ -n "$HAS_SSD" ]]; then
-	   echo "ssd"
+       echo "ssd"
 
         bdconfig set_property \
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
@@ -328,62 +328,62 @@ fi
 function start_llap(){
 
 
-	if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
+    if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
 
         ##restart service after all configuration changes
-		echo "restart hive server prior..."
-		systemctl restart hive-server2.service 
+    echo "restart hive server prior..."
+    systemctl restart hive-server2.service 
 
-		echo "starting yarn app fastlaunch...."
-		yarn app -enableFastLaunch
+    echo "starting yarn app fastlaunch...."
+    yarn app -enableFastLaunch
 
-		echo "Setting Parameters for LLAP start"
-		
+    echo "Setting Parameters for LLAP start"
+    
         ###we want LLAP to have the entire YARN memory allocation for a node; easier to manage
-		LLAP_SIZE=$NODE_MANAGER_MEMORY
-		echo "LLAP daemon size: $LLAP_SIZE"
+    LLAP_SIZE=$NODE_MANAGER_MEMORY
+    echo "LLAP daemon size: $LLAP_SIZE"
 
-		LLAP_CPU_ALLO=0
-		LLAP_MEMORY_ALLO=0
-		LLAP_XMX=0
-		LLAP_EXECUTORS=0
+    LLAP_CPU_ALLO=0
+    LLAP_MEMORY_ALLO=0
+    LLAP_XMX=0
+    LLAP_EXECUTORS=0
 
-		###Get the number of exeuctors based on memory; we want to do a rolling calcualtion of the number of exec based on the available yarn mem pool.
-		for ((i = 1; i <= $NODE_MANAGER_vCPU; i++)); do
+    ###Get the number of exeuctors based on memory; we want to do a rolling calcualtion of the number of exec based on the available yarn mem pool.
+    for ((i = 1; i <= $NODE_MANAGER_vCPU; i++)); do
             LLAP_MEMORY_ALLO=$(($i * 4096))
             ###we take into account headroom here to give some space for cache; this is to prevent situations where we have too little headroom
             if (( $LLAP_MEMORY_ALLO < $(expr $NODE_MANAGER_MEMORY - 6114) )); then
                 LLAP_EXECUTORS=$i
                 LLAP_XMX=$LLAP_MEMORY_ALLO
         fi
-		done
+    done
 
-		echo "LLAP executors: ${LLAP_EXECUTORS}"
-		echo "LLAP xmx memory: ${LLAP_XMX}"
+    echo "LLAP executors: ${LLAP_EXECUTORS}"
+    echo "LLAP xmx memory: ${LLAP_XMX}"
 
-		### 6% of xmx or max 7GB for jvm headroom; calculate headroom and convert to int
-		LLAP_XMX_6=$(echo "scale=0;${LLAP_XMX}*.06" |bc)
-		LLAP_XMX_6_INT=${LLAP_XMX_6%.*}
+    ### 6% of xmx or max 7GB for jvm headroom; calculate headroom and convert to int
+    LLAP_XMX_6=$(echo "scale=0;${LLAP_XMX}*.06" |bc)
+    LLAP_XMX_6_INT=${LLAP_XMX_6%.*}
 
-		### jvm headroom for the llap executors
-		if  (( $LLAP_XMX_6_INT > 6144 )); then
-			LLAP_HEADROOM=6114
+    ### jvm headroom for the llap executors
+    if  (( $LLAP_XMX_6_INT > 6144 )); then
+    LLAP_HEADROOM=6114
         else
-			LLAP_HEADROOM=$LLAP_XMX_6_INT
-		fi
-		echo "LLAP daemon headroom: ${LLAP_HEADROOM}"
+    LLAP_HEADROOM=$LLAP_XMX_6_INT
+    fi
+    echo "LLAP daemon headroom: ${LLAP_HEADROOM}"
 
-		##cache is whatever is left over after heardroom and executor memory is accounted for
- 		LLAP_CACHE=$(expr ${LLAP_SIZE} - ${LLAP_HEADROOM} - ${LLAP_XMX})
+    ##cache is whatever is left over after heardroom and executor memory is accounted for
+    LLAP_CACHE=$(expr ${LLAP_SIZE} - ${LLAP_HEADROOM} - ${LLAP_XMX})
 
 
- 		##if there is no additional room, then no cache will be used
- 		if (( $LLAP_CACHE < 0 )); then
- 			LLAP_CACHE=0
- 		fi
- 		echo "LLAP in-memory cache: ${LLAP_CACHE}"
+    ##if there is no additional room, then no cache will be used
+    if (( $LLAP_CACHE < 0 )); then
+    LLAP_CACHE=0
+    fi
+    echo "LLAP in-memory cache: ${LLAP_CACHE}"
 
- 		
+    
         ###if user didn't pass in num llap instances, take worker node count -1
         if [[ -z $NUM_LLAP_NODES ]]; then
             LLAP_INSTANCES=$(expr ${WORKER_NODE_COUNT} - 1) 
@@ -391,23 +391,23 @@ function start_llap(){
             LLAP_INSTANCES=$NUM_LLAP_NODES
         fi 
 
-		echo "LLAP daemon instances: ${LLAP_INSTANCES}"
+    echo "LLAP daemon instances: ${LLAP_INSTANCES}"
 
-		echo "Starting LLAP..."
-		sudo -u hive hive --service llap \
-		--instances "${LLAP_INSTANCES}" \
-		--size "${LLAP_SIZE}"m \
-		--executors "${LLAP_EXECUTORS}" \
-		--xmx "${LLAP_XMX}"m \
-		--cache "${LLAP_CACHE}"m \
-		--name llap0 \
-		--auxhbase=false \
+    echo "Starting LLAP..."
+    sudo -u hive hive --service llap \
+    --instances "${LLAP_INSTANCES}" \
+    --size "${LLAP_SIZE}"m \
+    --executors "${LLAP_EXECUTORS}" \
+    --xmx "${LLAP_XMX}"m \
+    --cache "${LLAP_CACHE}"m \
+    --name llap0 \
+    --auxhbase=false \
         --skiphadoopversion \
-		--directory /tmp/llap_staging \
-		--output /tmp/llap_output \
-		--loglevel INFO \
-		--startImmediately 
-	fi
+    --directory /tmp/llap_staging \
+    --output /tmp/llap_output \
+    --loglevel INFO \
+    --startImmediately 
+    fi
 }
 
 ##main driver function for the script
@@ -416,28 +416,28 @@ function configure_llap(){
 if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
     echo "running primary master config...."
     pre_flight_checks
-	package_tez_lib_uris
-	add_yarn_service_dir
-	configure_yarn_site
-	configure_core_site
-	configure_hive_site
-	configure_SSD_caching_master
-	replace_core_llap_files
-	get_log4j
-	configure_tez_site_xml
+    package_tez_lib_uris
+    add_yarn_service_dir
+    configure_yarn_site
+    configure_core_site
+    configure_hive_site
+    configure_SSD_caching_master
+    replace_core_llap_files
+    get_log4j
+    configure_tez_site_xml
     return 0
 fi
 
 if [[ "${ROLE}" == "Worker" ]]; then
     echo "running worker config...."
     pre_flight_checks
-	configure_yarn_site
-	configure_core_site
-	configure_hive_site
-	configure_SSD_caching_worker
-	get_log4j
-	configure_tez_site_xml
-	replace_core_llap_files
+    configure_yarn_site
+    configure_core_site
+    configure_hive_site
+    configure_SSD_caching_worker
+    get_log4j
+    configure_tez_site_xml
+    replace_core_llap_files
     return 0
 fi
 
