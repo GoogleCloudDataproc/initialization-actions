@@ -112,7 +112,7 @@ function start_llap(){
 function wait_for_llap_ready() {
 
     echo "wait for LLAP to launch...."
-    su -u hive hive --service llapstatus --name llap0 -w -r 1 -i 5    
+    sudo -u hive hive --service llapstatus --name llap0 -w -r 1 -i 5    
     echo "LLAP started...."
 }
 

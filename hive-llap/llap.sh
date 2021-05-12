@@ -16,9 +16,6 @@
 
 set -euxo pipefail
 
-##install xml modifiction tool....
-#apt-get install -y xmlstarlet
-
 readonly NOT_SUPPORTED_MESSAGE="LLAP initialization action is not supported on Dataproc ${DATAPROC_VERSION}."
 [[ $DATAPROC_VERSION != 2.* ]] && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
 
@@ -42,18 +39,11 @@ readonly INIT_ACTIONS_DIR=$(mktemp -d -t dataproc-init-actions-XXXX)
 
 function pre_flight_checks(){
 
-##check for bad configurations
-if [[ "${NUM_LLAP_NODES}" -ge "${WORKER_NODE_COUNT}" ]]; then
-    echo "LLAP node count equals total worker count. There are no nodes to support Tez AM's. Please reduce LLAP instance count and re-deploy." && exit 1
-fi
+    ##check for bad configurations
+    if [[ "${NUM_LLAP_NODES}" -ge "${WORKER_NODE_COUNT}" ]]; then
+        echo "LLAP node count equals total worker count. There are no nodes to support Tez AM's. Please reduce LLAP instance count and re-deploy." && exit 1
+    fi
 
-###check to see if HA or not
-if [[ -n "$ADDITIONAL_MASTER" ]]; then
-    IS_HA=true
-else
-    IS_HA=false
-fi
-}
 
 ##add xml doc tool for editing hadoop configuration files
 function configure_yarn_site(){
@@ -71,20 +61,18 @@ function configure_yarn_site(){
 }
 
 function download_init_actions() {
-  # Download initialization actions locally.
-  mkdir "${INIT_ACTIONS_DIR}"/hive-llap
-  gsutil -m rsync -r "${INIT_ACTIONS_REPO}/hive-llap/" "${INIT_ACTIONS_DIR}/hive-llap/"
-  find "${INIT_ACTIONS_DIR}" -name '*.sh' -exec chmod +x {} \;
+    # Download initialization actions locally.
+    mkdir "${INIT_ACTIONS_DIR}"/hive-llap
+    gsutil -m rsync -r "${INIT_ACTIONS_REPO}/hive-llap/" "${INIT_ACTIONS_DIR}/hive-llap/"
+    find "${INIT_ACTIONS_DIR}" -name '*.sh' -exec chmod +x {} \;
 }
-
-
 
 ###add configurations to hive-site for LLAP
 function configure_hive_site(){
 
     ##different configuration if HA
     echo "configure hive-site.xml...."
-    if $IS_HA; then
+    if [[ -n "$ADDITIONAL_MASTER" ]]; then
         echo "HA deployment .... "
         bdconfig set_property \
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
@@ -136,7 +124,6 @@ function configure_hive_site(){
         --clobber
     else 
         echo "non HA deployment..."
-
         bdconfig set_property \
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
         --name 'hive.llap.daemon.service.hosts' --value '@llap0' \
@@ -200,7 +187,7 @@ function configure_hive_site(){
 function configure_core_site(){
     echo "configure core-site.xml..."
 
-    if IS_HA; then
+    if [[ -n "$ADDITIONAL_MASTER" ]]; then
         echo "HA deployment...."
         
         bdconfig set_property \
@@ -217,7 +204,6 @@ function configure_core_site(){
         --clobber
     else
         echo "not a HA deployment...."
-
         bdconfig set_property \
         --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
         --name 'hadoop.registry.zk.quorum' --value "${LLAP_MASTER_FQDN}:2181" \
@@ -248,7 +234,6 @@ function package_tez_lib_uris(){
     cp /usr/local/share/google/dataproc/lib/* /usr/lib/tez
     tar -czvf tez.tar.gz /usr/lib/tez
     runuser -l hdfs -c 'hdfs dfs -mkdir /tez'
-    sleep 100
     until `hdfs dfs -copyFromLocal tez.tar.gz /tez`; do echo "Retrying"; sleep 10; done
 }
 
@@ -349,10 +334,9 @@ fi
 ##start LLAP - Master Node
 function start_llap(){
 
-
     if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
 
-        ##restart service after all configuration changes
+    ##restart service after all configuration changes
     echo "restart hive server prior..."
     systemctl restart hive-server2.service 
 
@@ -361,7 +345,7 @@ function start_llap(){
 
     echo "Setting Parameters for LLAP start"
     
-        ###we want LLAP to have the entire YARN memory allocation for a node; easier to manage
+    ###we want LLAP to have the entire YARN memory allocation for a node; easier to manage
     LLAP_SIZE=$NODE_MANAGER_MEMORY
     echo "LLAP daemon size: $LLAP_SIZE"
 
@@ -424,7 +408,7 @@ function start_llap(){
     --cache "${LLAP_CACHE}"m \
     --name llap0 \
     --auxhbase=false \
-        --skiphadoopversion \
+    --skiphadoopversion \
     --directory /tmp/llap_staging \
     --output /tmp/llap_output \
     --loglevel INFO \

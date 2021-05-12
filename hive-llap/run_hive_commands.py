@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import subprocess
 def create_commands_file():
     with open("commands.sql", "w+") as file:
