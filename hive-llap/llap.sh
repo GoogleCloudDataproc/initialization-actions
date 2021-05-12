@@ -196,7 +196,7 @@ function configure_core_site(){
         
         bdconfig set_property \
         --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
-        --name 'hadoop.registry.zk.quorum' --value "${hadoop.zk.address}" \
+        --name 'hadoop.registry.zk.quorum' --value "\${hadoop.zk.address}" \
         --clobber
         bdconfig set_property \
         --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
