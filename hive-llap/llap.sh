@@ -61,10 +61,13 @@ function configure_yarn_site(){
 }
 
 function download_init_actions() {
-    # Download initialization actions locally.
-    mkdir "${INIT_ACTIONS_DIR}"/hive-llap
-    gsutil -m rsync -r "${INIT_ACTIONS_REPO}/hive-llap/" "${INIT_ACTIONS_DIR}/hive-llap/"
-    find "${INIT_ACTIONS_DIR}" -name '*.sh' -exec chmod +x {} \;
+    # Download initialization actions locally. Check if metadata is supplied
+
+    if [[ -n "$INIT_ACTIONS_REPO" ]]; then
+        mkdir "${INIT_ACTIONS_DIR}"/hive-llap
+        gsutil -m rsync -r "${INIT_ACTIONS_REPO}/hive-llap/" "${INIT_ACTIONS_DIR}/hive-llap/"
+        find "${INIT_ACTIONS_DIR}" -name '*.sh' -exec chmod +x {} \;
+    fi
 }
 
 ###add configurations to hive-site for LLAP
