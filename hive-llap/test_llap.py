@@ -7,8 +7,8 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 
 class LLAPTestCase(DataprocTestCase):
-    COMPONENT = 'llap'
-    INIT_ACTIONS = ['llap/llap.sh']
+    COMPONENT = 'hive-llap'
+    INIT_ACTIONS = ['hive-llap/llap.sh']
     TEST_SCRIPT_FILE_NAME = 'run_hive_commands.py'
     OPTIONAL_COMPONENTS = ["ZOOKEEPER"]
 
@@ -26,7 +26,6 @@ class LLAPTestCase(DataprocTestCase):
 
     @parameterized.parameters(
         ("HA", ["m-0"]),
-        ("SINGLE", ["m"]),
         ("STANDARD", ["m"])
         )
 

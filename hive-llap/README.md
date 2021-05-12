@@ -9,8 +9,7 @@ This initial action configures Google Cloud Dataproc to run Hive LLAP. For more 
 You can use this initialization action to create a new Dataproc cluster with LLAP enabled:
 
 1. Use the `gcloud` command to create a new cluster with this initialization action. By default, LLAP will consume all nodes but one. If you want to customize the number
-of nodes LLAP runs on, please use the metadata paramater, num-llap-nodes to specifiy how many nodes to deploy LLAP on. You need at least 1 node open to run Tez AM's. 
-
+of nodes LLAP runs on, please use the metadata paramater, num-llap-nodes to specifiy how many nodes to deploy LLAP on. You need at least 1 node open to run Tez AM's. You can also include the use of the 'init-actions-repo' metadata option. This will auto download the additonal files in the repo including a file for restarting LLAP (llap_restart.sh).
    ```bash
     REGION=<region>
     CLUSTER_NAME=<cluster_name>
@@ -18,8 +17,8 @@ of nodes LLAP runs on, please use the metadata paramater, num-llap-nodes to spec
         --region ${REGION} \
         --optional-components ZOOKEEPER \
         --image-version 2.0-debian10 \
-        --metadata num-llap-nodes=1 \
-        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/llap/llap.sh
+        --metadata num-llap-nodes=1,init-actions-repo=gs://goog-dataproc-initialization-actions-${REGION} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/hive-llap/llap.sh
     ```
 
 2. Use the `gcloud` command to create a new cluster with this initialization action with SSD's configured.
@@ -32,9 +31,10 @@ of nodes LLAP runs on, please use the metadata paramater, num-llap-nodes to spec
         --optional-components ZOOKEEPER \
         --image-version 2.0-debian10 \
         --num-worker-local-ssds 1 \
-        --metadata ssd=true,num-llap-nodes=1 \
-        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/llap/llap.sh
+        --metadata ssd=true,num-llap-nodes=1,init-actions-repo=gs://goog-dataproc-initialization-actions-${REGION} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/hive-llap/llap.sh
     ```
+
 
 3. You can test your LLAP setup by creating an external table 
 
@@ -113,10 +113,10 @@ You can find more information about using initialization actions with Dataproc i
 
 ## Important notes
 
-* This initialization action will only work with Debian Dataproc 2.x + images. 
+* This initialization action will only work with Debian and ubuntu dataproc 2.x + images. 
 * Clusters must be deployed with the zookeeper optional component selected
-* This initialization action doesn't currently support Kerberos
-* This initialization action supports HA and non-HA depolyments. 
+* This initialization action doesn't support single node deployments
+* This initialization action supports HA and non-HA depolyments
 * It is highly recommended to deploy high memory machine types to ensure LLAP will have space available for cache
 * LLAP will auto configure based on the machine shape. It will adhere to 4GB/executor and ensure that the LLAP Container itself has enough headroom for the JVM (6% or 6GB MAX). Any remainder is treated as off heap cache
 * Clusters must have at least 2 worker nodes to deploy LLAP. Set num-llap-nodes=[num llap nodes] to tell the script how many LLAP instances to run. If the number of LLAP instances are >= the worker node count, the provisioning will fail. 

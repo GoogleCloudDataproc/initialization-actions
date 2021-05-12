@@ -35,6 +35,10 @@ readonly NUM_LLAP_NODES=$(/usr/share/google/get_metadata_value attributes/num-ll
 readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
 readonly HIVE_CONF_DIR='/etc/hive/conf'
 
+##user supplied location for file to ingest
+readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/init-actions-repo || echo ${DEFAULT_INIT_ACTIONS_REPO})"
+##directory files ingestied will reside
+readonly INIT_ACTIONS_DIR=$(mktemp -d -t dataproc-init-actions-XXXX)
 
 function pre_flight_checks(){
 
@@ -55,11 +59,6 @@ fi
 function configure_yarn_site(){
     echo "configure yarn-site.xml..."
 
-    ##xmlstarlet edit --inplace --omit-decl \
-    ##--update '//configuration/property[name="yarn.application.classpath"]/value' \
-    ##-x 'concat(.,",\$HADOOP_CONF_DIR,/usr/local/share/google/dataproc/lib/*,/usr/lib/hadoop/*,/usr/lib/hadoop-mapreduce/*,/usr/lib/hadoop/lib/*,/usr/lib/hadoop-hdfs/*,/usr/lib/hadoop-hdfs/lib/*,/usr/lib/hadoop-yarn/*,/usr/lib/hadoop-yarn/lib/*,/usr/lib/tez/*,/usr/lib/tez/lib/*")' \
-    ##/etc/hadoop/conf/yarn-site.xml
-
     bdconfig set_property \
     --configuration_file "/etc/hadoop/conf/yarn-site.xml" \
     --name "yarn.application.classpath" \
@@ -70,6 +69,15 @@ function configure_yarn_site(){
        echo "not configured properly..."
     fi
 }
+
+function download_init_actions() {
+  # Download initialization actions locally.
+  mkdir "${INIT_ACTIONS_DIR}"/hive-llap
+  gsutil -m rsync -r "${INIT_ACTIONS_REPO}/hive-llap/" "${INIT_ACTIONS_DIR}/hive-llap/"
+  find "${INIT_ACTIONS_DIR}" -name '*.sh' -exec chmod +x {} \;
+}
+
+
 
 ###add configurations to hive-site for LLAP
 function configure_hive_site(){
@@ -121,6 +129,10 @@ function configure_hive_site(){
         bdconfig set_property \
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
         --name 'hive.compactor.worker.threads' --value '1' \
+        --clobber
+        bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.tez.container.size' --value '4096' \
         --clobber
     else 
         echo "non HA deployment..."
@@ -176,6 +188,10 @@ function configure_hive_site(){
         bdconfig set_property \
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
         --name 'hive.zookeeper.client.port' --value '2181' \
+        --clobber
+        bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.tez.container.size' --value '4096' \
         --clobber
     fi
 }
@@ -422,6 +438,7 @@ function configure_llap(){
 if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
     echo "running primary master config...."
     pre_flight_checks
+    download_init_actions
     package_tez_lib_uris
     add_yarn_service_dir
     configure_yarn_site
