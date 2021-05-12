@@ -17,7 +17,7 @@
 set -euxo pipefail
 
 ##install xml modifiction tool....
-apt-get install -y xmlstarlet
+#apt-get install -y xmlstarlet
 
 readonly NOT_SUPPORTED_MESSAGE="LLAP initialization action is not supported on Dataproc ${DATAPROC_VERSION}."
 [[ $DATAPROC_VERSION != 2.* ]] && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
@@ -55,10 +55,16 @@ fi
 function configure_yarn_site(){
     echo "configure yarn-site.xml..."
 
-    xmlstarlet edit --inplace --omit-decl \
-    --update '//configuration/property[name="yarn.application.classpath"]/value' \
-    -x 'concat(.,",\$HADOOP_CONF_DIR,/usr/local/share/google/dataproc/lib/*,/usr/lib/hadoop/*,/usr/lib/hadoop-mapreduce/*,/usr/lib/hadoop/lib/*,/usr/lib/hadoop-hdfs/*,/usr/lib/hadoop-hdfs/lib/*,/usr/lib/hadoop-yarn/*,/usr/lib/hadoop-yarn/lib/*,/usr/lib/tez/*,/usr/lib/tez/lib/*")' \
-    /etc/hadoop/conf/yarn-site.xml
+    ##xmlstarlet edit --inplace --omit-decl \
+    ##--update '//configuration/property[name="yarn.application.classpath"]/value' \
+    ##-x 'concat(.,",\$HADOOP_CONF_DIR,/usr/local/share/google/dataproc/lib/*,/usr/lib/hadoop/*,/usr/lib/hadoop-mapreduce/*,/usr/lib/hadoop/lib/*,/usr/lib/hadoop-hdfs/*,/usr/lib/hadoop-hdfs/lib/*,/usr/lib/hadoop-yarn/*,/usr/lib/hadoop-yarn/lib/*,/usr/lib/tez/*,/usr/lib/tez/lib/*")' \
+    ##/etc/hadoop/conf/yarn-site.xml
+
+    bdconfig set_property \
+    --configuration_file "/etc/hadoop/conf/yarn-site.xml" \
+    --name "yarn.application.classpath" \
+    --value "\$HADOOP_CONF_DIR,\$HADOOP_COMMON_HOME/*,\$HADOOP_COMMON_HOME/lib/*,\$HADOOP_HDFS_HOME/*,\$HADOOP_HDFS_HOME/lib/*,\$HADOOP_MAPRED_HOME/*,\$HADOOP_MAPRED_HOME/lib/*,\$HADOOP_YARN_HOME/*,\$HADOOP_YARN_HOME/lib/*,/usr/local/share/google/dataproc/lib/*,\$HADOOP_CONF_DIR,/usr/local/share/google/dataproc/lib/*,/usr/lib/hadoop/*,/usr/lib/hadoop-mapreduce/*,/usr/lib/hadoop/lib/*,/usr/lib/hadoop-hdfs/*,/usr/lib/hadoop-hdfs/lib/*,/usr/lib/hadoop-yarn/*,/usr/lib/hadoop-yarn/lib/*,/usr/lib/tez/*,/usr/lib/tez/lib/*" \
+    --clobber
 
     if [[ "${NODE_MANAGER_MEMORY}" != "${YARN_MAX_CONTAINER_MEMORY}" ]]; then
        echo "not configured properly..."
