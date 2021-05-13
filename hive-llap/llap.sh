@@ -34,28 +34,29 @@ readonly HIVE_CONF_DIR='/etc/hive/conf'
 readonly REGION=$(/usr/share/google/get_metadata_value attributes/dataproc-region)
 readonly DEFAULT_INIT_ACTIONS_REPO="gs://dataproc-initialization-actions"
 
-##user supplied location for file to ingest
+# user supplied location for file to ingest
 readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/init-actions-repo || echo ${DEFAULT_INIT_ACTIONS_REPO})"
-##directory files ingestied will reside
-readonly INIT_ACTIONS_DIR=$(mktemp -d -t dataproc-init-actions-XXXX)
+# directory files ingestied will reside
+readonly INIT_ACTIONS_DIR='/usr/lib/dataproc-init-actions/hive-llap'
 
 function pre_flight_checks(){
-
-    ##check for bad configurations
+    # check for bad configurations
     if [[ "${NUM_LLAP_NODES}" -ge "${WORKER_NODE_COUNT}" ]]; then
         echo "LLAP node count equals total worker count. There are no nodes to support Tez AM's. Please reduce LLAP instance count and re-deploy." && exit 1
     fi
-
 }
 
-##add xml doc tool for editing hadoop configuration files
+#add xml doc tool for editing hadoop configuration files
 function configure_yarn_site(){
     echo "configure yarn-site.xml..."
 
+    local YARNAPPCLASSPATH="$(bdconfig get_property_value --configuration_file='/etc/hadoop/conf/yarn-site.xml' --name yarn.application.classpath)"
+
+    ###append new paths to the yarn.application.classpath
     bdconfig set_property \
     --configuration_file "/etc/hadoop/conf/yarn-site.xml" \
     --name "yarn.application.classpath" \
-    --value "\$HADOOP_CONF_DIR,\$HADOOP_COMMON_HOME/*,\$HADOOP_COMMON_HOME/lib/*,\$HADOOP_HDFS_HOME/*,\$HADOOP_HDFS_HOME/lib/*,\$HADOOP_MAPRED_HOME/*,\$HADOOP_MAPRED_HOME/lib/*,\$HADOOP_YARN_HOME/*,\$HADOOP_YARN_HOME/lib/*,/usr/local/share/google/dataproc/lib/*,\$HADOOP_CONF_DIR,/usr/local/share/google/dataproc/lib/*,/usr/lib/hadoop/*,/usr/lib/hadoop-mapreduce/*,/usr/lib/hadoop/lib/*,/usr/lib/hadoop-hdfs/*,/usr/lib/hadoop-hdfs/lib/*,/usr/lib/hadoop-yarn/*,/usr/lib/hadoop-yarn/lib/*,/usr/lib/tez/*,/usr/lib/tez/lib/*" \
+    --value "${YARNAPPCLASSPATH},/usr/local/share/google/dataproc/lib/*,/usr/lib/hadoop/*,/usr/lib/hadoop/lib/*,/usr/lib/hadoop-hdfs/*,/usr/lib/hadoop-hdfs/lib/*,/usr/lib/hadoop-yarn/*,/usr/lib/hadoop-yarn/lib/*,/usr/lib/tez/*,/usr/lib/tez/lib/*" \
     --clobber
 
     if [[ "${NODE_MANAGER_MEMORY}" != "${YARN_MAX_CONTAINER_MEMORY}" ]]; then
@@ -66,18 +67,17 @@ function configure_yarn_site(){
 function download_init_actions() {
     # Download initialization actions locally. Check if metadata is supplied
     echo "downalod init actions supplied as metadata..."
-    mkdir "${INIT_ACTIONS_DIR}"/hive-llap
-    gsutil -m rsync -r "${INIT_ACTIONS_REPO}/hive-llap/" "${INIT_ACTIONS_DIR}/hive-llap/"
-    find "${INIT_ACTIONS_DIR}" -name '*.sh' -exec chmod +x {} \;
+    mkdir -p "${INIT_ACTIONS_DIR}"
+    gsutil cp "${INIT_ACTIONS_REPO}/hive-llap/start_llap.sh" "${INIT_ACTIONS_DIR}"
+    find "${INIT_ACTIONS_DIR}/start_llap.sh" -name '*.sh' -exec chmod +x {} \;
 }
 
-###add configurations to hive-site for LLAP
+### add configurations to hive-site for LLAP
 function configure_hive_site(){
 
-    ##different configuration if HA
+    # different configuration if HA
     echo "configure hive-site.xml...."
     if [[ -n "$ADDITIONAL_MASTER" ]]; then
-        echo "HA deployment .... "
         bdconfig set_property \
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
         --name 'hive.llap.daemon.service.hosts' --value '@llap0' \
@@ -131,7 +131,6 @@ function configure_hive_site(){
         --name 'tez.am.resource.memory.mb' --value '2048' \
         --clobber
     else 
-        echo "non HA deployment..."
         bdconfig set_property \
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
         --name 'hive.llap.daemon.service.hosts' --value '@llap0' \
@@ -200,8 +199,6 @@ function configure_core_site(){
     echo "configure core-site.xml..."
 
     if [[ -n "$ADDITIONAL_MASTER" ]]; then
-        echo "HA deployment...."
-        
         bdconfig set_property \
         --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
         --name 'hadoop.registry.zk.quorum' --value "\${hadoop.zk.address}" \
@@ -215,7 +212,6 @@ function configure_core_site(){
         --name 'hadoop.registry.rm.enabled' --value "true" \
         --clobber
     else
-        echo "not a HA deployment...."
         bdconfig set_property \
         --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
         --name 'hadoop.registry.zk.quorum' --value "${LLAP_MASTER_FQDN}:2181" \
@@ -255,7 +251,7 @@ function configure_tez_site_xml() {
     sed -i 's@file:/usr/lib/tez,file:/usr/lib/tez/lib,file:/usr/local/share/google/dataproc/lib@${fs.defaultFS}/tez/tez.tar.gz@g' /etc/tez/conf/tez-site.xml
 }
 
-###add yarn service directory for hive; run only on one node
+###add yarn service directory for hive; run only on one node since this is a HDFS command
 function add_yarn_service_dir(){
     echo "adding yarn service directory on the hive user..."
     runuser -l hdfs -c 'hdfs dfs -mkdir /user/hive/.yarn'
@@ -264,7 +260,7 @@ function add_yarn_service_dir(){
     runuser -l hdfs -c 'hdfs dfs -chown hive:hive /user/hive/.yarn/package/LLAP'
 }
 
-# All nodes need to run this. These files 
+# All nodes need to run this. The log files need to be instantiated and the versions of runLlapDaemon and package.py don't work OOTB with dataproc
 function replace_core_llap_files() {
     echo "replacing llap files..."
 
@@ -287,14 +283,15 @@ function replace_core_llap_files() {
     sed -i 's/long(max_direct_memory)/int(max_direct_memory)/g' /usr/lib/hive/scripts/llap/yarn/package.py
 }
 
-##if the metadata value exists, then we want to configure the local ssd as a caching location.
+##if the user has added ssd=1 as a metadata option, then we need to configure hive-site.xml for using the ssd as a memory cache extension. The configuration must
+##be done on all nodes BUT the actual permissions/ownership needs only to be done on the workers. 
 function configure_SSD_caching_worker(){
     if [[ -n "$HAS_SSD" ]]; then
         echo "ssd"
         mkdir /mnt/1/llap
-        chmod 777 /mnt/1/llap
         chown hive:hive /mnt/1/llap
-        
+        chmod 777 /mnt/1/llap
+
         bdconfig set_property \
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
         --name 'hive.llap.io.allocator.mmap' --value 'true' \
@@ -315,12 +312,10 @@ function configure_SSD_caching_worker(){
         echo "NO SSD to configure..."
     fi
 }
-
-##if the metadata value exists, then we want to configure the local ssd as a caching location. We don't need to make any directory changes since master nodes don't 
-##run YARN. We do need to ensure that the configuration files are equal across master and worker nodes
+##if the user has added ssd=1 as a metadata option, then we need to configure hive-site.xml for using the ssd as a memory cache extension. 
 function configure_SSD_caching_master(){
     if [[ -n "$HAS_SSD" ]]; then
-       echo "ssd"
+        echo "ssd"
 
         bdconfig set_property \
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
@@ -345,88 +340,13 @@ fi
 
 ##start LLAP - Master Node
 function start_llap(){
-
     if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
-
-    ##restart service after all configuration changes
-    echo "restart hive server prior..."
-    systemctl restart hive-server2.service 
-
-    echo "starting yarn app fastlaunch...."
-    yarn app -enableFastLaunch
-
-    echo "Setting Parameters for LLAP start"
-    
-    ###we want LLAP to have the entire YARN memory allocation for a node; easier to manage
-    LLAP_SIZE=$NODE_MANAGER_MEMORY
-    echo "LLAP daemon size: $LLAP_SIZE"
-
-    LLAP_CPU_ALLO=0
-    LLAP_MEMORY_ALLO=0
-    LLAP_XMX=0
-    LLAP_EXECUTORS=0
-
-    ###Get the number of exeuctors based on memory; we want to do a rolling calcualtion of the number of exec based on the available yarn mem pool.
-    for ((i = 1; i <= $NODE_MANAGER_vCPU; i++)); do
-            LLAP_MEMORY_ALLO=$(($i * 4096))
-            ###we take into account headroom here to give some space for cache; this is to prevent situations where we have too little headroom
-            if (( $LLAP_MEMORY_ALLO < $(expr $NODE_MANAGER_MEMORY - 6114) )); then
-                LLAP_EXECUTORS=$i
-                LLAP_XMX=$LLAP_MEMORY_ALLO
-        fi
-    done
-
-    echo "LLAP executors: ${LLAP_EXECUTORS}"
-    echo "LLAP xmx memory: ${LLAP_XMX}"
-
-    ### 6% of xmx or max 7GB for jvm headroom; calculate headroom and convert to int
-    LLAP_XMX_6=$(echo "scale=0;${LLAP_XMX}*.06" |bc)
-    LLAP_XMX_6_INT=${LLAP_XMX_6%.*}
-
-    ### jvm headroom for the llap executors
-    if  (( $LLAP_XMX_6_INT > 6144 )); then
-    LLAP_HEADROOM=6114
-        else
-    LLAP_HEADROOM=$LLAP_XMX_6_INT
-    fi
-    echo "LLAP daemon headroom: ${LLAP_HEADROOM}"
-
-    ##cache is whatever is left over after heardroom and executor memory is accounted for
-    LLAP_CACHE=$(expr ${LLAP_SIZE} - ${LLAP_HEADROOM} - ${LLAP_XMX})
-
-
-    ##if there is no additional room, then no cache will be used
-    if (( $LLAP_CACHE < 0 )); then
-    LLAP_CACHE=0
-    fi
-    echo "LLAP in-memory cache: ${LLAP_CACHE}"
-
-    
-        ###if user didn't pass in num llap instances, take worker node count -1
-        if [[ -z $NUM_LLAP_NODES ]]; then
-            LLAP_INSTANCES=$(expr ${WORKER_NODE_COUNT} - 1) 
-        else
-            LLAP_INSTANCES=$NUM_LLAP_NODES
-        fi 
-
-    echo "LLAP daemon instances: ${LLAP_INSTANCES}"
-
-    echo "Starting LLAP..."
-    sudo -u hive hive --service llap \
-    --instances "${LLAP_INSTANCES}" \
-    --size "${LLAP_SIZE}"m \
-    --executors "${LLAP_EXECUTORS}" \
-    --xmx "${LLAP_XMX}"m \
-    --cache "${LLAP_CACHE}"m \
-    --name llap0 \
-    --auxhbase=false \
-    --skiphadoopversion \
-    --directory /tmp/llap_staging \
-    --output /tmp/llap_output \
-    --loglevel INFO \
-    --startImmediately 
+        echo "starting llap on master node 0..."
+        ."${INIT_ACTIONS_DIR}"/start_llap.sh
     fi
 }
+
+
 
 ##main driver function for the script
 function configure_llap(){
@@ -471,7 +391,6 @@ if [[ "${ROLE}" == "Master" && "${HOSTNAME}" != "${LLAP_MASTER_FQDN}"  ]]; then
     replace_core_llap_files
     return 0
 fi
-
 }
 
 ###run llapstatus command to determine if running
@@ -491,7 +410,4 @@ configure_llap
 echo "Starting LLAP...."
 start_llap
 
-echo "Verify full start...."
-wait_for_llap_ready
-
-echo "LLAP Setup Complete!"
+echo "LLAP Setup & Start Complete!"

@@ -42,13 +42,12 @@ function start_llap(){
 
         echo "Setting Parameters for LLAP start"
         
-        LLAP_SIZE=$NODE_MANAGER_MEMORY
+        local LLAP_SIZE=$NODE_MANAGER_MEMORY
         echo "LLAP daemon size: $LLAP_SIZE"
 
-        LLAP_CPU_ALLO=0
-        LLAP_MEMORY_ALLO=0
-        LLAP_XMX=0
-        LLAP_EXECUTORS=0
+        local LLAP_MEMORY_ALLO=0
+        local LLAP_XMX=0
+        local LLAP_EXECUTORS=0
 
         ###Get the number of exeuctors based on memory
         for ((i = 1; i <= $NODE_MANAGER_vCPU; i++)); do
@@ -122,4 +121,4 @@ start_llap
 echo "Verify full start...."
 wait_for_llap_ready
 
-echo "LLAP Restart Complete!"
+echo "LLAP Start Complete!"

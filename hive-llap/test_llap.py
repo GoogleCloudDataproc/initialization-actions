@@ -5,12 +5,14 @@ from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
-
 class LLAPTestCase(DataprocTestCase):
     COMPONENT = 'hive-llap'
     INIT_ACTIONS = ['hive-llap/llap.sh']
     TEST_SCRIPT_FILE_NAME = 'run_hive_commands.py'
     OPTIONAL_COMPONENTS = ["ZOOKEEPER"]
+    ##need initaction repo bucket and the number of llap ndoes to deploy
+    METADATA="num-llap-nodes=1,init-actions-repo=gs://[]"
+
 
     def verify_instance(self, name):
         self.upload_test_file( 
@@ -26,23 +28,15 @@ class LLAPTestCase(DataprocTestCase):
 
     @parameterized.parameters(
         ("HA", ["m-0"]),
-        ("STANDARD", ["m"])
-        )
-
+        ("STANDARD", ["m"]))
     def test_llap(self, configuration, machine_suffixes):
         if self.getImageOs() == 'centos':
             self.skipTest("Not supported in CentOS-based images")
 
         self.createCluster(configuration, 
                             self.INIT_ACTIONS, 
-                            metadata=None,
-                            scopes=None,
-                            properties=None,
-                            timeout_in_minutes=None,
-                            beta=False,
-                            master_accelerator=None,
-                            worker_accelerator=None,
                             optional_components=self.OPTIONAL_COMPONENTS,
+                            metadata=self.METADATA,
                             machine_type="e2-standard-8",
                             boot_disk_size="500GB")
         for machine_suffix in machine_suffixes:
