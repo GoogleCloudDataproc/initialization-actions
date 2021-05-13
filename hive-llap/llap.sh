@@ -287,10 +287,10 @@ function replace_core_llap_files() {
 ##be done on all nodes BUT the actual permissions/ownership needs only to be done on the workers. 
 function configure_SSD_caching_worker(){
     if [[ -n "$HAS_SSD" ]]; then
-        echo "ssd"
+        echo "configure ssd hive-site params on workers"
         mkdir /mnt/1/llap
         chown hive:hive /mnt/1/llap
-        chmod 777 /mnt/1/llap
+        chmod 766 /mnt/1/llap
 
         bdconfig set_property \
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
@@ -308,14 +308,12 @@ function configure_SSD_caching_worker(){
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
         --name 'hive.llap.io.use.lrfu' --value 'true' \
         --clobber
-    else
-        echo "NO SSD to configure..."
     fi
 }
 ##if the user has added ssd=1 as a metadata option, then we need to configure hive-site.xml for using the ssd as a memory cache extension. 
 function configure_SSD_caching_master(){
     if [[ -n "$HAS_SSD" ]]; then
-        echo "ssd"
+        echo "configure ssd hive-site params on master"
 
         bdconfig set_property \
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
@@ -333,8 +331,6 @@ function configure_SSD_caching_master(){
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
         --name 'hive.llap.io.use.lrfu' --value 'true' \
         --clobber
-    else
-        echo "NO SSD to configure..."
 fi
 }
 
@@ -345,8 +341,6 @@ function start_llap(){
         ."${INIT_ACTIONS_DIR}"/start_llap.sh
     fi
 }
-
-
 
 ##main driver function for the script
 function configure_llap(){

@@ -73,7 +73,7 @@ function start_llap(){
         echo "LLAP daemon headroom: ${LLAP_HEADROOM}"
 
         ##cache is whatever is left over after heardroom and executor memory is accounted for
-        LLAP_CACHE=$(expr ${LLAP_SIZE} - ${LLAP_HEADROOM} - ${LLAP_XMX})
+        local LLAP_CACHE=$(expr ${LLAP_SIZE} - ${LLAP_HEADROOM} - ${LLAP_XMX})
 
 
         ##if there is no additional room, then no cache will be used
