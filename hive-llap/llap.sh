@@ -59,6 +59,7 @@ function configure_yarn_site(){
     --value "${YARNAPPCLASSPATH},/usr/local/share/google/dataproc/lib/*,/usr/lib/hadoop/*,/usr/lib/hadoop/lib/*,/usr/lib/hadoop-hdfs/*,/usr/lib/hadoop-hdfs/lib/*,/usr/lib/hadoop-yarn/*,/usr/lib/hadoop-yarn/lib/*,/usr/lib/tez/*,/usr/lib/tez/lib/*" \
     --clobber
 
+    # Ensure that the max container memory 
     if [[ "${NODE_MANAGER_MEMORY}" != "${YARN_MAX_CONTAINER_MEMORY}" ]]; then
        echo "not configured properly..."
     fi
@@ -194,7 +195,7 @@ function configure_hive_site(){
     fi
 }
 
-###add configurations to core-site for LLAP
+###add configurations to core-site for LLAP; add zookeeper details
 function configure_core_site(){
     echo "configure core-site.xml..."
 
