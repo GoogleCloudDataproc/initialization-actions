@@ -31,13 +31,13 @@ readonly HAS_SSD=$(/usr/share/google/get_metadata_value attributes/ssd)
 readonly NUM_LLAP_NODES=$(/usr/share/google/get_metadata_value attributes/num-llap-nodes)
 readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
 readonly HIVE_CONF_DIR='/etc/hive/conf'
-readonly REGION=$(/usr/share/google/get_metadata_value attributes/dataproc-region)
 readonly DEFAULT_INIT_ACTIONS_REPO="gs://dataproc-initialization-actions"
+readonly EXECUTOR_SIZE=$(/usr/share/google/get_metadata_value attributes/exec_size_mb || echo 4096)
 
 # user supplied location for file to ingest
 readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/init-actions-repo || echo ${DEFAULT_INIT_ACTIONS_REPO})"
 # directory files ingestied will reside
-readonly INIT_ACTIONS_DIR='/usr/lib/dataproc-init-actions/hive-llap'
+readonly INIT_ACTIONS_DIR='/usr/lib/hive-llap'
 
 function pre_flight_checks(){
     # check for bad configurations
@@ -50,13 +50,13 @@ function pre_flight_checks(){
 function configure_yarn_site(){
     echo "configure yarn-site.xml..."
 
-    local YARNAPPCLASSPATH="$(bdconfig get_property_value --configuration_file='/etc/hadoop/conf/yarn-site.xml' --name yarn.application.classpath)"
+    local yarnappclasspath="$(bdconfig get_property_value --configuration_file='/etc/hadoop/conf/yarn-site.xml' --name yarn.application.classpath)"
 
     ###append new paths to the yarn.application.classpath
     bdconfig set_property \
     --configuration_file "/etc/hadoop/conf/yarn-site.xml" \
     --name "yarn.application.classpath" \
-    --value "${YARNAPPCLASSPATH},/usr/local/share/google/dataproc/lib/*,/usr/lib/hadoop/*,/usr/lib/hadoop/lib/*,/usr/lib/hadoop-hdfs/*,/usr/lib/hadoop-hdfs/lib/*,/usr/lib/hadoop-yarn/*,/usr/lib/hadoop-yarn/lib/*,/usr/lib/tez/*,/usr/lib/tez/lib/*" \
+    --value "${yarnappclasspath},/usr/local/share/google/dataproc/lib/*,/usr/lib/hadoop/*,/usr/lib/hadoop/lib/*,/usr/lib/hadoop-hdfs/*,/usr/lib/hadoop-hdfs/lib/*,/usr/lib/hadoop-yarn/*,/usr/lib/hadoop-yarn/lib/*,/usr/lib/tez/*,/usr/lib/tez/lib/*" \
     --clobber
 
     # Ensure that the max container memory 
@@ -70,7 +70,7 @@ function download_init_actions() {
     echo "downalod init actions supplied as metadata..."
     mkdir -p "${INIT_ACTIONS_DIR}"
     gsutil cp "${INIT_ACTIONS_REPO}/hive-llap/start_llap.sh" "${INIT_ACTIONS_DIR}"
-    find "${INIT_ACTIONS_DIR}/start_llap.sh" -name '*.sh' -exec chmod +x {} \;
+    chmod 700 "${INIT_ACTIONS_DIR}/start_llap.sh"
 }
 
 ### add configurations to hive-site for LLAP
@@ -78,104 +78,57 @@ function configure_hive_site(){
 
     # different configuration if HA
     echo "configure hive-site.xml...."
-    if [[ -n "$ADDITIONAL_MASTER" ]]; then
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.llap.daemon.service.hosts' --value '@llap0' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.server2.zookeeper.namespace' --value 'hiveserver2-interactive' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.execution.mode' --value 'llap' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.llap.execution.mode' --value 'only' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.llap.io.enabled' --value 'true' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.server2.enable.doAs' --value 'false' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.txn.manager' --value 'org.apache.hadoop.hive.ql.lockmgr.DbTxnManager' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.support.concurrency' --value 'true' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.llap.io.allocator.alloc.min' --value '256Kb' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.compactor.initiator.on' --value 'true' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.compactor.worker.threads' --value '1' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.tez.container.size' --value '4096' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'tez.am.resource.memory.mb' --value '2048' \
-        --clobber
-    else 
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.llap.daemon.service.hosts' --value '@llap0' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.server2.zookeeper.namespace' --value 'hiveserver2-interactive' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.execution.mode' --value 'llap' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.llap.execution.mode' --value 'only' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.llap.io.enabled' --value 'true' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.server2.enable.doAs' --value 'false' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.txn.manager' --value 'org.apache.hadoop.hive.ql.lockmgr.DbTxnManager' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.support.concurrency' --value 'true' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.llap.io.allocator.alloc.min' --value '256Kb' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.compactor.initiator.on' --value 'true' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.compactor.worker.threads' --value '1' \
-        --clobber
+
+    bdconfig set_property \
+    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+    --name 'hive.llap.daemon.service.hosts' --value '@llap0' \
+    --clobber
+    bdconfig set_property \
+    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+    --name 'hive.server2.zookeeper.namespace' --value 'hiveserver2-interactive' \
+    --clobber
+    bdconfig set_property \
+    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+    --name 'hive.execution.mode' --value 'llap' \
+    --clobber
+    bdconfig set_property \
+    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+    --name 'hive.llap.execution.mode' --value 'only' \
+    --clobber
+    bdconfig set_property \
+    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+    --name 'hive.llap.io.enabled' --value 'true' \
+    --clobber
+    bdconfig set_property \
+    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+    --name 'hive.server2.enable.doAs' --value 'false' \
+    --clobber
+    bdconfig set_property \
+    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+    --name 'hive.txn.manager' --value 'org.apache.hadoop.hive.ql.lockmgr.DbTxnManager' \
+    --clobber
+    bdconfig set_property \
+    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+    --name 'hive.support.concurrency' --value 'true' \
+    --clobber
+    bdconfig set_property \
+    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+    --name 'hive.llap.io.allocator.alloc.min' --value '256Kb' \
+    --clobber
+    bdconfig set_property \
+    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+    --name 'hive.compactor.initiator.on' --value 'true' \
+    --clobber
+    bdconfig set_property \
+    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+    --name 'hive.compactor.worker.threads' --value '1' \
+    --clobber
+    bdconfig set_property \
+    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+    --name 'hive.tez.container.size' --value "${EXECUTOR_SIZE}" \
+    --clobber
+
+    if [[ -z "$ADDITIONAL_MASTER" ]]; then
         bdconfig set_property \
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
         --name 'hive.zookeeper.quorum' --value "${LLAP_MASTER_FQDN}:2181" \
@@ -183,14 +136,6 @@ function configure_hive_site(){
         bdconfig set_property \
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
         --name 'hive.zookeeper.client.port' --value '2181' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.tez.container.size' --value '4096' \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'tez.am.resource.memory.mb' --value '2048' \
         --clobber
     fi
 }

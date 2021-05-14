@@ -12,7 +12,8 @@ class LLAPTestCase(DataprocTestCase):
     ##llap requires zookeeper
     OPTIONAL_COMPONENTS = ["ZOOKEEPER"]
     ##need initaction repo bucket and the number of llap ndoes to deploy
-    METADATA="num-llap-nodes=1,init-actions-repo=gs://jtaras-init-actions2"
+    METADATA_num_executors="num-llap-nodes=1"
+    METADATA_exec_size="exec_size_mb=1000"
 
 
     def verify_instance(self, name):
@@ -30,6 +31,7 @@ class LLAPTestCase(DataprocTestCase):
     @parameterized.parameters(
         ("HA", ["m-0"]),
         ("STANDARD", ["m"]))
+
     def test_llap(self, configuration, machine_suffixes):
         if self.getImageOs() == 'centos':
             self.skipTest("Not supported in CentOS-based images")
@@ -37,8 +39,44 @@ class LLAPTestCase(DataprocTestCase):
         self.createCluster(configuration, 
                             self.INIT_ACTIONS, 
                             optional_components=self.OPTIONAL_COMPONENTS,
-                            metadata=self.METADATA,
-                            machine_type="e2-standard-8",
+                            metadata="init-actions-repo=" + self.INIT_ACTIONS_REPO,
+                            machine_type="e2-standard-4",
+                            boot_disk_size="500GB")
+        for machine_suffix in machine_suffixes:
+            self.verify_instance("{}-{}".format(self.getClusterName(),
+                                                machine_suffix))
+
+    @parameterized.parameters(
+    ("STANDARD", ["m"]),
+    ("HA", ["m-0"]))
+
+    def test_llap_num_exec(self, configuration, machine_suffixes):
+        if self.getImageOs() == 'centos':
+            self.skipTest("Not supported in CentOS-based images")
+
+        self.createCluster(configuration, 
+                            self.INIT_ACTIONS, 
+                            optional_components=self.OPTIONAL_COMPONENTS,
+                            metadata=self.METADATA_num_executors + ",init-actions-repo=" + self.INIT_ACTIONS_REPO,
+                            machine_type="e2-standard-4",
+                            boot_disk_size="500GB")
+        for machine_suffix in machine_suffixes:
+            self.verify_instance("{}-{}".format(self.getClusterName(),
+                                                machine_suffix))
+
+    @parameterized.parameters(
+    ("STANDARD", ["m"]),
+    ("HA", ["m-0"]))
+
+    def test_llap_exec_size(self, configuration, machine_suffixes):
+        if self.getImageOs() == 'centos':
+            self.skipTest("Not supported in CentOS-based images")
+
+        self.createCluster(configuration, 
+                            self.INIT_ACTIONS, 
+                            optional_components=self.OPTIONAL_COMPONENTS,
+                            metadata=self.METADATA_exec_size + ",init-actions-repo=" + self.INIT_ACTIONS_REPO,
+                            machine_type="e2-standard-4",
                             boot_disk_size="500GB")
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),

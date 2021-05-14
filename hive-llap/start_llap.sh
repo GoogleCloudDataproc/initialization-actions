@@ -28,11 +28,18 @@ readonly NODE_MANAGER_vCPU=$(bdconfig get_property_value --configuration_file='/
 readonly NODE_MANAGER_MEMORY=$(bdconfig get_property_value --configuration_file='/etc/hadoop/conf/yarn-site.xml' --name yarn.nodemanager.resource.memory-mb)
 readonly YARN_MAX_CONTAINER_MEMORY=$(bdconfig get_property_value --configuration_file='/etc/hadoop/conf/yarn-site.xml' --name yarn.scheduler.maximum-allocation-mb)
 readonly NUM_LLAP_NODES=$(/usr/share/google/get_metadata_value attributes/num-llap-nodes)
+readonly EXECUTOR_SIZE=$(/usr/share/google/get_metadata_value attributes/exec_size_mb || echo 4096)
 
 ##start LLAP - Master Node
 function start_llap(){
-
+    
     if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
+
+        local llap_memory_allo=0
+        local llap_xmx=0
+        local llap_executors=0
+        local llap_headroom=0
+        local llap_instances=0
 
         echo "restart hive server prior..."
         sudo systemctl restart hive-server2.service 
@@ -42,63 +49,59 @@ function start_llap(){
 
         echo "Setting Parameters for LLAP start"
         
-        local LLAP_SIZE=$NODE_MANAGER_MEMORY
-        echo "LLAP daemon size: $LLAP_SIZE"
-
-        local LLAP_MEMORY_ALLO=0
-        local LLAP_XMX=0
-        local LLAP_EXECUTORS=0
+        local llap_size=$NODE_MANAGER_MEMORY
+        echo "LLAP daemon size: $llap_size"
 
         ###Get the number of exeuctors based on memory
         for ((i = 1; i <= $NODE_MANAGER_vCPU; i++)); do
-        LLAP_MEMORY_ALLO=$(($i * 4096))
-        if (( $LLAP_MEMORY_ALLO < $(expr $NODE_MANAGER_MEMORY - 6114) )); then
-            LLAP_EXECUTORS=$i
-            LLAP_XMX=$LLAP_MEMORY_ALLO
+        llap_memory_allo=$(($i * ${EXECUTOR_SIZE}))
+        if (( $llap_memory_allo < $(expr $NODE_MANAGER_MEMORY - 6114) )); then
+            llap_executors=$i
+            llap_xmx=$llap_memory_allo
         fi
         done
 
-        echo "LLAP executors: ${LLAP_EXECUTORS}"
-        echo "LLAP xmx memory: ${LLAP_XMX}"
+        echo "LLAP executors: ${llap_executors}"
+        echo "LLAP xmx memory: ${llap_xmx}"
 
         ### 6% of xmx or max 6GB for jvm headroom
-        LLAP_XMX_6=$(echo "scale=0;${LLAP_XMX}*.06" |bc)
-        LLAP_XMX_6_INT=${LLAP_XMX_6%.*}
+        local llap_xmx_6=$(echo "scale=0;${llap_xmx}*.06" |bc)
+        local llap_xmx_6_int=${llap_xmx_6%.*}
 
         ### jvm headroom for the llap executors
-        if  (( $LLAP_XMX_6_INT > 6144 )); then
-            LLAP_HEADROOM=6114; else
-            LLAP_HEADROOM=$LLAP_XMX_6_INT
+        if  (( $llap_xmx_6_int > 6144 )); then
+            llap_headroom=6114; else
+            llap_headroom=$llap_xmx_6_int
         fi
-        echo "LLAP daemon headroom: ${LLAP_HEADROOM}"
+        echo "LLAP daemon headroom: ${llap_headroom}"
 
         ##cache is whatever is left over after heardroom and executor memory is accounted for
-        local LLAP_CACHE=$(expr ${LLAP_SIZE} - ${LLAP_HEADROOM} - ${LLAP_XMX})
+        local llap_cache=$(expr ${llap_size} - ${llap_headroom} - ${llap_xmx})
 
 
         ##if there is no additional room, then no cache will be used
-        if (( $LLAP_CACHE < 0 )); then
-             LLAP_CACHE=0
+        if (( $llap_cache < 0 )); then
+             llap_cache=0
         fi
-        echo "LLAP in-memory cache: ${LLAP_CACHE}"
+        echo "LLAP in-memory cache: ${llap_cache}"
 
         ###keep one node in reserve for handling the duties of Tez AM
         ###if user didn't pass in num llap instances, take worker node count -1
         if [[ -z $NUM_LLAP_NODES ]]; then
-            LLAP_INSTANCES=$(expr ${WORKER_NODE_COUNT} - 1) 
+            llap_instances=$(expr ${WORKER_NODE_COUNT} - 1) 
         else
-            LLAP_INSTANCES=$NUM_LLAP_NODES
+            llap_instances=$NUM_LLAP_NODES
         fi 
 
-        echo "LLAP daemon instances: ${LLAP_INSTANCES}"
+        echo "LLAP daemon instances: ${llap_instances}"
 
         echo "Starting LLAP..."
         sudo -u hive hive --service llap \
-        --instances "${LLAP_INSTANCES}" \
-        --size "${LLAP_SIZE}"m \
-        --executors "${LLAP_EXECUTORS}" \
-        --xmx "${LLAP_XMX}"m \
-        --cache "${LLAP_CACHE}"m \
+        --instances "${llap_instances}" \
+        --size "${llap_size}"m \
+        --executors "${llap_executors}" \
+        --xmx "${llap_xmx}"m \
+        --cache "${llap_cache}"m \
         --name llap0 \
         --auxhbase=false \
         --directory /tmp/llap_staging \
