@@ -291,7 +291,7 @@ function configure_SSD_caching_worker(){
         echo "configure ssd hive-site params on workers"
         mkdir /mnt/1/llap
         chown hive:hive /mnt/1/llap
-        chmod 766 /mnt/1/llap
+        chmod 777 /mnt/1/llap
 
         bdconfig set_property \
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \

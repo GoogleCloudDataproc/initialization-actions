@@ -9,9 +9,10 @@ class LLAPTestCase(DataprocTestCase):
     COMPONENT = 'hive-llap'
     INIT_ACTIONS = ['hive-llap/llap.sh']
     TEST_SCRIPT_FILE_NAME = 'run_hive_commands.py'
+    ##llap requires zookeeper
     OPTIONAL_COMPONENTS = ["ZOOKEEPER"]
     ##need initaction repo bucket and the number of llap ndoes to deploy
-    METADATA="num-llap-nodes=1,init-actions-repo=gs://[]"
+    METADATA="num-llap-nodes=1,init-actions-repo=gs://jtaras-init-actions2"
 
 
     def verify_instance(self, name):
