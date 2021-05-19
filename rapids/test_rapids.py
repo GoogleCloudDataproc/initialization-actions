@@ -82,6 +82,9 @@ class RapidsTestCase(DataprocTestCase):
   def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
     if self.getImageOs() == 'centos':
       self.skipTest("Not supported in CentOS-based images")
+      
+    if self.getImageOs() == 'debian':
+      self.skipTest("Not supported in Debian-based images")
 
     if self.getImageVersion() <= pkg_resources.parse_version("1.4"):
       self.skipTest("Not supported in pre 1.5 images")
