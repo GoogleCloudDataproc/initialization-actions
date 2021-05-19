@@ -13,7 +13,7 @@ class LLAPTestCase(DataprocTestCase):
     OPTIONAL_COMPONENTS = ["ZOOKEEPER"]
     ##need initaction repo bucket and the number of llap ndoes to deploy
     METADATA_num_executors="num-llap-nodes=1"
-    METADATA_exec_size="exec_size_mb=1000"
+    METADATA_exec_size_mb='exec_size_mb=1000'
 
 
     def verify_instance(self, name):
@@ -57,7 +57,7 @@ class LLAPTestCase(DataprocTestCase):
         self.createCluster(configuration, 
                             self.INIT_ACTIONS, 
                             optional_components=self.OPTIONAL_COMPONENTS,
-                            metadata=self.METADATA_num_executors + ",init-actions-repo=" + self.INIT_ACTIONS_REPO,
+                            metadata="init-actions-repo=" + self.INIT_ACTIONS_REPO + "," + self.METADATA_num_executors,
                             machine_type="e2-standard-4",
                             boot_disk_size="500GB")
         for machine_suffix in machine_suffixes:
@@ -75,7 +75,7 @@ class LLAPTestCase(DataprocTestCase):
         self.createCluster(configuration, 
                             self.INIT_ACTIONS, 
                             optional_components=self.OPTIONAL_COMPONENTS,
-                            metadata=self.METADATA_exec_size + ",init-actions-repo=" + self.INIT_ACTIONS_REPO,
+                            metadata="init-actions-repo=" + self.INIT_ACTIONS_REPO + "," + self.METADATA_num_executors + "," + self.METADATA_exec_size_mb,
                             machine_type="e2-standard-4",
                             boot_disk_size="500GB")
         for machine_suffix in machine_suffixes:
