@@ -47,8 +47,8 @@ class LLAPTestCase(DataprocTestCase):
                                                 machine_suffix))
 
     @parameterized.parameters(
-    ("STANDARD", ["m"]),
-    ("HA", ["m-0"]))
+        ("STANDARD", ["m"]),
+        ("HA", ["m-0"]))
 
     def test_llap_num_exec(self, configuration, machine_suffixes):
         if self.getImageOs() == 'centos':
@@ -65,8 +65,8 @@ class LLAPTestCase(DataprocTestCase):
                                                 machine_suffix))
 
     @parameterized.parameters(
-    ("STANDARD", ["m"]),
-    ("HA", ["m-0"]))
+        ("STANDARD", ["m"]),
+        ("HA", ["m-0"]))
 
     def test_llap_exec_size(self, configuration, machine_suffixes):
         if self.getImageOs() == 'centos':
