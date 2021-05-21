@@ -46,7 +46,7 @@ function pre_flight_checks(){
     fi
 }
 
-#add xml doc tool for editing hadoop configuration files
+#modify yarn-site.xml buy adjusting the classpath
 function configure_yarn_site(){
     echo "configure yarn-site.xml..."
 
