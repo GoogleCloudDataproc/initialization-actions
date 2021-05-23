@@ -36,8 +36,8 @@ CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.0')
 readonly CUDA_VERSION
 
 # Parameters for NVIDIA-provided Debian GPU driver
-readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='460.56'
-readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL="https://us.download.nvidia.com/XFree86/Linux-x86_64/${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}.run"
+readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='465.31'
+readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}.run"
 NVIDIA_DEBIAN_GPU_DRIVER_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL}")
 readonly NVIDIA_DEBIAN_GPU_DRIVER_URL
 
@@ -57,11 +57,14 @@ readonly NVIDIA_UBUNTU_REPOSITORY_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/ubuntu18
 readonly NVIDIA_UBUNTU_REPOSITORY_KEY="${NVIDIA_UBUNTU_REPOSITORY_URL}/7fa2af80.pub"
 readonly NVIDIA_UBUNTU_REPOSITORY_CUDA_PIN="${NVIDIA_UBUNTU_REPOSITORY_URL}/cuda-ubuntu1804.pin"
 
+# Parameter for NVIDIA-provided Centos GPU driver
+readonly NVIDIA_CENTOS_REPOSITORY_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/rhel8/x86_64/cuda-rhel8.repo"
+
 # Parameters for NVIDIA-provided NCCL library
 readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb"
 NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
 readonly NCCL_REPO_URL
-NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.7.8')
+NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.8.4')
 readonly NCCL_VERSION
 
 # Parameters for NVIDIA-provided CUDNN library
@@ -96,26 +99,42 @@ function execute_with_retries() {
 }
 
 function install_nvidia_nccl() {
-  local tmp_dir
-  tmp_dir=$(mktemp -d -t gpu-init-action-nccl-XXXX)
-
-  curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-    "${NCCL_REPO_URL}" -o "${tmp_dir}/nvidia-ml-repo.deb"
-  dpkg -i "${tmp_dir}/nvidia-ml-repo.deb"
-
-  execute_with_retries "apt-get update"
-
   local -r nccl_version="${NCCL_VERSION}-1+cuda${CUDA_VERSION}"
-  execute_with_retries \
-    "apt-get install -y --allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
+
+  if [[ ${OS_NAME} == centos ]]; then
+    execute_with_retries "dnf -y -q install libnccl-${nccl_version} libnccl-devel-${nccl_version} libnccl-static-${nccl_version}"
+  elif [[ ${OS_NAME} == ubuntu ]] || [[ ${OS_NAME} == debian ]]; then
+    local tmp_dir
+    tmp_dir=$(mktemp -d -t gpu-init-action-nccl-XXXX)
+
+    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+      "${NCCL_REPO_URL}" -o "${tmp_dir}/nvidia-ml-repo.deb"
+    dpkg -i "${tmp_dir}/nvidia-ml-repo.deb"
+
+    execute_with_retries "apt-get update"
+
+    execute_with_retries \
+      "apt-get install -y --allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
+  else 
+    echo "Unsupported OS: '${OS_NAME}'"
+    exit 1
+  fi
 }
 
 function install_nvidia_cudnn() {
-  if [[ ${OS_NAME} == ubuntu ]]; then
-    local major_version
-    major_version="${CUDNN_VERSION%%.*}"
-    local cudnn_pkg_version
-    cudnn_pkg_version="${CUDNN_VERSION}-1+cuda${CUDA_VERSION}"
+  local major_version
+  major_version="${CUDNN_VERSION%%.*}"
+  local cudnn_pkg_version
+  cudnn_pkg_version="${CUDNN_VERSION}-1+cuda${CUDA_VERSION}"
+
+  if [[ ${OS_NAME} == centos ]]; then
+    if [[ ${major_version} == 8 ]]; then
+      execute_with_retries "dnf -y -q install libcudnn8-${cudnn_pkg_version} libcudnn8-devel-${cudnn_pkg_version}"
+    else
+      echo "Unsupported CUDNN version: '${CUDNN_VERSION}'"
+      exit 1
+    fi      
+  elif [[ ${OS_NAME} == ubuntu ]]; then
     local -a packages
     packages=(
       "libcudnn${major_version}=${cudnn_pkg_version}"
@@ -143,9 +162,9 @@ EOF
 
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
-  curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-    "${NVIDIA_UBUNTU_REPOSITORY_KEY}" | apt-key add -
   if [[ ${OS_NAME} == debian ]]; then
+    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    "${NVIDIA_UBUNTU_REPOSITORY_KEY}" | apt-key add -
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${NVIDIA_DEBIAN_GPU_DRIVER_URL}" -o driver.run
     bash "./driver.run" --silent --install-libglvnd
@@ -154,6 +173,8 @@ function install_nvidia_gpu_driver() {
       "${NVIDIA_DEBIAN_CUDA_URL}" -o cuda.run
     bash "./cuda.run" --silent --toolkit --no-opengl-libs
   elif [[ ${OS_NAME} == ubuntu ]]; then
+    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    "${NVIDIA_UBUNTU_REPOSITORY_KEY}" | apt-key add -
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${NVIDIA_UBUNTU_REPOSITORY_CUDA_PIN}" -o /etc/apt/preferences.d/cuda-repository-pin-600
 
@@ -167,7 +188,12 @@ function install_nvidia_gpu_driver() {
     fi
     # Without --no-install-recommends this takes a very long time.
     execute_with_retries "apt-get install -y -q --no-install-recommends ${cuda_package}"
-  else
+  elif [[ ${OS_NAME} == centos ]]; then
+    execute_with_retries "dnf config-manager --add-repo ${NVIDIA_CENTOS_REPOSITORY_URL}"
+    execute_with_retries "dnf clean all"
+    execute_with_retries "dnf -y -q module install nvidia-driver:460-dkms"
+    execute_with_retries "dnf -y -q install cuda-${CUDA_VERSION//./-}"
+  else 
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
   fi
@@ -360,14 +386,21 @@ function configure_gpu_isolation() {
 }
 
 function main() {
-  if [[ ${OS_NAME} != debian ]] && [[ ${OS_NAME} != ubuntu ]]; then
+  if [[ ${OS_NAME} != debian ]] && [[ ${OS_NAME} != ubuntu ]] && [[ ${OS_NAME} != centos ]]; then
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
   fi
-
-  export DEBIAN_FRONTEND=noninteractive
-  execute_with_retries "apt-get update"
-  execute_with_retries "apt-get install -y -q pciutils"
+  
+  if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
+    export DEBIAN_FRONTEND=noninteractive
+    execute_with_retries "apt-get update"
+    execute_with_retries "apt-get install -y -q pciutils"
+  elif [[ ${OS_NAME} == centos ]] ; then
+    execute_with_retries "dnf -y -q update"
+    execute_with_retries "dnf -y -q install pciutils"
+    execute_with_retries "dnf -y -q install kernel-devel"
+    execute_with_retries "dnf -y -q install gcc"
+  fi 
 
   # This configuration should be ran on all nodes
   # regardless if they have attached GPUs
@@ -377,8 +410,10 @@ function main() {
   if (lspci | grep -q NVIDIA); then
     configure_yarn_nodemanager
     configure_gpu_isolation
-
-    execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
+    
+    if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
+      execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
+    fi
 
     if [[ ${GPU_DRIVER_PROVIDER} == 'NVIDIA' ]]; then
       install_nvidia_gpu_driver
