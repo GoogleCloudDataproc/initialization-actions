@@ -36,7 +36,7 @@ CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.0')
 readonly CUDA_VERSION
 
 # Parameters for NVIDIA-provided Debian GPU driver
-readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='465.31'
+readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='460.56'
 readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}.run"
 NVIDIA_DEBIAN_GPU_DRIVER_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL}")
 readonly NVIDIA_DEBIAN_GPU_DRIVER_URL
@@ -115,7 +115,7 @@ function install_nvidia_nccl() {
 
     execute_with_retries \
       "apt-get install -y --allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
-  else 
+  else
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
   fi
@@ -133,7 +133,7 @@ function install_nvidia_cudnn() {
     else
       echo "Unsupported CUDNN version: '${CUDNN_VERSION}'"
       exit 1
-    fi      
+    fi
   elif [[ ${OS_NAME} == ubuntu ]]; then
     local -a packages
     packages=(
@@ -193,7 +193,7 @@ function install_nvidia_gpu_driver() {
     execute_with_retries "dnf clean all"
     execute_with_retries "dnf -y -q module install nvidia-driver:460-dkms"
     execute_with_retries "dnf -y -q install cuda-${CUDA_VERSION//./-}"
-  else 
+  else
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
   fi
@@ -390,7 +390,7 @@ function main() {
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
   fi
-  
+
   if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
     export DEBIAN_FRONTEND=noninteractive
     execute_with_retries "apt-get update"
@@ -400,7 +400,7 @@ function main() {
     execute_with_retries "dnf -y -q install pciutils"
     execute_with_retries "dnf -y -q install kernel-devel"
     execute_with_retries "dnf -y -q install gcc"
-  fi 
+  fi
 
   # This configuration should be ran on all nodes
   # regardless if they have attached GPUs
@@ -410,7 +410,7 @@ function main() {
   if (lspci | grep -q NVIDIA); then
     configure_yarn_nodemanager
     configure_gpu_isolation
-    
+
     if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
       execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
     fi
