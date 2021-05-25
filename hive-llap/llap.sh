@@ -66,7 +66,7 @@ function configure_yarn_site(){
 }
 
 function download_init_actions() {
-    # Download initialization actions locally. Check if metadata is supplied
+    # Download initialization actions locally. This will download the start_llap.sh file to the cluster for execution Check if metadata is supplied
     echo "downalod init actions supplied as metadata..."
     mkdir -p "${INIT_ACTIONS_DIR}"
     gsutil cp "${INIT_ACTIONS_REPO}/hive-llap/start_llap.sh" "${INIT_ACTIONS_DIR}"
