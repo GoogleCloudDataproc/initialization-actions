@@ -31,10 +31,6 @@ readonly OS_DIST
 ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly ROLE
 
-# CUDA Version
-CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.0')
-readonly CUDA_VERSION
-
 # Parameters for NVIDIA-provided Debian GPU driver
 readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='460.56'
 readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}.run"
@@ -42,6 +38,21 @@ NVIDIA_DEBIAN_GPU_DRIVER_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAUL
 readonly NVIDIA_DEBIAN_GPU_DRIVER_URL
 
 readonly NVIDIA_BASE_DL_URL='https://developer.download.nvidia.com/compute'
+
+# CUDA Version
+CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.0')
+readonly CUDA_VERSION
+
+# Parameters for NVIDIA-provided NCCL library
+readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb"
+NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
+readonly NCCL_REPO_URL
+if [[ "$(echo "$DATAPROC_VERSION >= 2.0" | bc)" -eq 1 ]]; then
+  NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.8.4')
+else
+  NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.7.8')
+fi
+readonly NCCL_VERSION
 
 readonly -A DEFAULT_NVIDIA_DEBIAN_CUDA_URLS=(
   [10.1]="${NVIDIA_BASE_DL_URL}/cuda/10.1/Prod/local_installers/cuda_10.1.243_418.87.00_linux.run"
@@ -59,13 +70,6 @@ readonly NVIDIA_UBUNTU_REPOSITORY_CUDA_PIN="${NVIDIA_UBUNTU_REPOSITORY_URL}/cuda
 
 # Parameter for NVIDIA-provided Centos GPU driver
 readonly NVIDIA_CENTOS_REPOSITORY_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/rhel8/x86_64/cuda-rhel8.repo"
-
-# Parameters for NVIDIA-provided NCCL library
-readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb"
-NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
-readonly NCCL_REPO_URL
-NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.8.4')
-readonly NCCL_VERSION
 
 # Parameters for NVIDIA-provided CUDNN library
 readonly CUDNN_VERSION=$(get_metadata_attribute 'cudnn-version' '')
