@@ -32,7 +32,7 @@ ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly ROLE
 
 # Parameters for NVIDIA-provided Debian GPU driver
-readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='460.73.01'
+readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='460.56'
 readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}.run"
 NVIDIA_DEBIAN_GPU_DRIVER_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL}")
 readonly NVIDIA_DEBIAN_GPU_DRIVER_URL
