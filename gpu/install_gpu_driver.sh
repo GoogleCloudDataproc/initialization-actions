@@ -32,7 +32,7 @@ ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly ROLE
 
 # Parameters for NVIDIA-provided Debian GPU driver
-readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='460.56'
+readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='460.73.01'
 readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}.run"
 NVIDIA_DEBIAN_GPU_DRIVER_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL}")
 readonly NVIDIA_DEBIAN_GPU_DRIVER_URL
@@ -186,11 +186,12 @@ function install_nvidia_gpu_driver() {
     execute_with_retries "apt-get update"
 
     if [[ -n "${CUDA_VERSION}" ]]; then
-      local -r cuda_package=cuda-${CUDA_VERSION//./-}
+      local -r cuda_package=cuda-toolkit-${CUDA_VERSION//./-}
     else
-      local -r cuda_package=cuda
+      local -r cuda_package=cuda-toolkit
     fi
     # Without --no-install-recommends this takes a very long time.
+    execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-460"
     execute_with_retries "apt-get install -y -q --no-install-recommends ${cuda_package}"
   elif [[ ${OS_NAME} == centos ]]; then
     execute_with_retries "dnf config-manager --add-repo ${NVIDIA_CENTOS_REPOSITORY_URL}"
