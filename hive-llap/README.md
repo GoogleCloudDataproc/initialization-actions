@@ -50,7 +50,7 @@ unzip 202008-citibike-tripdata.csv.zip
 hdfs dfs -put 202008-citibike-tripdata.csv /tmp
 ```
 
-Use beeline to connect to hive to run test queries on the downloaded data. These tests will demonstrate simple queries on data with LLAP as well as issuing ACID transactions on the data. 
+Use beeline to connect to hive to run test queries on the downloaded data. 
 
 For non-ha deployments:
 
@@ -64,6 +64,8 @@ For HA deployments:
 beeline -u "jdbc:hive2://[cluster master node 0]:2181,[cluster master node 1]:2181,[cluster master node 2]:2181/;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2-interactive"
 
 ```
+
+These tests will demonstrate simple queries on data with LLAP as well as issuing ACID transactions on the data.
 
 set hive.tez.exec.print.summary=true  will provide statistics on the effectiveness of LLAP as you run queries on the data. This is important when looking at metrics like cache hit rate. 
 
