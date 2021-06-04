@@ -206,78 +206,6 @@ function install_nvidia_gpu_driver() {
   echo "NVIDIA GPU driver provided by NVIDIA was installed successfully"
 }
 
-# Install NVIDIA GPU driver provided by OS distribution
-function install_os_gpu_driver() {
-  local packages=(nvidia-cuda-toolkit)
-  local modules=(nvidia-drm nvidia-uvm drm)
-
-  # Add non-free Debian packages.
-  # See https://www.debian.org/distrib/packages#note
-  if [[ ${OS_NAME} == debian ]]; then
-    for type in deb deb-src; do
-      for distro in ${OS_DIST} ${OS_DIST}-backports; do
-        echo "${type} http://deb.debian.org/debian ${distro} contrib non-free" \
-          >>/etc/apt/sources.list.d/non-free.list
-      done
-    done
-
-    packages+=(nvidia-driver nvidia-kernel-common nvidia-smi)
-    modules+=(nvidia-current)
-    local -r nvblas_cpu_blas_lib=/usr/lib/libblas.so
-  elif [[ ${OS_NAME} == ubuntu ]]; then
-    local nvidia_driver_version_ubuntu
-    nvidia_driver_version_ubuntu=$(apt list 2>/dev/null | grep -E "^nvidia-driver-[0-9]+/" |
-      cut -d/ -f1 | sort | tail -n1 | cut -d- -f3)
-    # Ubuntu-specific NVIDIA driver packages and modules
-    packages+=(
-      "nvidia-driver-${nvidia_driver_version_ubuntu}"
-      "nvidia-kernel-common-${nvidia_driver_version_ubuntu}")
-    modules+=(nvidia)
-    local -r nvblas_cpu_blas_lib=/usr/lib/x86_64-linux-gnu/libblas.so
-  else
-    echo "Unsupported OS: '${OS_NAME}'"
-    exit 1
-  fi
-
-  # Install proprietary NVIDIA drivers and CUDA
-  # See https://wiki.debian.org/NvidiaGraphicsDrivers
-  # Without --no-install-recommends this takes a very long time.
-  execute_with_retries "apt-get update"
-  execute_with_retries \
-    "apt-get install -y -q -t ${OS_DIST}-backports --no-install-recommends ${packages[*]}"
-
-  # Create a system wide NVBLAS config
-  # See http://docs.nvidia.com/cuda/nvblas/
-  local -r nvblas_config_file=/etc/nvidia/nvblas.conf
-  # Create config file if it does not exist - this file doesn't exist by default in Ubuntu
-  mkdir -p "$(dirname ${nvblas_config_file})"
-  cat <<EOF >>${nvblas_config_file}
-# Insert here the CPU BLAS fallback library of your choice.
-# The standard libblas.so.3 defaults to OpenBLAS, which does not have the
-# requisite CBLAS API.
-NVBLAS_CPU_BLAS_LIB ${nvblas_cpu_blas_lib}
-# Use all GPUs
-NVBLAS_GPU_LIST ALL
-# Add more configuration here.
-EOF
-  echo "NVBLAS_CONFIG_FILE=${nvblas_config_file}" >>/etc/environment
-
-  # Rebooting during an initialization action is not recommended, so just
-  # dynamically load kernel modules. If you want to run an X server, it is
-  # recommended that you schedule a reboot to occur after the initialization
-  # action finishes.
-  modprobe -r nouveau
-  modprobe "${modules[@]}"
-
-  # Restart any NodeManagers, so they pick up the NVBLAS config.
-  if systemctl status hadoop-yarn-nodemanager; then
-    # Kill Node Manager to prevent unregister/register cycle
-    systemctl kill -s KILL hadoop-yarn-nodemanager
-  fi
-
-  echo "NVIDIA GPU driver provided by ${OS_NAME} was installed successfully"
-}
-
 # Collects 'gpu_utilization' and 'gpu_memory_utilization' metrics
 function install_gpu_agent() {
   if ! command -v pip; then
@@ -420,19 +348,13 @@ function main() {
       execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
     fi
 
-    if [[ ${GPU_DRIVER_PROVIDER} == 'NVIDIA' ]]; then
-      install_nvidia_gpu_driver
-      if [[ -n ${CUDNN_VERSION} ]]; then
-        install_nvidia_nccl
-        install_nvidia_cudnn
-      fi
-    elif [[ ${GPU_DRIVER_PROVIDER} == 'OS' ]]; then
-      install_os_gpu_driver
-    else
-      echo "Unsupported GPU driver provider: '${GPU_DRIVER_PROVIDER}'"
-      exit 1
-    fi
 
+    install_nvidia_gpu_driver
+    if [[ -n ${CUDNN_VERSION} ]]; then
+      install_nvidia_nccl
+      install_nvidia_cudnn
+    fi
+    
     # Install GPU metrics collection in Stackdriver if needed
     if [[ ${INSTALL_GPU_AGENT} == true ]]; then
       install_gpu_agent
