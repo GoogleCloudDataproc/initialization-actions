@@ -4,7 +4,7 @@ test_suite(
     name = "DataprocInitActionsTestSuite",
     tests = [
         ":test_cloud_sql_proxy",
-        "//hive-llap:test_hive_llap",
+        ":test_hive_llap",
         ":test_dr_elephant",
         ":test_hive_hcatalog",
         ":test_starburst_presto",
@@ -40,6 +40,20 @@ test_suite(
         "//tony:test_tony",
     ],
 )
+
+py_test(
+    name = "test_hive_llap",
+    size = "large",
+    srcs = ["//hive-llap/test_hive_llap.py","//hive-llap/run_hive_commands.py"],
+    data = ["//hive-llap/llap.sh","//hive-llap/start_llap.sh"],
+    local = True,
+    shard_count = 6,
+    deps = [
+        "//integration_tests:dataproc_test_case",
+        "@io_abseil_py//absl/testing:parameterized",
+    ],
+)
+
 
 py_test(
     name = "test_cloud_sql_proxy",
