@@ -24,8 +24,6 @@ function get_metadata_attribute() {
 
 OS_NAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
 readonly OS_NAME
-OS_DIST=$(lsb_release -cs)
-readonly OS_DIST
 
 # Dataproc role
 ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
@@ -347,7 +345,6 @@ function main() {
     if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
       execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
     fi
-
 
     install_nvidia_gpu_driver
     if [[ -n ${CUDNN_VERSION} ]]; then
