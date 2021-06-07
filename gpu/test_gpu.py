@@ -24,7 +24,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   @parameterized.parameters(
       ("SINGLE", ["m"], GPU_V100, None, None),
       ("STANDARD", ["m"], GPU_V100, None, None),
-      ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "OS"),
+      ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "NVIDIA"),
       ("STANDARD", ["w-0", "w-1"], None, GPU_V100, "NVIDIA"),
   )
   def test_install_gpu_default_agent(self, configuration, machine_suffixes,
@@ -50,7 +50,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
   @parameterized.parameters(
       ("STANDARD", ["w-0", "w-1"], None, GPU_V100, None),
-      ("STANDARD", ["m"], GPU_V100, None, "OS"),
+      ("STANDARD", ["m"], GPU_V100, None, "NVIDIA"),
       ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "NVIDIA"),
   )
   def test_install_gpu_without_agent(self, configuration, machine_suffixes,
@@ -76,7 +76,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
   @parameterized.parameters(
       ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, None),
-      ("STANDARD", ["w-0", "w-1"], None, GPU_V100, "OS"),
+      ("STANDARD", ["w-0", "w-1"], None, GPU_V100, "NVIDIA"),
       ("STANDARD", ["m"], GPU_V100, None, "NVIDIA"),
   )
   def test_install_gpu_with_agent(self, configuration, machine_suffixes,
