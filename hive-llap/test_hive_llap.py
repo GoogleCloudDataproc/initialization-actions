@@ -36,6 +36,9 @@ class LLAPTestCase(DataprocTestCase):
         if self.getImageOs() == 'centos':
             self.skipTest("Not supported in CentOS-based images")
 
+        if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+            self.skipTest("Hive LLAP only supported on Dataproc 2.0+")
+
         self.createCluster(configuration, 
                             self.INIT_ACTIONS, 
                             optional_components=self.OPTIONAL_COMPONENTS,
