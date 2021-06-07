@@ -27,10 +27,10 @@ class LLAPTestCase(DataprocTestCase):
     def __run_test_script(self, name):
         self.assert_instance_command(
             name, "python {}".format(self.TEST_SCRIPT_FILE_NAME))
+
     @parameterized.parameters(
         ("HA", ["m-0"]),
         ("STANDARD", ["m"]))
-
     def test_llap(self, configuration, machine_suffixes):
         if self.getImageOs() == 'centos':
             self.skipTest("Not supported in CentOS-based images")
@@ -47,10 +47,10 @@ class LLAPTestCase(DataprocTestCase):
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
+
     @parameterized.parameters(
         ("STANDARD", ["m"]),
         ("HA", ["m-0"]))
-
     def test_llap_num_exec(self, configuration, machine_suffixes):
         if self.getImageOs() == 'centos':
             self.skipTest("Not supported in CentOS-based images")
@@ -67,10 +67,10 @@ class LLAPTestCase(DataprocTestCase):
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
+
     @parameterized.parameters(
         ("STANDARD", ["m"]),
         ("HA", ["m-0"]))
-
     def test_llap_exec_size(self, configuration, machine_suffixes):
         if self.getImageOs() == 'centos':
             self.skipTest("Not supported in CentOS-based images")
@@ -87,7 +87,6 @@ class LLAPTestCase(DataprocTestCase):
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
-
 
 if __name__ == '__main__':
     absltest.main()
