@@ -27,7 +27,6 @@ class LLAPTestCase(DataprocTestCase):
     def __run_test_script(self, name):
         self.assert_instance_command(
             name, "python {}".format(self.TEST_SCRIPT_FILE_NAME))
-
     @parameterized.parameters(
         ("HA", ["m-0"]),
         ("STANDARD", ["m"]))
@@ -48,7 +47,6 @@ class LLAPTestCase(DataprocTestCase):
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
-
     @parameterized.parameters(
         ("STANDARD", ["m"]),
         ("HA", ["m-0"]))
@@ -56,6 +54,9 @@ class LLAPTestCase(DataprocTestCase):
     def test_llap_num_exec(self, configuration, machine_suffixes):
         if self.getImageOs() == 'centos':
             self.skipTest("Not supported in CentOS-based images")
+
+        if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+            self.skipTest("Hive LLAP only supported on Dataproc 2.0+")
 
         self.createCluster(configuration, 
                             self.INIT_ACTIONS, 
@@ -66,7 +67,6 @@ class LLAPTestCase(DataprocTestCase):
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
-
     @parameterized.parameters(
         ("STANDARD", ["m"]),
         ("HA", ["m-0"]))
@@ -74,6 +74,9 @@ class LLAPTestCase(DataprocTestCase):
     def test_llap_exec_size(self, configuration, machine_suffixes):
         if self.getImageOs() == 'centos':
             self.skipTest("Not supported in CentOS-based images")
+
+        if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+            self.skipTest("Hive LLAP only supported on Dataproc 2.0+")
 
         self.createCluster(configuration, 
                             self.INIT_ACTIONS, 
