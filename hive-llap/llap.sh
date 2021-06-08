@@ -54,10 +54,10 @@ function configure_yarn_site(){
 
     # append new paths to the yarn.application.classpath
     bdconfig set_property \
-    --configuration_file "/etc/hadoop/conf/yarn-site.xml" \
-    --name "yarn.application.classpath" \
-    --value "${yarnappclasspath},/usr/local/share/google/dataproc/lib/*,/usr/lib/hadoop/*,/usr/lib/hadoop/lib/*,/usr/lib/hadoop-hdfs/*,/usr/lib/hadoop-hdfs/lib/*,/usr/lib/hadoop-yarn/*,/usr/lib/hadoop-yarn/lib/*,/usr/lib/tez/*,/usr/lib/tez/lib/*" \
-    --clobber
+        --configuration_file "/etc/hadoop/conf/yarn-site.xml" \
+        --name "yarn.application.classpath" \
+        --value "${yarnappclasspath},/usr/local/share/google/dataproc/lib/*,/usr/lib/hadoop/*,/usr/lib/hadoop/lib/*,/usr/lib/hadoop-hdfs/*,/usr/lib/hadoop-hdfs/lib/*,/usr/lib/hadoop-yarn/*,/usr/lib/hadoop-yarn/lib/*,/usr/lib/tez/*,/usr/lib/tez/lib/*" \
+        --clobber
 
     # Ensure that the max container memory 
     if [[ "${NODE_MANAGER_MEMORY}" != "${YARN_MAX_CONTAINER_MEMORY}" ]]; then
