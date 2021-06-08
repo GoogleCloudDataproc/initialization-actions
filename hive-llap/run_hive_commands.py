@@ -1,7 +1,7 @@
 import subprocess
 def create_commands_file():
     with open("commands.sql", "w+") as file:
-        ###create dummy table and populate with test data locally on the master node 0
+        # create dummy table and populate with test data locally on the master node 0
         file.write("use default;\n"
                     "show tables;\n"
                     "create table test (a int, b string) STORED AS ORC TBLPROPERTIES (\"transactional\"=\"true\");\n"

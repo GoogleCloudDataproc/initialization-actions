@@ -15,9 +15,9 @@
 #    limitations under the License.
 
 
-###This script is for users that want to use the start/stop functionality with Dataproc. This
-###script will automatically restart LLAP with the same configuration as previously. This script must be 
-###run on the primary master node (0)
+# This script is for users that want to use the start/stop functionality with Dataproc. This
+# script will automatically restart LLAP with the same configuration as previously. This script must be 
+# run on the primary master node (0)
 
 
 set -euxo pipefail
@@ -30,7 +30,7 @@ readonly YARN_MAX_CONTAINER_MEMORY=$(bdconfig get_property_value --configuration
 readonly NUM_LLAP_NODES=$(/usr/share/google/get_metadata_value attributes/num-llap-nodes)
 readonly EXECUTOR_SIZE=$(/usr/share/google/get_metadata_value attributes/exec_size_mb || echo 4096)
 
-##start LLAP - Master Node
+# start LLAP - Master Node
 function start_llap(){
     
     if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
@@ -52,41 +52,41 @@ function start_llap(){
         local llap_size=$NODE_MANAGER_MEMORY
         echo "LLAP daemon size: $llap_size"
 
-        ###Get the number of exeuctors based on memory
+        # Get the number of exeuctors based on memory
         for ((i = 1; i <= $NODE_MANAGER_vCPU; i++)); do
-        llap_memory_allo=$(($i * ${EXECUTOR_SIZE}))
-        if (( $llap_memory_allo < $(expr $NODE_MANAGER_MEMORY - 6114) )); then
-            llap_executors=$i
-            llap_xmx=$llap_memory_allo
-        fi
+            llap_memory_allo=$(($i * ${EXECUTOR_SIZE}))
+            if (( $llap_memory_allo < $(expr $NODE_MANAGER_MEMORY - 6114) )); then
+                llap_executors=$i
+                llap_xmx=$llap_memory_allo
+            fi
         done
 
         echo "LLAP executors: ${llap_executors}"
         echo "LLAP xmx memory: ${llap_xmx}"
 
-        ### 6% of xmx or max 6GB for jvm headroom
+        # 6% of xmx or max 6GB for jvm headroom
         local llap_xmx_6=$(echo "scale=0;${llap_xmx}*.06" |bc)
         local llap_xmx_6_int=${llap_xmx_6%.*}
 
-        ### jvm headroom for the llap executors
+        # jvm headroom for the llap executors
         if  (( $llap_xmx_6_int > 6144 )); then
             llap_headroom=6114; else
             llap_headroom=$llap_xmx_6_int
         fi
         echo "LLAP daemon headroom: ${llap_headroom}"
 
-        ##cache is whatever is left over after heardroom and executor memory is accounted for
+        # cache is whatever is left over after heardroom and executor memory is accounted for
         local llap_cache=$(expr ${llap_size} - ${llap_headroom} - ${llap_xmx})
 
 
-        ##if there is no additional room, then no cache will be used
+        # if there is no additional room, then no cache will be used
         if (( $llap_cache < 0 )); then
              llap_cache=0
         fi
         echo "LLAP in-memory cache: ${llap_cache}"
 
-        ###keep one node in reserve for handling the duties of Tez AM
-        ###if user didn't pass in num llap instances, take worker node count -1
+        # keep one node in reserve for handling the duties of Tez AM
+        # if user didn't pass in num llap instances, take worker node count -1
         if [[ -z $NUM_LLAP_NODES ]]; then
             llap_instances=$(expr ${WORKER_NODE_COUNT} - 1) 
         else
@@ -97,17 +97,17 @@ function start_llap(){
 
         echo "Starting LLAP..."
         sudo -u hive hive --service llap \
-        --instances "${llap_instances}" \
-        --size "${llap_size}"m \
-        --executors "${llap_executors}" \
-        --xmx "${llap_xmx}"m \
-        --cache "${llap_cache}"m \
-        --name llap0 \
-        --auxhbase=false \
-        --directory /tmp/llap_staging \
-        --output /tmp/llap_output \
-        --loglevel INFO \
-        --startImmediately
+            --instances "${llap_instances}" \
+            --size "${llap_size}"m \
+            --executors "${llap_executors}" \
+            --xmx "${llap_xmx}"m \
+            --cache "${llap_cache}"m \
+            --name llap0 \
+            --auxhbase=false \
+            --directory /tmp/llap_staging \
+            --output /tmp/llap_output \
+            --loglevel INFO \
+            --startImmediately
     fi
 }
 

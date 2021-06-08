@@ -46,13 +46,13 @@ function pre_flight_checks(){
     fi
 }
 
-#modify yarn-site.xml buy adjusting the classpath
+# modify yarn-site.xml buy adjusting the classpath
 function configure_yarn_site(){
     echo "configure yarn-site.xml..."
 
     local yarnappclasspath="$(bdconfig get_property_value --configuration_file='/etc/hadoop/conf/yarn-site.xml' --name yarn.application.classpath)"
 
-    ###append new paths to the yarn.application.classpath
+    # append new paths to the yarn.application.classpath
     bdconfig set_property \
     --configuration_file "/etc/hadoop/conf/yarn-site.xml" \
     --name "yarn.application.classpath" \
@@ -73,107 +73,107 @@ function download_init_actions() {
     chmod 700 "${INIT_ACTIONS_DIR}/start_llap.sh"
 }
 
-### add configurations to hive-site for LLAP
+# add configurations to hive-site for LLAP
 function configure_hive_site(){
 
     # different configuration if HA
     echo "configure hive-site.xml...."
 
     bdconfig set_property \
-    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-    --name 'hive.llap.daemon.service.hosts' --value '@llap0' \
-    --clobber
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.llap.daemon.service.hosts' --value '@llap0' \
+        --clobber
     bdconfig set_property \
-    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-    --name 'hive.server2.zookeeper.namespace' --value 'hiveserver2-interactive' \
-    --clobber
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.server2.zookeeper.namespace' --value 'hiveserver2-interactive' \
+        --clobber
     bdconfig set_property \
-    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-    --name 'hive.execution.mode' --value 'llap' \
-    --clobber
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.execution.mode' --value 'llap' \
+        --clobber
     bdconfig set_property \
-    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-    --name 'hive.llap.execution.mode' --value 'only' \
-    --clobber
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.llap.execution.mode' --value 'only' \
+        --clobber
     bdconfig set_property \
-    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-    --name 'hive.llap.io.enabled' --value 'true' \
-    --clobber
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.llap.io.enabled' --value 'true' \
+        --clobber
     bdconfig set_property \
-    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-    --name 'hive.server2.enable.doAs' --value 'false' \
-    --clobber
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.server2.enable.doAs' --value 'false' \
+        --clobber
     bdconfig set_property \
-    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-    --name 'hive.txn.manager' --value 'org.apache.hadoop.hive.ql.lockmgr.DbTxnManager' \
-    --clobber
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.txn.manager' --value 'org.apache.hadoop.hive.ql.lockmgr.DbTxnManager' \
+        --clobber
     bdconfig set_property \
-    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-    --name 'hive.support.concurrency' --value 'true' \
-    --clobber
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.support.concurrency' --value 'true' \
+        --clobber
     bdconfig set_property \
-    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-    --name 'hive.llap.io.allocator.alloc.min' --value '256Kb' \
-    --clobber
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.llap.io.allocator.alloc.min' --value '256Kb' \
+        --clobber
     bdconfig set_property \
-    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-    --name 'hive.compactor.initiator.on' --value 'true' \
-    --clobber
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.compactor.initiator.on' --value 'true' \
+        --clobber
     bdconfig set_property \
-    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-    --name 'hive.compactor.worker.threads' --value '1' \
-    --clobber
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.compactor.worker.threads' --value '1' \
+        --clobber
     bdconfig set_property \
-    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-    --name 'hive.tez.container.size' --value "${EXECUTOR_SIZE}" \
-    --clobber
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.tez.container.size' --value "${EXECUTOR_SIZE}" \
+        --clobber
 
     if [[ -z "$ADDITIONAL_MASTER" ]]; then
+            bdconfig set_property \
+            --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+            --name 'hive.zookeeper.quorum' --value "${LLAP_MASTER_FQDN}:2181" \
+            --clobber
         bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.zookeeper.quorum' --value "${LLAP_MASTER_FQDN}:2181" \
-        --clobber
-        bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.zookeeper.client.port' --value '2181' \
-        --clobber
+            --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+            --name 'hive.zookeeper.client.port' --value '2181' \
+            --clobber
     fi
 }
 
-###add configurations to core-site for LLAP; add zookeeper details
+# add configurations to core-site for LLAP; add zookeeper details
 function configure_core_site(){
     echo "configure core-site.xml..."
 
     if [[ -n "$ADDITIONAL_MASTER" ]]; then
         bdconfig set_property \
-        --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
-        --name 'hadoop.registry.zk.quorum' --value "\${hadoop.zk.address}" \
-        --clobber
+            --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
+            --name 'hadoop.registry.zk.quorum' --value "\${hadoop.zk.address}" \
+            --clobber
         bdconfig set_property \
-        --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
-        --name 'hadoop.registry.zk.root' --value "/registry" \
-        --clobber
+            --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
+            --name 'hadoop.registry.zk.root' --value "/registry" \
+            --clobber
         bdconfig set_property \
-        --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
-        --name 'hadoop.registry.rm.enabled' --value "true" \
-        --clobber
+            --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
+            --name 'hadoop.registry.rm.enabled' --value "true" \
+            --clobber
     else
         bdconfig set_property \
-        --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
-        --name 'hadoop.registry.zk.quorum' --value "${LLAP_MASTER_FQDN}:2181" \
-        --clobber
+            --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
+            --name 'hadoop.registry.zk.quorum' --value "${LLAP_MASTER_FQDN}:2181" \
+            --clobber
         bdconfig set_property \
-        --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
-        --name 'hadoop.registry.zk.root' --value "/registry" \
-        --clobber
+            --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
+            --name 'hadoop.registry.zk.root' --value "/registry" \
+            --clobber
         bdconfig set_property \
-        --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
-        --name 'hadoop.registry.rm.enabled' --value "true" \
-        --clobber
+            --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
+            --name 'hadoop.registry.rm.enabled' --value "true" \
+            --clobber
     fi
 }
 
-##add missing log4j file on all nodes
+# add missing log4j file on all nodes
 function get_log4j() {
     echo "import missing log4j library..."
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
@@ -181,7 +181,7 @@ function get_log4j() {
     cp log4j-slf4j-impl-2.10.0.jar /usr/lib/hive/lib
 }
 
-##repackage tez_lib_uris and place on HDFS; only need to do this on one node. 
+# repackage tez_lib_uris and place on HDFS; only need to do this on one node. 
 function package_tez_lib_uris(){
     echo "repackage tez lib uris..."
     cp /usr/lib/tez/lib/* /usr/lib/tez
@@ -191,13 +191,13 @@ function package_tez_lib_uris(){
     until `hdfs dfs -copyFromLocal tez.tar.gz /tez`; do echo "Retrying"; sleep 10; done
 }
 
-#reconfigure tez.lib.uris to point to hdfs rather than local filesytem; run on all nodes so we have compatiable config files
+# reconfigure tez.lib.uris to point to hdfs rather than local filesytem; run on all nodes so we have compatiable config files
 function configure_tez_site_xml() {
     echo "reconfigure tez-site.xml..."
     sed -i 's@file:/usr/lib/tez,file:/usr/lib/tez/lib,file:/usr/local/share/google/dataproc/lib@${fs.defaultFS}/tez/tez.tar.gz@g' /etc/tez/conf/tez-site.xml
 }
 
-###add yarn service directory for hive; run only on one node since this is a HDFS command
+# add yarn service directory for hive; run only on one node since this is a HDFS command
 function add_yarn_service_dir(){
     echo "adding yarn service directory on the hive user..."
     runuser -l hdfs -c 'hdfs dfs -mkdir /user/hive/.yarn'
@@ -210,14 +210,14 @@ function add_yarn_service_dir(){
 function replace_core_llap_files() {
     echo "replacing llap files..."
 
-    #open missing properties files
+    # open missing properties files
     cp /usr/lib/hive/conf/llap-cli-log4j2.properties.template /usr/lib/hive/conf/llap-cli-log4j2.properties
     cp /usr/lib/hive/conf/llap-daemon-log4j2.properties.template /usr/lib/hive/conf/llap-daemon-log4j2.properties
 
-    ##modify file runLlapDaemon.sh
+    # modify file runLlapDaemon.sh
     sed -i '78s/$/:`hadoop classpath`/' /usr/lib/hive/scripts/llap/bin/runLlapDaemon.sh
     
-    ##modify file package.py
+    # modify file package.py
     sed -i 's/print \"Cannot find input files\"/print(\"Cannot find input files\")/g' /usr/lib/hive/scripts/llap/yarn/package.py
     sed -i 's/print \"Cannot determine the container size\"/print(\"Cannot determine the container size\")/g' /usr/lib/hive/scripts/llap/yarn/package.py
     sed -i 's/print \"%s Running as a child of LlapServiceDriver\" % (strftime(\"%H:%M:%S\", gmtime()))/print("%s Running as a child of LlapServiceDriver" % (strftime("%H:%M:%S", gmtime())))/g' /usr/lib/hive/scripts/llap/yarn/package.py
@@ -229,8 +229,8 @@ function replace_core_llap_files() {
     sed -i 's/long(max_direct_memory)/int(max_direct_memory)/g' /usr/lib/hive/scripts/llap/yarn/package.py
 }
 
-##if the user has added ssd=1 as a metadata option, then we need to configure hive-site.xml for using the ssd as a memory cache extension. The configuration must
-##be done on all nodes BUT the actual permissions/ownership needs only to be done on the workers. 
+# if the user has added ssd=1 as a metadata option, then we need to configure hive-site.xml for using the ssd as a memory cache extension. The configuration must
+# be done on all nodes BUT the actual permissions/ownership needs only to be done on the workers. 
 function configure_SSD_caching_worker(){
     if [[ -n "$HAS_SSD" ]]; then
         echo "configure ssd hive-site params on workers"
@@ -239,48 +239,48 @@ function configure_SSD_caching_worker(){
         chmod 770 /mnt/1/llap
 
         bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.llap.io.allocator.mmap' --value 'true' \
-        --clobber
+            --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+            --name 'hive.llap.io.allocator.mmap' --value 'true' \
+            --clobber
         bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.llap.io.allocator.mmap.path' --value '/mnt/1/llap' \
-        --clobber
+            --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+            --name 'hive.llap.io.allocator.mmap.path' --value '/mnt/1/llap' \
+            --clobber
         bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.llap.io.memory.mode' --value 'cache' \
-        --clobber
+            --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+            --name 'hive.llap.io.memory.mode' --value 'cache' \
+            --clobber
         bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.llap.io.use.lrfu' --value 'true' \
-        --clobber
+            --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+            --name 'hive.llap.io.use.lrfu' --value 'true' \
+            --clobber
     fi
 }
-##if the user has added ssd=1 as a metadata option, then we need to configure hive-site.xml for using the ssd as a memory cache extension. 
+# if the user has added ssd=1 as a metadata option, then we need to configure hive-site.xml for using the ssd as a memory cache extension. 
 function configure_SSD_caching_master(){
     if [[ -n "$HAS_SSD" ]]; then
         echo "configure ssd hive-site params on master"
 
         bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.llap.io.allocator.mmap' --value 'true' \
-        --clobber
+            --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+            --name 'hive.llap.io.allocator.mmap' --value 'true' \
+            --clobber
         bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.llap.io.allocator.mmap.path' --value '/mnt/1/llap' \
-        --clobber
+            --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+            --name 'hive.llap.io.allocator.mmap.path' --value '/mnt/1/llap' \
+            --clobber
         bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.llap.io.memory.mode' --value 'cache' \
-        --clobber
+            --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+            --name 'hive.llap.io.memory.mode' --value 'cache' \
+            --clobber
         bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.llap.io.use.lrfu' --value 'true' \
-        --clobber
+            --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+            --name 'hive.llap.io.use.lrfu' --value 'true' \
+            --clobber
 fi
 }
 
-##start LLAP - Master Node
+# start LLAP - Master Node
 function start_llap(){
     if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
         echo "starting llap on master node 0..."
@@ -288,52 +288,52 @@ function start_llap(){
     fi
 }
 
-##main driver function for the script
+# main driver function for the script
 function configure_llap(){
 
-if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
-    echo "running primary master config...."
-    pre_flight_checks
-    download_init_actions
-    package_tez_lib_uris
-    add_yarn_service_dir
-    configure_yarn_site
-    configure_core_site
-    configure_hive_site
-    configure_SSD_caching_master
-    replace_core_llap_files
-    get_log4j
-    configure_tez_site_xml
-    return 0
-fi
+    if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
+        echo "running primary master config...."
+        pre_flight_checks
+        download_init_actions
+        package_tez_lib_uris
+        add_yarn_service_dir
+        configure_yarn_site
+        configure_core_site
+        configure_hive_site
+        configure_SSD_caching_master
+        replace_core_llap_files
+        get_log4j
+        configure_tez_site_xml
+        return 0
+    fi
 
-if [[ "${ROLE}" == "Worker" ]]; then
-    echo "running worker config...."
-    pre_flight_checks
-    configure_yarn_site
-    configure_core_site
-    configure_hive_site
-    configure_SSD_caching_worker
-    get_log4j
-    configure_tez_site_xml
-    replace_core_llap_files
-    return 0
-fi
+    if [[ "${ROLE}" == "Worker" ]]; then
+        echo "running worker config...."
+        pre_flight_checks
+        configure_yarn_site
+        configure_core_site
+        configure_hive_site
+        configure_SSD_caching_worker
+        get_log4j
+        configure_tez_site_xml
+        replace_core_llap_files
+        return 0
+    fi
 
-if [[ "${ROLE}" == "Master" && "${HOSTNAME}" != "${LLAP_MASTER_FQDN}"  ]]; then
-    echo "running master config...."
-    pre_flight_checks
-    configure_yarn_site
-    configure_core_site
-    configure_hive_site
-    get_log4j
-    configure_tez_site_xml
-    replace_core_llap_files
-    return 0
-fi
+    if [[ "${ROLE}" == "Master" && "${HOSTNAME}" != "${LLAP_MASTER_FQDN}"  ]]; then
+        echo "running master config...."
+        pre_flight_checks
+        configure_yarn_site
+        configure_core_site
+        configure_hive_site
+        get_log4j
+        configure_tez_site_xml
+        replace_core_llap_files
+        return 0
+    fi
 }
 
-###run llapstatus command to determine if running
+# run llapstatus command to determine if running
 function wait_for_llap_ready() {
     if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
         echo "wait for LLAP to launch...."
