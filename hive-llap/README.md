@@ -44,14 +44,15 @@ You can use this initialization action to create a new Dataproc cluster with LLA
 
 ```bash
     REGION=<region>
+    BUCKET=<your_init_actions_bucket>
     CLUSTER_NAME=<cluster_name>
     gcloud dataproc clusters create ${CLUSTER_NAME} \
         --region ${REGION} \
         --optional-components ZOOKEEPER \
         --image-version 2.0-debian10 \
         --num-worker-local-ssds 1 \
-        --metadata ssd=true,num-llap-nodes=1,exec_size_mb=3000,init-actions-repo=gs://my-personal-bucket
-        --initialization-actions gs://my-personal-bucket/hive-llap/llap.sh
+        --metadata ssd=true,num-llap-nodes=1,exec_size_mb=3000,init-actions-repo=gs://${BUCKET}
+        --initialization-actions gs://${BUCKET}/hive-llap/llap.sh
 ```
 
 
