@@ -3,15 +3,16 @@
 This initialization action configures Google Cloud Dataproc to run Hive LLAP. For more information on Hive LLAP please visit: https://cwiki.apache.org/confluence/display/Hive/LLAP
 
 ## Optional Configuration Options
-* num_llap_nodes: The number of nodes you wish LLAP to run on. This configuration will use 100% of the YARN resources LLAP is deployed on. Do not deploy on 100% of the deployed dataproc workers. You need available nodes in order to run the Tez Application Masters spawned by Hive sessions. Understand what level of concurrency you require to figure out how many workers you need available to support your users.
+* num_llap_nodes: The number of nodes you wish LLAP to run on. This configuration will use 100% of the YARN resources LLAP is deployed on. Do not deploy on 100% of the deployed dataproc workers. You need available nodes in order to run the Tez Application Masters spawned by Hive sessions. Understand how many concurrent queries you'd like to support to determine out how many workers you need available to support your users. Please visit: https://community.cloudera.com/t5/Community-Articles/LLAP-sizing-and-setup/ta-p/247425 for more details on tuning LLAP.
 * ssd: LLAP can extend the memory cache pool to local SSD on the workers it's deployed on. This increases the amount of data that can be cached to help with accelerating queries. This option may only be used when you include local ssd (num-worker-local-ssds flag) when deploying your dataproc cluster. Today we only support 1 SSD deployment. Note that if you use this option, you cannot start/stop your dataproc instance. 
 * exec_size_mb: This is the size of the executors running on LLAP. This is related to the hive.tez.container.size hive parameter. By default this number is 4096MB if not supplied directly. This knob allows you to configure clusters for uses cases where the default exec size may not be appropriate. 
+* init-actions-repo: if you are sourcing the initialization action script from a personal bucket, this metadata configuration tells the script where to find the startup script for the LLAP service. This configuration is not required. If you don't specific the init-actions-repo, the required files will be procured through the default initialization action bucket.
 
 ## Using this initialization action
 
 **:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
 
-You can use this initialization action to create a new Dataproc cluster with LLAP enabled. When this initialization action runs, it will automatically download an additional script, llap_restart.sh. This script is used to auto-start LLAP and can be subsequently used to re-start LLAP if the cluster is stopped or shutdown. This script will reside on the the master node (master node 0 on HA deployments) on /usr/lib/hive_llap. If a user wants to download the initialization action from a seperate repo instead of the please specify the cloud storage bucket by adding the metadata parameter, init-actions-repo.
+You can use this initialization action to create a new Dataproc cluster with LLAP enabled. When this initialization action runs, it will automatically download an additional script, start_llap.sh. This script is used to auto-start LLAP and can be subsequently used to re-start LLAP if the cluster is stopped or shutdown. This script will reside on the the master node (master node 0 on HA deployments) on /usr/lib/hive-llap. If a user wants to download the initialization action from a seperate repo instead of the please specify the cloud storage bucket by adding the metadata parameter, init-actions-repo as written about above in the Optional Configuration Options section. Note that the initialization action looks for the script in /hive-llap/start-llap.sh so ensure that your personal bucket adhers to this path. Otherwise the script will automatically download from the initializations bucket by default. 
 
 1. Use the `gcloud` command to create a new cluster with this initialization action. By default, LLAP will consume all nodes but one unless you specifiy the number of nodes to consume with the num-llap-nodes metadata parameter. You need at least 1 node open to run Tez AM's. 
    ```bash
@@ -21,7 +22,7 @@ You can use this initialization action to create a new Dataproc cluster with LLA
         --region ${REGION} \
         --optional-components ZOOKEEPER \
         --image-version 2.0-debian10 \
-        --metadata num-llap-nodes=1,init-actions-repo=gs://goog-dataproc-initialization-actions-${REGION} \
+        --metadata num-llap-nodes=1 \
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/hive-llap/llap.sh
     ```
 
@@ -35,9 +36,23 @@ You can use this initialization action to create a new Dataproc cluster with LLA
         --optional-components ZOOKEEPER \
         --image-version 2.0-debian10 \
         --num-worker-local-ssds 1 \
-        --metadata ssd=true,num-llap-nodes=1,exec_size_mb=3000,init-actions-repo=gs://goog-dataproc-initialization-actions-${REGION} \
+        --metadata ssd=true,num-llap-nodes=1,exec_size_mb=3000 \
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/hive-llap/llap.sh
     ```
+
+3. Use the `gcloud` command to create a new cluster with this initialization action with SSD's configured and the size of the LLAP exeuctors defined and sourcing the initialization action files from a personal cloud bucket. 
+
+```bash
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --optional-components ZOOKEEPER \
+        --image-version 2.0-debian10 \
+        --num-worker-local-ssds 1 \
+        --metadata ssd=true,num-llap-nodes=1,exec_size_mb=3000,init-actions-repo=gs://my-personal-bucket
+        --initialization-actions gs://my-personal-bucket/hive-llap/llap.sh
+```
 
 
 3. You can test your LLAP setup by creating an external table 
@@ -131,7 +146,7 @@ You can find more information about using initialization actions with Dataproc i
 
 ## Important notes
 
-* This initialization action will only work with Debian and ubuntu dataproc 2.x + images. 
+* This initialization action will only work with Debian and Ubuntu Dataproc 2.0+ images. 
 * Clusters must be deployed with the zookeeper optional component selected
 * This initialization action doesn't support single node deployments
 * This initialization action supports HA and non-HA depolyments

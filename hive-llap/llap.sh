@@ -149,28 +149,21 @@ function configure_core_site(){
             --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
             --name 'hadoop.registry.zk.quorum' --value "\${hadoop.zk.address}" \
             --clobber
-        bdconfig set_property \
-            --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
-            --name 'hadoop.registry.zk.root' --value "/registry" \
-            --clobber
-        bdconfig set_property \
-            --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
-            --name 'hadoop.registry.rm.enabled' --value "true" \
-            --clobber
     else
         bdconfig set_property \
             --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
             --name 'hadoop.registry.zk.quorum' --value "${LLAP_MASTER_FQDN}:2181" \
             --clobber
-        bdconfig set_property \
-            --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
-            --name 'hadoop.registry.zk.root' --value "/registry" \
-            --clobber
-        bdconfig set_property \
-            --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
-            --name 'hadoop.registry.rm.enabled' --value "true" \
-            --clobber
     fi
+
+    bdconfig set_property \
+        --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
+         --name 'hadoop.registry.zk.root' --value "/registry" \
+        --clobber
+    bdconfig set_property \
+        --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
+        --name 'hadoop.registry.rm.enabled' --value "true" \
+        --clobber
 }
 
 # add missing log4j file on all nodes
@@ -277,14 +270,14 @@ function configure_SSD_caching_master(){
             --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
             --name 'hive.llap.io.use.lrfu' --value 'true' \
             --clobber
-fi
+    fi
 }
 
 # start LLAP - Master Node
 function start_llap(){
     if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
         echo "starting llap on master node 0..."
-        ."${INIT_ACTIONS_DIR}"/start_llap.sh
+        bash "${INIT_ACTIONS_DIR}"/start_llap.sh
     fi
 }
 
@@ -304,10 +297,8 @@ function configure_llap(){
         replace_core_llap_files
         get_log4j
         configure_tez_site_xml
-        return 0
-    fi
 
-    if [[ "${ROLE}" == "Worker" ]]; then
+    elif [[ "${ROLE}" == "Worker" ]]; then
         echo "running worker config...."
         pre_flight_checks
         configure_yarn_site
@@ -317,10 +308,8 @@ function configure_llap(){
         get_log4j
         configure_tez_site_xml
         replace_core_llap_files
-        return 0
-    fi
 
-    if [[ "${ROLE}" == "Master" && "${HOSTNAME}" != "${LLAP_MASTER_FQDN}"  ]]; then
+    elif [[ "${ROLE}" == "Master" && "${HOSTNAME}" != "${LLAP_MASTER_FQDN}"  ]]; then
         echo "running master config...."
         pre_flight_checks
         configure_yarn_site
@@ -329,7 +318,6 @@ function configure_llap(){
         get_log4j
         configure_tez_site_xml
         replace_core_llap_files
-        return 0
     fi
 }
 

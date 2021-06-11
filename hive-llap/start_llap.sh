@@ -70,7 +70,8 @@ function start_llap(){
 
         # jvm headroom for the llap executors
         if  (( $llap_xmx_6_int > 6144 )); then
-            llap_headroom=6114; else
+            llap_headroom=6114
+        else
             llap_headroom=$llap_xmx_6_int
         fi
         echo "LLAP daemon headroom: ${llap_headroom}"
