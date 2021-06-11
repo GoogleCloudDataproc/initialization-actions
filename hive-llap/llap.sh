@@ -321,17 +321,6 @@ function configure_llap(){
     fi
 }
 
-# run llapstatus command to determine if running
-function wait_for_llap_ready() {
-    if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
-        echo "wait for LLAP to launch...."
-        sudo -u hive hive --service llapstatus --name llap0 -w -r 1 -i 5
-        echo "LLAP started...."
-    else
-        echo "skipping...."
-    fi
-}
-
 echo "Running configuration process...."
 configure_llap
 
