@@ -129,14 +129,14 @@ function configure_hive_site(){
         --clobber
 
     if [[ -z "$ADDITIONAL_MASTER" ]]; then
-            bdconfig set_property \
-            --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-            --name 'hive.zookeeper.quorum' --value "${LLAP_MASTER_FQDN}:2181" \
-            --clobber
         bdconfig set_property \
-            --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-            --name 'hive.zookeeper.client.port' --value '2181' \
-            --clobber
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.zookeeper.quorum' --value "${LLAP_MASTER_FQDN}:2181" \
+        --clobber
+        bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.zookeeper.client.port' --value '2181' \
+        --clobber
     fi
 }
 
