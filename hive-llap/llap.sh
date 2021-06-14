@@ -130,13 +130,13 @@ function configure_hive_site(){
 
     if [[ -z "$ADDITIONAL_MASTER" ]]; then
         bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.zookeeper.quorum' --value "${LLAP_MASTER_FQDN}:2181" \
-        --clobber
+            --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+            --name 'hive.zookeeper.quorum' --value "${LLAP_MASTER_FQDN}:2181" \
+            --clobber
         bdconfig set_property \
-        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.zookeeper.client.port' --value '2181' \
-        --clobber
+            --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+            --name 'hive.zookeeper.client.port' --value '2181' \
+            --clobber
     fi
 }
 
@@ -158,7 +158,7 @@ function configure_core_site(){
 
     bdconfig set_property \
         --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
-         --name 'hadoop.registry.zk.root' --value "/registry" \
+        --name 'hadoop.registry.zk.root' --value "/registry" \
         --clobber
     bdconfig set_property \
         --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
