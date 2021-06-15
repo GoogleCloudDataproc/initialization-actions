@@ -200,7 +200,7 @@ function install_nvidia_gpu_driver() {
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
   fi
-
+  ldconfig
   echo "NVIDIA GPU driver provided by NVIDIA was installed successfully"
 }
 
