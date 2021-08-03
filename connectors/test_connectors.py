@@ -82,20 +82,6 @@ class ConnectorsTestCase(DataprocTestCase):
 
     @parameterized.parameters(("SINGLE", ["m"]),
                               ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
-    def test_gcs_connector_url(self, configuration, instances):
-        if self.getImageOs() == 'centos':
-          self.skipTest("Not supported in CentOS-based images")
-
-        self.createCluster(configuration,
-                           self.INIT_ACTIONS,
-                           metadata="gcs-connector-url={}".format(
-                               self.GCS_CONNECTOR_URL.format(
-                                   self._hadoop_version())))
-        self.verify_instances(self.getClusterName(), instances,
-                              "gcs-connector", self.GCS_CONNECTOR_VERSION)
-
-    @parameterized.parameters(("SINGLE", ["m"]),
-                              ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
     def test_bq_connector_url(self, configuration, instances):
         if self.getImageOs() == 'centos':
           self.skipTest("Not supported in CentOS-based images")
