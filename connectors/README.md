@@ -71,8 +71,8 @@ then only this connector will be updated.
 For example:
 
 *   if Spark BigQuery connector 0.21.1 version is specified and Hadoop BigQuery
-    connector version is specified, then only Spark BigQuery connector version
-    0.21.1 will be installed:
+    connector version is not specified, then only Spark BigQuery connector
+    version 0.21.1 will be installed:
 
     ```shell
     REGION=<region>
