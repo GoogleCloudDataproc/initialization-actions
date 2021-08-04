@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Installs any of the Cloud Storage, Hadoop BigQuery and/or Spark BigQuery connectors
+# Installs Hadoop BigQuery and/or Spark BigQuery connectors
 # onto a Cloud Dataproc cluster.
 
 set -euxo pipefail
