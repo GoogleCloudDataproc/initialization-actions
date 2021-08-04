@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Installs any of the Cloud Storage, Hadoop BigQuery and/or Spark BigQuery connectors
+# Installs Hadoop BigQuery and/or Spark BigQuery connectors
 # onto a Cloud Dataproc cluster.
 
 set -euxo pipefail
@@ -10,19 +10,14 @@ readonly VM_CONNECTORS_DATAPROC_DIR=/usr/local/share/google/dataproc/lib
 
 declare -A MIN_CONNECTOR_VERSIONS
 MIN_CONNECTOR_VERSIONS=(
-  ["bigquery"]="0.12.0"
-  ["gcs"]="1.8.0"
-  ["spark-bigquery"]="0.12.0-beta")
+  ["bigquery"]="1.0.0"
+  ["spark-bigquery"]="0.17.0")
 
 readonly BIGQUERY_CONNECTOR_VERSION=$(/usr/share/google/get_metadata_value attributes/bigquery-connector-version || true)
-readonly GCS_CONNECTOR_VERSION=$(/usr/share/google/get_metadata_value attributes/gcs-connector-version || true)
 readonly SPARK_BIGQUERY_CONNECTOR_VERSION=$(/usr/share/google/get_metadata_value attributes/spark-bigquery-connector-version || true)
 
 readonly BIGQUERY_CONNECTOR_URL=$(/usr/share/google/get_metadata_value attributes/bigquery-connector-url || true)
-readonly GCS_CONNECTOR_URL=$(/usr/share/google/get_metadata_value attributes/gcs-connector-url || true)
 readonly SPARK_BIGQUERY_CONNECTOR_URL=$(/usr/share/google/get_metadata_value attributes/spark-bigquery-connector-url || true)
-
-UPDATED_GCS_CONNECTOR=false
 
 is_worker() {
   local role
@@ -38,17 +33,12 @@ min_version() {
 }
 
 get_connector_url() {
-  # Connector names have changed as of certain versions.
+  # Hadoop BigQuery connector:
+  #   gs://hadoop-lib/bigquery-connector/bigquery-connector-hadoop{hadoop_version}-${version}.jar
   #
-  # bigquery + gcs connectors:
-  #   bigquery-connector version < 0.13.5 / gcs-connector version < 1.9.5:
-  #   gs://hadoop-lib/${name}/${name}-connector-${version}-hadoop2.jar
-  #
-  #   bigquery-connector version >= 0.13.5 / gcs-connector version >= 1.9.5:
-  #   gs://hadoop-lib/${name}/${name}-connector-hadoop2-${version}.jar
-  #
-  # spark-bigquery-connector:
-  #   gs://spark-lib/bigquery/${name}-with-dependencies_${scala_version}-${version}.jar
+  # Spark BigQuery connector:
+  #   gs://spark-lib/bigquery/spark-bigquery-connector-with-dependencies_${scala_version}-${version}.jar
+
   local -r name=$1
   local -r version=$2
 
@@ -74,18 +64,13 @@ get_connector_url() {
     local -r hadoop_version_suffix=hadoop2
   fi
 
-  if [[ $name == gcs && $(min_version "$version" 1.9.5) != 1.9.5 ]] ||
-    [[ $name == bigquery && $(min_version "$version" 0.13.5) != 0.13.5 ]]; then
-    local -r jar_name="${name}-connector-${version}-${hadoop_version_suffix}.jar"
-  else
-    local -r jar_name="${name}-connector-${hadoop_version_suffix}-${version}.jar"
-  fi
+  local -r jar_name="${name}-connector-${hadoop_version_suffix}-${version}.jar"
 
   echo "gs://hadoop-lib/${name}/${jar_name}"
 }
 
 validate_version() {
-  local name=$1    # connector name: "bigquery", "gcs" or "spark-bigquery"
+  local name=$1    # connector name: "bigquery" or "spark-bigquery"
   local version=$2 # connector version
   local min_valid_version=${MIN_CONNECTOR_VERSIONS[$name]}
   if [[ "$(min_version "$min_valid_version" "$version")" != "$min_valid_version" ]]; then
@@ -97,10 +82,6 @@ validate_version() {
 update_connector_url() {
   local -r name=$1
   local -r url=$2
-
-  if [[ $name == gcs ]]; then
-    UPDATED_GCS_CONNECTOR=true
-  fi
 
   if [[ -d ${VM_CONNECTORS_DATAPROC_DIR} ]]; then
     local vm_connectors_dir=${VM_CONNECTORS_DATAPROC_DIR}
@@ -124,7 +105,7 @@ update_connector_url() {
 }
 
 update_connector_version() {
-  local -r name=$1    # connector name: "bigquery", "gcs" or "spark-bigquery"
+  local -r name=$1    # connector name: "bigquery" or "spark-bigquery"
   local -r version=$2 # connector version
 
   # validate new connector version
@@ -155,49 +136,10 @@ update_connector() {
 }
 
 if [[ -z $BIGQUERY_CONNECTOR_VERSION && -z $BIGQUERY_CONNECTOR_URL ]] &&
-  [[ -z $GCS_CONNECTOR_VERSION && -z $GCS_CONNECTOR_URL ]] &&
   [[ -z $SPARK_BIGQUERY_CONNECTOR_VERSION && -z $SPARK_BIGQUERY_CONNECTOR_URL ]]; then
   echo "ERROR: None of connector versions or URLs are specified"
   exit 1
 fi
 
 update_connector "bigquery" "$BIGQUERY_CONNECTOR_VERSION" "$BIGQUERY_CONNECTOR_URL"
-update_connector "gcs" "$GCS_CONNECTOR_VERSION" "$GCS_CONNECTOR_URL"
 update_connector "spark-bigquery" "$SPARK_BIGQUERY_CONNECTOR_VERSION" "$SPARK_BIGQUERY_CONNECTOR_URL"
-
-if [[ $UPDATED_GCS_CONNECTOR != true ]]; then
-  echo "GCS connector wasn't updated - no need to restart any services"
-  exit 0
-fi
-
-# Restart YARN NodeManager service on worker nodes so they can pick up updated GCS connector
-if is_worker; then
-  systemctl kill -s KILL hadoop-yarn-nodemanager
-fi
-
-# Restarts Dataproc Agent after successful initialization
-# WARNING: this function relies on undocumented and not officially supported Dataproc Agent
-# "sentinel" files to determine successful Agent initialization and not guaranteed
-# to work in the future. Use at your own risk!
-restart_dataproc_agent() {
-  # Because Dataproc Agent should be restarted after initialization, we need to wait until
-  # it will create a sentinel file that signals initialization competition (success or failure).
-  # NOTE: has_run_before will no longer be published by upcoming image releases
-  while [[ !(-f /var/lib/google/dataproc/has_run_before \
-    || -f /var/lib/google/dataproc/has_succeeded_before \
-    || -f /var/lib/google/dataproc/has_failed_before)]]; do
-    sleep 1
-  done
-  # If Dataproc Agent didn't create a sentinel file that signals initialization
-  # failure then it means that initialization succeeded and it should be restarted
-  if [[ ! -f /var/lib/google/dataproc/has_failed_before ]]; then
-    systemctl kill -s KILL google-dataproc-agent
-  fi
-}
-export -f restart_dataproc_agent
-
-# Schedule asynchronous Dataproc Agent restart so it will use updated connectors.
-# It could not be restarted synchronously because Dataproc Agent should be restarted
-# after its initialization, including init actions execution, has been completed.
-bash -c restart_dataproc_agent &
-disown
