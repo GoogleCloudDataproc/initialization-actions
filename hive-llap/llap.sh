@@ -127,6 +127,22 @@ function configure_hive_site(){
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
         --name 'hive.tez.container.size' --value "${EXECUTOR_SIZE}" \
         --clobber
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.auto.convert.join.noconditionaltask' --value 'true' \
+        --clobber
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.tez.auto.reducer.parallelism' --value 'true' \
+        --clobber
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.llap.io.encode.formats' --value 'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' \
+        --clobber
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.llap.io.use.lrfu' --value 'true' \
+        --clobber
 
     if [[ -z "$ADDITIONAL_MASTER" ]]; then
         bdconfig set_property \
@@ -243,10 +259,6 @@ function configure_SSD_caching_worker(){
             --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
             --name 'hive.llap.io.memory.mode' --value 'cache' \
             --clobber
-        bdconfig set_property \
-            --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-            --name 'hive.llap.io.use.lrfu' --value 'true' \
-            --clobber
     fi
 }
 # if the user has added ssd=1 as a metadata option, then we need to configure hive-site.xml for using the ssd as a memory cache extension. 
@@ -265,10 +277,6 @@ function configure_SSD_caching_master(){
         bdconfig set_property \
             --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
             --name 'hive.llap.io.memory.mode' --value 'cache' \
-            --clobber
-        bdconfig set_property \
-            --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-            --name 'hive.llap.io.use.lrfu' --value 'true' \
             --clobber
     fi
 }

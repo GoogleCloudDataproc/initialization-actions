@@ -29,6 +29,9 @@ readonly NODE_MANAGER_MEMORY=$(bdconfig get_property_value --configuration_file=
 readonly YARN_MAX_CONTAINER_MEMORY=$(bdconfig get_property_value --configuration_file='/etc/hadoop/conf/yarn-site.xml' --name yarn.scheduler.maximum-allocation-mb)
 readonly NUM_LLAP_NODES=$(/usr/share/google/get_metadata_value attributes/num-llap-nodes)
 readonly EXECUTOR_SIZE=$(/usr/share/google/get_metadata_value attributes/exec_size_mb || echo 4096)
+readonly HAS_SSD=$(/usr/share/google/get_metadata_value attributes/ssd)
+readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
+readonly HIVE_CONF_DIR='/etc/hive/conf'
 
 # start LLAP - Master Node
 function start_llap(){
@@ -40,9 +43,8 @@ function start_llap(){
         local llap_executors=0
         local llap_headroom=0
         local llap_instances=0
-
-        echo "restart hive server prior..."
-        sudo systemctl restart hive-server2.service 
+        local llap_ssd_cache=0
+        local llap_cache=0
 
         echo "starting yarn app fastlaunch...."
         yarn app -enableFastLaunch
@@ -52,8 +54,8 @@ function start_llap(){
         local llap_size=$NODE_MANAGER_MEMORY
         echo "LLAP daemon size: $llap_size"
 
-        # Get the number of exeuctors based on memory
-        for ((i = 1; i <= $NODE_MANAGER_vCPU; i++)); do
+        # Get the number of exeuctors based on memory. Keep 2 vcores reserved for datanode processes
+        for ((i = 1; i <= $NODE_MANAGER_vCPU - 2; i++)); do
             llap_memory_allo=$(($i * ${EXECUTOR_SIZE}))
             if (( $llap_memory_allo < $(expr $NODE_MANAGER_MEMORY - 6114) )); then
                 llap_executors=$i
@@ -77,14 +79,35 @@ function start_llap(){
         echo "LLAP daemon headroom: ${llap_headroom}"
 
         # cache is whatever is left over after heardroom and executor memory is accounted for
-        local llap_cache=$(expr ${llap_size} - ${llap_headroom} - ${llap_xmx})
+        local llap_memory_cache=$(expr ${llap_size} - ${llap_headroom} - ${llap_xmx})
 
 
         # if there is no additional room, then no cache will be used
-        if (( $llap_cache < 0 )); then
-             llap_cache=0
+        if (( $llap_memory_cache < 0 )); then
+             llap_memory_cache=0
         fi
-        echo "LLAP in-memory cache: ${llap_cache}"
+
+        # if SSD's are used, then we use the memeory cache for storing metadata about the larger SSD cache pool. Divide the memory cache pool by .08 to get the potential 
+        # size of the SSD pool. If > 300 set to 300GB as teh ssd devices are no larger than 375GB
+        if [[ -n "$HAS_SSD" && "$llap_memory_cache" > 0 ]]; then
+            llap_ssd_cache=$(echo "scale=0;${llap_memory_cache}/.08" |bc)
+            if (( $llap_ssd_cache > 300000)); then
+                llap_ssd_cache=300000
+            fi
+            llap_cache=$llap_ssd_cache
+            echo "LLAP SSD Cache: ${llap_ssd_cache}"
+            bdconfig set_property \
+                --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+                --name 'hive.llap.io.memory.size' --value "$llap_ssd_cache" \
+                --clobber
+        else 
+            llap_cache=$llap_memory_cache
+            echo "LLAP in-memory cache: ${llap_memory_cache}"
+            bdconfig set_property \
+                --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+                --name 'hive.llap.io.memory.size' --value "$llap_memory_cache" \
+                --clobber
+        fi
 
         # keep one node in reserve for handling the duties of Tez AM
         # if user didn't pass in num llap instances, take worker node count -1
@@ -95,6 +118,25 @@ function start_llap(){
         fi 
 
         echo "LLAP daemon instances: ${llap_instances}"
+
+        echo "Setting additional LLAP properties"
+        bdconfig set_property \
+            --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+            --name 'hive.llap.daemon.vcpus.per.instance' --value "${llap_executors}" \
+            --clobber
+        bdconfig set_property \
+            --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+            --name 'hive.llap.io.threadpool.size' --value "${llap_executors}" \
+            --clobber
+        bdconfig set_property \
+            --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+            --name 'hive.llap.daemon.num.executors' --value "${llap_executors}" \
+            --clobber
+
+
+        echo "restart hive server prior..."
+        sudo systemctl daemon-reload
+        sudo systemctl restart hive-server2.service 
 
         echo "Starting LLAP..."
         sudo -u hive hive --service llap \
