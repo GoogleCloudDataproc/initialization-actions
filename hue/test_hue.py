@@ -33,8 +33,6 @@ class HueTestCase(DataprocTestCase):
         if self.getImageOs() == 'ubuntu':
             if self.getImageVersion() <= pkg_resources.parse_version("1.4"):
                 self.skipTest("Not supported in pre 1.5 Ubuntu images")
-            if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
-                self.skipTest("Not supported in 2.0+ Ubuntu images")
         self.createCluster(configuration, self.INIT_ACTIONS)
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
