@@ -133,11 +133,6 @@ function start_llap(){
             --name 'hive.llap.daemon.num.executors' --value "${llap_executors}" \
             --clobber
 
-
-        echo "restart hive server prior..."
-        sudo systemctl daemon-reload
-        sudo systemctl restart hive-server2.service 
-
         echo "Starting LLAP..."
         sudo -u hive hive --service llap \
             --instances "${llap_instances}" \
@@ -151,6 +146,11 @@ function start_llap(){
             --output /tmp/llap_output \
             --loglevel INFO \
             --startImmediately
+
+        echo "restart hive server prior..."
+        sudo systemctl daemon-reload
+        sudo systemctl restart hive-server2.service 
+
     fi
 }
 

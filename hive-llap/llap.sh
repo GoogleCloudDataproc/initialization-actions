@@ -143,6 +143,29 @@ function configure_hive_site(){
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
         --name 'hive.llap.io.use.lrfu' --value 'true' \
         --clobber
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'tez.am.resource.memory.mb' --value '4096' \
+        --clobber
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.server2.tez.sessions.per.default.queue' --value "${WORKER_NODE_COUNT}" \
+        --clobber
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.server2.tez.initialize.default.sessions' --value 'true' \
+        --clobber
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'tez.am.container.reuse.enabled' --value 'true' \
+        --clobber
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.server2.tez.default.queues' --value 'default' \
+        --clobber
+
+
+
 
     if [[ -z "$ADDITIONAL_MASTER" ]]; then
         bdconfig set_property \
