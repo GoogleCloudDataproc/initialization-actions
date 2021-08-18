@@ -43,8 +43,12 @@ function pre_flight_checks(){
     # check for bad configurations
     if [[ "${NUM_LLAP_NODES}" -ge "${WORKER_NODE_COUNT}" ]]; then
         echo "LLAP node count equals total worker count. There are no nodes to support Tez AM's. Please reduce LLAP instance count and re-deploy." && exit 1
+    else 
+        echo "LLAP node count < worker count...continue with deployment..."
     fi
 }
+
+
 
 # modify yarn-site.xml buy adjusting the classpath
 function configure_yarn_site(){
@@ -78,6 +82,17 @@ function configure_hive_site(){
 
     # different configuration if HA
     echo "configure hive-site.xml...."
+
+    local llap_instances=0
+
+
+    # keep one node in reserve for handling the duties of Tez AM
+    # if user didn't pass in num llap instances, take worker node count -1
+    if [[ -z $NUM_LLAP_NODES ]]; then
+        llap_instances=$(expr ${WORKER_NODE_COUNT} - 1) 
+    else
+        llap_instances=$NUM_LLAP_NODES
+    fi 
 
     bdconfig set_property \
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
@@ -149,7 +164,7 @@ function configure_hive_site(){
         --clobber
     bdconfig set_property \
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-        --name 'hive.server2.tez.sessions.per.default.queue' --value "${WORKER_NODE_COUNT}" \
+        --name 'hive.server2.tez.sessions.per.default.queue' --value "${llap_instances}" \
         --clobber
     bdconfig set_property \
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
@@ -163,8 +178,14 @@ function configure_hive_site(){
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
         --name 'hive.server2.tez.default.queues' --value 'default' \
         --clobber
-
-
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.limit.optimize.enable' --value 'true' \
+        --clobber
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.server2.thrift.port' --value '10500' \
+        --clobber
 
 
     if [[ -z "$ADDITIONAL_MASTER" ]]; then

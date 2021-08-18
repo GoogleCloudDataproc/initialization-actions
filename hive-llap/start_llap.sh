@@ -150,12 +150,10 @@ function start_llap(){
         echo "restart hive server prior..."
         sudo systemctl daemon-reload
         sudo systemctl restart hive-server2.service 
-
     fi
 }
 
 function wait_for_llap_ready() {
-
     echo "wait for LLAP to launch...."
     sudo -u hive hive --service llapstatus --name llap0 -w -r 1 -i 5    
     echo "LLAP started...."
