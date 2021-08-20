@@ -128,6 +128,10 @@ function configure_hive_site(){
         --clobber
     bdconfig set_property \
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.exec.dynamic.partition.mode' --value 'nonstrict' \
+        --clobber
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
         --name 'hive.llap.io.allocator.alloc.min' --value '256Kb' \
         --clobber
     bdconfig set_property \
