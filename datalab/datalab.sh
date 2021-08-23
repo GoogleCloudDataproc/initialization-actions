@@ -120,6 +120,8 @@ function configure_master() {
 FROM ${DOCKER_IMAGE}
 
 # Enabling APT to download from HTTPS repository.
+# TODO: Please remove explicility mentioned GPG key once upstream is stable
+RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 0E98404D386FA1D9
 RUN apt-get update
 RUN apt-get install -y apt-transport-https software-properties-common
 
