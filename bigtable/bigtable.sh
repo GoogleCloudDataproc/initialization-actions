@@ -44,7 +44,7 @@ readonly BIGTABLE_INSTANCE="$(/usr/share/google/get_metadata_value attributes/bi
 readonly BIGTABLE_PROJECT="$(/usr/share/google/get_metadata_value attributes/bigtable-project ||
     /usr/share/google/get_metadata_value ../project/project-id)"
 
-function retry_apt_command() {
+function retry_download_command() {
   local -r cmd="${1}"
   for ((i = 0; i < 10; i++)); do
     if eval "${cmd}"; then
@@ -163,8 +163,15 @@ EOF
 }
 
 function main() {
-  retry_apt_command "apt-get update" || err 'Unable to update packages lists.'
-  retry_apt_command "apt-get install -y hbase" || err 'Unable to install HBase.'
+
+  if command -v apt-get >/dev/null; then	
+    retry_download_command "apt-get update" || err 'Unable to update packages lists.'
+    retry_download_command "apt-get install -y hbase" || err 'Unable to install HBase.'
+  else
+    retry_download_command "yum -y update" || err 'Unable to update packages lists.'
+    retry_download_command "yum -y install hbase" || err 'Unable to install HBase.'
+  fi  
+    
 
   if [[ ${DATAPROC_VERSION%%.*} -ge 2 ]]; then
     install_bigtable_client "$BIGTABLE_HBASE_CLIENT_2X_JAR" "$BIGTABLE_HBASE_CLIENT_2X_URL" || err 'Unable to install big table client.'
