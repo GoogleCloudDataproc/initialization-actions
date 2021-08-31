@@ -171,7 +171,7 @@ function install_dask() {
 
 function install_spark_nlp() {
   local -r name="spark-nlp_2.12"
-  local -r repo_url="https://repo1.maven.org/maven2/com/johnsnowlabs/nlp/"
+  local -r repo_url="https://repo1.maven.org/maven2/com/johnsnowlabs/nlp"
   download_spark_jar "${repo_url}/${name}/${SPARK_NLP_VERSION}/${name}-${SPARK_NLP_VERSION}.jar"
 }
 
