@@ -45,8 +45,16 @@ readonly CUDA_VERSION
 readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb"
 NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
 readonly NCCL_REPO_URL
+
+readonly DEFAULT_NCCL_VERSION="2.8.3"
+readonly DEFAULT_NCCL_VERSION_CENTOS="2.8.4"
+
 if [[ "$(echo "$DATAPROC_VERSION >= 2.0" | bc)" -eq 1 ]]; then
-  NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.8.4')
+  if [[ ${OS_NAME} == centos ]]; then
+    NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION_CENTOS})
+  else
+    NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION})
+  fi
 else
   NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.7.8')
 fi
