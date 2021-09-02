@@ -68,9 +68,6 @@ class BigTableTestCase(DataprocTestCase):
         ("HA", ["m-0"]),
     )
     def test_bigtable(self, configuration, machine_suffixes):
-        if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
-            self.skipTest("Not supported in the 2.0+ images")
-
         self.createCluster(
             configuration, self.INIT_ACTIONS, metadata=self.metadata)
 
