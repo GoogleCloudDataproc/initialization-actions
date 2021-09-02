@@ -7,6 +7,7 @@ test_suite(
         ":test_hive_llap",
         ":test_dr_elephant",
         ":test_hive_hcatalog",
+        ":test_metastore_grpc_proxy",
         ":test_starburst_presto",
         "//alluxio:test_alluxio",
         "//atlas:test_atlas",
@@ -89,6 +90,20 @@ py_test(
     data = ["hive-hcatalog/hive-hcatalog.sh"],
     local = True,
     shard_count = 6,
+    deps = [
+        "//integration_tests:dataproc_test_case",
+        "@io_abseil_py//absl/testing:parameterized",
+    ],
+)
+
+py_test(
+    name = "test_metastore_grpc_proxy",
+    size = "enormous",
+    srcs = ["metastore-grpc-proxy/test_metastore_grpc_proxy.py"],
+    data = ["metastore-grpc-proxy/metastore-grpc-proxy.sh"],
+    local = True,
+    shard_count = 3,
+    python_version = "PY3",
     deps = [
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",
