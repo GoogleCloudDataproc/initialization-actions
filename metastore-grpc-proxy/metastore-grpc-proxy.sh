@@ -78,17 +78,6 @@ function restart_hive_server() {
   systemctl restart hive-server2.service
 }
 
-function wait_for_hive_server_init() {
-  # Timeout 5 min
-  for ((i = 0; i < 60; i++)); do
-    if `docker logs thrift | grep -q 'GetTablesRequest'`; then
-      return 0
-    fi
-    sleep 5
-  done
-  return 1
-}
-
 function main() {
   if [[ "${ROLE}" == 'Master' ]]; then
     stop_master_hms
