@@ -63,25 +63,14 @@ PIP_PACKAGES=(
   "tensorflow-hub==0.12.*"
 )
 
-if [[ "$(echo "$DATAPROC_VERSION >= 2.0" | bc)" -eq 1 ]]; then
-  PIP_PACKAGES+=(
-    "spark-tensorflow-distributor==1.0.0"
-    "tensorflow==2.6.*"
-    "tensorflow-estimator==2.6.*"
-    "tensorflow-io==0.20"
-    "tensorflow-probability==0.13.*"
-  )
-else
-  CONDA_PACKAGES+=(
-    "protobuf=3.15"
-  )
-  PIP_PACKAGES+=(
-    "tensorflow==2.3.*"
-    "tensorflow-estimator==2.3.*"
-    "tensorflow-io==0.16"
-    "tensorflow-probability==0.11.*"
-  )
-fi
+PIP_PACKAGES+=(
+  "spark-tensorflow-distributor==1.0.0"
+  "tensorflow==2.6.*"
+  "tensorflow-estimator==2.6.*"
+  "tensorflow-io==0.20"
+  "tensorflow-probability==0.13.*"
+)
+
 readonly CONDA_PACKAGES
 readonly PIP_PACKAGES
 

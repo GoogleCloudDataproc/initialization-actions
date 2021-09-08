@@ -90,12 +90,9 @@ class MLVMTestCase(DataprocTestCase):
     if self.getImageOs() == 'centos':
       self.skipTest("Not supported in CentOS-based images")
 
-    # Supported on Dataproc 1.5+
-    if self.getImageVersion() < pkg_resources.parse_version("1.5"):
-      self.skipTest("Not supported in pre 1.5 images")
-
+    # Supported on Dataproc 2.0+
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
-      self.OPTIONAL_COMPONENTS.append("ANACONDA")
+      self.skipTest("Not supported in pre 2.0 images")
 
     metadata = "init-actions-repo={}".format(self.INIT_ACTIONS_REPO)
     if dask_runtime:
@@ -122,23 +119,15 @@ class MLVMTestCase(DataprocTestCase):
     if self.getImageOs() == 'centos':
       self.skipTest("Not supported in CentOS-based images")
 
-    # Supported on Dataproc 1.5+
-    if self.getImageVersion() < pkg_resources.parse_version("1.5"):
-      self.skipTest("Not supported in pre 1.5 images")
+    # Supported on Dataproc 2.0+
+    if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+      self.skipTest("Not supported in pre 2.0 images")
 
     metadata = ("init-actions-repo={},include-gpus=true"
                 ",gpu-driver-provider=NVIDIA").format(self.INIT_ACTIONS_REPO)
 
-    if self.getImageVersion() < pkg_resources.parse_version("2.0"):
-      cudnn_version = "7.6.5.32"
-      cuda_version = "10.1"
-      if rapids_runtime == "DASK":
-        self.skipTest("RAPIDS with Dask not supported in pre 2.0 images.")
-      else:
-        self.OPTIONAL_COMPONENTS.append("ANACONDA")
-    else:
-      cudnn_version = "8.0.5.39"
-      cuda_version = "11.0"
+    cudnn_version = "8.1.1.33"
+    cuda_version = "11.2"
 
     metadata = ("init-actions-repo={},include-gpus=true"
                 ",gpu-driver-provider=NVIDIA,"
