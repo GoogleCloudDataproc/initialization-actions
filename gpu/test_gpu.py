@@ -112,6 +112,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       ("STANDARD", ["m"], GPU_V100, None, "10.2"),
       ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "11.0"),
       ("STANDARD", ["w-0", "w-1"], None, GPU_V100, "11.1"),
+      ("STANDARD", ["w-0", "w-1"], None, GPU_V100, "11.2"),
   )
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
