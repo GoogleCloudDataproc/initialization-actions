@@ -74,7 +74,6 @@ function install_dask_rapids() {
   conda create -y -n ${mamba_env} -c conda-forge mamba
 
   # Install RAPIDS, cudatoolkit. Use mamba in new env to resolve base environment
-  # Dependency "icu" is also reinstalled here. 
   ${base}/envs/${mamba_env}/bin/mamba install -y \
     -c "rapidsai" -c "nvidia" -c "conda-forge" -c "defaults" \
     "cudatoolkit=${CUDA_VERSION}" "rapids-blazing=${RAPIDS_VERSION}" \
@@ -88,6 +87,12 @@ function install_spark_rapids() {
   local -r rapids_repo_url='https://repo1.maven.org/maven2/ai/rapids'
   local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
   local cudf_cuda_version="${CUDA_VERSION//\./-}"
+
+  # SPARK RAPIDS for CUDA 11 haven't been released beyond 11.0, so default to 11.0
+  if [[ ${cudf_cuda_version} == 11.* ]]; then
+    cudf_cuda_version="11.0"
+  fi
+
   # Convert "11-0" to "11"
   cudf_cuda_version="${cudf_cuda_version%-0}"
 
