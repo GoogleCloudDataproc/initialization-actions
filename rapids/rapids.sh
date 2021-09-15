@@ -215,8 +215,8 @@ EOF
 
 function main() {
   if [[ "${RUNTIME}" == "DASK" ]]; then
-    # RUNTIME is exposed by the Dask initialization action in
-    # "standalone" mode. In "YARN" mode, there is a config.yaml file.
+    # In "standalone" mode, Dask relies on a shell script to launch.
+    # In "yarn" mode, it relies a config.yaml file.
     if [[ -f "${DASK_LAUNCHER}" ]]; then
       configure_systemd_dask_service
     elif [[ -f "${DASK_YARN_CONFIG_FILE}" ]]; then
