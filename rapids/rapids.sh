@@ -86,15 +86,15 @@ function install_dask_rapids() {
 function install_spark_rapids() {
   local -r rapids_repo_url='https://repo1.maven.org/maven2/ai/rapids'
   local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
+
+  # Convert . to - for URL formatting
   local cudf_cuda_version="${CUDA_VERSION//\./-}"
 
-  # SPARK RAPIDS for CUDA 11 haven't been released beyond 11.0, so default to 11.0
-  if [[ ${cudf_cuda_version} == 11.* ]]; then
-    cudf_cuda_version="11.0"
+  # There's only one release for all CUDA 11 versions
+  # The version formatting does not have a '.'
+  if [[ ${cudf_cuda_version} == 11* ]]; then
+    cudf_cuda_version="11"
   fi
-
-  # Convert "11-0" to "11"
-  cudf_cuda_version="${cudf_cuda_version%-0}"
 
   if [[ "${SPARK_VERSION}" == "3"* ]]; then
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
