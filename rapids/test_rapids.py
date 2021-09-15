@@ -24,6 +24,8 @@ class RapidsTestCase(DataprocTestCase):
   XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME = "verify_xgboost_spark.py"
 
   def verify_dask_instance(self, name):
+    self.assert_instance_command(name, "pgrep -f dask-cuda-worker")
+
     self.upload_test_file(
         os.path.join(
             os.path.dirname(os.path.abspath(__file__)), 
@@ -108,7 +110,7 @@ class RapidsTestCase(DataprocTestCase):
     # Only need to do this once
     self.verify_spark_job()
 
-@parameterized.parameters(
+  @parameterized.parameters(
     ("STANDARD", ["m", "w-0"], GPU_P100, "11.2"))
   def test_non_default_cuda_versions(self, configuration, machine_suffixes, accelerator, cuda_version):
     if self.getImageOs() == 'centos':
