@@ -46,7 +46,7 @@ readonly XGBOOST_VERSION=$(get_metadata_attribute 'xgboost-version' ${DEFAULT_XG
 readonly XGBOOST_GPU_SUB_VERSION=$(get_metadata_attribute 'spark-gpu-sub-version' ${DEFAULT_XGBOOST_GPU_SUB_VERSION})
 
 # Dask config
-readonly DASK_LAUNCHER=dask-launcher.sh
+readonly DASK_LAUNCHER=/usr/local/bin/dask-launcher.sh
 readonly DASK_SERVICE=dask-cluster
 readonly DASK_YARN_CONFIG_FILE=/etc/dask/config.yaml
 
@@ -217,7 +217,7 @@ function main() {
   if [[ "${RUNTIME}" == "DASK" ]]; then
     # RUNTIME is exposed by the Dask initialization action in
     # "standalone" mode. In "YARN" mode, there is a config.yaml file.
-    if [[ -f "${DASK_SERVICE}" ]]; then
+    if [[ -f "${DASK_LAUNCHER}" ]]; then
       configure_systemd_dask_service
     elif [[ -f "${DASK_YARN_CONFIG_FILE}" ]]; then
       configure_dask_yarn
