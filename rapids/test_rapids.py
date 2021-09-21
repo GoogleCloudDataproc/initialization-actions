@@ -24,7 +24,9 @@ class RapidsTestCase(DataprocTestCase):
   XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME = "verify_xgboost_spark.py"
 
   def verify_dask_instance(self, name):
-    self.assert_instance_command(name, "pgrep -f dask-cuda-worker")
+    self.assert_instance_command(
+      name, "pgrep -f dask-cuda-worker || "
+            "grep 'class: \"dask_cuda.CUDAWorker\"' /etc/dask/config.yaml")
 
     self.upload_test_file(
         os.path.join(

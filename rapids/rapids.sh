@@ -215,6 +215,9 @@ EOF
 
 function main() {
   if [[ "${RUNTIME}" == "DASK" ]]; then
+    # Install RAPIDS
+    install_dask_rapids
+
     # In "standalone" mode, Dask relies on a shell script to launch.
     # In "yarn" mode, it relies a config.yaml file.
     if [[ -f "${DASK_LAUNCHER}" ]]; then
@@ -222,9 +225,6 @@ function main() {
     elif [[ -f "${DASK_YARN_CONFIG_FILE}" ]]; then
       configure_dask_yarn
     fi
-    
-    # Install RAPIDS
-    install_dask_rapids
     echo "RAPIDS installed with Dask runtime"
   elif [[ "${RUNTIME}" == "SPARK" ]]; then
     install_spark_rapids
