@@ -24,6 +24,10 @@ class RapidsTestCase(DataprocTestCase):
   XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME = "verify_xgboost_spark.py"
 
   def verify_dask_instance(self, name):
+    self.assert_instance_command(
+      name, "pgrep -f dask-cuda-worker || "
+            "grep 'class: \"dask_cuda.CUDAWorker\"' /etc/dask/config.yaml")
+
     self.upload_test_file(
         os.path.join(
             os.path.dirname(os.path.abspath(__file__)), 
@@ -108,6 +112,32 @@ class RapidsTestCase(DataprocTestCase):
     # Only need to do this once
     self.verify_spark_job()
 
+  @parameterized.parameters(
+    ("STANDARD", ["m", "w-0"], GPU_P100, "11.2"))
+  def test_non_default_cuda_versions(self, configuration, machine_suffixes, accelerator, cuda_version):
+    if self.getImageOs() == 'centos':
+      self.skipTest("Not supported in CentOS-based images")
+
+    if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
+      self.skipTest("Not supported in pre 2.0 images")
+
+    metadata = ("gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
+                ",cuda-version={}".format(cuda_version))
+
+    self.createCluster(
+        configuration,
+        self.INIT_ACTIONS,
+        metadata=metadata,
+        machine_type="n1-standard-4",
+        master_accelerator=accelerator if configuration == "SINGLE" else None,
+        worker_accelerator=accelerator,
+        timeout_in_minutes=30)
+
+    for machine_suffix in machine_suffixes:
+      self.verify_spark_instance("{}-{}".format(self.getClusterName(),
+                                                machine_suffix))
+    # Only need to do this once
+    self.verify_spark_job()
 
 if __name__ == "__main__":
   absltest.main()

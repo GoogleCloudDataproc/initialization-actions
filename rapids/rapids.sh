@@ -46,7 +46,7 @@ readonly XGBOOST_VERSION=$(get_metadata_attribute 'xgboost-version' ${DEFAULT_XG
 readonly XGBOOST_GPU_SUB_VERSION=$(get_metadata_attribute 'spark-gpu-sub-version' ${DEFAULT_XGBOOST_GPU_SUB_VERSION})
 
 # Dask config
-readonly DASK_LAUNCHER=dask-launcher.sh
+readonly DASK_LAUNCHER=/usr/local/bin/dask-launcher.sh
 readonly DASK_SERVICE=dask-cluster
 readonly DASK_YARN_CONFIG_FILE=/etc/dask/config.yaml
 
@@ -86,15 +86,15 @@ function install_dask_rapids() {
 function install_spark_rapids() {
   local -r rapids_repo_url='https://repo1.maven.org/maven2/ai/rapids'
   local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
+
+  # Convert . to - for URL formatting
   local cudf_cuda_version="${CUDA_VERSION//\./-}"
 
-  # SPARK RAPIDS for CUDA 11 haven't been released beyond 11.0, so default to 11.0
-  if [[ ${cudf_cuda_version} == 11.* ]]; then
-    cudf_cuda_version="11.0"
+  # There's only one release for all CUDA 11 versions
+  # The version formatting does not have a '.'
+  if [[ ${cudf_cuda_version} == 11* ]]; then
+    cudf_cuda_version="11"
   fi
-
-  # Convert "11-0" to "11"
-  cudf_cuda_version="${cudf_cuda_version%-0}"
 
   if [[ "${SPARK_VERSION}" == "3"* ]]; then
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
@@ -215,16 +215,16 @@ EOF
 
 function main() {
   if [[ "${RUNTIME}" == "DASK" ]]; then
-    # RUNTIME is exposed by the Dask initialization action in
-    # "standalone" mode. In "YARN" mode, there is a config.yaml file.
-    if [[ -f "${DASK_SERVICE}" ]]; then
+    # Install RAPIDS
+    install_dask_rapids
+
+    # In "standalone" mode, Dask relies on a shell script to launch.
+    # In "yarn" mode, it relies a config.yaml file.
+    if [[ -f "${DASK_LAUNCHER}" ]]; then
       configure_systemd_dask_service
     elif [[ -f "${DASK_YARN_CONFIG_FILE}" ]]; then
       configure_dask_yarn
     fi
-    
-    # Install RAPIDS
-    install_dask_rapids
     echo "RAPIDS installed with Dask runtime"
   elif [[ "${RUNTIME}" == "SPARK" ]]; then
     install_spark_rapids
