@@ -28,7 +28,7 @@ set -euxo pipefail
 # Use Python from /usr/bin instead of /opt/conda.
 export PATH=/usr/bin:$PATH
 
-function retry_command() {
+function retry_apt_command() {
   local cmd="$1"
   for ((i = 0; i < 10; i++)); do
     if eval "$cmd"; then
@@ -48,13 +48,8 @@ function install_oozie() {
   master_node=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 
   # Upgrade the repository and install Oozie
-  if command -v apt-get >/dev/null; then
-    retry_command "apt-get update" || err 'Unable to update packages lists.'
-    retry_command "apt-get install -y oozie oozie-client" || err 'Unable to install Oozie.'
-  else
-    retry_command "yum -y update" || err 'Unable to update packages lists.'
-    retry_command "yum -y install oozie oozie-client" || err 'Unable to install Oozie.'
-  fi
+  retry_apt_command "apt-get update"
+  retry_apt_command "apt-get install -q -y oozie oozie-client"
 
   # For Oozie, remove Log4j 2 jar not compatible with Log4j 1 that was brought by Hive 2
   find /usr/lib/oozie/lib -name "log4j-1.2-api*.jar" -delete
