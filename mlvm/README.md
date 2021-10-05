@@ -3,9 +3,7 @@
 This initialization action installs a set of packages designed to get you up and
 running with many commonly-used machine learning packages on a
 [Dataproc](https://cloud.google.com/dataproc) cluster. Currently, this
-initialization action is supported on Dataproc images 1.5 or higher. It is
-recommended to use Dataproc 2.0 image track for the best performance and
-greatest access to features.
+initialization action is supported on Dataproc images 2.0 or higher.
 
 Features of this configuration include:
 
@@ -64,33 +62,9 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
     --metadata rapids-runtime=SPARK \
     --metadata include-gpus=true \
     --metadata init-actions-repo=${INIT_ACTIONS_REPO} \
-    --metadata cuda-version=11.0 \
-    --metadata cudnn-version=8.0.5.39 \
+    --metadata cuda-version=11.2 \
+    --metadata cudnn-version=8.1.1.33 \
     --optional-components JUPYTER \
-    --initialization-actions ${INIT_ACTIONS_REPO}/mlvm/mlvm.sh \
-    --initialization-action-timeout=45m \
-    --enable-component-gateway
-```
-
-You can make a Dataproc 1.5 cluster with the following command:
-```bash
-REGION=<region>
-CLUSTER_NAME=<cluster_name>
-INIT_ACTIONS_REPO=gs://<your_bucket_name>
-gcloud dataproc clusters create ${CLUSTER_NAME} \
-    --region ${REGION} \
-    --master-machine-type n1-standard-16 \
-    --worker-machine-type n1-highmem-32 \
-    --master-accelerator type=nvidia-tesla-t4,count=2 \
-    --worker-accelerator type=nvidia-tesla-t4,count=2 \
-    --image-version 1.5-ubuntu18 \
-    --metadata gpu-driver-provider=NVIDIA \
-    --metadata rapids-runtime=SPARK \
-    --metadata include-gpus=true \
-    --metadata init-actions-repo=${INIT_ACTIONS_REPO} \
-    --metadata cuda-version=10.1 \
-    --metadata cudnn-version=7.6.5.32 \
-    --optional-components ANACONDA,JUPYTER \
     --initialization-actions ${INIT_ACTIONS_REPO}/mlvm/mlvm.sh \
     --initialization-action-timeout=45m \
     --enable-component-gateway
@@ -111,8 +85,8 @@ config:
       rapids-runtime: SPARK
       include-gpus: 'true'
       init-actions-repo: <INIT_ACTIONS_REPO>
-      cuda-version: 11.0
-      cudnn-version: 8.0.5.39
+      cuda-version: 11.2
+      cudnn-version: 8.1.1.33
   initializationActions:
   - executableFile: gs://<INIT_ACTIONS_REPO>/mlvm/mlvm.sh
     executionTimeout: 2700s
@@ -137,12 +111,12 @@ config:
 
 NVIDIA GPU Drivers:
 
-*   CUDA 11.0 # 10.1 on Dataproc 1.5
-*   cuDNN 8.0.5.39 # 7.6.5.32 on Dataproc 1.5
-*   NCCL 2.7.8
-*   RAPIDS 0.17.0
+*   CUDA 11.2
+*   cuDNN 8.1.1.33
+*   NCCL 2.8.3
+*   RAPIDS 21.08
 *   Latest NVIDIA drivers for Ubuntu / Debian
-*   spark-bigquery-connector 0.18.1
+*   spark-bigquery-connector 0.22.0
 
 ### Python Libraries
 
@@ -153,32 +127,32 @@ All libraries are installed with their latest versions unless noted otherwise.
 #### Tensorflow (pip)
 
 ```
-tensorflow==2.4 # 2.3 on Dataproc 1.5
-tensorflow-datasets==4.2
-tensorflow-estimator==2.4 # 2.3 on Dataproc 1.5
-tensorflow-hub==0.11
-tensorflow-io==0.17 # 0.16 on Dataproc 1.5
-tensorflow-probability==0.12
+tensorflow==2.6
+tensorflow-datasets==4.4
+tensorflow-estimator==2.6
+tensorflow-hub==0.12
+tensorflow-io==0.20
+tensorflow-probability==0.13
 ```
 
 #### Other pip libraries
 
 ```
-mxnet=1.6
+mxnet=1.8
 rpy2=3.4
 sparksql-magic==0.0.3
-spark-tensorflow-distributor==0.1.0  # Not installed on Dataproc 1.5
+spark-tensorflow-distributor==1.0.0
 ```
 
 #### Conda libraries
 
 ```
-dask-yarn=0.8
+dask-yarn=0.9
 scikit-learn=0.24
-spark-nlp=2.7.2
-pytorch=1.7
-torchvision=0.8
-xgboost==1.3
+spark-nlp=3.2.1
+pytorch=1.9
+torchvision=0.9
+xgboost==1.4
 ```
 
 For additional Python libraries you can use either of the following:
@@ -190,13 +164,13 @@ For additional Python libraries you can use either of the following:
 
 ### R libraries
 
-Conda is used to install R libraries. R version is 3.6 for Dataproc 1.5, and
-4.0 for Dataproc 2.0+
+Conda is used to install R libraries. R version is
+4.0 for Dataproc 2.0
 
 ```
-r-essentials=${R_VERSION}
-r-xgboost=1.3
-r-sparklyr=1.5
+r-essentials=4.0
+r-xgboost=1.4
+r-sparklyr=1.7
 ```
 Note: due to a version conflict, `r-xgboost` is not installed if
 `--metadata rapids-runtime` is provided.
@@ -210,9 +184,9 @@ For additional R libraries you can use the following:
 ### Java Libraries
 
 ```
-spark-nlp - 2.7.2
-spark-bigquery-connector - 0.18.1
-RAPIDS XGBOOST libraries - 0.17.0
+spark-nlp - 3.2.1
+spark-bigquery-connector - 0.22.0
+RAPIDS XGBOOST libraries - 21.08.0
 ```
 
 You can find more information about using initialization actions with Dataproc
