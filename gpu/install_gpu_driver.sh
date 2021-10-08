@@ -38,7 +38,7 @@ readonly NVIDIA_DEBIAN_GPU_DRIVER_URL
 readonly NVIDIA_BASE_DL_URL='https://developer.download.nvidia.com/compute'
 
 # CUDA Version
-CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.0')
+CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.2')
 readonly CUDA_VERSION
 
 # Parameters for NVIDIA-provided NCCL library
