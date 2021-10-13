@@ -49,15 +49,10 @@ readonly NCCL_REPO_URL
 readonly DEFAULT_NCCL_VERSION="2.8.3"
 readonly DEFAULT_NCCL_VERSION_CENTOS="2.8.4"
 
-if [[ "$(echo "$DATAPROC_VERSION >= 2.0" | bc)" -eq 1 ]]; then
-  if [[ ${OS_NAME} == centos ]]; then
-    NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION_CENTOS})
-  else
-    NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION})
-  fi
+if [[ ${OS_NAME} == centos ]]; then
+  NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION_CENTOS})
 else
-  NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.7.8')
-fi
+  NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION})
 readonly NCCL_VERSION
 
 readonly -A DEFAULT_NVIDIA_DEBIAN_CUDA_URLS=(
