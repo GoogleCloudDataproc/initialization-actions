@@ -38,7 +38,7 @@ readonly NVIDIA_DEBIAN_GPU_DRIVER_URL
 readonly NVIDIA_BASE_DL_URL='https://developer.download.nvidia.com/compute'
 
 # CUDA Version
-CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.0')
+CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.2')
 readonly CUDA_VERSION
 
 # Parameters for NVIDIA-provided NCCL library
@@ -49,14 +49,10 @@ readonly NCCL_REPO_URL
 readonly DEFAULT_NCCL_VERSION="2.8.3"
 readonly DEFAULT_NCCL_VERSION_CENTOS="2.8.4"
 
-if [[ "$(echo "$DATAPROC_VERSION >= 2.0" | bc)" -eq 1 ]]; then
-  if [[ ${OS_NAME} == centos ]]; then
-    NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION_CENTOS})
-  else
-    NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION})
-  fi
+if [[ ${OS_NAME} == centos ]]; then
+  NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION_CENTOS})
 else
-  NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.7.8')
+  NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION})
 fi
 readonly NCCL_VERSION
 
