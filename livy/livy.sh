@@ -17,6 +17,7 @@ set -euxo pipefail
 readonly LIVY_VERSION=$(/usr/share/google/get_metadata_value attributes/livy-version || echo 0.7.0)
 readonly LIVY_PKG_NAME=apache-livy-${LIVY_VERSION}-incubating-bin
 readonly LIVY_URL=https://archive.apache.org/dist/incubator/livy/${LIVY_VERSION}-incubating/${LIVY_PKG_NAME}.zip
+readonly LIVY_TIMEOUT_SESSION=$(/usr/share/google/get_metadata_value attributes/livy-timeout-session || echo 1h)
 
 readonly LIVY_DIR=/usr/local/lib/livy
 readonly LIVY_BIN=${LIVY_DIR}/bin
@@ -27,6 +28,7 @@ function make_livy_conf() {
   cat <<EOF >"${LIVY_CONF}/livy.conf"
 livy.spark.master = $(grep spark.master /etc/spark/conf/spark-defaults.conf | cut -d= -f2)
 livy.spark.deploy-mode = $(grep spark.submit.deployMode /etc/spark/conf/spark-defaults.conf | cut -d= -f2)
+livy.server.session.timeout=$LIVY_TIMEOUT_SESSION
 EOF
 }
 
