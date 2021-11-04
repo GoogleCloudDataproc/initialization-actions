@@ -106,7 +106,7 @@ function install_spark_rapids() {
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
       "${nvidia_repo_url}/rapids-4-spark_2.12/${SPARK_RAPIDS_VERSION}/rapids-4-spark_2.12-${SPARK_RAPIDS_VERSION}.jar" \
       -P /usr/lib/spark/jars/
-    wget -nv --timeout=30 --tries=5 --retry-connrefused \  
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
       "https://repo1.maven.org/maven2/com/google/cloud/spark/spark3support_2.12/0.22.2/spark3support_2.12-0.22.2.jar" \
       -P /usr/lib/spark/jars/
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
