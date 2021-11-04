@@ -106,6 +106,12 @@ function install_spark_rapids() {
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
       "${nvidia_repo_url}/rapids-4-spark_2.12/${SPARK_RAPIDS_VERSION}/rapids-4-spark_2.12-${SPARK_RAPIDS_VERSION}.jar" \
       -P /usr/lib/spark/jars/
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \  
+      "https://repo1.maven.org/maven2/com/google/cloud/spark/spark3support_2.12/0.22.2/spark3support_2.12-0.22.2.jar" \
+      -P /usr/lib/spark/jars/
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+      "https://repo1.maven.org/maven2/com/google/cloud/spark/spark-bigquery-with-dependencies_2.12/0.22.2/spark-bigquery-with-dependencies_2.12-0.22.2.jar" \
+      -P /usr/lib/spark/jars/
   else
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
       "${rapids_repo_url}/xgboost4j-spark_${SPARK_VERSION}/${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}/xgboost4j-spark_${SPARK_VERSION}-${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}.jar" \
