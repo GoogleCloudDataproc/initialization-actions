@@ -77,11 +77,7 @@ if [[ "${ROLE}" == 'Master' ]]; then
   fi
 
   # Install RStudio Server
-  if [[ "${OS_ID}" == "ubuntu" ]]; then
-    REPOSITORY_KEY=E298A3A825C0D65DFD57CBB651716619E084DAB9
-  else
-    REPOSITORY_KEY=E19F5F87128899B192B1A2C2AD5F960A256A04AF
-  fi
+  REPOSITORY_KEY=95C0FAF38DB3CCAD0C080A7BDC78B2DDEABC47B7
   run_with_retries apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys ${REPOSITORY_KEY}
   apt-get install -y software-properties-common
   add-apt-repository "deb http://cran.r-project.org/bin/linux/${OS_ID} ${OS_CODE}-cran35/"
