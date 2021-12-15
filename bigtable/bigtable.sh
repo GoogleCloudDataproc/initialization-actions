@@ -24,12 +24,12 @@ export PATH=/usr/bin:$PATH
 readonly HBASE_HOME='/usr/lib/hbase'
 
 readonly BIGTABLE_HBASE_CLIENT_1X_REPO="https://repo1.maven.org/maven2/com/google/cloud/bigtable/bigtable-hbase-1.x-hadoop"
-readonly BIGTABLE_HBASE_CLIENT_1X_VERSION='1.13.0'
+readonly BIGTABLE_HBASE_CLIENT_1X_VERSION='1.26.1'
 readonly BIGTABLE_HBASE_CLIENT_1X_JAR="bigtable-hbase-1.x-hadoop-${BIGTABLE_HBASE_CLIENT_1X_VERSION}.jar"
 readonly BIGTABLE_HBASE_CLIENT_1X_URL="${BIGTABLE_HBASE_CLIENT_1X_REPO}/${BIGTABLE_HBASE_CLIENT_1X_VERSION}/${BIGTABLE_HBASE_CLIENT_1X_JAR}"
 
 readonly BIGTABLE_HBASE_CLIENT_2X_REPO="https://repo1.maven.org/maven2/com/google/cloud/bigtable/bigtable-hbase-2.x-hadoop"
-readonly BIGTABLE_HBASE_CLIENT_2X_VERSION='1.19.1'
+readonly BIGTABLE_HBASE_CLIENT_2X_VERSION='1.26.1'
 readonly BIGTABLE_HBASE_CLIENT_2X_JAR="bigtable-hbase-2.x-hadoop-${BIGTABLE_HBASE_CLIENT_2X_VERSION}.jar"
 readonly BIGTABLE_HBASE_CLIENT_2X_URL="${BIGTABLE_HBASE_CLIENT_2X_REPO}/${BIGTABLE_HBASE_CLIENT_2X_VERSION}/${BIGTABLE_HBASE_CLIENT_2X_JAR}"
 
