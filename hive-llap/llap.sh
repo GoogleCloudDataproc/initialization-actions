@@ -170,8 +170,8 @@ function configure_core_site(){
 function get_log4j() {
     echo "import missing log4j library..."
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
-        https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-slf4j-impl/2.16.0/log4j-slf4j-impl-2.16.0.jar
-    cp log4j-slf4j-impl-2.16.0.jar /usr/lib/hive/lib
+        https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-slf4j-impl/2.17.1/log4j-slf4j-impl-2.17.1.jar
+    cp log4j-slf4j-impl-2.17.1.jar /usr/lib/hive/lib
 }
 
 # repackage tez_lib_uris and place on HDFS; only need to do this on one node. 
