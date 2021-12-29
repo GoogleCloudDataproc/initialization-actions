@@ -76,7 +76,7 @@ function install_dask_rapids() {
   # Install RAPIDS, cudatoolkit. Use mamba in new env to resolve base environment
   ${base}/envs/${mamba_env}/bin/mamba install -y \
     -c "rapidsai" -c "nvidia" -c "conda-forge" -c "defaults" \
-    "cudatoolkit=${CUDA_VERSION}" "rapids-blazing=${RAPIDS_VERSION}" \
+    "cudatoolkit=${CUDA_VERSION}" "rapids=${RAPIDS_VERSION}" "dask-sql" \
     -p ${base}
 
   # Remove mamba env
