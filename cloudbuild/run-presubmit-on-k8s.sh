@@ -25,7 +25,7 @@ kubectl wait --for=condition=Ready "pod/${POD_NAME}" --timeout=600s
 kubectl logs -f "${POD_NAME}"
 
 # Wait until POD will be terminated
-wait_secs=60
+wait_secs=200
 while ((wait_secs > 0)) && ! kubectl describe "pod/${POD_NAME}" | grep -q Terminated; do
   sleep 5
   ((wait_secs-=5))
