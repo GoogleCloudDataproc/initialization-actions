@@ -317,8 +317,20 @@ function configure_gpu_isolation() {
   sed -i "s/yarn.nodemanager\.linux\-container\-executor\.group\=/yarn\.nodemanager\.linux\-container\-executor\.group\=yarn/g" "${HADOOP_CONF_DIR}/container-executor.cfg"
   printf '\n[gpu]\nmodule.enabled=true\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' >>"${HADOOP_CONF_DIR}/container-executor.cfg"
 
-  chmod a+rwx -R /sys/fs/cgroup/cpu,cpuacct
-  chmod a+rwx -R /sys/fs/cgroup/devices
+  # Configure a systemd unit to ensure that permissions are set on restart
+  cat >/etc/systemd/system/dataproc-cgroup-device-permissions.service<<EOF
+[Unit]
+Description=Set permissions to allow YARN to access device directories
+
+[Service]
+ExecStart=/bin/bash -c "chmod a+rwx -R /sys/fs/cgroup/cpu,cpuacct; chmod a+rwx -R /sys/fs/cgroup/devices"
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  systemctl enable dataproc-cgroup-device-permissions
+  systemctl start dataproc-cgroup-device-permissions
 }
 
 function main() {
