@@ -33,7 +33,7 @@ class DaskTestCase(DataprocTestCase):
     @parameterized.parameters(
         ("STANDARD", ["m", "w-0"], None),
         ("STANDARD", ["m", "w-0"], "yarn"),
-        ("STANDARD", ["m", "w-0"], "standalone"))
+        ("STANDARD", ["m"], "standalone"))
     def test_dask(self, configuration, instances, runtime):
         if self.getImageOs() == 'centos':
             self.skipTest("Not supported in CentOS-based images")
