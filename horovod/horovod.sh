@@ -26,6 +26,7 @@ readonly DEFAULT_PYTORCH_VERSION="1.7.1"
 readonly DEFAULT_TORCHVISION_VERSION="0.8.2"
 readonly DEFAULT_MXNET_VERSION="1.7.0.post1"
 readonly DEFAULT_CUDA_VERSION="11.0"
+readonly DEFAULT_MPI_VERSION="4.1.0"
 
 HOROVOD_VERSION="$(/usr/share/google/get_metadata_value attributes/horovod-version || echo ${DEFAULT_HOROVOD_VERSION})"
 readonly HOROVOD_VERSION
@@ -37,6 +38,8 @@ TORCHVISION_VERSION="$(/usr/share/google/get_metadata_value attributes/torvision
 readonly TORCHVISION_VERSION
 MXNET_VERSION="$(/usr/share/google/get_metadata_value attributes/mxnet-version || echo ${DEFAULT_MXNET_VERSION})"
 readonly MXNET_VERSION
+MPI_VERSION="$(/usr/share/google/get_metadata_value attributes/mpi-version || echo ${DEFAULT_MPI_VERSION})"
+readonly MPI_VERSION
 
 CUDA_VERSION="$(/usr/share/google/get_metadata_value attributes/cuda-version || echo ${DEFAULT_CUDA_VERSION})"
 readonly CUDA_VERSION
@@ -59,15 +62,14 @@ function execute_with_retries() {
 }
 
 function install_mpi() {
-  local -r mpi_version="4.1.0"
-  local -r mpi_url="https://download.open-mpi.org/release/open-mpi/v${mpi_version%.*}/openmpi-${mpi_version}.tar.gz"
+  local -r mpi_url="https://download.open-mpi.org/release/open-mpi/v${MPI_VERSION%.*}/openmpi-${MPI_VERSION}.tar.gz"
   local tmp_dir
   tmp_dir=$(mktemp -d -t mlvm-horovod-mpi-XXXX)
 
   wget -nv --timeout=30 --tries=5 --retry-connrefused -P "${tmp_dir}" "${mpi_url}"
-  gunzip -c "${tmp_dir}/openmpi-${mpi_version}.tar.gz" | tar xf - -C "${tmp_dir}"
+  gunzip -c "${tmp_dir}/openmpi-${MPI_VERSION}.tar.gz" | tar xf - -C "${tmp_dir}"
 
-  pushd "${tmp_dir}/openmpi-${mpi_version}"
+  pushd "${tmp_dir}/openmpi-${MPI_VERSION}"
   ./configure --prefix=/usr/local --enable-mpirun-prefix-by-default
   make all install
   ldconfig
