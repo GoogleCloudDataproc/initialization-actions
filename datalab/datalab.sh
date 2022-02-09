@@ -41,19 +41,22 @@ readonly INIT_ACTIONS_BRANCH="$(/usr/share/google/get_metadata_value attributes/
 # Expose every possible spark configuration to the container.
 VOLUMES="$(echo /etc/{hadoop*,hive*,*spark*})"
 
-CONNECTORS_LIB=/usr/lib/hadoop/lib
+DATAPROC_LIB=/usr/lib/hadoop/lib
 if [[ -d /usr/local/share/google/dataproc/lib ]]; then
-  CONNECTORS_LIB="/usr/local/share/google/dataproc/lib"
+  DATAPROC_LIB="/usr/local/share/google/dataproc/lib"
 fi
-if [[ -L ${CONNECTORS_LIB}/gcs-connector.jar ]]; then
-  VOLUMES+=" ${CONNECTORS_LIB}/gcs-connector.jar"
+if [[ -L ${DATAPROC_LIB}/gcs-connector.jar ]]; then
+  VOLUMES+=" ${DATAPROC_LIB}/gcs-connector.jar"
 else
-  VOLUMES+=" $(compgen -G ${CONNECTORS_LIB}/gcs*)"
+  VOLUMES+=" $(compgen -G ${DATAPROC_LIB}/gcs*)"
 fi
-if [[ -L ${CONNECTORS_LIB}/bigquery-connector.jar ]]; then
-  VOLUMES+=" ${CONNECTORS_LIB}/bigquery-connector.jar"
-elif compgen -G "${CONNECTORS_LIB}/bigquery*" >/dev/null; then
-  VOLUMES+=" $(compgen -G ${CONNECTORS_LIB}/bigquery*)"
+if [[ -L ${DATAPROC_LIB}/bigquery-connector.jar ]]; then
+  VOLUMES+=" ${DATAPROC_LIB}/bigquery-connector.jar"
+elif compgen -G "${DATAPROC_LIB}/bigquery*" >/dev/null; then
+  VOLUMES+=" $(compgen -G ${DATAPROC_LIB}/bigquery*)"
+fi
+if [[ -L ${DATAPROC_LIB}/spark-metrics-listener.jar ]]; then
+  VOLUMES+=" ${DATAPROC_LIB}/spark-metrics-listener.jar"
 fi
 
 readonly VOLUMES
