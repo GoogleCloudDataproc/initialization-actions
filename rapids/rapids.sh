@@ -8,15 +8,15 @@ function get_metadata_attribute() {
   /usr/share/google/get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
 }
 
-readonly DEFAULT_RAPIDS_VERSION="21.12"
+readonly DEFAULT_RAPIDS_VERSION="22.02"
 readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' ${DEFAULT_RAPIDS_VERSION})
 
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
-readonly DEFAULT_SPARK_RAPIDS_VERSION="21.12.0"
+readonly DEFAULT_SPARK_RAPIDS_VERSION="22.02.0"
 
 if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
   readonly DEFAULT_CUDA_VERSION="11.0"
-  readonly DEFAULT_CUDF_VERSION="21.12.2"
+  readonly DEFAULT_CUDF_VERSION="22.02.0"
   readonly DEFAULT_XGBOOST_VERSION="1.4.2"
   readonly DEFAULT_XGBOOST_GPU_SUB_VERSION="0.2.0"
   # TODO: uncomment when Spark 3.1 jars will be released - RAPIDS work with Spark 3.1, this is just for Maven URL
