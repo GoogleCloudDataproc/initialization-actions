@@ -96,7 +96,7 @@ update_connector_url() {
     find "${vm_connectors_dir}/" -name "${name}-connector-*.jar" -delete
   fi
 
-  gsutil cp "${url}" "${vm_connectors_dir}/"
+  gsutil cp -P "${url}" "${vm_connectors_dir}/"
 
   local -r jar_name=${url##*/}
 
