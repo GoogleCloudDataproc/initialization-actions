@@ -22,5 +22,5 @@
 # your alerting policies and dashboards
 
 # Download and run the Stackdriver installation script
-curl -sSO https://dl.google.com/cloudagents/install-monitoring-agent.sh
-sudo bash install-monitoring-agent.sh
+curl -sSO https://dl.google.com/cloudagents/add-monitoring-agent-repo.sh
+sudo bash add-monitoring-agent-repo.sh --version=5.*.* --also-install
