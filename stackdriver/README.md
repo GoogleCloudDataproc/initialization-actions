@@ -3,10 +3,7 @@
 ## Deprecation Note
 As of December 10, 2018, Cloud Dataproc Stackdriver Monitoring is automatically enabled on Cloud Dataproc clusters, and collects and reports HDFS, YARN, and other Cloud Dataproc cluster and job metrics. See [Release Notes](https://cloud.google.com/dataproc/docs/release-notes#december_10_2018). This initialization action effectively does nothing for clusters created after this date.
 
-This initialization action downloads and installs the [Google Stackdriver](https://cloud.google.com/stackdriver/)
-installations script. This will enable monitoring for a Cloud Dataproc cluster within Stackdriver. With this monitoring
-you can, for example, look at fine-grained resource use across the cluster, alarm on various triggers, or
-analyze the performance of your cluster. 
+This initialization action is a no op and is kept for the backwards compatibility.
 
 ## Using this initialization action
 
