@@ -21,6 +21,4 @@
 # instances created with that prefix and use this group as the basis for
 # your alerting policies and dashboards
 
-# Download and run the Stackdriver installation script
-curl -sSO https://dl.google.com/cloudagents/install-monitoring-agent.sh
-sudo bash install-monitoring-agent.sh
+# Previous script (install-monitoring-agent.sh) has been deprecated. Keeping a no op file for backwards compatibility.
