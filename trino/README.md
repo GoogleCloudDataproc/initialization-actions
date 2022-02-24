@@ -6,7 +6,7 @@
 This initialization action installs the latest version of [Trino](trino.io)
 on a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster.
 Additionally, this script will configure Trino to work with Hive on the
-clustera and will include sample bigquery configuration with which you can define your project-id and use BigQuery as a data source. The master Cloud Dataproc node will be the coordinator and all Cloud
+cluster and will include sample BigQuery configuration with which you can define your project-id and use BigQuery as a data source. The master Dataproc node will be the coordinator and all
 Dataproc workers will be Trino workers.
 
 ## Using this initialization action
