@@ -128,22 +128,10 @@ function configure_spark() {
 # query explain output won't show GPU operator, if user have doubt
 # they can uncomment the line before to see the GPU plan explan, but AQE on give user the best performance.
 # spark.sql.adaptive.enabled=false
-spark.rapids.sql.concurrentGpuTasks=2
 spark.executor.resource.gpu.amount=1
-spark.executor.cores=2
-spark.task.cpus=1
-spark.task.resource.gpu.amount=0.5
-spark.rapids.memory.pinnedPool.size=2G
-spark.executor.memoryOverhead=2G
 spark.plugins=com.nvidia.spark.SQLPlugin
-spark.executor.extraJavaOptions='-Dai.rapids.cudf.prefer-pinned=true'
-spark.locality.wait=0s
 spark.executor.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh
-spark.sql.shuffle.partitions=48
-spark.sql.files.maxPartitionBytes=512m
 spark.submit.pyFiles=/usr/lib/spark/jars/xgboost4j-spark_${SPARK_VERSION}-${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}.jar
-spark.dynamicAllocation.enabled=false
-spark.shuffle.service.enabled=false
 ###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
 EOF
   else
@@ -151,8 +139,6 @@ EOF
 
 ###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
 spark.submit.pyFiles=/usr/lib/spark/jars/xgboost4j-spark_${SPARK_VERSION}-${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}.jar
-spark.dynamicAllocation.enabled=false
-spark.shuffle.service.enabled=false
 ###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
 EOF
   fi
