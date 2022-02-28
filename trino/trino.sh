@@ -35,6 +35,7 @@ readonly TRINO_BASE_URL=https://repo1.maven.org/maven2/io/trino
 readonly TRINO_VERSION='369'
 readonly HTTP_PORT="$(/usr/share/google/get_metadata_value attributes/trino-port || echo 8080)"
 readonly INIT_SCRIPT='/usr/lib/systemd/system/trino.service'
+readonly BQ_PROJECT_ID="$(/usr/share/google/get_metadata_value ../project/project-id)"
 TRINO_JVM_MB=0
 TRINO_QUERY_NODE_MB=0
 TRINO_RESERVED_SYSTEM_MB=0
@@ -159,7 +160,7 @@ connector.name=memory
 EOF
   cat >/opt/trino-server/etc/catalog/bigquery.properties <<EOF
 connector.name=bigquery
-bigquery.project-id=set-your-project-id
+bigquery.project-id=${BQ_PROJECT_ID}
 bigquery.views-enabled=true
 EOF
 }
