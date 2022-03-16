@@ -378,7 +378,9 @@ function main() {
     fi
 
     configure_gpu_exclusive_mode
-    systemctl restart hadoop-yarn-nodemanager.service
+    if systemctl status hadoop-yarn-nodemanager; then
+      systemctl restart hadoop-yarn-nodemanager.service
+    fi
   elif [[ "${ROLE}" == "Master" ]]; then
     configure_yarn_nodemanager
     configure_gpu_isolation
