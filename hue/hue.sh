@@ -143,6 +143,12 @@ EOF
   for interpreter in "${interpreters[@]}"; do
     sed -i "/^ *# \[\[\[${interpreter}\]\]\]/,/^ *$/s/^\( *\)# \?/\1/" /etc/hue/conf/hue.ini
   done
+  # Enable hive on 4.5, 4.8
+  local FIX_HUE_VERSION=("4.5.0 4.8.0")
+  local HUE_VERSION=$(sed -n 's/VERSION="\(.*\)"/\1/p' /usr/lib/hue/VERSION)
+  if [[ "${FIX_HUE_VERSION[*]}" =~ "${HUE_VERSION}" ]]; then
+    sed -i "/^ *\[\[\[hive\]\]\]/,/^ *$/s/^\( *\)\[\[\[hive\]\]\]/\1\[\[\[beeswax\]\]\]/" /etc/hue/conf/hue.ini
+  fi
 
   # Configure webhdfs_url
   sed -i "s/${old_hdfs_url}/${new_hdfs_url}/" /etc/hue/conf/hue.ini
