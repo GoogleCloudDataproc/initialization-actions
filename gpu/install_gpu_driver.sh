@@ -310,6 +310,25 @@ function configure_gpu_exclusive_mode() {
   fi
 }
 
+function configure_mig_major() {
+  mkdir -p /usr/local/yarn-mig-scripts
+  sudo chmod 755 /usr/local/yarn-mig-scripts
+  wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.04/examples/MIG-Support/yarn-unpatched/scripts/nvidia-smi
+  # change to mine
+  wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.04/examples/MIG-Support/yarn-unpatched/scripts/mig2gpu.sh
+
+  nvidia-smi -mig 1
+  # assume 40GB A100 for now - split in 2
+  nvidia-smi mig -cgi 9,3g.20gb -C
+  # todo add check mig enabled vs pending
+  # nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader
+
+  major_caps=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
+
+  # configure the container-executor.cfg to have major caps
+  printf "gpu.major-device-number=$major_caps\n" >>"${HADOOP_CONF_DIR}/container-executor.cfg"
+}
+
 function configure_gpu_isolation() {
   # Download GPU discovery script
   local -r spark_gpu_script_dir='/usr/lib/spark/scripts/gpu'
@@ -322,6 +341,7 @@ function configure_gpu_isolation() {
   # enable GPU isolation
   sed -i "s/yarn.nodemanager\.linux\-container\-executor\.group\=/yarn\.nodemanager\.linux\-container\-executor\.group\=yarn/g" "${HADOOP_CONF_DIR}/container-executor.cfg"
   printf '\n[gpu]\nmodule.enabled=true\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' >>"${HADOOP_CONF_DIR}/container-executor.cfg"
+  configure_mig_major
 
   # Configure a systemd unit to ensure that permissions are set on restart
   cat >/etc/systemd/system/dataproc-cgroup-device-permissions.service<<EOF
@@ -362,8 +382,6 @@ function main() {
 
   # Detect NVIDIA GPU
   if (lspci | grep -q NVIDIA); then
-    configure_yarn_nodemanager
-    configure_gpu_isolation
 
     if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
       execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
