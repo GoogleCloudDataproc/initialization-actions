@@ -71,7 +71,7 @@ function install_hue_and_configure() {
   install_packages hue || err "Failed to install Hue"
 
   # Stop Hue
-  systemctl stop hue || err "Hue stop action not performed"
+  /etc/init.d/hue force-stop || err "Hue stop action not performed"
 
   bdconfig set_property \
     --configuration_file "${hadoop_conf_dir}/core-site.xml" \
@@ -143,10 +143,9 @@ EOF
   for interpreter in "${interpreters[@]}"; do
     sed -i "/^ *# \[\[\[${interpreter}\]\]\]/,/^ *$/s/^\( *\)# \?/\1/" /etc/hue/conf/hue.ini
   done
-  # Enable hive on 4.5, 4.8
-  local FIX_HUE_VERSION=("4.5.0 4.8.0")
-  local HUE_VERSION=$(sed -n 's/VERSION="\(.*\)"/\1/p' /usr/lib/hue/VERSION)
-  if [[ "${FIX_HUE_VERSION[*]}" =~ "${HUE_VERSION}" ]]; then
+  # Enable hive on Dataproc 1.5, 2.0
+  local FIX_HUE_VERSION=("1.5 2.0")
+  if [[ "${FIX_HUE_VERSION[*]}" =~ "${DATAPROC_VERSION}" ]]; then
     sed -i "/^ *\[\[\[hive\]\]\]/,/^ *$/s/^\( *\)\[\[\[hive\]\]\]/\1\[\[\[beeswax\]\]\]/" /etc/hue/conf/hue.ini
   fi
 
