@@ -143,9 +143,9 @@ EOF
   for interpreter in "${interpreters[@]}"; do
     sed -i "/^ *# \[\[\[${interpreter}\]\]\]/,/^ *$/s/^\( *\)# \?/\1/" /etc/hue/conf/hue.ini
   done
-  # Enable hive on Dataproc 1.5, 2.0
-  local FIX_HUE_VERSION=("1.5 2.0")
-  if [[ "${FIX_HUE_VERSION[*]}" =~ "${DATAPROC_VERSION}" ]]; then
+
+  # Enable/fix Hive on Dataproc 1.5 and 2.0 images
+  if [[ "${DATAPROC_VERSION}" == '1.5' || "${DATAPROC_VERSION}" == '2.0' ]]; then
     sed -i "/^ *\[\[\[hive\]\]\]/,/^ *$/s/^\( *\)\[\[\[hive\]\]\]/\1\[\[\[beeswax\]\]\]/" /etc/hue/conf/hue.ini
   fi
 
