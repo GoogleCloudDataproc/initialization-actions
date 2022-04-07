@@ -9,23 +9,23 @@ steps:
     id: 'gcr-push'
     args: ['push', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID']
 
-  # Run presubmit tests in parallel for 1.5 CentOS image
-  - name: 'gcr.io/cloud-builders/kubectl'
-    id: 'dataproc-1.5-centos8-tests'
-    waitFor: ['gcr-push']
-    entrypoint: 'bash'
-    args: ['cloudbuild/run-presubmit-on-k8s.sh', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID', '$BUILD_ID', '1.5-centos8']
-    env:
-      - 'COMMIT_SHA=$COMMIT_SHA'
-      - 'CLOUDSDK_COMPUTE_REGION=us-central1'
-      - 'CLOUDSDK_CONTAINER_CLUSTER=init-actions-presubmit'
-
   # Run presubmit tests in parallel for 1.5 Debian image
   - name: 'gcr.io/cloud-builders/kubectl'
     id: 'dataproc-1.5-debian10-tests'
     waitFor: ['gcr-push']
     entrypoint: 'bash'
     args: ['cloudbuild/run-presubmit-on-k8s.sh', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID', '$BUILD_ID', '1.5-debian10']
+    env:
+      - 'COMMIT_SHA=$COMMIT_SHA'
+      - 'CLOUDSDK_COMPUTE_REGION=us-central1'
+      - 'CLOUDSDK_CONTAINER_CLUSTER=init-actions-presubmit'
+
+  # Run presubmit tests in parallel for 1.5 Rocky Linux image
+  - name: 'gcr.io/cloud-builders/kubectl'
+    id: 'dataproc-1.5-rocky8-tests'
+    waitFor: ['gcr-push']
+    entrypoint: 'bash'
+    args: ['cloudbuild/run-presubmit-on-k8s.sh', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID', '$BUILD_ID', '1.5-rocky8']
     env:
       - 'COMMIT_SHA=$COMMIT_SHA'
       - 'CLOUDSDK_COMPUTE_REGION=us-central1'
@@ -42,23 +42,23 @@ steps:
       - 'CLOUDSDK_COMPUTE_REGION=us-central1'
       - 'CLOUDSDK_CONTAINER_CLUSTER=init-actions-presubmit'
 
-  # Run presubmit tests in parallel for 2.0 CentOS image
-  - name: 'gcr.io/cloud-builders/kubectl'
-    id: 'dataproc-2.0-centos8-tests'
-    waitFor: ['gcr-push']
-    entrypoint: 'bash'
-    args: ['cloudbuild/run-presubmit-on-k8s.sh', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID', '$BUILD_ID', '2.0-centos8']
-    env:
-      - 'COMMIT_SHA=$COMMIT_SHA'
-      - 'CLOUDSDK_COMPUTE_REGION=us-central1'
-      - 'CLOUDSDK_CONTAINER_CLUSTER=init-actions-presubmit'
-
   # Run presubmit tests in parallel for 2.0 Debian image
   - name: 'gcr.io/cloud-builders/kubectl'
     id: 'dataproc-2.0-debian10-tests'
     waitFor: ['gcr-push']
     entrypoint: 'bash'
     args: ['cloudbuild/run-presubmit-on-k8s.sh', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID', '$BUILD_ID', '2.0-debian10']
+    env:
+      - 'COMMIT_SHA=$COMMIT_SHA'
+      - 'CLOUDSDK_COMPUTE_REGION=us-central1'
+      - 'CLOUDSDK_CONTAINER_CLUSTER=init-actions-presubmit'
+
+  # Run presubmit tests in parallel for 2.0 Rocky Linux image
+  - name: 'gcr.io/cloud-builders/kubectl'
+    id: 'dataproc-2.0-rocky8-tests'
+    waitFor: ['gcr-push']
+    entrypoint: 'bash'
+    args: ['cloudbuild/run-presubmit-on-k8s.sh', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID', '$BUILD_ID', '2.0-rocky8']
     env:
       - 'COMMIT_SHA=$COMMIT_SHA'
       - 'CLOUDSDK_COMPUTE_REGION=us-central1'
