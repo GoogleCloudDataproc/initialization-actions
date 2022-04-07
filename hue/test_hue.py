@@ -1,9 +1,11 @@
+import os
 import pkg_resources
 
 from absl.testing import absltest
 from absl.testing import parameterized
+
 from integration_tests.dataproc_test_case import DataprocTestCase
-import os
+
 
 class HueTestCase(DataprocTestCase):
     COMPONENT = 'hue'
@@ -26,12 +28,11 @@ class HueTestCase(DataprocTestCase):
         self._run_hue_test_script(instance_name)
 
     def _run_hue_test_script(self, instance_name):
-        name = ''
-        verify_cmd = "/bin/bash {}".format(
-            self.HUE_SCRIPT)
+        verify_cmd = "/bin/bash {}".format(self.HUE_SCRIPT)
         self.upload_test_file(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         self.HUE_SCRIPT), instance_name)
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), self.HUE_SCRIPT),
+            instance_name)
         self.assert_instance_command(instance_name, verify_cmd)
         self.remove_test_script(self.HUE_SCRIPT, instance_name)
 
@@ -41,9 +42,6 @@ class HueTestCase(DataprocTestCase):
         ("HA", ["m-0"]),
     )
     def test_hue(self, configuration, machine_suffixes):
-        if self.getImageOs() == 'ubuntu':
-            if self.getImageVersion() <= pkg_resources.parse_version("1.4"):
-                self.skipTest("Not supported in pre 1.5 Ubuntu images")
         self.createCluster(configuration, self.INIT_ACTIONS)
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
