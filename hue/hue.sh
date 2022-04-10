@@ -71,7 +71,7 @@ function install_hue_and_configure() {
   install_packages hue || err "Failed to install Hue"
 
   # Stop Hue if possible, we will restart it later
-  systemctl stop hue || true
+  /etc/init.d/hue force-stop || true
 
   bdconfig set_property \
     --configuration_file "${hadoop_conf_dir}/core-site.xml" \
