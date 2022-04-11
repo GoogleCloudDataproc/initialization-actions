@@ -4,7 +4,10 @@ py_test(
     name = "test_hue",
     size = "enormous",
     srcs = ["test_hue.py"],
-    data = ["hue.sh"],
+    data = [
+      "hue.sh",
+      "test_hue_with_hive.sh",
+    ],
     local = True,
     shard_count = 3,
     deps = [

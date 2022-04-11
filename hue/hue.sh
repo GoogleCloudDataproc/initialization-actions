@@ -71,7 +71,7 @@ function install_hue_and_configure() {
   install_packages hue || err "Failed to install Hue"
 
   # Stop Hue
-  systemctl stop hue || err "Hue stop action not performed"
+  systemctl stop hue || /etc/init.d/hue force-stop || err "Hue stop action not performed"
 
   bdconfig set_property \
     --configuration_file "${hadoop_conf_dir}/core-site.xml" \
@@ -144,6 +144,11 @@ EOF
     sed -i "/^ *# \[\[\[${interpreter}\]\]\]/,/^ *$/s/^\( *\)# \?/\1/" /etc/hue/conf/hue.ini
   done
 
+  # Enable/fix Hive on Dataproc 1.5 and 2.0 images
+  if [[ "${DATAPROC_VERSION}" == '1.5' || "${DATAPROC_VERSION}" == '2.0' ]]; then
+    sed -i "/^ *\[\[\[hive\]\]\]/,/^ *$/s/^\( *\)\[\[\[hive\]\]\]/\1\[\[\[beeswax\]\]\]/" /etc/hue/conf/hue.ini
+  fi
+
   # Configure webhdfs_url
   sed -i "s/${old_hdfs_url}/${new_hdfs_url}/" /etc/hue/conf/hue.ini
 
@@ -203,9 +208,8 @@ EOF
   /usr/lib/hue/build/env/bin/hue syncdb --noinput
   /usr/lib/hue/build/env/bin/hue migrate
 
-  # Restart servers
+  # Restart Hadoop services
   systemctl restart hadoop-hdfs-namenode hadoop-yarn-resourcemanager
-
   # Start Hue
   systemctl start hue
 }
