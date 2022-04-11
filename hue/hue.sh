@@ -70,8 +70,8 @@ function install_hue_and_configure() {
   # Install Hue
   install_packages hue || err "Failed to install Hue"
 
-  # Stop Hue if possible, we will restart it later
-  /etc/init.d/hue force-stop || true
+  # Stop Hue
+  systemctl stop hue || /etc/init.d/hue force-stop || err "Hue stop action not performed"
 
   bdconfig set_property \
     --configuration_file "${hadoop_conf_dir}/core-site.xml" \
@@ -208,8 +208,10 @@ EOF
   /usr/lib/hue/build/env/bin/hue syncdb --noinput
   /usr/lib/hue/build/env/bin/hue migrate
 
-  # Restart Hadoop services and Hue
-  systemctl restart hadoop-hdfs-namenode hadoop-yarn-resourcemanager hue
+  # Restart Hadoop services
+  systemctl restart hadoop-hdfs-namenode hadoop-yarn-resourcemanager
+  # Start Hue
+  systemctl start hue
 }
 
 # Only run on the master node ("0"-master in HA mode) of the cluster
