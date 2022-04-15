@@ -318,18 +318,11 @@ function configure_mig_major() {
   wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/tgravescs/spark-rapids-examples/migcgroups/examples/MIG-Support/yarn-unpatched/scripts/mig2gpu.sh
   sudo chmod 755 /usr/local/yarn-mig-scripts/*
 
-  #nvidia-smi -mig 1
-  # assume 40GB A100 for now - split in 2
-  #nvidia-smi mig -cgi 9,3g.20gb -C
-  # todo add check mig enabled vs pending
-  # nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader
-
   major_caps=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
-
   # configure the container-executor.cfg to have major caps
-  #echo -e "gpu.major-device-number=$major_caps\n$(cat ${HADOOP_CONF_DIR}/container-executor.cfg)" > "${HADOOP_CONF_DIR}/container-executor.cfg"
   printf '\n[gpu]\nmodule.enabled=true\ngpu.major-device-number=%s\n\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' $major_caps >> "${HADOOP_CONF_DIR}/container-executor.cfg"
-  printf 'export MIG_AS_GPU_ENABLED=1' >> "${HADOOP_CONF_DIR}/yarn-env.sh"
+  printf 'export MIG_AS_GPU_ENABLED=1\n' >> "${HADOOP_CONF_DIR}/yarn-env.sh"
+  printf 'export ENABLE_MIG_GPUS_FOR_CGROUPS=1\n' >> "${HADOOP_CONF_DIR}/yarn-env.sh"
 }
 
 function configure_gpu_script() {
@@ -347,7 +340,16 @@ function configure_gpu_script() {
 function configure_gpu_isolation() {
   # enable GPU isolation
   sed -i "s/yarn.nodemanager\.linux\-container\-executor\.group\=/yarn\.nodemanager\.linux\-container\-executor\.group\=yarn/g" "${HADOOP_CONF_DIR}/container-executor.cfg"
-  configure_mig_major
+  NUM_MIG_GPUS=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
+  if [[ $NUM_MIG_GPUS -eq 1 ]]; then
+    if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
+      configure_mig_major
+    else
+      printf '\n[gpu]\nmodule.enabled=true\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' >> "${HADOOP_CONF_DIR}/container-executor.cfg"
+    fi
+  else
+    printf '\n[gpu]\nmodule.enabled=true\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' >> "${HADOOP_CONF_DIR}/container-executor.cfg"
+  fi
 
   # Configure a systemd unit to ensure that permissions are set on restart
   cat >/etc/systemd/system/dataproc-cgroup-device-permissions.service<<EOF

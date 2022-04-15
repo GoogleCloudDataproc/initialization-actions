@@ -89,11 +89,6 @@ readonly GPU_AGENT_REPO_URL='https://raw.githubusercontent.com/GoogleCloudPlatfo
 INSTALL_GPU_AGENT=$(get_metadata_attribute 'install-gpu-agent' 'false')
 readonly INSTALL_GPU_AGENT
 
-# Dataproc configurations
-readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
-readonly HIVE_CONF_DIR='/etc/hive/conf'
-readonly SPARK_CONF_DIR='/etc/spark/conf'
-
 function execute_with_retries() {
   local -r cmd=$1
   for ((i = 0; i < 10; i++)); do
@@ -246,24 +241,8 @@ EOF
 }
 
 function configure_mig() {
-  #mkdir -p /usr/local/yarn-mig-scripts
-  #sudo chmod 755 /usr/local/yarn-mig-scripts
-  #wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.04/examples/MIG-Support/yarn-unpatched/scripts/nvidia-smi
-  # change to mine
-  #wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.04/examples/MIG-Support/yarn-unpatched/scripts/mig2gpu.sh
-
   nvidia-smi -mig 1
-  # assume 40GB A100 for now - split in 2
-
-  # TODO add check mig enabled vs pending
-  # nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader
-
-  #major_caps=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
-
-  # configure the container-executor.cfg to have major caps
-  #printf "gpu.major-device-number=$major_caps\n" >>"${HADOOP_CONF_DIR}/container-executor.cfg"
 }
-
 
 function main() {
   if [[ ${OS_NAME} != debian ]] && [[ ${OS_NAME} != ubuntu ]] && [[ ${OS_NAME} != centos ]]; then
@@ -271,14 +250,18 @@ function main() {
     exit 1
   fi
 
+  METADATA_VALUE_RET=$(curl --write-out ':%{http_code}' http://metadata.google.internal/computeMetadata/v1/instance/attributes/ENABLE_MIG -H "Metadata-Flavor: Google")
+  HTTP_CODE=$(echo $METADATA_VALUE_RET | cut -d ':' -f 2)
+  META_MIG_VALUE=$(echo $METADATA_VALUE_RET | cut -d ':' -f 1 | tr '[:upper:]' '[:lower:]')
   if (lspci | grep -q NVIDIA); then
+    if [[ ($HTTP_CODE -eq 200) && ($META_MIG_VALUE -eq 1) ]]; then
       # check to see if we already enabled mig mode and rebooted so we don't end
-      # up in infinite reboot loop, do we need some other check to prevent infinite in case something
-      # never goes into mig mode?
-      NUM=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
-      if [[ NUM -eq 1 ]]; then
+      # up in infinite reboot loop
+      NUM_MIG_GPUS=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
+      if [[ $NUM_MIG_GPUS -eq 1 ]]; then
           if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
-              echo "MIG is enabled"
+              echo "MIG is enabled on all GPUs, configuring"
+              # TODO - how to change number of gi?
               nvidia-smi mig -cgi 9,3g.20gb -C
               exit 0
           else
@@ -287,6 +270,7 @@ function main() {
       else
          echo "more then 1 mig configured differently"
       fi
+    fi
   fi
 
   if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
@@ -302,7 +286,6 @@ function main() {
 
   # Detect NVIDIA GPU
   if (lspci | grep -q NVIDIA); then
-
     if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
       execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
     fi
@@ -321,18 +304,23 @@ function main() {
       echo 'GPU metrics agent will not be installed.'
     fi
 
-    configure_mig
-    NUM=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
-    if [[ NUM -eq 1 ]]; then
-      if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
-        echo "MIG is enabled we don't need to reboot"
+    if [[ ($HTTP_CODE -eq 200) && ($META_MIG_VALUE -eq 1) ]]; then
+      echo 'Enabling MIG'
+      configure_mig
+      NUM=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
+      if [[ NUM -eq 1 ]]; then
+        if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
+          echo "MIG is enabled we don't need to reboot"
+        else
+          echo "MIG is NOT enabled we need to reboot"
+          reboot
+        fi
       else
-        echo "MIG is NOT enabled we need to reboot"
+        echo "MIG is NOT enabled all on GPUs, we need to reboot"
         reboot
       fi
     else
-      echo "MIG is NOT enabled all on GPUs, we need to reboot"
-      reboot
+      echo "not enabling MIG"
     fi
   fi
 }
