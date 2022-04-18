@@ -95,6 +95,9 @@ readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
 readonly HIVE_CONF_DIR='/etc/hive/conf'
 readonly SPARK_CONF_DIR='/etc/spark/conf'
 
+NVIDIA_SMI_PATH='/usr/bin'
+MIG_MAJOR_CAPS=0
+
 function execute_with_retries() {
   local -r cmd=$1
   for ((i = 0; i < 10; i++)); do
@@ -280,7 +283,7 @@ function configure_yarn_nodemanager() {
   set_hadoop_property 'yarn-site.xml' \
     'yarn.nodemanager.resource-plugins.gpu.allowed-gpu-devices' 'auto'
   set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.resource-plugins.gpu.path-to-discovery-executables' '/usr/local/yarn-mig-scripts/'
+    'yarn.nodemanager.resource-plugins.gpu.path-to-discovery-executables' $NVIDIA_SMI_PATH
   set_hadoop_property 'yarn-site.xml' \
     'yarn.nodemanager.linux-container-executor.cgroups.mount' 'true'
   set_hadoop_property 'yarn-site.xml' \
@@ -310,19 +313,13 @@ function configure_gpu_exclusive_mode() {
   fi
 }
 
-function configure_mig_major() {
+function fetch_mig_scripts() {
   mkdir -p /usr/local/yarn-mig-scripts
   sudo chmod 755 /usr/local/yarn-mig-scripts
   wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.04/examples/MIG-Support/yarn-unpatched/scripts/nvidia-smi
-  # change to mine
+  # TODO - change to official
   wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/tgravescs/spark-rapids-examples/migcgroups/examples/MIG-Support/yarn-unpatched/scripts/mig2gpu.sh
   sudo chmod 755 /usr/local/yarn-mig-scripts/*
-
-  major_caps=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
-  # configure the container-executor.cfg to have major caps
-  printf '\n[gpu]\nmodule.enabled=true\ngpu.major-device-number=%s\n\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' $major_caps >> "${HADOOP_CONF_DIR}/container-executor.cfg"
-  printf 'export MIG_AS_GPU_ENABLED=1\n' >> "${HADOOP_CONF_DIR}/yarn-env.sh"
-  printf 'export ENABLE_MIG_GPUS_FOR_CGROUPS=1\n' >> "${HADOOP_CONF_DIR}/yarn-env.sh"
 }
 
 function configure_gpu_script() {
@@ -336,17 +333,14 @@ function configure_gpu_script() {
 
 }
 
-
 function configure_gpu_isolation() {
   # enable GPU isolation
   sed -i "s/yarn.nodemanager\.linux\-container\-executor\.group\=/yarn\.nodemanager\.linux\-container\-executor\.group\=yarn/g" "${HADOOP_CONF_DIR}/container-executor.cfg"
-  NUM_MIG_GPUS=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
-  if [[ $NUM_MIG_GPUS -eq 1 ]]; then
-    if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
-      configure_mig_major
-    else
-      printf '\n[gpu]\nmodule.enabled=true\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' >> "${HADOOP_CONF_DIR}/container-executor.cfg"
-    fi
+  if [[ $MIG_MAJOR_CAPS -ne 0 ]]; then
+    # configure the container-executor.cfg to have major caps
+    printf '\n[gpu]\nmodule.enabled=true\ngpu.major-device-number=%s\n\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' $major_caps >> "${HADOOP_CONF_DIR}/container-executor.cfg"
+    printf 'export MIG_AS_GPU_ENABLED=1\n' >> "${HADOOP_CONF_DIR}/yarn-env.sh"
+    printf 'export ENABLE_MIG_GPUS_FOR_CGROUPS=1\n' >> "${HADOOP_CONF_DIR}/yarn-env.sh"
   else
     printf '\n[gpu]\nmodule.enabled=true\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' >> "${HADOOP_CONF_DIR}/container-executor.cfg"
   fi
@@ -390,6 +384,14 @@ function main() {
 
   # Detect NVIDIA GPU
   if (lspci | grep -q NVIDIA); then
+    NUM_MIG_GPUS=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
+    if [[ $NUM_MIG_GPUS -eq 1 ]]; then
+      if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
+        NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
+        MIG_MAJOR_CAPS=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
+        fetch_mig_scripts
+      fi
+    fi
 
     if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
       execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"

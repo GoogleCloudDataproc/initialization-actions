@@ -16,6 +16,13 @@
 
 set -euxo pipefail
 
+if [[ -e "common-functions.sh" ]]; then
+  source "common-functions.sh"
+else
+  echo "ERROR: Unable to exec common-functions.sh." 1>&2
+  exit 1
+fi
+
 function get_metadata_attribute() {
   local -r attribute_name=$1
   local -r default_value=$2
@@ -240,7 +247,7 @@ EOF
   systemctl --no-reload --now enable gpu-utilization-agent.service
 }
 
-function configure_mig() {
+function enable_mig() {
   nvidia-smi -mig 1
 }
 
@@ -250,25 +257,30 @@ function main() {
     exit 1
   fi
 
-  METADATA_VALUE_RET=$(curl --write-out ':%{http_code}' http://metadata.google.internal/computeMetadata/v1/instance/attributes/ENABLE_MIG -H "Metadata-Flavor: Google")
-  HTTP_CODE=$(echo $METADATA_VALUE_RET | cut -d ':' -f 2)
-  META_MIG_VALUE=$(echo $METADATA_VALUE_RET | cut -d ':' -f 1 | tr '[:upper:]' '[:lower:]')
+  META_MIG_VALUE=$(/usr/share/google/get_metadata_value attributes/ENABLE_MIG)
+  MIG_ENABLE_FETCH_RET=$?
+  META_MIG_CGI_VALUE=$(/usr/share/google/get_metadata_value attributes/MIG_CGI)
+  MIG_CGI_RET=$?
   if (lspci | grep -q NVIDIA); then
-    if [[ ($HTTP_CODE -eq 200) && ($META_MIG_VALUE -eq 1) ]]; then
+    if [[ ($MIG_ENABLE_FETCH_RET -eq 0) && ($META_MIG_VALUE -eq 1) ]]; then
       # check to see if we already enabled mig mode and rebooted so we don't end
       # up in infinite reboot loop
-      NUM_MIG_GPUS=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
-      if [[ $NUM_MIG_GPUS -eq 1 ]]; then
-          if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
-              echo "MIG is enabled on all GPUs, configuring"
-              # TODO - how to change number of gi?
-              nvidia-smi mig -cgi 9,3g.20gb -C
-              exit 0
+      NUM_GPUS_WITH_DIFF_MIG_MODES=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
+      if [[ $NUM_GPUS_WITH_DIFF_MIG_MODES -eq 1 ]]; then
+        if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
+          echo "MIG is enabled on all GPUs, configuring instances"
+          if [[ $MIG_CGI_RET -eq 0 && -n $META_MIG_CGI_VALUE ]]; then
+            nvidia-smi mig -cgi $META_MIG_CGI_VALUE  -C
           else
-              echo "Some MIG is not enabled"
+            # Dataproc only supports A100's right now split in 2 if not specified
+            nvidia-smi mig -cgi 9,9  -C
           fi
+          exit 0
+        else
+          echo "GPUs present but MIG is not enabled"
+        fi
       else
-         echo "more then 1 mig configured differently"
+        echo "More than 1 GPU with MIG configured differently between them"
       fi
     fi
   fi
@@ -304,15 +316,14 @@ function main() {
       echo 'GPU metrics agent will not be installed.'
     fi
 
-    if [[ ($HTTP_CODE -eq 200) && ($META_MIG_VALUE -eq 1) ]]; then
-      echo 'Enabling MIG'
-      configure_mig
-      NUM=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
-      if [[ NUM -eq 1 ]]; then
+    if [[ ($MIG_ENABLE_FETCH_RET -eq 0) && ($META_MIG_VALUE -eq 1) ]]; then
+      enable_mig
+      NUM_GPUS_WITH_DIFF_MIG_MODES=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
+      if [[ NUM_GPUS_WITH_DIFF_MIG_MODES -eq 1 ]]; then
         if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
-          echo "MIG is enabled we don't need to reboot"
+          echo "MIG is fully enabled, we don't need to reboot"
         else
-          echo "MIG is NOT enabled we need to reboot"
+          echo "MIG is configured on but NOT enabled, we need to reboot"
           reboot
         fi
       else
@@ -320,7 +331,7 @@ function main() {
         reboot
       fi
     else
-      echo "not enabling MIG"
+      echo "Not enabling MIG"
     fi
   fi
 }
