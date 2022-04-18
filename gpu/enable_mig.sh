@@ -12,7 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# This script installs NVIDIA GPU drivers and collects GPU utilization metrics.
+# This script installs NVIDIA GPU drivers and enables MIG on Amphere GPU architectures.
+# This script should be specified in --metadata=startup-script-url= option and
+# --metadata=ENABLE_MIG=1 should be configured to enable MIG.
+# The script does a reboot to fully enable MIG and then configures the MIG device based on the
+# user specified MIG_CGI profiles specified via: --metadata=^:^MIG_CGI='9,9'. If not MIG_CGI
+# metadata is specified it assumes its using an A100 and configures 2 instances with profile 9.
+# It is assumed this script is used in conjuntion with install_gpu_driver.sh, which does the
+# YARN setup to fully utilize the MIG instances on YARN.
+#
+# Much of this code is copied from install_gpu_driver.sh to do the driver and CUDA installation.
+# It's copied in order to not affect the existing scripts when not using MIG.
 
 set -euxo pipefail
 
@@ -244,6 +254,16 @@ function enable_mig() {
   nvidia-smi -mig 1
 }
 
+function configure_mig_cgi() {
+  if (/usr/share/google/get_metadata_value attributes/MIG_CGI); then
+    META_MIG_CGI_VALUE=$(/usr/share/google/get_metadata_value attributes/MIG_CGI)
+    nvidia-smi mig -cgi $META_MIG_CGI_VALUE -C
+  else
+    # Dataproc only supports A100's right now split in 2 if not specified
+    nvidia-smi mig -cgi 9,9  -C
+  fi
+}
+
 function main() {
   if [[ ${OS_NAME} != debian ]] && [[ ${OS_NAME} != ubuntu ]] && [[ ${OS_NAME} != centos ]]; then
     echo "Unsupported OS: '${OS_NAME}'"
@@ -252,7 +272,7 @@ function main() {
 
   META_MIG_VALUE=0
   if (/usr/share/google/get_metadata_value attributes/ENABLE_MIG); then
-      META_MIG_VALUE=$(/usr/share/google/get_metadata_value attributes/ENABLE_MIG)
+    META_MIG_VALUE=$(/usr/share/google/get_metadata_value attributes/ENABLE_MIG)
   fi
   if (lspci | grep -q NVIDIA); then
     if [[ $META_MIG_VALUE -ne 0 ]]; then
@@ -262,13 +282,7 @@ function main() {
       if [[ $NUM_GPUS_WITH_DIFF_MIG_MODES -eq 1 ]]; then
         if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
           echo "MIG is enabled on all GPUs, configuring instances"
-          if (/usr/share/google/get_metadata_value attributes/MIG_CGI); then
-            META_MIG_CGI_VALUE=$(/usr/share/google/get_metadata_value attributes/MIG_CGI)
-            nvidia-smi mig -cgi $META_MIG_CGI_VALUE  -C
-          else
-            # Dataproc only supports A100's right now split in 2 if not specified
-            nvidia-smi mig -cgi 9,9  -C
-          fi
+          configure_mig_cgi
           exit 0
         else
           echo "GPUs present but MIG is not enabled"
@@ -316,6 +330,7 @@ function main() {
       if [[ NUM_GPUS_WITH_DIFF_MIG_MODES -eq 1 ]]; then
         if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
           echo "MIG is fully enabled, we don't need to reboot"
+          configure_mig_cgi
         else
           echo "MIG is configured on but NOT enabled, we need to reboot"
           reboot
