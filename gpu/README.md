@@ -78,7 +78,7 @@ attached GPU adapters.
     and CUDA installed and the Ampere based GPU configured for MIG.
 
     First decide which Amphere based GPU you are using. In the example we use the A100.
-    Decide the number of MIG instances and [instance profiles to use](https://docs.nvidia.com/datacenter/tesla/mig-user-guide/).
+    Decide the number of MIG instances and [instance profiles to use](https://docs.nvidia.com/datacenter/tesla/mig-user-guide/#lgi).
     By default if the MIG profiles are not specified it will configure 2 MIG instances with profile id 9. If
     a different instance profile is required, you can specify it in the MIG_CGI metadata parameter. Either a
     profile id or the name (ie 3g.20gb) can be specified. For example:
