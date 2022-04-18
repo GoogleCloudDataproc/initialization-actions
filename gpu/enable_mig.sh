@@ -16,13 +16,6 @@
 
 set -euxo pipefail
 
-if [[ -e "common-functions.sh" ]]; then
-  source "common-functions.sh"
-else
-  echo "ERROR: Unable to exec common-functions.sh." 1>&2
-  exit 1
-fi
-
 function get_metadata_attribute() {
   local -r attribute_name=$1
   local -r default_value=$2
