@@ -383,11 +383,10 @@ function main() {
   # regardless if they have attached GPUs
   configure_yarn
 
-  META_MIG_VALUE=$(/usr/share/google/get_metadata_value attributes/ENABLE_MIG)
-  MIG_ENABLE_FETCH_RET=$?
   # Detect NVIDIA GPU
   if (lspci | grep -q NVIDIA); then
-    if [[ ($MIG_ENABLE_FETCH_RET -eq 0) && ($META_MIG_VALUE -eq 1) ]]; then
+    if (/usr/share/google/get_metadata_value attributes/ENABLE_MIG); then
+      META_MIG_VALUE=$(/usr/share/google/get_metadata_value attributes/ENABLE_MIG)
       NUM_MIG_GPUS=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
       if [[ $NUM_MIG_GPUS -eq 1 ]]; then
         if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then

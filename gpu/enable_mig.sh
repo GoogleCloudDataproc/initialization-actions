@@ -250,19 +250,20 @@ function main() {
     exit 1
   fi
 
-  META_MIG_VALUE=$(/usr/share/google/get_metadata_value attributes/ENABLE_MIG)
-  MIG_ENABLE_FETCH_RET=$?
-  META_MIG_CGI_VALUE=$(/usr/share/google/get_metadata_value attributes/MIG_CGI)
-  MIG_CGI_RET=$?
+  META_MIG_VALUE=0
+  if (/usr/share/google/get_metadata_value attributes/ENABLE_MIG); then
+      META_MIG_VALUE=$(/usr/share/google/get_metadata_value attributes/ENABLE_MIG)
+  fi
   if (lspci | grep -q NVIDIA); then
-    if [[ ($MIG_ENABLE_FETCH_RET -eq 0) && ($META_MIG_VALUE -eq 1) ]]; then
+    if [[ $META_MIG_VALUE -ne 0 ]]; then
       # check to see if we already enabled mig mode and rebooted so we don't end
       # up in infinite reboot loop
       NUM_GPUS_WITH_DIFF_MIG_MODES=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
       if [[ $NUM_GPUS_WITH_DIFF_MIG_MODES -eq 1 ]]; then
         if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
           echo "MIG is enabled on all GPUs, configuring instances"
-          if [[ $MIG_CGI_RET -eq 0 && -n $META_MIG_CGI_VALUE ]]; then
+          if (/usr/share/google/get_metadata_value attributes/MIG_CGI); then
+            META_MIG_CGI_VALUE=$(/usr/share/google/get_metadata_value attributes/MIG_CGI)
             nvidia-smi mig -cgi $META_MIG_CGI_VALUE  -C
           else
             # Dataproc only supports A100's right now split in 2 if not specified
@@ -309,7 +310,7 @@ function main() {
       echo 'GPU metrics agent will not be installed.'
     fi
 
-    if [[ ($MIG_ENABLE_FETCH_RET -eq 0) && ($META_MIG_VALUE -eq 1) ]]; then
+    if [[ META_MIG_VALUE -ne 0 ]]; then
       enable_mig
       NUM_GPUS_WITH_DIFF_MIG_MODES=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
       if [[ NUM_GPUS_WITH_DIFF_MIG_MODES -eq 1 ]]; then
