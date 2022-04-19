@@ -18,7 +18,6 @@ if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
   readonly DEFAULT_CUDA_VERSION="11.0"
   readonly DEFAULT_CUDF_VERSION="22.04.0"
   readonly DEFAULT_XGBOOST_VERSION="1.6.0"
-#  readonly DEFAULT_XGBOOST_GPU_SUB_VERSION=""
   # TODO: uncomment when Spark 3.1 jars will be released - RAPIDS work with Spark 3.1, this is just for Maven URL
   # readonly SPARK_VERSION="${SPARK_VERSION_ENV}"
   readonly SPARK_VERSION="3.0"
