@@ -335,7 +335,7 @@ function configure_gpu_script() {
 function configure_gpu_isolation() {
   # enable GPU isolation
   sed -i "s/yarn.nodemanager\.linux\-container\-executor\.group\=/yarn\.nodemanager\.linux\-container\-executor\.group\=yarn/g" "${HADOOP_CONF_DIR}/container-executor.cfg"
-  if [[ $MIG_MAJOR_CAPS -ne 0 ]]; then
+  if [[ $IS_MIG_ENABLED -ne 0 ]]; then
     # configure the container-executor.cfg to have major caps
     printf '\n[gpu]\nmodule.enabled=true\ngpu.major-device-number=%s\n\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' $MIG_MAJOR_CAPS >> "${HADOOP_CONF_DIR}/container-executor.cfg"
     printf 'export MIG_AS_GPU_ENABLED=1\n' >> "${HADOOP_CONF_DIR}/yarn-env.sh"
