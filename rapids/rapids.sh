@@ -8,17 +8,17 @@ function get_metadata_attribute() {
   /usr/share/google/get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
 }
 
-readonly DEFAULT_RAPIDS_VERSION="22.02"
+readonly DEFAULT_RAPIDS_VERSION="22.04"
 readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' ${DEFAULT_RAPIDS_VERSION})
 
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
-readonly DEFAULT_SPARK_RAPIDS_VERSION="22.02.0"
+readonly DEFAULT_SPARK_RAPIDS_VERSION="22.04.0"
 
 if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
   readonly DEFAULT_CUDA_VERSION="11.0"
-  readonly DEFAULT_CUDF_VERSION="22.02.0"
-  readonly DEFAULT_XGBOOST_VERSION="1.4.2"
-  readonly DEFAULT_XGBOOST_GPU_SUB_VERSION="0.2.0"
+  readonly DEFAULT_CUDF_VERSION="22.04.0"
+  readonly DEFAULT_XGBOOST_VERSION="1.6.0"
+#  readonly DEFAULT_XGBOOST_GPU_SUB_VERSION=""
   # TODO: uncomment when Spark 3.1 jars will be released - RAPIDS work with Spark 3.1, this is just for Maven URL
   # readonly SPARK_VERSION="${SPARK_VERSION_ENV}"
   readonly SPARK_VERSION="3.0"
@@ -86,7 +86,8 @@ function install_dask_rapids() {
 function install_spark_rapids() {
   local -r rapids_repo_url='https://repo1.maven.org/maven2/ai/rapids'
   local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
-
+  local -r dmlc_repo_url='https://repo.maven.apache.org/maven2/ml/dmlc'
+  
   # Convert . to - for URL formatting
   local cudf_cuda_version="${CUDA_VERSION//\./-}"
 
@@ -96,12 +97,16 @@ function install_spark_rapids() {
     cudf_cuda_version="11"
   fi
 
+  # dmlc/xgboost jars don't support pyspark xgboost running or cross-validation in https://github.com/NVIDIA/spark-rapids-examples, please download the nvidia old version jars 
+  # https://repo1.maven.org/maven2/com/nvidia/xgboost4j_3.0 
+  # https://repo1.maven.org/maven2/com/nvidia/rapids-4-spark_2.12/
+  
   if [[ "${SPARK_VERSION}" == "3"* ]]; then
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
-      "${nvidia_repo_url}/xgboost4j-spark_${SPARK_VERSION}/${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}/xgboost4j-spark_${SPARK_VERSION}-${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}.jar" \
+      "${dmlc_repo_url}/xgboost4j-spark-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-spark-gpu_2.12-${XGBOOST_VERSION}.jar" \
       -P /usr/lib/spark/jars/
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
-      "${nvidia_repo_url}/xgboost4j_${SPARK_VERSION}/${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}/xgboost4j_${SPARK_VERSION}-${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}.jar" \
+      "${dmlc_repo_url}/xgboost4j-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-gpu_2.12-${XGBOOST_VERSION}.jar" \
       -P /usr/lib/spark/jars/
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
       "${nvidia_repo_url}/rapids-4-spark_2.12/${SPARK_RAPIDS_VERSION}/rapids-4-spark_2.12-${SPARK_RAPIDS_VERSION}.jar" \
@@ -131,7 +136,6 @@ function configure_spark() {
 spark.executor.resource.gpu.amount=1
 spark.plugins=com.nvidia.spark.SQLPlugin
 spark.executor.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh
-spark.submit.pyFiles=/usr/lib/spark/jars/xgboost4j-spark_${SPARK_VERSION}-${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}.jar
 ###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
 EOF
   else
