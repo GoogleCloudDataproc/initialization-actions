@@ -383,16 +383,13 @@ function main() {
 
   # Detect NVIDIA GPU
   if (lspci | grep -q NVIDIA); then
-    if (/usr/share/google/get_metadata_value attributes/ENABLE_MIG); then
-      META_MIG_VALUE=$(/usr/share/google/get_metadata_value attributes/ENABLE_MIG)
-      NUM_MIG_GPUS=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
-      if [[ $NUM_MIG_GPUS -eq 1 ]]; then
-        if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
-          IS_MIG_ENABLED=1
-          NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
-          MIG_MAJOR_CAPS=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
-          fetch_mig_scripts
-        fi
+    NUM_MIG_GPUS=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
+    if [[ $NUM_MIG_GPUS -eq 1 ]]; then
+      if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
+        IS_MIG_ENABLED=1
+        NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
+        MIG_MAJOR_CAPS=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
+        fetch_mig_scripts
       fi
     fi
 

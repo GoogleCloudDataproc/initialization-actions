@@ -14,7 +14,7 @@
 #
 # This script installs NVIDIA GPU drivers and enables MIG on Amphere GPU architectures.
 # This script should be specified in --metadata=startup-script-url= option and
-# --metadata=ENABLE_MIG=1 should be configured to enable MIG.
+# --metadata=ENABLE_MIG can be used to enable or disable MIG. The default is to enable it.
 # The script does a reboot to fully enable MIG and then configures the MIG device based on the
 # user specified MIG_CGI profiles specified via: --metadata=^:^MIG_CGI='9,9'. If not MIG_CGI
 # metadata is specified it assumes its using an A100 and configures 2 instances with profile 9.
@@ -270,7 +270,8 @@ function main() {
     exit 1
   fi
 
-  META_MIG_VALUE=0
+  # default MIG to on when this script is used
+  META_MIG_VALUE=1
   if (/usr/share/google/get_metadata_value attributes/ENABLE_MIG); then
     META_MIG_VALUE=$(/usr/share/google/get_metadata_value attributes/ENABLE_MIG)
   fi

@@ -97,8 +97,7 @@ attached GPU adapters.
         --worker-machine-type a2-highgpu-1g
         --worker-accelerator type=nvidia-tesla-a100,count=1 \
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh \
-        --metadata=startup-script-url=gs://goog-dataproc-initialization-actions-${REGION}/gpu/enable_mig.sh  \
-        --metadata=ENABLE_MIG=1
+        --metadata=startup-script-url=gs://goog-dataproc-initialization-actions-${REGION}/gpu/mig.sh
     ```
 
     After cluster creation each MIG instance will show up like a regular GPU to YARN. For instance,if you requested
