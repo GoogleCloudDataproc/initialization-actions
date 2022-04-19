@@ -100,7 +100,7 @@ attached GPU adapters.
         --metadata=startup-script-url=gs://goog-dataproc-initialization-actions-${REGION}/gpu/mig.sh
     ```
 
-    After cluster creation each MIG instance will show up like a regular GPU to YARN. For instance,if you requested
+    After cluster creation each MIG instance will show up like a regular GPU to YARN. For instance, if you requested
     2 workers each with 1 A100 and used the default 2 MIG instances per A100, the cluster would have a total of 4 GPUs
     that can be allocated.
 

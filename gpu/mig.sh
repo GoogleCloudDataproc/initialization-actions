@@ -11,13 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
+
 # This script installs NVIDIA GPU drivers and enables MIG on Amphere GPU architectures.
 # This script should be specified in --metadata=startup-script-url= option and
 # --metadata=ENABLE_MIG can be used to enable or disable MIG. The default is to enable it.
 # The script does a reboot to fully enable MIG and then configures the MIG device based on the
-# user specified MIG_CGI profiles specified via: --metadata=^:^MIG_CGI='9,9'. If not MIG_CGI
-# metadata is specified it assumes its using an A100 and configures 2 instances with profile 9.
+# user specified MIG_CGI profiles specified via: --metadata=^:^MIG_CGI='9,9'. If MIG_CGI
+# is not specified it assumes it's using an A100 and configures 2 instances with profile id 9.
 # It is assumed this script is used in conjuntion with install_gpu_driver.sh, which does the
 # YARN setup to fully utilize the MIG instances on YARN.
 #

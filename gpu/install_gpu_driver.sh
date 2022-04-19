@@ -318,7 +318,7 @@ function fetch_mig_scripts() {
   mkdir -p /usr/local/yarn-mig-scripts
   sudo chmod 755 /usr/local/yarn-mig-scripts
   wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.06/examples/MIG-Support/yarn-unpatched/scripts/nvidia-smi
-  wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/tgravescs/spark-rapids-examples/migcgroups/examples/MIG-Support/yarn-unpatched/scripts/mig2gpu.sh
+  wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.06/examples/MIG-Support/yarn-unpatched/scripts/mig2gpu.sh
   sudo chmod 755 /usr/local/yarn-mig-scripts/*
 }
 
