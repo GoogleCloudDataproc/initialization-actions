@@ -277,19 +277,22 @@ function main() {
   fi
   if (lspci | grep -q NVIDIA); then
     if [[ $META_MIG_VALUE -ne 0 ]]; then
-      # check to see if we already enabled mig mode and rebooted so we don't end
-      # up in infinite reboot loop
-      NUM_GPUS_WITH_DIFF_MIG_MODES=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
-      if [[ $NUM_GPUS_WITH_DIFF_MIG_MODES -eq 1 ]]; then
-        if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
-          echo "MIG is enabled on all GPUs, configuring instances"
-          configure_mig_cgi
-          exit 0
+      # if the first invocation, the NVIDIA drivers and tools are not installed
+      if [[ -f "/usr/bin/nvidia-smi" ]]; then
+        # check to see if we already enabled mig mode and rebooted so we don't end
+        # up in infinite reboot loop
+        NUM_GPUS_WITH_DIFF_MIG_MODES=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
+        if [[ $NUM_GPUS_WITH_DIFF_MIG_MODES -eq 1 ]]; then
+          if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
+            echo "MIG is enabled on all GPUs, configuring instances"
+            configure_mig_cgi
+            exit 0
+          else
+            echo "GPUs present but MIG is not enabled"
+          fi
         else
-          echo "GPUs present but MIG is not enabled"
+          echo "More than 1 GPU with MIG configured differently between them"
         fi
-      else
-        echo "More than 1 GPU with MIG configured differently between them"
       fi
     fi
   fi
