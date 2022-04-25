@@ -38,8 +38,9 @@ readonly DASK_SERVICE=dask-cluster
 CONDA_PACKAGES=("dask=2022.1.1" "dask-bigquery" "dask-ml")
 
 if [[ "${DASK_RUNTIME}" == "yarn" ]]; then
-  # Pin `distributed` pacakge version because `dask-yarn` 0.9
-  # is not compatible with `distributed` package 2022.3 and newer
+  # Pin `distributed` package version because `dask-yarn` 0.9
+  # is not compatible with `distributed` package 2022.3 and newer:
+  # https://github.com/dask/dask-yarn/issues/155
   CONDA_PACKAGES+=("dask-yarn=0.9" "distributed=2022.2")
   
   # Update protobuf on Dataproc 1.x
