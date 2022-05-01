@@ -30,8 +30,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_default_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
-    if self.getImageOs() == 'centos':
-      self.skipTest("Not supported in CentOS-based images")
+    if self.getImageOs() == 'rocky':
+      self.skipTest("Not supported in Rocky Linux-based images")
 
     metadata = None
     if driver_provider is not None:
@@ -56,8 +56,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_without_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
-    if self.getImageOs() == 'centos':
-      self.skipTest("Not supported in CentOS-based images")
+    if self.getImageOs() == 'rocky':
+      self.skipTest("Not supported in Rocky Linux-based images")
 
     metadata = "install-gpu-agent=false"
     if driver_provider is not None:
@@ -82,8 +82,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_with_agent(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider):
-    if self.getImageOs() == 'centos':
-      self.skipTest("Not supported in CentOS-based images")
+    if self.getImageOs() == 'rocky':
+      self.skipTest("Not supported in Rocky Linux-based images")
 
     # GPU agent supported on Dataproc 1.4+
     if self.getImageVersion() < pkg_resources.parse_version("1.4"):
@@ -117,8 +117,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
-    if self.getImageOs() == 'centos':
-      self.skipTest("Not supported in CentOS-based images")
+    if self.getImageOs() == 'rocky':
+      self.skipTest("Not supported in Rocky Linux-based images")
 
     metadata = "gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
@@ -139,8 +139,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_with_cudnn(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider, cudnn_version):
-    if self.getImageOs() == 'centos':
-      self.skipTest("Not supported in CentOS-based images")
+    if self.getImageOs() == 'rocky':
+      self.skipTest("Not supported in Rocky Linux-based images")
 
     metadata = "cudnn-version={}".format(cudnn_version)
     if driver_provider is not None:

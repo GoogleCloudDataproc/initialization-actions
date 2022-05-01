@@ -87,8 +87,8 @@ class MLVMTestCase(DataprocTestCase):
       ("STANDARD", "standalone"),
   )
   def test_mlvm(self, configuration, dask_runtime):
-    if self.getImageOs() == 'centos':
-      self.skipTest("Not supported in CentOS-based images")
+    if self.getImageOs() == 'rocky':
+      self.skipTest("Not supported in Rocky Linux-based images")
 
     # Supported on Dataproc 2.0+
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
@@ -116,8 +116,8 @@ class MLVMTestCase(DataprocTestCase):
       ("STANDARD", "standalone", "DASK"),
   )
   def test_mlvm_gpu(self, configuration, dask_runtime, rapids_runtime):
-    if self.getImageOs() == 'centos':
-      self.skipTest("Not supported in CentOS-based images")
+    if self.getImageOs() == 'rocky':
+      self.skipTest("Not supported in Rocky Linux-based images")
 
     # Supported on Dataproc 2.0+
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):

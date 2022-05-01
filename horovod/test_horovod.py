@@ -25,8 +25,8 @@ class HorovodTestCase(DataprocTestCase):
       ("STANDARD", "gloo"),
   )
   def test_horovod_cpu(self, configuration, controller):
-    if self.getImageOs() == 'centos':
-      self.skipTest("Not supported in CentOS-based images")
+    if self.getImageOs() == 'rocky':
+      self.skipTest("Not supported in Rocky Linux-based images")
 
     # Init action supported on Dataproc 1.4+
     if self.getImageVersion() <= pkg_resources.parse_version("1.3"):
@@ -47,8 +47,8 @@ class HorovodTestCase(DataprocTestCase):
       ("STANDARD", "gloo"),
   )
   def test_horovod_gpu(self, configuration, controller):
-    if self.getImageOs() == 'centos':
-      self.skipTest("Not supported in CentOS-based images")
+    if self.getImageOs() == 'rocky':
+      self.skipTest("Not supported in Rocky Linux-based images")
 
     # Init action supported on Dataproc 1.4+
     if self.getImageVersion() <= pkg_resources.parse_version("1.3"):

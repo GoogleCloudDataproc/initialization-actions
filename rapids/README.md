@@ -33,7 +33,7 @@ To use RAPIDS Accelerator For Apache Spark, XGBoost4j with Spark 3
     *   NVIDIA GPU driver 440.33+
     *   CUDA v11.0/v10.2/v10.1
     *   NCCL 2.4.7+
-    *   Ubuntu 18.04, Ubuntu 20.04 or CentOS 7, CentOS8
+    *   Ubuntu 18.04, Ubuntu 20.04 or Rocky Linux 7, Rocky Linux8
 
 This section describes how to create
 [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster with
