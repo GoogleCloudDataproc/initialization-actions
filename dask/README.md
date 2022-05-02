@@ -8,7 +8,7 @@ This initialization action will set up Dask on a
 [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster to run with
 either `yarn` or `standalone`, both taking advantage of
 [Dask Distributed](https://distributed.dask.org/en/latest/). This
-initialization action is supported on **Dataproc image versions 1.5 and newer**.
+initialization action is supported on **Dataproc image versions 2.0 and newer**.
 
 In `yarn` mode, the cluster is configured with
 [Dask-Yarn](https://yarn.dask.org). You can then take advantage of Dataproc's
@@ -40,9 +40,8 @@ CLUSTER_NAME=<cluster-name>
 REGION=<region>
 gcloud dataproc clusters create ${CLUSTER_NAME} \
   --region ${REGION} \
-  --master-machine-type n1-standard-16 \
-  --worker-machine-type n1-highmem-32 \
-  --image-version 2.0 \
+  --master-machine-type e2-standard-16 \
+  --worker-machine-type e2-highmem-32 \
   --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/dask/dask.sh \
   --initialization-action-timeout 20m
 ```
@@ -58,9 +57,8 @@ CLUSTER_NAME=<cluster-name>
 REGION=<region>
 gcloud dataproc clusters create ${CLUSTER_NAME} \
   --region ${REGION} \
-  --master-machine-type n1-standard-16 \
-  --worker-machine-type n1-highmem-32 \
-  --image-version 2.0 \
+  --master-machine-type e2-standard-16 \
+  --worker-machine-type e2-highmem-32 \
   --optional-components JUPYTER \
   --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/dask/dask.sh \
   --initialization-action-timeout 45m \
@@ -108,29 +106,7 @@ data services. More information can be found
 [here](https://docs.dask.org/en/latest/remote-data-services.html).
 
 By default, Dataproc image version 2.0+ comes with `pyarrow`, `gcsfs`,
-`fastparquet` and `fastavro` installed. To install additional libraries, or to
-use these libraries on earlier versions of Dataproc, you can use the pip or
-conda
-[initialization actions](https://github.com/GoogleCloudDataproc/initialization-actions/tree/master/python).
-
-Here's an example of creating a Dataproc 1.5 cluster configured with Dask and
-`gcsfs`.
-
-```bash
-CLUSTER_NAME=<cluster-name>
-REGION=<region>
-gcloud dataproc clusters create ${CLUSTER_NAME} \
-  --region ${REGION} \
-  --master-machine-type n1-standard-16 \
-  --worker-machine-type n1-highmem-32 \
-  --image-version 1.5 \
-  --optional-components ANACONDA,JUPYTER \
-  --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/dask/dask.sh,gs://goog-dataproc-initialization-actions-${REGION}/python/conda-install.sh \
-  --metadata "CONDA_CHANNELS=conda-forge" \
-  --metadata "CONDA_PACKAGES=gcsfs" \
-  --initialization-action-timeout 45m \
-  --enable-component-gateway
-```
+`fastparquet` and `fastavro` installed.
 
 ### Interacting with the cluster
 
