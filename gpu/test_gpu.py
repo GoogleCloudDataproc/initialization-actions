@@ -1,4 +1,3 @@
-import pkg_resources
 from absl.testing import absltest
 from absl.testing import parameterized
 
@@ -85,10 +84,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     if self.getImageOs() == 'rocky':
       self.skipTest("Not supported in Rocky Linux-based images")
 
-    # GPU agent supported on Dataproc 1.4+
-    if self.getImageVersion() < pkg_resources.parse_version("1.4"):
-      self.skipTest("GPU utiliziation metrics only supported on Dataproc 1.4+")
-    
     metadata = "install-gpu-agent=true"
     if driver_provider is not None:
       metadata += ",gpu-driver-provider={}".format(driver_provider)

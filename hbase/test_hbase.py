@@ -67,13 +67,12 @@ class HBaseTestCase(DataprocTestCase):
         if configuration != "HA":
             init_actions = self.INIT_ACTIONS_FOR_NOT_HA + init_actions
 
-        metadata = 'hbase-root-dir=gs://{}/test-dir'.format(self.GCS_BUCKET)
-        if self.getImageVersion() > pkg_resources.parse_version("1.4"):
-            self.initClusterName(configuration)
-            hdfs_host = self.getClusterName()
-            if configuration != "HA":
-                hdfs_host += '-m'
-            metadata += ',hbase-wal-dir=hdfs://{}/hbase-wal'.format(hdfs_host)
+        self.initClusterName(configuration)
+        hdfs_host = self.getClusterName()
+        if configuration != "HA":
+            hdfs_host += '-m'
+        metadata = 'hbase-root-dir=gs://{}/test-dir,hbase-wal-dir=hdfs://{}/hbase-wal'.format(
+            self.GCS_BUCKET, hdfs_host)
 
         self.createCluster(
             configuration,

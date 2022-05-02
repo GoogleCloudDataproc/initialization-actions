@@ -39,10 +39,6 @@ class RangerTestCase(DataprocTestCase):
         if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
             self.skipTest("Not supported in 2.0+ images")
 
-        # Init action supported on Dataproc 1.3+
-        if self.getImageVersion() < pkg_resources.parse_version("1.3"):
-            self.skipTest("Not supported in pre 1.3 images")
-
         self.createCluster(
             configuration,
             self.INIT_ACTIONS,

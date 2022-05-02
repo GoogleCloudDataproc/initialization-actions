@@ -32,10 +32,6 @@ class KnoxTestCase(DataprocTestCase):
         if self.getImageOs() == 'rocky':
             self.skipTest("Not supported in Rocky Linux-based images")
 
-        if self.getImageOs() == 'debian':
-            if self.getImageVersion() <= pkg_resources.parse_version("1.4"):
-                self.skipTest("Not supported in pre 1.5 Debian images")
-
         self.createCluster(
             configuration,
             self.INIT_ACTIONS,
