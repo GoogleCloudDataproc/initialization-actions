@@ -66,8 +66,8 @@ class HiveHCatalogTestCase(DataprocTestCase):
         ("HA", True),
     )
     def test_hive_hcatalog(self, configuration, should_repeat_job):
-        if self.getImageOs() == 'centos':
-            self.skipTest("Not supported in CentOS-based images")
+        if self.getImageOs() == 'rocky':
+            self.skipTest("Not supported in Rocky Linux-based images")
 
         self.createCluster(configuration, self.INIT_ACTIONS)
         self.verify_instance(self.getClusterName(), should_repeat_job)

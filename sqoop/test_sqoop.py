@@ -44,8 +44,8 @@ class SqoopTestCase(DataprocTestCase):
       ("HA", ["m-0", "m-1", "m-2"]),
   )
   def test_sqoop(self, configuration, machine_suffixes):
-    if self.getImageOs() == 'centos':
-      self.skipTest("Not supported in CentOS-based images")
+    if self.getImageOs() == 'rocky':
+      self.skipTest("Not supported in Rocky Linux-based images")
 
     self.createCluster(configuration, self.INIT_ACTIONS)
     for machine_suffix in machine_suffixes:
@@ -55,8 +55,8 @@ class SqoopTestCase(DataprocTestCase):
   @parameterized.parameters(("SINGLE", ["m"]))
   def test_sqoop_import_from_local_mysql_to_hdfs(self, configuration,
                                                  machine_suffixes):
-    if self.getImageOs() == 'centos':
-      self.skipTest("Not supported in CentOS-based images")
+    if self.getImageOs() == 'rocky':
+      self.skipTest("Not supported in Rocky Linux-based images")
 
     self.createCluster(configuration, self.INIT_ACTIONS)
     for machine_suffix in machine_suffixes:

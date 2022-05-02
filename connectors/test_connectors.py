@@ -55,8 +55,8 @@ class ConnectorsTestCase(DataprocTestCase):
     @parameterized.parameters(("SINGLE", ["m"]),
                               ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
     def test_bq_connector_version(self, configuration, instances):
-        if self.getImageOs() == 'centos':
-          self.skipTest("Not supported in CentOS-based images")
+        if self.getImageOs() == 'rocky':
+          self.skipTest("Not supported in Rocky Linux-based images")
 
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
@@ -68,8 +68,8 @@ class ConnectorsTestCase(DataprocTestCase):
     @parameterized.parameters(("SINGLE", ["m"]),
                               ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
     def test_spark_bq_connector_version(self, configuration, instances):
-        if self.getImageOs() == 'centos':
-          self.skipTest("Not supported in CentOS-based images")
+        if self.getImageOs() == 'rocky':
+          self.skipTest("Not supported in Rocky Linux-based images")
 
         self.createCluster(
             configuration,
@@ -83,8 +83,8 @@ class ConnectorsTestCase(DataprocTestCase):
     @parameterized.parameters(("SINGLE", ["m"]),
                               ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
     def test_bq_connector_url(self, configuration, instances):
-        if self.getImageOs() == 'centos':
-          self.skipTest("Not supported in CentOS-based images")
+        if self.getImageOs() == 'rocky':
+          self.skipTest("Not supported in Rocky Linux-based images")
 
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
@@ -97,8 +97,8 @@ class ConnectorsTestCase(DataprocTestCase):
     @parameterized.parameters(("SINGLE", ["m"]),
                               ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
     def test_spark_bq_connector_url(self, configuration, instances):
-        if self.getImageOs() == 'centos':
-          self.skipTest("Not supported in CentOS-based images")
+        if self.getImageOs() == 'rocky':
+          self.skipTest("Not supported in Rocky Linux-based images")
 
         self.createCluster(configuration,
                            self.INIT_ACTIONS,

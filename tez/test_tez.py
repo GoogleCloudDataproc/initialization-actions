@@ -39,8 +39,8 @@ class TezTestCase(DataprocTestCase):
         ("HA", ["m-0", "m-1", "m-2"]),
     )
     def test_tez(self, configuration, machine_suffixes):
-        if self.getImageOs() == 'centos':
-            self.skipTest("Not supported in CentOS-based images")
+        if self.getImageOs() == 'rocky':
+            self.skipTest("Not supported in Rocky Linux-based images")
 
         # Skip on 2.0+ version of Dataproc because it's not supported
         if self.getImageVersion() >= pkg_resources.parse_version("2.0"):

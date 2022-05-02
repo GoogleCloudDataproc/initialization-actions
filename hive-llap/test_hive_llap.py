@@ -32,8 +32,8 @@ class LLAPTestCase(DataprocTestCase):
         ("HA", ["m-0"]),
         ("STANDARD", ["m"]))
     def test_llap(self, configuration, machine_suffixes):
-        if self.getImageOs() == 'centos':
-            self.skipTest("Not supported in CentOS-based images")
+        if self.getImageOs() == 'rocky':
+            self.skipTest("Not supported in Rocky Linux-based images")
 
         if self.getImageVersion() < pkg_resources.parse_version("2.0"):
             self.skipTest("Hive LLAP only supported on Dataproc 2.0+")
@@ -52,8 +52,8 @@ class LLAPTestCase(DataprocTestCase):
         ("STANDARD", ["m"]),
         ("HA", ["m-0"]))
     def test_llap_num_exec(self, configuration, machine_suffixes):
-        if self.getImageOs() == 'centos':
-            self.skipTest("Not supported in CentOS-based images")
+        if self.getImageOs() == 'rocky':
+            self.skipTest("Not supported in Rocky Linux-based images")
 
         if self.getImageVersion() < pkg_resources.parse_version("2.0"):
             self.skipTest("Hive LLAP only supported on Dataproc 2.0+")
@@ -72,8 +72,8 @@ class LLAPTestCase(DataprocTestCase):
         ("STANDARD", ["m"]),
         ("HA", ["m-0"]))
     def test_llap_exec_size(self, configuration, machine_suffixes):
-        if self.getImageOs() == 'centos':
-            self.skipTest("Not supported in CentOS-based images")
+        if self.getImageOs() == 'rocky':
+            self.skipTest("Not supported in Rocky Linux-based images")
 
         if self.getImageVersion() < pkg_resources.parse_version("2.0"):
             self.skipTest("Hive LLAP only supported on Dataproc 2.0+")

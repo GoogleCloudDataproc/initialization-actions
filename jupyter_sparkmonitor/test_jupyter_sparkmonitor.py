@@ -23,8 +23,8 @@ class JupyterTestCase(DataprocTestCase):
       ("STANDARD", ["m"]),
   )
   def test_sparkmonitor(self, configuration, machine_suffixes):
-    if self.getImageOs() == 'centos':
-      self.skipTest("Not supported in CentOS-based images")
+    if self.getImageOs() == 'rocky':
+      self.skipTest("Not supported in Rocky Linux-based images")
 
     # Use 1.4+ version of Dataproc to test because it requires Python 3
     if self.getImageVersion() <= pkg_resources.parse_version("1.3"):
