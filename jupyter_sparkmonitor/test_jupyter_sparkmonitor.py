@@ -26,10 +26,6 @@ class JupyterTestCase(DataprocTestCase):
     if self.getImageOs() == 'rocky':
       self.skipTest("Not supported in Rocky Linux-based images")
 
-    # Use 1.4+ version of Dataproc to test because it requires Python 3
-    if self.getImageVersion() <= pkg_resources.parse_version("1.3"):
-      self.skipTest("Not supported in pre-1.3 images")
-
     if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in 2.0+ images")
 

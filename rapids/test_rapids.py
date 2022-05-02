@@ -87,9 +87,6 @@ class RapidsTestCase(DataprocTestCase):
     if self.getImageOs() == 'rocky':
       self.skipTest("Not supported in Rocky Linux-based images")
 
-    if self.getImageVersion() <= pkg_resources.parse_version("1.4"):
-      self.skipTest("Not supported in pre 1.5 images")
-
     optional_components = None
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
