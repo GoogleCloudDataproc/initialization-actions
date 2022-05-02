@@ -1,4 +1,5 @@
 import os
+import pkg_resources
 from absl.testing import absltest
 from absl.testing import parameterized
 
@@ -36,13 +37,16 @@ class DaskTestCase(DataprocTestCase):
         if self.getImageOs() == 'rocky':
             self.skipTest("Not supported in Rocky Linux-based images")
 
+        if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+            self.skipTest("Not supported in pre-2.0 images")
+
         metadata = None
         if runtime:
             metadata = "dask-runtime={}".format(runtime)
 
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
-                           machine_type='n1-standard-2',
+                           machine_type='e2-standard-2',
                            metadata=metadata,
                            timeout_in_minutes=20)
         
