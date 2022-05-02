@@ -1,4 +1,5 @@
 import os
+import pkg_resources
 from absl.testing import absltest
 from absl.testing import parameterized
 
