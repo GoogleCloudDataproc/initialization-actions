@@ -45,7 +45,7 @@ readonly CUDA_VERSION
 readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb"
 NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
 readonly NCCL_REPO_URL
-readonly NVIDIA_NCCL_UBUNTU_REPOSITORY_KEY="${NCCL_REPO_URL}/7fa2af80.pub"
+readonly NVIDIA_NCCL_UBUNTU_REPOSITORY_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/7fa2af80.pub"
 
 readonly DEFAULT_NCCL_VERSION="2.8.3"
 readonly DEFAULT_NCCL_VERSION_ROCKY="2.8.4"
