@@ -15,7 +15,6 @@ kubectl run "${POD_NAME}" \
   --pod-running-timeout=15m \
   --restart=Never \
   --overrides="{\"spec\":{\"containers\":[{\"name\":\"${POD_NAME}\",\"resources\":{\"limits\":{\"cpu\":\"1300m\",\"memory\":\"4.9Gi\"}}}]}}" \
-  --override-type=merge \
   --env="COMMIT_SHA=$COMMIT_SHA" \
   --env="IMAGE_VERSION=$DATAPROC_IMAGE_VERSION" \
   --command -- bash /init-actions/cloudbuild/presubmit.sh
