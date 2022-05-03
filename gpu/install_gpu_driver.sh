@@ -45,6 +45,7 @@ readonly CUDA_VERSION
 readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb"
 NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
 readonly NCCL_REPO_URL
+readonly NVIDIA_NCCL_UBUNTU_REPOSITORY_KEY="${NCCL_REPO_URL}/7fa2af80.pub"
 
 readonly DEFAULT_NCCL_VERSION="2.8.3"
 readonly DEFAULT_NCCL_VERSION_ROCKY="2.8.4"
@@ -68,6 +69,7 @@ readonly NVIDIA_DEBIAN_CUDA_URL
 
 # Parameters for NVIDIA-provided Ubuntu GPU driver
 readonly NVIDIA_UBUNTU_REPOSITORY_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/ubuntu1804/x86_64"
+readonly NVIDIA_UBUNTU_REPOSITORY_KEY="${NVIDIA_UBUNTU_REPOSITORY_URL}/3bf863cc.pub"
 readonly NVIDIA_UBUNTU_REPOSITORY_CUDA_PIN="${NVIDIA_UBUNTU_REPOSITORY_URL}/cuda-ubuntu1804.pin"
 
 # Parameter for NVIDIA-provided Rocky Linux GPU driver
@@ -110,6 +112,8 @@ function install_nvidia_nccl() {
   if [[ ${OS_NAME} == rocky ]]; then
     execute_with_retries "dnf -y -q install libnccl-${nccl_version} libnccl-devel-${nccl_version} libnccl-static-${nccl_version}"
   elif [[ ${OS_NAME} == ubuntu ]] || [[ ${OS_NAME} == debian ]]; then
+    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    "${NVIDIA_NCCL_UBUNTU_REPOSITORY_KEY}" | apt-key add -
     local tmp_dir
     tmp_dir=$(mktemp -d -t gpu-init-action-nccl-XXXX)
 
@@ -169,6 +173,8 @@ EOF
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
   if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
+    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    "${NVIDIA_UBUNTU_REPOSITORY_KEY}" | apt-key add -
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${NVIDIA_DEBIAN_GPU_DRIVER_URL}" -o driver.run
     bash "./driver.run" --silent --install-libglvnd
