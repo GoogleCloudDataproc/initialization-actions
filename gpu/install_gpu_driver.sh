@@ -112,8 +112,11 @@ function install_nvidia_nccl() {
   if [[ ${OS_NAME} == rocky ]]; then
     execute_with_retries "dnf -y -q install libnccl-${nccl_version} libnccl-devel-${nccl_version} libnccl-static-${nccl_version}"
   elif [[ ${OS_NAME} == ubuntu ]] || [[ ${OS_NAME} == debian ]]; then
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-    "${NVIDIA_NCCL_UBUNTU_REPOSITORY_KEY}" | apt-key add -
+    if [[ ${OS_NAME} == ubuntu ]]; then
+      curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+        "${NVIDIA_NCCL_UBUNTU_REPOSITORY_KEY}" | apt-key add -
+    fi
+
     local tmp_dir
     tmp_dir=$(mktemp -d -t gpu-init-action-nccl-XXXX)
 
