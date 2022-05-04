@@ -15,7 +15,7 @@ readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[
 readonly DEFAULT_SPARK_RAPIDS_VERSION="22.04.0"
 
 if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
-  readonly DEFAULT_CUDA_VERSION="11.0"
+  readonly DEFAULT_CUDA_VERSION="11.2"
   readonly DEFAULT_CUDF_VERSION="22.04.0"
   readonly DEFAULT_XGBOOST_VERSION="1.4.2"
   readonly DEFAULT_XGBOOST_GPU_SUB_VERSION="0.3.0"
@@ -65,22 +65,9 @@ function execute_with_retries() {
 }
 
 function install_dask_rapids() {
-  local base
-  base=$(conda info --base)
-  local -r mamba_env=mamba
-  
-  # Using mamba significantly reduces the conda solve-time. Create a separate conda
-  # environment with mamba installed to manage installations.
-  conda create -y -n ${mamba_env} -c conda-forge mamba
-
-  # Install RAPIDS, cudatoolkit. Use mamba in new env to resolve base environment
-  ${base}/envs/${mamba_env}/bin/mamba install -y \
-    -c "rapidsai" -c "nvidia" -c "conda-forge" -c "defaults" \
-    "cudatoolkit=${CUDA_VERSION}" "rapids=${RAPIDS_VERSION}" "dask-sql" \
-    -p ${base}
-
-  # Remove mamba env
-  conda env remove -n ${mamba_env}
+  # Install RAPIDS, cudatoolkit
+  mamba install -y --no-channel-priority -c 'conda-forge' -c 'nvidia' -c 'rapidsai' \
+    "cudatoolkit=${CUDA_VERSION}" "rapids=${RAPIDS_VERSION}"
 }
 
 function install_spark_rapids() {
