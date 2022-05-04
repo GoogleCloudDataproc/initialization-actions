@@ -172,7 +172,7 @@ EOF
 
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
-  if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
+  if [[ ${OS_NAME} == debian ]]; then
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
     "${NVIDIA_UBUNTU_REPOSITORY_KEY}" | apt-key add -
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
@@ -182,6 +182,23 @@ function install_nvidia_gpu_driver() {
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${NVIDIA_DEBIAN_CUDA_URL}" -o cuda.run
     bash "./cuda.run" --silent --toolkit --no-opengl-libs
+  elif [[ ${OS_NAME} == ubuntu ]]; then
+    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    "${NVIDIA_UBUNTU_REPOSITORY_KEY}" | apt-key add -
+    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+      "${NVIDIA_UBUNTU_REPOSITORY_CUDA_PIN}" -o /etc/apt/preferences.d/cuda-repository-pin-600
+
+    add-apt-repository "deb ${NVIDIA_UBUNTU_REPOSITORY_URL} /"
+    execute_with_retries "apt-get update"
+
+    if [[ -n "${CUDA_VERSION}" ]]; then
+      local -r cuda_package=cuda-toolkit-${CUDA_VERSION//./-}
+    else
+      local -r cuda_package=cuda-toolkit
+    fi
+    # Without --no-install-recommends this takes a very long time.
+    execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-460"
+    execute_with_retries "apt-get install -y -q --no-install-recommends ${cuda_package}"
   elif [[ ${OS_NAME} == rocky ]]; then
     execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPOSITORY_URL}"
     execute_with_retries "dnf clean all"
