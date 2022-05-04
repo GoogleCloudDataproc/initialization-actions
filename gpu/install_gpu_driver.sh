@@ -45,7 +45,7 @@ readonly CUDA_VERSION
 readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb"
 NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
 readonly NCCL_REPO_URL
-readonly NVIDIA_NCCL_UBUNTU_REPO_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/7fa2af80.pub"
+readonly NCCL_REPO_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/7fa2af80.pub"
 
 readonly DEFAULT_NCCL_VERSION="2.8.3"
 readonly DEFAULT_NCCL_VERSION_ROCKY="2.8.4"
@@ -112,10 +112,7 @@ function install_nvidia_nccl() {
   if [[ ${OS_NAME} == rocky ]]; then
     execute_with_retries "dnf -y -q install libnccl-${nccl_version} libnccl-devel-${nccl_version} libnccl-static-${nccl_version}"
   elif [[ ${OS_NAME} == ubuntu ]] || [[ ${OS_NAME} == debian ]]; then
-    if [[ ${OS_NAME} == ubuntu ]]; then
-      curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-        "${NVIDIA_NCCL_UBUNTU_REPO_KEY}" | apt-key add -
-    fi
+    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 "${NCCL_REPO_KEY}" | apt-key add -
 
     local tmp_dir
     tmp_dir=$(mktemp -d -t gpu-init-action-nccl-XXXX)
