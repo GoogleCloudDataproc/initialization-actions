@@ -45,7 +45,7 @@ readonly CUDA_VERSION
 readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb"
 NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
 readonly NCCL_REPO_URL
-readonly NVIDIA_NCCL_UBUNTU_REPOSITORY_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/7fa2af80.pub"
+readonly NVIDIA_NCCL_UBUNTU_REPO_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/7fa2af80.pub"
 
 readonly DEFAULT_NCCL_VERSION="2.8.3"
 readonly DEFAULT_NCCL_VERSION_ROCKY="2.8.4"
@@ -68,12 +68,12 @@ NVIDIA_DEBIAN_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_DEB
 readonly NVIDIA_DEBIAN_CUDA_URL
 
 # Parameters for NVIDIA-provided Ubuntu GPU driver
-readonly NVIDIA_UBUNTU_REPOSITORY_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/ubuntu1804/x86_64"
-readonly NVIDIA_UBUNTU_REPOSITORY_KEY="${NVIDIA_UBUNTU_REPOSITORY_URL}/3bf863cc.pub"
-readonly NVIDIA_UBUNTU_REPOSITORY_CUDA_PIN="${NVIDIA_UBUNTU_REPOSITORY_URL}/cuda-ubuntu1804.pin"
+readonly NVIDIA_UBUNTU_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/ubuntu1804/x86_64"
+readonly NVIDIA_UBUNTU_REPO_KEY="${NVIDIA_UBUNTU_REPO_URL}/3bf863cc.pub"
+readonly NVIDIA_UBUNTU_REPO_CUDA_PIN="${NVIDIA_UBUNTU_REPO_URL}/cuda-ubuntu1804.pin"
 
 # Parameter for NVIDIA-provided Rocky Linux GPU driver
-readonly NVIDIA_ROCKY_REPOSITORY_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/rhel8/x86_64/cuda-rhel8.repo"
+readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/rhel8/x86_64/cuda-rhel8.repo"
 
 # Parameters for NVIDIA-provided CUDNN library
 readonly CUDNN_VERSION=$(get_metadata_attribute 'cudnn-version' '')
@@ -114,7 +114,7 @@ function install_nvidia_nccl() {
   elif [[ ${OS_NAME} == ubuntu ]] || [[ ${OS_NAME} == debian ]]; then
     if [[ ${OS_NAME} == ubuntu ]]; then
       curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-        "${NVIDIA_NCCL_UBUNTU_REPOSITORY_KEY}" | apt-key add -
+        "${NVIDIA_NCCL_UBUNTU_REPO_KEY}" | apt-key add -
     fi
 
     local tmp_dir
@@ -177,7 +177,7 @@ EOF
 function install_nvidia_gpu_driver() {
   if [[ ${OS_NAME} == debian ]]; then
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-    "${NVIDIA_UBUNTU_REPOSITORY_KEY}" | apt-key add -
+    "${NVIDIA_UBUNTU_REPO_KEY}" | apt-key add -
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${NVIDIA_DEBIAN_GPU_DRIVER_URL}" -o driver.run
     bash "./driver.run" --silent --install-libglvnd
@@ -187,11 +187,11 @@ function install_nvidia_gpu_driver() {
     bash "./cuda.run" --silent --toolkit --no-opengl-libs
   elif [[ ${OS_NAME} == ubuntu ]]; then
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-    "${NVIDIA_UBUNTU_REPOSITORY_KEY}" | apt-key add -
+    "${NVIDIA_UBUNTU_REPO_KEY}" | apt-key add -
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${NVIDIA_UBUNTU_REPOSITORY_CUDA_PIN}" -o /etc/apt/preferences.d/cuda-repository-pin-600
+      "${NVIDIA_UBUNTU_REPO_CUDA_PIN}" -o /etc/apt/preferences.d/cuda-repository-pin-600
 
-    add-apt-repository "deb ${NVIDIA_UBUNTU_REPOSITORY_URL} /"
+    add-apt-repository "deb ${NVIDIA_UBUNTU_REPO_URL} /"
     execute_with_retries "apt-get update"
 
     if [[ -n "${CUDA_VERSION}" ]]; then
@@ -203,7 +203,7 @@ function install_nvidia_gpu_driver() {
     execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-460"
     execute_with_retries "apt-get install -y -q --no-install-recommends ${cuda_package}"
   elif [[ ${OS_NAME} == rocky ]]; then
-    execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPOSITORY_URL}"
+    execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPO_URL}"
     execute_with_retries "dnf clean all"
     execute_with_retries "dnf -y -q module install nvidia-driver:460-dkms"
     execute_with_retries "dnf -y -q install cuda-${CUDA_VERSION//./-}"
