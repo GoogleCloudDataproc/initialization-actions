@@ -152,7 +152,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         configuration,
         self.INIT_ACTIONS,
         metadata=metadata,
-        machine_type="n1-standard-2",
+        machine_type="n1-standard-4",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         timeout_in_minutes=30)
