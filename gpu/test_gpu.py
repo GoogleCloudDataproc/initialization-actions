@@ -139,15 +139,11 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                                 machine_suffix))
 
   @parameterized.parameters(
-      ("SINGLE", ["m"], GPU_V100, None, None),
-      ("STANDARD", ["m"], GPU_V100, GPU_V100, "NVIDIA")
+      ("SINGLE", GPU_V100, None, None),
+      ("STANDARD", GPU_V100, GPU_V100, "NVIDIA")
   )
-  def test_gpu_allocation(self, configuration, machine_suffixes,
-                          master_accelerator, worker_accelerator,
-                          driver_provider):
-    if self.getImageOs() == 'centos':
-      self.skipTest("Not supported in CentOS-based images")
-
+  def test_gpu_allocation(self, configuration, master_accelerator,
+                          worker_accelerator, driver_provider):
     metadata = None
     if driver_provider is not None:
       metadata = "gpu-driver-provider={}".format(driver_provider)
