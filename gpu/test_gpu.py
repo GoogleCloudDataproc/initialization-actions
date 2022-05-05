@@ -152,7 +152,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         configuration,
         self.INIT_ACTIONS,
         metadata=metadata,
-        machine_type="n1-standard-4",
+        machine_type="n1-standard-8" if configuration == "SINGLE" and self.getImageOs() == "rocky" else "n1-standard-2",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         timeout_in_minutes=30)
