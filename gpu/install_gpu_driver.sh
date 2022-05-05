@@ -388,6 +388,7 @@ function main() {
     configure_yarn_nodemanager
     configure_gpu_isolation
   fi
+
   # restart YARN services on different nodes
   if [[ "${ROLE}" == "Master" ]]; then
     systemctl restart hadoop-yarn-resourcemanager.service
@@ -395,7 +396,7 @@ function main() {
 
   # Restart NodeManager on Master as well if this is a single-node-cluster.
   if systemctl status hadoop-yarn-nodemanager; then
-      systemctl restart hadoop-yarn-nodemanager.service
+    systemctl restart hadoop-yarn-nodemanager.service
   fi
 }
 
