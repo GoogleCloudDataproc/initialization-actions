@@ -22,6 +22,7 @@ class ConnectorsTestCase(DataprocTestCase):
                                   connector_version)
 
     def _verify_instance(self, instance, connector, connector_version):
+        connectors_dir = "/usr/local/share/google/dataproc/lib"
         if connector == "spark-bigquery-connector":
             connector_jar = "spark-bigquery-with-dependencies_{}-{}.jar".format(
                 self._scala_version(), connector_version)
@@ -31,16 +32,9 @@ class ConnectorsTestCase(DataprocTestCase):
                                                   connector_version)
 
         self.assert_instance_command(
-            instance, "test -f {}/{}".format(self._connectors_dir(),
-                                             connector_jar))
+            instance, "test -f {}/{}".format(connectors_dir, connector_jar))
         self.assert_instance_command(
-            instance, "test -L {}/{}.jar".format(self._connectors_dir(),
-                                                 connector))
-
-    def _connectors_dir(self):
-        if self.getImageVersion() < pkg_resources.parse_version("1.4"):
-            return "/usr/lib/hadoop/lib"
-        return "/usr/local/share/google/dataproc/lib"
+            instance, "test -L {}/{}.jar".format(connectors_dir, connector))
 
     def _hadoop_version(self):
         if self.getImageVersion() < pkg_resources.parse_version("2.0"):
@@ -48,15 +42,13 @@ class ConnectorsTestCase(DataprocTestCase):
         return "hadoop3"
 
     def _scala_version(self):
-        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
-            return "2.11"
         return "2.12"
 
     @parameterized.parameters(("SINGLE", ["m"]),
                               ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
     def test_bq_connector_version(self, configuration, instances):
-        if self.getImageOs() == 'centos':
-          self.skipTest("Not supported in CentOS-based images")
+        if self.getImageOs() == 'rocky':
+          self.skipTest("Not supported in Rocky Linux-based images")
 
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
@@ -68,8 +60,8 @@ class ConnectorsTestCase(DataprocTestCase):
     @parameterized.parameters(("SINGLE", ["m"]),
                               ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
     def test_spark_bq_connector_version(self, configuration, instances):
-        if self.getImageOs() == 'centos':
-          self.skipTest("Not supported in CentOS-based images")
+        if self.getImageOs() == 'rocky':
+          self.skipTest("Not supported in Rocky Linux-based images")
 
         self.createCluster(
             configuration,
@@ -83,8 +75,8 @@ class ConnectorsTestCase(DataprocTestCase):
     @parameterized.parameters(("SINGLE", ["m"]),
                               ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
     def test_bq_connector_url(self, configuration, instances):
-        if self.getImageOs() == 'centos':
-          self.skipTest("Not supported in CentOS-based images")
+        if self.getImageOs() == 'rocky':
+          self.skipTest("Not supported in Rocky Linux-based images")
 
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
@@ -97,8 +89,8 @@ class ConnectorsTestCase(DataprocTestCase):
     @parameterized.parameters(("SINGLE", ["m"]),
                               ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
     def test_spark_bq_connector_url(self, configuration, instances):
-        if self.getImageOs() == 'centos':
-          self.skipTest("Not supported in CentOS-based images")
+        if self.getImageOs() == 'rocky':
+          self.skipTest("Not supported in Rocky Linux-based images")
 
         self.createCluster(configuration,
                            self.INIT_ACTIONS,

@@ -1,4 +1,3 @@
-import pkg_resources
 from absl.testing import absltest
 from absl.testing import parameterized
 
@@ -25,12 +24,8 @@ class HorovodTestCase(DataprocTestCase):
       ("STANDARD", "gloo"),
   )
   def test_horovod_cpu(self, configuration, controller):
-    if self.getImageOs() == 'centos':
-      self.skipTest("Not supported in CentOS-based images")
-
-    # Init action supported on Dataproc 1.4+
-    if self.getImageVersion() <= pkg_resources.parse_version("1.3"):
-      self.skipTest("Not supported in pre-1.4 images")
+    if self.getImageOs() == 'rocky':
+      self.skipTest("Not supported in Rocky Linux-based images")
 
     metadata = ""
     if controller == "mpi":
@@ -47,12 +42,8 @@ class HorovodTestCase(DataprocTestCase):
       ("STANDARD", "gloo"),
   )
   def test_horovod_gpu(self, configuration, controller):
-    if self.getImageOs() == 'centos':
-      self.skipTest("Not supported in CentOS-based images")
-
-    # Init action supported on Dataproc 1.4+
-    if self.getImageVersion() <= pkg_resources.parse_version("1.3"):
-      self.skipTest("Not supported in pre-1.4 images")
+    if self.getImageOs() == 'rocky':
+      self.skipTest("Not supported in Rocky Linux-based images")
 
     metadata = "cuda-version=11.0,cudnn-version=8.0.5.39,gpu-driver-provider=NVIDIA"
 

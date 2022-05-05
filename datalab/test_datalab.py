@@ -16,12 +16,11 @@ class DatalabTestCase(DataprocTestCase):
                 "--retry 10 --retry-delay 10 --retry-connrefused", name))
 
     @parameterized.parameters(
-        ("STANDARD", ["m"], "python2"),
-        ("STANDARD", ["m"], "python3"),
+        ("STANDARD", ["m"]),
     )
-    def test_datalab(self, configuration, machine_suffixes, python):
-        if self.getImageOs() == 'centos':
-            self.skipTest("Not supported in CentOS-based images")
+    def test_datalab(self, configuration, machine_suffixes):
+        if self.getImageOs() == 'rocky':
+            self.skipTest("Not supported in Rocky Linux-based images")
 
         # Skip on 2.0+ version of Dataproc because it's not supported
         if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
@@ -29,11 +28,6 @@ class DatalabTestCase(DataprocTestCase):
 
         init_actions = self.INIT_ACTIONS
         metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)
-        if self.getImageVersion() <= pkg_resources.parse_version("1.3"):
-            if python == "python3":
-                init_actions = self.PYTHON_3_INIT_ACTIONS + init_actions
-        elif python == "python2":
-            return
 
         self.createCluster(
             configuration,

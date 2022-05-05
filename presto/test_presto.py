@@ -86,8 +86,8 @@ class PrestoTestCase(DataprocTestCase):
     )
     def test_presto(self, configuration, machine_suffixes, coordinators,
                     workers):
-        if self.getImageOs() == 'centos':
-            self.skipTest("Not supported in CentOS-based images")
+        if self.getImageOs() == 'rocky':
+            self.skipTest("Not supported in Rocky Linux-based images")
 
         # Skip on 2.0+ version of Dataproc because it's not supported
         if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
@@ -102,8 +102,8 @@ class PrestoTestCase(DataprocTestCase):
     @parameterized.parameters(("SINGLE", ["m"], 1, 0))
     def test_presto_custom_port(self, configuration, machine_suffixes,
                                 coordinators, workers):
-        if self.getImageOs() == 'centos':
-            self.skipTest("Not supported in CentOS-based images")
+        if self.getImageOs() == 'rocky':
+            self.skipTest("Not supported in Rocky Linux-based images")
 
         # Skip on 2.0+ version of Dataproc because it's not supported
         if self.getImageVersion() >= pkg_resources.parse_version("2.0"):

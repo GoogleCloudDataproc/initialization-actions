@@ -25,8 +25,9 @@ readonly DEFAULT_CONDA_ENV=$(conda info --base)
 readonly DASK_YARN_CONFIG_DIR=/etc/dask/
 readonly DASK_YARN_CONFIG_FILE=${DASK_YARN_CONFIG_DIR}/config.yaml
 
-readonly DASK_RUNTIME="$(/usr/share/google/get_metadata_value attributes/dask-runtime || echo "yarn")"
-readonly RUN_WORKER_ON_MASTER="$(/usr/share/google/get_metadata_value attributes/dask-worker-on-master || echo "true")"
+readonly DASK_RUNTIME="$(/usr/share/google/get_metadata_value attributes/dask-runtime || echo 'yarn')"
+readonly RUN_WORKER_ON_MASTER="$(/usr/share/google/get_metadata_value attributes/dask-worker-on-master || echo 'true')"
+readonly DASK_VERSION='2022.1'
 
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly MASTER="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
@@ -35,15 +36,18 @@ readonly MASTER="$(/usr/share/google/get_metadata_value attributes/dataproc-mast
 readonly DASK_LAUNCHER=/usr/local/bin/dask-launcher.sh
 readonly DASK_SERVICE=dask-cluster
 
-CONDA_PACKAGES=("dask=2022.1.1" "dask-bigquery" "dask-ml")
+CONDA_PACKAGES=("dask=${DASK_VERSION}" 'dask-bigquery' 'dask-ml' 'dask-sql')
 
-if [[ "${DASK_RUNTIME}" == "yarn" ]]; then
-  CONDA_PACKAGES+=("dask-yarn=0.9")
-  
-  # Update protobuf on Dataproc 1.x
-  if [ "$(echo "$DATAPROC_VERSION < 2.0" | bc)" -eq 1 ]; then
-    CONDA_PACKAGES+=("protobuf>=3.12")
-  fi
+if [[ "${DASK_RUNTIME}" == 'yarn' ]]; then
+  # Pin `distributed` package version because `dask-yarn` 0.9
+  # is not compatible with `distributed` package 2022.2 and newer:
+  # https://github.com/dask/dask-yarn/issues/155
+  CONDA_PACKAGES+=('dask-yarn=0.9' "distributed=${DASK_VERSION}")
+fi
+# Downgrade `google-cloud-bigquery` on Dataproc 2.0
+# to fix compatibility with old Arrow version
+if [[ "${DATAPROC_VERSION}" == '2.0' ]]; then
+  CONDA_PACKAGES+=('google-cloud-bigquery=2')
 fi
 readonly CONDA_PACKAGES
 
@@ -57,27 +61,6 @@ function execute_with_retries() {
   done
   echo "Cmd '${cmd}' failed."
   return 1
-}
-
-function install_conda_packages() {
-  local base
-  base=$(conda info --base)
-  local -r mamba_env_name=mamba
-  local -r mamba_env=${base}/envs/mamba
-
-  conda config --add channels conda-forge
-
-  # Create a separate environment with mamba.
-  # Mamba provides significant decreases in installation times.
-  conda create -y -n ${mamba_env_name} mamba
-
-  execute_with_retries "${mamba_env}/bin/mamba install -y ${CONDA_PACKAGES[*]} -p ${base}"
-
-  # Clean up environment
-  "${mamba_env}/bin/mamba" clean -y --all
-
-  # Remove mamba env when done
-  conda env remove -n ${mamba_env_name}
 }
 
 function configure_dask_yarn() {
@@ -144,10 +127,10 @@ EOF
 
 function main() {
   # Install conda packages
-  install_conda_packages
+  execute_with_retries "mamba install -y ${CONDA_PACKAGES[*]}"
 
   if [[ "${DASK_RUNTIME}" == "yarn" ]]; then
-    # Create Dask Yarn config file
+    # Create Dask YARN config file
     configure_dask_yarn
   elif [[ "${DASK_RUNTIME}" == "standalone" ]]; then
     # Create Dask service

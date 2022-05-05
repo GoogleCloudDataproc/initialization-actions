@@ -32,8 +32,8 @@ class DrillTestCase(DataprocTestCase):
         ("HA", [("m-0", "w-0"), ("w-0", "m-1")]),
     )
     def test_drill(self, configuration, verify_options):
-        if self.getImageOs() == 'centos':
-            self.skipTest("Not supported in CentOS-based images")
+        if self.getImageOs() == 'rocky':
+            self.skipTest("Not supported in Rocky Linux-based images")
 
         if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
             self.skipTest("Not supported in the 2.0+ images")

@@ -29,12 +29,8 @@ class KnoxTestCase(DataprocTestCase):
                               ("STANDARD", ["m", "w-0"]),
                               ("HA", ["m-2", "w-0"]))
     def test_knox_localhost_cert(self, configuration, machine_suffixes):
-        if self.getImageOs() == 'centos':
-            self.skipTest("Not supported in CentOS-based images")
-
-        if self.getImageOs() == 'debian':
-            if self.getImageVersion() <= pkg_resources.parse_version("1.4"):
-                self.skipTest("Not supported in pre 1.5 Debian images")
+        if self.getImageOs() == 'rocky':
+            self.skipTest("Not supported in Rocky Linux-based images")
 
         self.createCluster(
             configuration,
@@ -55,8 +51,8 @@ class KnoxTestCase(DataprocTestCase):
     @parameterized.parameters(("STANDARD", ["w-0", "m"]),
                               ("HA", ["m-1", "m-0"]))
     def test_knox_hostname_cert(self, configuration, machine_suffixes):
-        if self.getImageOs() == 'centos':
-            self.skipTest("Not supported in CentOS-based images")
+        if self.getImageOs() == 'rocky':
+            self.skipTest("Not supported in Rocky Linux-based images")
 
         if self.getImageOs() == 'debian':
             if self.getImageVersion() < pkg_resources.parse_version("1.5"):
