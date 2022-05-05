@@ -10,11 +10,12 @@ readonly POD_NAME=presubmit-${DATAPROC_IMAGE_VERSION//./-}-${BUILD_ID//_/-}
 
 gcloud container clusters get-credentials "${CLOUDSDK_CONTAINER_CLUSTER}"
 
-kubectl run "${POD_NAME}" --generator=run-pod/v1 --image="$IMAGE" \
-  --pod-running-timeout=10m \
-  --requests "cpu=1.3,memory=4.9Gi" --restart=Never \
-  --env="COMMIT_SHA=$COMMIT_SHA" \
-  --env="IMAGE_VERSION=$DATAPROC_IMAGE_VERSION" \
+kubectl run "${POD_NAME}" \
+  --image="${IMAGE}" \
+  --pod-running-timeout=15m \
+  --restart=Never \
+  --env="COMMIT_SHA=${COMMIT_SHA}" \
+  --env="IMAGE_VERSION=${DATAPROC_IMAGE_VERSION}" \
   --command -- bash /init-actions/cloudbuild/presubmit.sh
 
 # Delete POD on exit and desribe it before deletion if exit was unsuccessful

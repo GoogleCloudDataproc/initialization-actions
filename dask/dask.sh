@@ -36,7 +36,7 @@ readonly MASTER="$(/usr/share/google/get_metadata_value attributes/dataproc-mast
 readonly DASK_LAUNCHER=/usr/local/bin/dask-launcher.sh
 readonly DASK_SERVICE=dask-cluster
 
-CONDA_PACKAGES=("dask=${DASK_VERSION}" 'dask-bigquery' 'dask-ml')
+CONDA_PACKAGES=("dask=${DASK_VERSION}" 'dask-bigquery' 'dask-ml' 'dask-sql')
 
 if [[ "${DASK_RUNTIME}" == 'yarn' ]]; then
   # Pin `distributed` package version because `dask-yarn` 0.9
