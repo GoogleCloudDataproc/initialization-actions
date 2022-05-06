@@ -95,6 +95,8 @@ readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
 readonly HIVE_CONF_DIR='/etc/hive/conf'
 readonly SPARK_CONF_DIR='/etc/spark/conf'
 
+readonly RUN_INIT_BEFORE_SERVICES=$(get_metadata_attribute 'dataproc-option-run-init-actions-early' 'false')
+
 function execute_with_retries() {
   local -r cmd=$1
   for ((i = 0; i < 10; i++)); do
@@ -381,21 +383,21 @@ function main() {
     fi
 
     configure_gpu_exclusive_mode
-    if systemctl status hadoop-yarn-nodemanager; then
-      systemctl restart hadoop-yarn-nodemanager.service
-    fi
   elif [[ "${ROLE}" == "Master" ]]; then
     configure_yarn_nodemanager
     configure_gpu_isolation
   fi
-
-  # Restart YARN services on different nodes
-  if [[ "${ROLE}" == "Master" ]]; then
-    systemctl restart hadoop-yarn-resourcemanager.service
-  fi
-  # Restart NodeManager on Master as well if this is a single-node-cluster.
-  if systemctl status hadoop-yarn-nodemanager; then
-    systemctl restart hadoop-yarn-nodemanager.service
+  if [[ "${RUN_INIT_BEFORE_SERVICES}" == "true" ]]; then
+    # Services are not yet started. So safe to finish here.
+    echo "Installation completed."
+  else
+    if [[ "${ROLE}" == "Master" ]]; then
+        systemctl restart hadoop-yarn-resourcemanager.service
+    fi
+    # Restart NodeManager on Master as well if this is a single-node-cluster.
+    if systemctl status hadoop-yarn-nodemanager; then
+        systemctl restart hadoop-yarn-nodemanager.service
+    fi
   fi
 }
 
