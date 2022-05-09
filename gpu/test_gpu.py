@@ -7,7 +7,9 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 class NvidiaGpuDriverTestCase(DataprocTestCase):
   COMPONENT = "gpu"
   INIT_ACTIONS = ["gpu/install_gpu_driver.sh"]
+  MIG_STARTUP_SCRIPTS = ["gpu/mig.sh"]
   GPU_V100 = "type=nvidia-tesla-v100"
+  GPU_A100 = "type=nvidia-tesla-a100"
 
   def verify_instance(self, name):
     self.assert_instance_command(name, "nvidia-smi")
@@ -165,6 +167,26 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         "spark",
         "--jars=file:///usr/lib/spark/examples/jars/spark-examples.jar --class=org.apache.spark.examples.ml.JavaIndexToStringExample --properties=spark.driver.resource.gpu.amount=1,spark.driver.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh,spark.executor.resource.gpu.amount=1,spark.executor.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh"
     )
+
+  @parameterized.parameters(
+      ("STANDARD", ["m", "w-0", "w-1"], GPU_A100, GPU_A100, "NVIDIA"),
+  )
+  def test_install_gpu_with_mig(self, configuration, machine_suffixes,
+                                  master_accelerator, worker_accelerator,
+                                  driver_provider):
+    mig_startup_scripts = ["mig.sh"]
+    self.createCluster(
+        configuration,
+        self.INIT_ACTIONS,
+        machine_type="n1-standard-2",
+        master_accelerator=master_accelerator,
+        worker_accelerator=worker_accelerator,
+        metadata=None,
+        timeout_in_minutes=30,
+        startup_scripts=mig_startup_scripts)
+    for machine_suffix in machine_suffixes:
+      self.verify_instance("{}-{}".format(self.getClusterName(),
+                                          machine_suffix))
 
 if __name__ == "__main__":
   absltest.main()

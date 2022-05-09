@@ -94,7 +94,8 @@ class DataprocTestCase(parameterized.TestCase):
                       worker_accelerator=None,
                       optional_components=None,
                       machine_type="e2-standard-2",
-                      boot_disk_size="50GB"):
+                      boot_disk_size="50GB",
+                      startup_scripts=[]):
         self.initClusterName(configuration)
         self.cluster_version = None
         self.cluster_zone = None
@@ -102,6 +103,12 @@ class DataprocTestCase(parameterized.TestCase):
         init_actions = [
             "{}/{}".format(self.INIT_ACTIONS_REPO, i)
             for i in init_actions or []
+        ]
+
+        # startup scripts in the same bucket as the init scripts
+        init_startup_scripts = [
+            "{}/{}".format(self.INIT_ACTIONS_REPO, i)
+            for i in startup_scripts or []
         ]
 
         args = self.DEFAULT_ARGS[configuration].copy()
@@ -114,6 +121,9 @@ class DataprocTestCase(parameterized.TestCase):
             args.append("--optional-components={}".format(
                 ','.join(optional_components)))
 
+        if startup_script:
+            args.append("--metadata-from-file=startup-script-url='{}'".format(
+                ','.join(startup_scripts)))
         if init_actions:
             args.append("--initialization-actions='{}'".format(
                 ','.join(init_actions)))
