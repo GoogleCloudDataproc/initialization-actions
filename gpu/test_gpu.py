@@ -144,6 +144,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   )
   def test_gpu_allocation(self, configuration, master_accelerator,
                           worker_accelerator, driver_provider):
+    if configuration == "SINGLE" and self.getImageOs() == "rocky":
+      self.skipTest("Test hangs on single-node clsuter with Rocky Linux-based images")
+      
     metadata = None
     if driver_provider is not None:
       metadata = "gpu-driver-provider={}".format(driver_provider)
@@ -152,7 +155,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         configuration,
         self.INIT_ACTIONS,
         metadata=metadata,
-        machine_type="n1-standard-8" if configuration == "SINGLE" and self.getImageOs() == "rocky" else "n1-standard-2",
+        machine_type="n1-standard-2",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         timeout_in_minutes=30)
