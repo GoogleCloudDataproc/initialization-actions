@@ -7,7 +7,6 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 class NvidiaGpuDriverTestCase(DataprocTestCase):
   COMPONENT = "gpu"
   INIT_ACTIONS = ["gpu/install_gpu_driver.sh"]
-  MIG_STARTUP_SCRIPTS = ["gpu/mig.sh"]
   GPU_V100 = "type=nvidia-tesla-v100"
   GPU_A100 = "type=nvidia-tesla-a100"
 
@@ -174,7 +173,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_with_mig(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider):
-    mig_startup_scripts = ["mig.sh"]
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
@@ -183,7 +181,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         worker_accelerator=worker_accelerator,
         metadata=None,
         timeout_in_minutes=30,
-        startup_scripts=mig_startup_scripts)
+        startup_scripts=["mig.sh"])
     for machine_suffix in machine_suffixes:
       self.verify_instance("{}-{}".format(self.getClusterName(),
                                           machine_suffix))
