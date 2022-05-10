@@ -121,8 +121,8 @@ class DataprocTestCase(parameterized.TestCase):
             args.append("--optional-components={}".format(
                 ','.join(optional_components)))
 
-        if startup_script:
-            args.append("--metadata-from-file=startup-script-url='{}'".format(
+        if startup_scripts:
+            args.append("--metadata=startup-script-url='{}'".format(
                 ','.join(startup_scripts)))
         if init_actions:
             args.append("--initialization-actions='{}'".format(
