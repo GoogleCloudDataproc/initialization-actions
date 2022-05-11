@@ -138,5 +138,33 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       self.verify_instance_cudnn("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
 
+  @parameterized.parameters(
+      ("SINGLE", GPU_V100, None, None),
+      ("STANDARD", GPU_V100, GPU_V100, "NVIDIA")
+  )
+  def test_gpu_allocation(self, configuration, master_accelerator,
+                          worker_accelerator, driver_provider):
+    if configuration == "SINGLE" and self.getImageOs() == "rocky":
+      self.skipTest("Test hangs on single-node clsuter with Rocky Linux-based images")
+      
+    metadata = None
+    if driver_provider is not None:
+      metadata = "gpu-driver-provider={}".format(driver_provider)
+
+    self.createCluster(
+        configuration,
+        self.INIT_ACTIONS,
+        metadata=metadata,
+        machine_type="n1-standard-2",
+        master_accelerator=master_accelerator,
+        worker_accelerator=worker_accelerator,
+        timeout_in_minutes=30)
+
+    self.assert_dataproc_job(
+        self.getClusterName(),
+        "spark",
+        "--jars=file:///usr/lib/spark/examples/jars/spark-examples.jar --class=org.apache.spark.examples.ml.JavaIndexToStringExample --properties=spark.driver.resource.gpu.amount=1,spark.driver.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh,spark.executor.resource.gpu.amount=1,spark.executor.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh"
+    )
+
 if __name__ == "__main__":
   absltest.main()

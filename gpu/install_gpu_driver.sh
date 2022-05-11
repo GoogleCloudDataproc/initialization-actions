@@ -384,17 +384,17 @@ function main() {
     fi
 
     configure_gpu_exclusive_mode
-    if systemctl status hadoop-yarn-nodemanager; then
-      systemctl restart hadoop-yarn-nodemanager.service
-    fi
   elif [[ "${ROLE}" == "Master" ]]; then
     configure_yarn_nodemanager
     configure_gpu_isolation
+  fi
+
+  # Restart YARN services if they are running already
+  if [[ $(systemctl show hadoop-yarn-resourcemanager.service -p SubState --value) == 'running' ]]; then
     systemctl restart hadoop-yarn-resourcemanager.service
-    # Restart NodeManager on Master as well if this is a single-node-cluster.
-    if systemctl status hadoop-yarn-nodemanager; then
-      systemctl restart hadoop-yarn-nodemanager.service
-    fi
+  fi
+  if [[ $(systemctl show hadoop-yarn-nodemanager.service -p SubState --value) == 'running' ]]; then
+    systemctl restart hadoop-yarn-nodemanager.service
   fi
 }
 
