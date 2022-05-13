@@ -4,9 +4,9 @@ test_suite(
     name = "DataprocInitActionsTestSuite",
     tests = [
         ":test_cloud_sql_proxy",
-        ":test_hive_llap",
         ":test_dr_elephant",
         ":test_hive_hcatalog",
+        ":test_hive_llap",
         ":test_starburst_presto",
         "//alluxio:test_alluxio",
         "//atlas:test_atlas",
@@ -14,7 +14,6 @@ test_suite(
         "//conda:test_conda",
         "//connectors:test_connectors",
         "//dask:test_dask",
-        "//datalab:test_datalab",
         "//drill:test_drill",
         "//flink:test_flink",
         "//ganglia:test_ganglia",
@@ -23,8 +22,6 @@ test_suite(
         "//hbase:test_hbase",
         "//horovod:test_horovod",
         "//hue:test_hue",
-        "//jupyter:test_jupyter",
-        "//jupyter_sparkmonitor:test_jupyter_sparkmonitor",
         "//kafka:test_kafka",
         "//knox:test_knox",
         "//livy:test_livy",
@@ -36,7 +33,6 @@ test_suite(
         "//rstudio:test_rstudio",
         "//solr:test_solr",
         "//sqoop:test_sqoop",
-        "//tez:test_tez",
         "//tony:test_tony",
     ],
 )
@@ -44,8 +40,14 @@ test_suite(
 py_test(
     name = "test_hive_llap",
     size = "large",
-    srcs = ["hive-llap/test_hive_llap.py","hive-llap/run_hive_commands.py"],
-    data = ["hive-llap/llap.sh","hive-llap/start_llap.sh"],
+    srcs = [
+        "hive-llap/run_hive_commands.py",
+        "hive-llap/test_hive_llap.py",
+    ],
+    data = [
+        "hive-llap/llap.sh",
+        "hive-llap/start_llap.sh",
+    ],
     local = True,
     shard_count = 6,
     deps = [
@@ -53,7 +55,6 @@ py_test(
         "@io_abseil_py//absl/testing:parameterized",
     ],
 )
-
 
 py_test(
     name = "test_cloud_sql_proxy",
