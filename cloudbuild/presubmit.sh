@@ -53,8 +53,8 @@ determine_tests_to_run() {
   echo "Changed files: ${CHANGED_FILES[*]}"
 
   # Run all tests if common directories modified by deleting files
-  if [[ -n "${DELETED_BUILD_FILES}" ]]; then
-    echo "All tests will be run: the following BUILD files '${DELETED_BUILD_FILES}' were removed"
+  if [[ "${#DELETED_BUILD_FILES[@]}" -gt 0 ]]; then
+    echo "All tests will be run: the following BUILD files '${DELETED_BUILD_FILES[*]}' were removed"
     TESTS_TO_RUN=(":DataprocInitActionsTestSuite")
     return 0
   fi

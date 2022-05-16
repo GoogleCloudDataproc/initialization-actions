@@ -14,7 +14,6 @@ kubectl run "${POD_NAME}" \
   --image="${IMAGE}" \
   --pod-running-timeout=15m \
   --restart=Never \
-  --limits="cpu=500m,ephemeral-storage=2Gi,memory=2Gi" \
   --env="COMMIT_SHA=${COMMIT_SHA}" \
   --env="IMAGE_VERSION=${DATAPROC_IMAGE_VERSION}" \
   --command -- bash /init-actions/cloudbuild/presubmit.sh
