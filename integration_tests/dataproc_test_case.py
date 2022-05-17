@@ -95,7 +95,26 @@ class DataprocTestCase(parameterized.TestCase):
                       optional_components=None,
                       machine_type="e2-standard-2",
                       boot_disk_size="50GB",
-                      startup_scripts=[]):
+                      startup_script=None):
+        createCluster(self, configuration, init_actions, metadata, scopes, properties, timeout_in_minutes,
+                beta, master_accelerator, worker_accelerator, optional_components, machine_type, machine_type,
+                boot_disk_size, startup_script)
+
+    def createCluster(self,
+                      configuration,
+                      init_actions,
+                      metadata=None,
+                      scopes=None,
+                      properties=None,
+                      timeout_in_minutes=None,
+                      beta=False,
+                      master_accelerator=None,
+                      worker_accelerator=None,
+                      optional_components=None,
+                      master_machine_type="e2-standard-2",
+                      worker_machine_type="e2-standard-2",
+                      boot_disk_size="50GB",
+                      startup_script=None):
         self.initClusterName(configuration)
         self.cluster_version = None
         self.cluster_zone = None
@@ -103,12 +122,6 @@ class DataprocTestCase(parameterized.TestCase):
         init_actions = [
             "{}/{}".format(self.INIT_ACTIONS_REPO, i)
             for i in init_actions or []
-        ]
-
-        # startup scripts in the same bucket as the init scripts
-        init_startup_scripts = [
-            "{}/{}".format(self.INIT_ACTIONS_REPO, i)
-            for i in startup_scripts or []
         ]
 
         args = self.DEFAULT_ARGS[configuration].copy()
@@ -121,9 +134,10 @@ class DataprocTestCase(parameterized.TestCase):
             args.append("--optional-components={}".format(
                 ','.join(optional_components)))
 
-        if startup_scripts:
-            args.append("--metadata=startup-script-url='{}'".format(
-                ','.join(startup_scripts)))
+        if startup_script:
+            # startup scripts in the same bucket as the init scripts
+            init_startup_script = "{}/{}".format(self.INIT_ACTIONS_REPO, startup_script)
+            args.append("--metadata=startup-script-url='{}'".format(init_startup_script))
         if init_actions:
             args.append("--initialization-actions='{}'".format(
                 ','.join(init_actions)))
@@ -144,8 +158,8 @@ class DataprocTestCase(parameterized.TestCase):
         if worker_accelerator:
             args.append("--worker-accelerator={}".format(worker_accelerator))
 
-        args.append("--master-machine-type={}".format(machine_type))
-        args.append("--worker-machine-type={}".format(machine_type))
+        args.append("--master-machine-type={}".format(master_machine_type))
+        args.append("--worker-machine-type={}".format(worker_machine_type))
 
         args.append("--master-boot-disk-size={}".format(boot_disk_size))
         args.append("--worker-boot-disk-size={}".format(boot_disk_size))
