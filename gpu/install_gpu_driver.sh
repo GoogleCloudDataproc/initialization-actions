@@ -400,24 +400,29 @@ function main() {
       execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
     fi
 
-    #install_nvidia_gpu_driver
-    #if [[ -n ${CUDNN_VERSION} ]]; then
-    #  install_nvidia_nccl
-    #  install_nvidia_cudnn
-    #fi
-   # 
-    # Install GPU metrics collection in Stackdriver if needed
-   # if [[ ${INSTALL_GPU_AGENT} == true ]]; then
-   #   install_gpu_agent
-   #   echo 'GPU metrics agent successfully deployed.'
-   # else
-   #   echo 'GPU metrics agent will not be installed.'
-   # fi
+    # if mig is enabled drivers would have already been installed
+    if [[ $IS_MIG_ENABLED -eq 0 ]]; then
+      install_nvidia_gpu_driver
+      if [[ -n ${CUDNN_VERSION} ]]; then
+        install_nvidia_nccl
+        install_nvidia_cudnn
+      fi
+      #Install GPU metrics collection in Stackdriver if needed
+      if [[ ${INSTALL_GPU_AGENT} == true ]]; then
+        install_gpu_agent
+        echo 'GPU metrics agent successfully deployed.'
+      else
+        echo 'GPU metrics agent will not be installed.'
+      fi
+      configure_gpu_exclusive_mode
+    fi
 
-    configure_gpu_exclusive_mode
+    configure_yarn_nodemanager
+    configure_gpu_script
+    configure_gpu_isolation
   elif [[ "${ROLE}" == "Master" ]]; then
     configure_yarn_nodemanager
-    configure_gpu_isolation
+    configure_gpu_script
   fi
 
   # Restart YARN services if they are running already
