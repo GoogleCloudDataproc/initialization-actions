@@ -47,8 +47,17 @@ initialize_git_repo() {
 # to determine all changed files and looks for tests in directories with changed files.
 determine_tests_to_run() {
   # Infer the files that changed
+  mapfile -t DELETED_BUILD_FILES < <(git diff origin/master --name-only --diff-filter=D | grep BUILD)
   mapfile -t CHANGED_FILES < <(git diff origin/master --name-only)
+  echo "Deleted BUILD files: ${DELETED_BUILD_FILES[*]}"
   echo "Changed files: ${CHANGED_FILES[*]}"
+
+  # Run all tests if common directories modified by deleting files
+  if [[ "${#DELETED_BUILD_FILES[@]}" -gt 0 ]]; then
+    echo "All tests will be run: the following BUILD files '${DELETED_BUILD_FILES[*]}' were removed"
+    TESTS_TO_RUN=(":DataprocInitActionsTestSuite")
+    return 0
+  fi
 
   # Determines init actions directories that were changed
   declare -a changed_dirs

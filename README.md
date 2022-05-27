@@ -55,14 +55,11 @@ This repository currently offers the following actions for use with Dataproc clu
   * [Apache Kafka](http://kafka.apache.org)
   * [Apache Livy](https://livy.incubator.apache.org/)
   * [Apache Oozie](http://oozie.apache.org)
-  * [Apache Tez](http://tez.apache.org)
   * [Apache ZooKeeper](http://zookeeper.apache.org)
   * [Presto](http://prestodb.io)
 * Improve data science and interactive experiences
   * [Miniconda](https://conda.io/docs/)
-  * [Jupyter](http://jupyter.org/)
   * [Apache Zeppelin](http://zeppelin.apache.org)
-  * [Datalab](https://cloud.google.com/datalab/)
   * [RStudio Server](https://www.rstudio.com/products/rstudio/#Server)
   * [Intel BigDL](https://bigdl-project.github.io)
   * [Hue](http://gethue.com)
@@ -75,6 +72,19 @@ This repository currently offers the following actions for use with Dataproc clu
 * Set up monitoring
   * [Stackdriver](https://cloud.google.com/stackdriver/)
   * [Ganglia](http://ganglia.info/)
+
+## Removed actions
+
+Previously, this repo provided init actions for the following, which have
+since been removed because equivalent functionality is now provided directly
+by Dataproc:
+
+* [Apache Tez](http://tez.apache.org): This is now pre-installed in all
+  current Dataproc image versions.
+* [Datalab](https://cloud.google.com/datalab/): Datalab has been replaced by
+  Vertex AI Workbench, which integrates with Dataproc.
+* [Jupyter](http://jupyter.org/): This has been replaced with the
+  [Jupyter Optional Component](https://cloud.google.com/dataproc/docs/concepts/components/jupyter).
 
 ## Initialization actions on single node clusters
 
