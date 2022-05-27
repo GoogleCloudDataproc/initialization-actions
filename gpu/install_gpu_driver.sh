@@ -326,9 +326,37 @@ function configure_gpu_script() {
   # Download GPU discovery script
   local -r spark_gpu_script_dir='/usr/lib/spark/scripts/gpu'
   mkdir -p ${spark_gpu_script_dir}
-  local -r gpu_resources_url=https://raw.githubusercontent.com/apache/spark/master/examples/src/main/scripts/getGpusResources.sh
-  curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-    "${gpu_resources_url}" -o ${spark_gpu_script_dir}/getGpusResources.sh
+  # need to update the getGpusResources.sh script to look for MIG devices since if multiple GPUs nvidia-smi still
+  # lists those because we only disable the specific GIs via CGROUPs. Here we just create it based off of:
+  # https://raw.githubusercontent.com/apache/spark/master/examples/src/main/scripts/getGpusResources.sh
+  echo '
+#!/usr/bin/env bash
+
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+NUM_MIG_DEVICES=$(nvidia-smi -L | grep MIG | wc -l)
+ADDRS=$(nvidia-smi --query-gpu=index --format=csv,noheader | sed -e ':a' -e 'N' -e'$!ba' -e 's/\n/","/g')
+if [[ $NUM_MIG_DEVICES -gt 0 ]]; then
+  MIG_INDEX=$(( $NUM_MIG_DEVICES - 1 ))
+  ADDRS=$(seq -s '","' 0 $MIG_INDEX)
+fi
+echo {\"name\": \"gpu\", \"addresses\":[\"$ADDRS\"]}
+' > ${spark_gpu_script_dir}/getGpusResources.sh
+
   chmod a+rwx -R ${spark_gpu_script_dir}
 }
 

@@ -77,6 +77,15 @@ attached GPU adapters.
     NVIDIA Ampere architecture. This creates a cluster with the NVIDIA GPU drivers
     and CUDA installed and the Ampere based GPU configured for MIG.
 
+    After cluster creation each MIG instance will show up like a regular GPU to YARN. For instance, if you requested
+    2 workers each with 1 A100 and used the default 2 MIG instances per A100, the cluster would have a total of 4 GPUs
+    that can be allocated.
+
+    It is important to note that CUDA 11 only supports enumeration of a single MIG instance. It is recommended that you
+    only request a single MIG instance per container. For instance, if running Spark only request
+    1 GPU per executor (spark.executor.resource.gpu.amount=1). Please see the
+    [MIG user guide](https://docs.nvidia.com/datacenter/tesla/mig-user-guide/) for more information.
+
     First decide which Amphere based GPU you are using. In the example we use the A100.
     Decide the number of MIG instances and [instance profiles to use](https://docs.nvidia.com/datacenter/tesla/mig-user-guide/#lgi).
     By default if the MIG profiles are not specified it will configure 2 MIG instances with profile id 9. If
@@ -99,10 +108,6 @@ attached GPU adapters.
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh \
         --metadata=startup-script-url=gs://goog-dataproc-initialization-actions-${REGION}/gpu/mig.sh
     ```
-
-    After cluster creation each MIG instance will show up like a regular GPU to YARN. For instance, if you requested
-    2 workers each with 1 A100 and used the default 2 MIG instances per A100, the cluster would have a total of 4 GPUs
-    that can be allocated.
 
 #### GPU Scheduling in YARN:
 
