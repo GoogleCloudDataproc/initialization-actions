@@ -349,10 +349,10 @@ function configure_gpu_script() {
 # limitations under the License.
 #
 NUM_MIG_DEVICES=$(nvidia-smi -L | grep MIG | wc -l)
-ADDRS=$(nvidia-smi --query-gpu=index --format=csv,noheader | sed -e ':a' -e 'N' -e'$!ba' -e 's/\n/","/g')
+ADDRS=$(nvidia-smi --query-gpu=index --format=csv,noheader | sed -e '\'':a'\'' -e '\''N'\'' -e'\''$!ba'\'' -e '\''s/\n/","/g'\'')
 if [[ $NUM_MIG_DEVICES -gt 0 ]]; then
   MIG_INDEX=$(( $NUM_MIG_DEVICES - 1 ))
-  ADDRS=$(seq -s '","' 0 $MIG_INDEX)
+  ADDRS=$(seq -s '\''","'\'' 0 $MIG_INDEX)
 fi
 echo {\"name\": \"gpu\", \"addresses\":[\"$ADDRS\"]}
 ' > ${spark_gpu_script_dir}/getGpusResources.sh
