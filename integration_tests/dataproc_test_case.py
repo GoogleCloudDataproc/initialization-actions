@@ -96,11 +96,11 @@ class DataprocTestCase(parameterized.TestCase):
                       machine_type="e2-standard-2",
                       boot_disk_size="50GB",
                       startup_script=None):
-        createCluster(self, configuration, init_actions, metadata, scopes, properties, timeout_in_minutes,
-                beta, master_accelerator, worker_accelerator, optional_components, machine_type, machine_type,
-                boot_disk_size, startup_script)
+        self.createClusterSeparateMaster(configuration, init_actions, metadata, scopes, properties, timeout_in_minutes,
+                beta, master_accelerator, worker_accelerator, optional_components, master_machine_type=machine_type,
+                worker_machine_type=machine_type, boot_disk_size=boot_disk_size, startup_script=startup_script)
 
-    def createCluster(self,
+    def createClusterSeparateMaster(self,
                       configuration,
                       init_actions,
                       metadata=None,
