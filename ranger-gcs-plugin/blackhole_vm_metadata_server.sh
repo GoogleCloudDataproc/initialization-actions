@@ -9,7 +9,7 @@ iptables -A OUTPUT -d 169.254.169.254 -p tcp -j REJECT
 echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
 echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
 apt-get update
-yes | apt-get install iptables-persistent
+apt-get -y install iptables-persistent
 
 # Save current iptable setting to preserve it after reboot.
 mkdir -p /etc/iptables
