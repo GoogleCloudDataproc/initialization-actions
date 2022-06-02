@@ -94,6 +94,8 @@ class DataprocTestCase(parameterized.TestCase):
                       worker_accelerator=None,
                       optional_components=None,
                       machine_type="e2-standard-2",
+                      master_machine_type=None,
+                      worker_machine_type=None,
                       boot_disk_size="50GB",
                       startup_script=None):
         self.initClusterName(configuration)
@@ -138,9 +140,9 @@ class DataprocTestCase(parameterized.TestCase):
             args.append("--master-accelerator={}".format(master_accelerator))
         if worker_accelerator:
             args.append("--worker-accelerator={}".format(worker_accelerator))
-
-        args.append("--master-machine-type={}".format(machine_type))
-        args.append("--worker-machine-type={}".format(machine_type))
+        
+        args.append("--master-machine-type={}".format(master_machine_type or machine_type))
+        args.append("--worker-machine-type={}".format(worker_machine_type or machine_type))
 
         args.append("--master-boot-disk-size={}".format(boot_disk_size))
         args.append("--worker-boot-disk-size={}".format(boot_disk_size))
