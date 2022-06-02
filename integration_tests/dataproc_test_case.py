@@ -96,25 +96,6 @@ class DataprocTestCase(parameterized.TestCase):
                       machine_type="e2-standard-2",
                       boot_disk_size="50GB",
                       startup_script=None):
-        self.createClusterSeparateMaster(configuration, init_actions, metadata, scopes, properties, timeout_in_minutes,
-                beta, master_accelerator, worker_accelerator, optional_components, master_machine_type=machine_type,
-                worker_machine_type=machine_type, boot_disk_size=boot_disk_size, startup_script=startup_script)
-
-    def createClusterSeparateMaster(self,
-                      configuration,
-                      init_actions,
-                      metadata=None,
-                      scopes=None,
-                      properties=None,
-                      timeout_in_minutes=None,
-                      beta=False,
-                      master_accelerator=None,
-                      worker_accelerator=None,
-                      optional_components=None,
-                      master_machine_type="e2-standard-2",
-                      worker_machine_type="e2-standard-2",
-                      boot_disk_size="50GB",
-                      startup_script=None):
         self.initClusterName(configuration)
         self.cluster_version = None
         self.cluster_zone = None
@@ -158,8 +139,8 @@ class DataprocTestCase(parameterized.TestCase):
         if worker_accelerator:
             args.append("--worker-accelerator={}".format(worker_accelerator))
 
-        args.append("--master-machine-type={}".format(master_machine_type))
-        args.append("--worker-machine-type={}".format(worker_machine_type))
+        args.append("--master-machine-type={}".format(machine_type))
+        args.append("--worker-machine-type={}".format(machine_type))
 
         args.append("--master-boot-disk-size={}".format(boot_disk_size))
         args.append("--worker-boot-disk-size={}".format(boot_disk_size))
