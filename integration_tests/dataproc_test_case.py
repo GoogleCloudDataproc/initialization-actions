@@ -85,6 +85,7 @@ class DataprocTestCase(parameterized.TestCase):
     def createCluster(self,
                       configuration,
                       init_actions,
+                      zone=None,
                       metadata=None,
                       scopes=None,
                       properties=None,
@@ -100,7 +101,7 @@ class DataprocTestCase(parameterized.TestCase):
                       startup_script=None):
         self.initClusterName(configuration)
         self.cluster_version = None
-        self.cluster_zone = None
+        self.cluster_zone = zone
 
         init_actions = [
             "{}/{}".format(self.INIT_ACTIONS_REPO, i)
@@ -150,6 +151,8 @@ class DataprocTestCase(parameterized.TestCase):
         args.append("--format=json")
 
         args.append("--region={}".format(self.REGION))
+        if self.cluster_zone:
+          args.append("--zone={]").format(self.cluster_zone)
 
         if not FLAGS.skip_cleanup:
             args.append("--max-age=2h")
