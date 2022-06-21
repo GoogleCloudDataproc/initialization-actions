@@ -152,7 +152,7 @@ class DataprocTestCase(parameterized.TestCase):
 
         args.append("--region={}".format(self.REGION))
         if self.cluster_zone:
-          args.append("--zone={]").format(self.cluster_zone)
+          args.append("--zone={}").format(self.cluster_zone)
 
         if not FLAGS.skip_cleanup:
             args.append("--max-age=2h")
