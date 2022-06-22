@@ -142,8 +142,15 @@ class DataprocTestCase(parameterized.TestCase):
         if worker_accelerator:
             args.append("--worker-accelerator={}".format(worker_accelerator))
         
-        args.append("--master-machine-type={}".format(master_machine_type or machine_type))
-        args.append("--worker-machine-type={}".format(worker_machine_type or machine_type))
+        if master_machine_type:
+            args.append("--master-machine-type={}".format(master_machine_type))
+        else:
+            args.append("--master-machine-type={}".format(machine_type))
+        
+        if worker_machine_type:
+            args.append("--worker-machine-type={}".format(worker_machine_type))   
+        else:
+            args.append("--worker-machine-type={}".format(machine_type))
 
         args.append("--master-boot-disk-size={}".format(boot_disk_size))
         args.append("--worker-boot-disk-size={}".format(boot_disk_size))
