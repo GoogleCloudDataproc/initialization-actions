@@ -192,12 +192,12 @@ EOF
   sed -i "s/secret_key=.*/secret_key=$(random_string)/" /etc/hue/conf/hue.ini
 
   db_mysqlroot_password="$(grep 'password=' /etc/mysql/my.cnf | sed 's/^.*=//')"
-  if [[ -z ${db_mysqlroot_password} ]]; then
+  if [[ -z "${db_mysqlroot_password}" ]]; then
     db_mysqlroot_password="root-password"
   fi
 
   # Create a database, give 'hue' user permissions
-  mysql -u root -p${db_mysqlroot_password} -e "
+  mysql -u root --password="${db_mysqlroot_password}" -e "
       CREATE DATABASE hue;
       CREATE USER 'hue'@'localhost' IDENTIFIED BY '${hue_password}';
       GRANT ALL PRIVILEGES ON hue.* TO 'hue'@'localhost';" ||
