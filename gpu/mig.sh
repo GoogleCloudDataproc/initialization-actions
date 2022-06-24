@@ -268,7 +268,7 @@ function configure_mig_cgi() {
 }
 
 function main() {
-  if [[ ${OS_NAME} != debian ]] && [[ ${OS_NAME} != ubuntu ]] && [[ ${OS_NAME} != centos ]]; then
+  if [[ ${OS_NAME} != debian ]] && [[ ${OS_NAME} != ubuntu ]] && [[ ${OS_NAME} != rocky ]]; then
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
   fi
@@ -304,7 +304,7 @@ function main() {
     export DEBIAN_FRONTEND=noninteractive
     execute_with_retries "apt-get update"
     execute_with_retries "apt-get install -y -q pciutils"
-  elif [[ ${OS_NAME} == centos ]] ; then
+  elif [[ ${OS_NAME} == rocky ]] ; then
     execute_with_retries "dnf -y -q update"
     execute_with_retries "dnf -y -q install pciutils"
     execute_with_retries "dnf -y -q install kernel-devel"
