@@ -66,10 +66,11 @@ if [[ -n "${DB_ADMIN_PASSWORD_URI}" ]]; then
 else
   readonly DB_ADMIN_PASSWORD=''
 fi
+
 if [[ -z ${DB_ADMIN_PASSWORD} ]]; then
-  readonly DB_ADMIN_PASSWORD_PARAMETER=''
+  readonly DB_ADMIN_PASSWORD_PARAMETER='--password='
 else
-  DB_ADMIN_PASSWORD_PARAMETER="-p${DB_ADMIN_PASSWORD}"
+  DB_ADMIN_PASSWORD_PARAMETER="--password=${DB_ADMIN_PASSWORD}"
   readonly DB_ADMIN_PASSWORD_PARAMETER
 fi
 
@@ -85,7 +86,13 @@ if [[ -n "${DB_HIVE_PASSWORD_URI}" ]]; then
       --key "${KMS_KEY_URI}")"
   readonly DB_HIVE_PASSWORD
 else
-  readonly DB_HIVE_PASSWORD='hive-password'
+  db_hive_pwd=$(bdconfig get_property_value \
+    --configuration_file "/etc/hive/conf/hive-site.xml" \
+    --name "javax.jdo.option.ConnectionPassword" 2>/dev/null)
+  if [[ "${db_hive_pwd}" == "None" ]]; then
+    db_hive_pwd="hive-password"
+  fi
+  readonly DB_HIVE_PASSWORD=${db_hive_pwd}
 fi
 if [[ -z ${DB_HIVE_PASSWORD} ]]; then
   readonly DB_HIVE_PASSWORD_PARAMETER=''

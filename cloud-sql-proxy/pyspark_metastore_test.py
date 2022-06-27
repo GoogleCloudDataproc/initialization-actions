@@ -3,11 +3,24 @@
 import pyspark
 import random
 import string
+from xml.dom import minidom
 
 # Constants that must match the constants in cloud-sql-proxy.sh
 METASTORE_DB = 'hive_metastore'
 HIVE_USER = 'hive'
 HIVE_USER_PASSWORD = 'hive-password'
+
+dom = minidom.parse('/etc/hive/conf/hive-site.xml')
+element = dom.getElementsByTagName('property')
+name=''
+value=''
+for property in dom.getElementsByTagName("property"):
+    name  = property.getElementsByTagName("name")[0].childNodes[0].data
+    value = property.getElementsByTagName("value")[0].childNodes[0].data
+    if name=="javax.jdo.option.ConnectionPassword":
+       break
+if value != 'none':
+    HIVE_USER_PASSWORD=value
 
 sc = pyspark.SparkContext()
 sqlContext = pyspark.sql.HiveContext(sc)

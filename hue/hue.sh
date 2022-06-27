@@ -190,14 +190,19 @@ EOF
   # Disable logging and set random secret key
   set +x
   sed -i "s/secret_key=.*/secret_key=$(random_string)/" /etc/hue/conf/hue.ini
-  set -x
+
+  db_mysqlroot_password="$(grep 'password=' /etc/mysql/my.cnf | sed 's/^.*=//')"
+  if [[ -z "${db_mysqlroot_password}" ]]; then
+    db_mysqlroot_password="root-password"
+  fi
 
   # Create a database, give 'hue' user permissions
-  mysql -u root -proot-password -e "
+  mysql -u root --password="${db_mysqlroot_password}" -e "
       CREATE DATABASE hue;
       CREATE USER 'hue'@'localhost' IDENTIFIED BY '${hue_password}';
       GRANT ALL PRIVILEGES ON hue.* TO 'hue'@'localhost';" ||
     err "Unable to create database"
+  set -x
 
   # Hue creates all needed tables
   /usr/lib/hue/build/env/bin/hue syncdb --noinput
