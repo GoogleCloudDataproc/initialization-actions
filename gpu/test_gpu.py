@@ -1,3 +1,4 @@
+import pkg_resources
 from absl.testing import absltest
 from absl.testing import parameterized
 
@@ -77,7 +78,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                   driver_provider):
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0 images")
-      
+
     metadata = "install-gpu-agent=true"
     if driver_provider is not None:
       metadata += ",gpu-driver-provider={}".format(driver_provider)
