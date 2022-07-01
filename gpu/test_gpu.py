@@ -76,8 +76,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_with_agent(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider):
-    if self.getImageVersion() < pkg_resources.parse_version("2.0"):
-      self.skipTest("Not supported in pre 2.0 images")
+    if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs == "rocky":
+      self.skipTest("Not supported in pre 2.0 or Rocky images")
 
     metadata = "install-gpu-agent=true"
     if driver_provider is not None:
