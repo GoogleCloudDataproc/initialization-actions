@@ -18,6 +18,8 @@ kubectl run "${POD_NAME}" \
   --env="IMAGE_VERSION=${DATAPROC_IMAGE_VERSION}" \
   --command -- bash /init-actions/cloudbuild/presubmit.sh
 
+kubectl set resources pod "${POD_NAME}" --limits=ephemeral-storage=10Gi --requests=ephemeral-storage=10Gi
+
 # Delete POD on exit and desribe it before deletion if exit was unsuccessful
 trap '[[ $? != 0 ]] && kubectl describe "pod/${POD_NAME}"; kubectl delete pods "${POD_NAME}"' EXIT
 
