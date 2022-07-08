@@ -25,7 +25,7 @@ kubectl wait --for=condition=Ready "pod/${POD_NAME}" --timeout=600s
 
 kubectl logs -f "${POD_NAME}"
 
-kubectl pod deploy "${POD_NAME}" -o yaml
+kubectl get pod "${POD_NAME}" -o yaml
 
 # Wait until POD will be terminated
 wait_secs=200
