@@ -25,6 +25,8 @@ kubectl wait --for=condition=Ready "pod/${POD_NAME}" --timeout=600s
 
 kubectl logs -f "${POD_NAME}"
 
+kubectl pod deploy "${POD_NAME}" -o yaml
+
 # Wait until POD will be terminated
 wait_secs=200
 while ((wait_secs > 0)) && ! kubectl describe "pod/${POD_NAME}" | grep -q Terminated; do
