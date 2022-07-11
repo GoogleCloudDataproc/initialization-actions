@@ -13,6 +13,11 @@ gcloud container clusters get-credentials "${CLOUDSDK_CONTAINER_CLUSTER}"
 cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: Pod
+  annotations:
+      labels:
+        run: ${POD_NAME}
+    name: ${POD_NAME}
+    namespace: default
 spec:
   containers:
   - command:
