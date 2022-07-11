@@ -22,7 +22,7 @@ spec:
     - name: COMMIT_SHA
       value: ${COMMIT_SHA}
     - name: IMAGE_VERSION
-      value: ${IMAGE_VERSION}
+      value: ${DATAPROC_IMAGE_VERSION}
     image: ${IMAGE}
     name: ${POD_NAME}
     resources:
