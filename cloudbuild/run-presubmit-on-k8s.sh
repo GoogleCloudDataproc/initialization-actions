@@ -32,13 +32,13 @@ spec:
     name: ${POD_NAME}
     resources:
       limits:
-        cpu: 500m
+        cpu: 1.5
         ephemeral-storage: 5Gi
-        memory: 2Gi
+        memory: 6Gi
       requests:
-        cpu: 500m
+        cpu: 1.5
         ephemeral-storage: 5Gi
-        memory: 2Gi
+        memory: 6Gi
 EOF
 
 # Delete POD on exit and desribe it before deletion if exit was unsuccessful
