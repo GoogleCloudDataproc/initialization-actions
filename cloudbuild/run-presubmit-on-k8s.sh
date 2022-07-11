@@ -15,8 +15,8 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-      labels:
-        run: ${POD_NAME}
+    labels:
+      run: ${POD_NAME}
     name: ${POD_NAME}
     namespace: default
 spec:
