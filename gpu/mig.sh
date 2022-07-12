@@ -11,8 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# This script installs NVIDIA GPU drivers and enables MIG on Amphere GPU architectures.
+# This script should be specified in --metadata=startup-script-url= option and
+# --metadata=ENABLE_MIG can be used to enable or disable MIG. The default is to enable it.
+# The script does a reboot to fully enable MIG and then configures the MIG device based on the
+# user specified MIG_CGI profiles specified via: --metadata=^:^MIG_CGI='9,9'. If MIG_CGI
+# is not specified it assumes it's using an A100 and configures 2 instances with profile id 9.
+# It is assumed this script is used in conjuntion with install_gpu_driver.sh, which does the
+# YARN setup to fully utilize the MIG instances on YARN.
 #
-# This script installs NVIDIA GPU drivers and collects GPU utilization metrics.
+# Much of this code is copied from install_gpu_driver.sh to do the driver and CUDA installation.
+# It's copied in order to not affect the existing scripts when not using MIG.
 
 set -euxo pipefail
 
@@ -69,7 +79,7 @@ readonly NVIDIA_DEBIAN_CUDA_URL
 
 # Parameters for NVIDIA-provided Ubuntu GPU driver
 readonly NVIDIA_UBUNTU_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/ubuntu1804/x86_64"
-readonly NVIDIA_UBUNTU_REPO_KEY_PACKAGE="${NVIDIA_UBUNTU_REPO_URL}/cuda-keyring_1.0-1_all.deb"
+readonly NVIDIA_UBUNTU_REPO_KEY="${NVIDIA_UBUNTU_REPO_URL}/3bf863cc.pub"
 readonly NVIDIA_UBUNTU_REPO_CUDA_PIN="${NVIDIA_UBUNTU_REPO_URL}/cuda-ubuntu1804.pin"
 
 # Parameter for NVIDIA-provided Rocky Linux GPU driver
@@ -89,15 +99,6 @@ readonly GPU_AGENT_REPO_URL='https://raw.githubusercontent.com/GoogleCloudPlatfo
 # Whether to install GPU monitoring agent that sends GPU metrics to Stackdriver
 INSTALL_GPU_AGENT=$(get_metadata_attribute 'install-gpu-agent' 'false')
 readonly INSTALL_GPU_AGENT
-
-# Dataproc configurations
-readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
-readonly HIVE_CONF_DIR='/etc/hive/conf'
-readonly SPARK_CONF_DIR='/etc/spark/conf'
-
-NVIDIA_SMI_PATH='/usr/bin'
-MIG_MAJOR_CAPS=0
-IS_MIG_ENABLED=0
 
 function execute_with_retries() {
   local -r cmd=$1
@@ -178,9 +179,7 @@ EOF
 function install_nvidia_gpu_driver() {
   if [[ ${OS_NAME} == debian ]]; then
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${NVIDIA_UBUNTU_REPO_KEY_PACKAGE}" -o /tmp/cuda-keyring.deb
-    dpkg -i "/tmp/cuda-keyring.deb"
-
+    "${NVIDIA_UBUNTU_REPO_KEY}" | apt-key add -
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${NVIDIA_DEBIAN_GPU_DRIVER_URL}" -o driver.run
     bash "./driver.run" --silent --install-libglvnd
@@ -190,8 +189,7 @@ function install_nvidia_gpu_driver() {
     bash "./cuda.run" --silent --toolkit --no-opengl-libs
   elif [[ ${OS_NAME} == ubuntu ]]; then
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${NVIDIA_UBUNTU_REPO_KEY_PACKAGE}" -o /tmp/cuda-keyring.deb
-    dpkg -i "/tmp/cuda-keyring.deb"
+    "${NVIDIA_UBUNTU_REPO_KEY}" | apt-key add -
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${NVIDIA_UBUNTU_REPO_CUDA_PIN}" -o /etc/apt/preferences.d/cuda-repository-pin-600
 
@@ -255,143 +253,51 @@ EOF
   systemctl --no-reload --now enable gpu-utilization-agent.service
 }
 
-function set_hadoop_property() {
-  local -r config_file=$1
-  local -r property=$2
-  local -r value=$3
-  bdconfig set_property \
-    --configuration_file "${HADOOP_CONF_DIR}/${config_file}" \
-    --name "${property}" --value "${value}" \
-    --clobber
+function enable_mig() {
+  nvidia-smi -mig 1
 }
 
-function configure_yarn() {
-  if [[ ! -f ${HADOOP_CONF_DIR}/resource-types.xml ]]; then
-    printf '<?xml version="1.0" ?>\n<configuration/>' >"${HADOOP_CONF_DIR}/resource-types.xml"
-  fi
-  set_hadoop_property 'resource-types.xml' 'yarn.resource-types' 'yarn.io/gpu'
-
-  set_hadoop_property 'capacity-scheduler.xml' \
-    'yarn.scheduler.capacity.resource-calculator' \
-    'org.apache.hadoop.yarn.util.resource.DominantResourceCalculator'
-
-  set_hadoop_property 'yarn-site.xml' 'yarn.resource-types' 'yarn.io/gpu'
-}
-
-# This configuration should be applied only if GPU is attached to the node
-function configure_yarn_nodemanager() {
-  set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
-  set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.resource-plugins.gpu.allowed-gpu-devices' 'auto'
-  set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.resource-plugins.gpu.path-to-discovery-executables' $NVIDIA_SMI_PATH
-  set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.linux-container-executor.cgroups.mount' 'true'
-  set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.linux-container-executor.cgroups.mount-path' '/sys/fs/cgroup'
-  set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.linux-container-executor.cgroups.hierarchy' 'yarn'
-  set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.container-executor.class' \
-    'org.apache.hadoop.yarn.server.nodemanager.LinuxContainerExecutor'
-  set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.linux-container-executor.group' 'yarn'
-
-  # Fix local dirs access permissions
-  local yarn_local_dirs=()
-  readarray -d ',' yarn_local_dirs < <(bdconfig get_property_value \
-    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
-    --name "yarn.nodemanager.local-dirs" 2>/dev/null | tr -d '\n')
-  chown yarn:yarn -R "${yarn_local_dirs[@]/,/}"
-}
-
-function configure_gpu_exclusive_mode() {
-  # check if running spark 3, if not, enable GPU exclusive mode
-  local spark_version
-  spark_version=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
-  if [[ ${spark_version} != 3.* ]]; then
-    # include exclusive mode on GPU
-    nvidia-smi -c EXCLUSIVE_PROCESS
-  fi
-}
-
-function fetch_mig_scripts() {
-  mkdir -p /usr/local/yarn-mig-scripts
-  sudo chmod 755 /usr/local/yarn-mig-scripts
-  wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.06/examples/MIG-Support/yarn-unpatched/scripts/nvidia-smi
-  wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.06/examples/MIG-Support/yarn-unpatched/scripts/mig2gpu.sh
-  sudo chmod 755 /usr/local/yarn-mig-scripts/*
-}
-
-function configure_gpu_script() {
-  # Download GPU discovery script
-  local -r spark_gpu_script_dir='/usr/lib/spark/scripts/gpu'
-  mkdir -p ${spark_gpu_script_dir}
-  # need to update the getGpusResources.sh script to look for MIG devices since if multiple GPUs nvidia-smi still
-  # lists those because we only disable the specific GIs via CGROUPs. Here we just create it based off of:
-  # https://raw.githubusercontent.com/apache/spark/master/examples/src/main/scripts/getGpusResources.sh
-  echo '
-#!/usr/bin/env bash
-
-#
-# Licensed to the Apache Software Foundation (ASF) under one or more
-# contributor license agreements.  See the NOTICE file distributed with
-# this work for additional information regarding copyright ownership.
-# The ASF licenses this file to You under the Apache License, Version 2.0
-# (the "License"); you may not use this file except in compliance with
-# the License.  You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-NUM_MIG_DEVICES=$(nvidia-smi -L | grep MIG | wc -l)
-ADDRS=$(nvidia-smi --query-gpu=index --format=csv,noheader | sed -e '\'':a'\'' -e '\''N'\'' -e'\''$!ba'\'' -e '\''s/\n/","/g'\'')
-if [ $NUM_MIG_DEVICES -gt 0 ]; then
-  MIG_INDEX=$(( $NUM_MIG_DEVICES - 1 ))
-  ADDRS=$(seq -s '\''","'\'' 0 $MIG_INDEX)
-fi
-echo {\"name\": \"gpu\", \"addresses\":[\"$ADDRS\"]}
-' > ${spark_gpu_script_dir}/getGpusResources.sh
-
-  chmod a+rwx -R ${spark_gpu_script_dir}
-}
-
-function configure_gpu_isolation() {
-  # enable GPU isolation
-  sed -i "s/yarn.nodemanager\.linux\-container\-executor\.group\=/yarn\.nodemanager\.linux\-container\-executor\.group\=yarn/g" "${HADOOP_CONF_DIR}/container-executor.cfg"
-  if [[ $IS_MIG_ENABLED -ne 0 ]]; then
-    # configure the container-executor.cfg to have major caps
-    printf '\n[gpu]\nmodule.enabled=true\ngpu.major-device-number=%s\n\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' $MIG_MAJOR_CAPS >> "${HADOOP_CONF_DIR}/container-executor.cfg"
-    printf 'export MIG_AS_GPU_ENABLED=1\n' >> "${HADOOP_CONF_DIR}/yarn-env.sh"
-    printf 'export ENABLE_MIG_GPUS_FOR_CGROUPS=1\n' >> "${HADOOP_CONF_DIR}/yarn-env.sh"
+function configure_mig_cgi() {
+  if (/usr/share/google/get_metadata_value attributes/MIG_CGI); then
+    META_MIG_CGI_VALUE=$(/usr/share/google/get_metadata_value attributes/MIG_CGI)
+    nvidia-smi mig -cgi $META_MIG_CGI_VALUE -C
   else
-    printf '\n[gpu]\nmodule.enabled=true\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' >> "${HADOOP_CONF_DIR}/container-executor.cfg"
+    # Dataproc only supports A100's right now split in 2 if not specified
+    nvidia-smi mig -cgi 9,9  -C
   fi
-
-  # Configure a systemd unit to ensure that permissions are set on restart
-  cat >/etc/systemd/system/dataproc-cgroup-device-permissions.service<<EOF
-[Unit]
-Description=Set permissions to allow YARN to access device directories
-
-[Service]
-ExecStart=/bin/bash -c "chmod a+rwx -R /sys/fs/cgroup/cpu,cpuacct; chmod a+rwx -R /sys/fs/cgroup/devices"
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-  systemctl enable dataproc-cgroup-device-permissions
-  systemctl start dataproc-cgroup-device-permissions
 }
 
 function main() {
   if [[ ${OS_NAME} != debian ]] && [[ ${OS_NAME} != ubuntu ]] && [[ ${OS_NAME} != rocky ]]; then
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
+  fi
+
+  # default MIG to on when this script is used
+  META_MIG_VALUE=1
+  if (/usr/share/google/get_metadata_value attributes/ENABLE_MIG); then
+    META_MIG_VALUE=$(/usr/share/google/get_metadata_value attributes/ENABLE_MIG)
+  fi
+  if (lspci | grep -q NVIDIA); then
+    if [[ $META_MIG_VALUE -ne 0 ]]; then
+      # if the first invocation, the NVIDIA drivers and tools are not installed
+      if [[ -f "/usr/bin/nvidia-smi" ]]; then
+        # check to see if we already enabled mig mode and rebooted so we don't end
+        # up in infinite reboot loop
+        NUM_GPUS_WITH_DIFF_MIG_MODES=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
+        if [[ $NUM_GPUS_WITH_DIFF_MIG_MODES -eq 1 ]]; then
+          if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
+            echo "MIG is enabled on all GPUs, configuring instances"
+            configure_mig_cgi
+            exit 0
+          else
+            echo "GPUs present but MIG is not enabled"
+          fi
+        else
+          echo "More than 1 GPU with MIG configured differently between them"
+        fi
+      fi
+    fi
   fi
 
   if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
@@ -405,60 +311,44 @@ function main() {
     execute_with_retries "dnf -y -q install gcc"
   fi
 
-  # This configuration should be ran on all nodes
-  # regardless if they have attached GPUs
-  configure_yarn
-
   # Detect NVIDIA GPU
   if (lspci | grep -q NVIDIA); then
-    # if this is called without the MIG script then the drivers are not installed
-    if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l); then
-      NUM_MIG_GPUS=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
-      if [[ $NUM_MIG_GPUS -eq 1 ]]; then
-        if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
-          IS_MIG_ENABLED=1
-          NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
-          MIG_MAJOR_CAPS=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
-          fetch_mig_scripts
-        fi
-      fi
-    fi
-
     if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
       execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
     fi
 
-    # if mig is enabled drivers would have already been installed
-    if [[ $IS_MIG_ENABLED -eq 0 ]]; then
-      install_nvidia_gpu_driver
-      if [[ -n ${CUDNN_VERSION} ]]; then
-        install_nvidia_nccl
-        install_nvidia_cudnn
-      fi
-      #Install GPU metrics collection in Stackdriver if needed
-      if [[ ${INSTALL_GPU_AGENT} == true ]]; then
-        install_gpu_agent
-        echo 'GPU metrics agent successfully deployed.'
-      else
-        echo 'GPU metrics agent will not be installed.'
-      fi
-      configure_gpu_exclusive_mode
+    install_nvidia_gpu_driver
+    if [[ -n ${CUDNN_VERSION} ]]; then
+      install_nvidia_nccl
+      install_nvidia_cudnn
+    fi
+    
+    # Install GPU metrics collection in Stackdriver if needed
+    if [[ ${INSTALL_GPU_AGENT} == true ]]; then
+      install_gpu_agent
+      echo 'GPU metrics agent successfully deployed.'
+    else
+      echo 'GPU metrics agent will not be installed.'
     fi
 
-    configure_yarn_nodemanager
-    configure_gpu_script
-    configure_gpu_isolation
-  elif [[ "${ROLE}" == "Master" ]]; then
-    configure_yarn_nodemanager
-    configure_gpu_script
-  fi
-
-  # Restart YARN services if they are running already
-  if [[ $(systemctl show hadoop-yarn-resourcemanager.service -p SubState --value) == 'running' ]]; then
-    systemctl restart hadoop-yarn-resourcemanager.service
-  fi
-  if [[ $(systemctl show hadoop-yarn-nodemanager.service -p SubState --value) == 'running' ]]; then
-    systemctl restart hadoop-yarn-nodemanager.service
+    if [[ META_MIG_VALUE -ne 0 ]]; then
+      enable_mig
+      NUM_GPUS_WITH_DIFF_MIG_MODES=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
+      if [[ NUM_GPUS_WITH_DIFF_MIG_MODES -eq 1 ]]; then
+        if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
+          echo "MIG is fully enabled, we don't need to reboot"
+          configure_mig_cgi
+        else
+          echo "MIG is configured on but NOT enabled, we need to reboot"
+          reboot
+        fi
+      else
+        echo "MIG is NOT enabled all on GPUs, we need to reboot"
+        reboot
+      fi
+    else
+      echo "Not enabling MIG"
+    fi
   fi
 }
 
