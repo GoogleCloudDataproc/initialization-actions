@@ -51,7 +51,7 @@ kubectl logs -f "${POD_NAME}"
 kubectl get pod "${POD_NAME}" -o yaml
 
 # Wait until POD will be terminated
-wait_secs=200
+wait_secs=900
 while ((wait_secs > 0)) && ! kubectl describe "pod/${POD_NAME}" | grep -q Terminated; do
   sleep 5
   ((wait_secs-=5))
