@@ -10,31 +10,10 @@ readonly POD_NAME=presubmit-${DATAPROC_IMAGE_VERSION//./-}-${BUILD_ID//_/-}
 
 gcloud container clusters get-credentials "${CLOUDSDK_CONTAINER_CLUSTER}"
 
-readonly OVERRIDES="
-{
-  \"spec\": {
-    \"template\":{
-      \"spec\": {
-        \"containers\": [{
-          \"name\":\"${POD_NAME}\",
-          \"image\":\"${IMAGE}\",
-          \"resources\": {
-            \"requests\": {
-              \"cpu\": \"0.6\",
-              \"memory\": \"1.5Gi\",
-              \"ephemeral-storage\": \"2Gi\"
-            }
-          }
-        }]
-      }
-    }
-  }
-}"
-
 kubectl run "${POD_NAME}" \
   --image="${IMAGE}" \
   --pod-running-timeout=10m \
-  --overrides="${OVERRIDES}" \
+  --requests='cpu=0.6,memory=1.5Gi,ephemeral-storage=2Gi' \
   --restart=Never \
   --env="COMMIT_SHA=${COMMIT_SHA}" \
   --env="IMAGE_VERSION=${DATAPROC_IMAGE_VERSION}" \
