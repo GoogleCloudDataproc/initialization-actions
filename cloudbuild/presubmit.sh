@@ -109,6 +109,12 @@ run_tests() {
     "${TESTS_TO_RUN[@]}"
 }
 
+function delay_on_failure() {
+  local exit_code="$?"
+  sleep 10
+  exit "${exit_code}"
+}
+
 main() {
   cd /init-actions
   configure_gcloud
@@ -118,10 +124,5 @@ main() {
   run_tests
 }
 
-# Sleep for 10 seconds after presubmit failure
-# to let logs from the container to propagate
-main; EXIT_CODE="$?"
-if [[ ${EXIT_CODE} != 0 ]]; then
-  sleep 10
-  exit "${EXIT_CODE}"
-fi
+# Sleep after presubmit failure to let logs from the container to propagate
+main || delay_on_failure
