@@ -118,4 +118,10 @@ main() {
   run_tests
 }
 
-main
+# Sleep for 10 seconds after presubmit failure
+# to let logs from the container to propagate
+main; EXIT_CODE="$?"
+if [[ ${EXIT_CODE} != 0 ]]; then
+  sleep 10
+  exit "${EXIT_CODE}"
+fi
