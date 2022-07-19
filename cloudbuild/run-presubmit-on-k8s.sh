@@ -14,7 +14,6 @@ LOGS_START_DATE=$(date --rfc-3339=seconds)
 
 kubectl run "${POD_NAME}" \
   --image="${IMAGE}" \
-  --pod-running-timeout=15m \
   --requests='cpu=750m,memory=2Gi,ephemeral-storage=2Gi' \
   --restart=Never \
   --env="COMMIT_SHA=${COMMIT_SHA}" \
@@ -27,7 +26,7 @@ trap '[[ $? != 0 ]] && kubectl describe "pod/${POD_NAME}"; kubectl delete pods "
 kubectl wait --for=condition=Ready "pod/${POD_NAME}" --timeout=15m
 
 while ! kubectl describe "pod/${POD_NAME}" | grep -q Terminated; do
-  kubectl logs -f "${POD_NAME}" --pod-running-timeout --since-time=
+  kubectl logs -f "${POD_NAME}" --since-time="${LOGS_START_DATE}"
   LOGS_START_DATE=$(date --rfc-3339=seconds)
 done
 
