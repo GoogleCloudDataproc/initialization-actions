@@ -32,7 +32,9 @@ attached GPU adapters.
 
 1.  Use the `gcloud` command to create a new cluster with NVIDIA GPU drivers
     and CUDA installed by initialization action as well as the GPU
-    monitoring service. The monitoring service is supported on Dataproc 1.4+ images.
+    monitoring service. The monitoring service is supported on Dataproc 2.0+ Debian
+    and Ubuntu images. Please create a Github issue if support is needed for other
+    Dataproc images.
 
     *Prerequisite:* Create GPU metrics in
     [Cloud Monitoring](https://cloud.google.com/monitoring/docs/) using Google
