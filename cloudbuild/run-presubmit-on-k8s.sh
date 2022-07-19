@@ -10,7 +10,7 @@ readonly POD_NAME=presubmit-${DATAPROC_IMAGE_VERSION//./-}-${BUILD_ID//_/-}
 
 gcloud container clusters get-credentials "${CLOUDSDK_CONTAINER_CLUSTER}"
 
-LOGS_SINCE_TIME=$(date --rfc-3339=seconds)
+LOGS_SINCE_TIME=$(date --iso-8601=seconds)
 
 kubectl run "${POD_NAME}" \
   --image="${IMAGE}" \
@@ -27,7 +27,7 @@ kubectl wait --for=condition=Ready "pod/${POD_NAME}" --timeout=15m
 
 while ! kubectl describe "pod/${POD_NAME}" | grep -q Terminated; do
   kubectl logs -f "${POD_NAME}" --since-time="${LOGS_SINCE_TIME}"
-  LOGS_SINCE_TIME=$(date --rfc-3339=seconds)
+  LOGS_SINCE_TIME=$(date --iso-8601=seconds)
 done
 
 EXIT_CODE=$(kubectl get pod "${POD_NAME}" \
