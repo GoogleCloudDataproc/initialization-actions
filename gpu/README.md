@@ -73,6 +73,42 @@ attached GPU adapters.
         --scopes https://www.googleapis.com/auth/monitoring.write
     ```
 
+1.  Use the `gcloud` command to create a new cluster using Multi-Instance GPU (MIG) feature of the
+    NVIDIA Ampere architecture. This creates a cluster with the NVIDIA GPU drivers
+    and CUDA installed and the Ampere based GPU configured for MIG.
+
+    After cluster creation each MIG instance will show up like a regular GPU to YARN. For instance, if you requested
+    2 workers each with 1 A100 and used the default 2 MIG instances per A100, the cluster would have a total of 4 GPUs
+    that can be allocated.
+
+    It is important to note that CUDA 11 only supports enumeration of a single MIG instance. It is recommended that you
+    only request a single MIG instance per container. For instance, if running Spark only request
+    1 GPU per executor (spark.executor.resource.gpu.amount=1). Please see the
+    [MIG user guide](https://docs.nvidia.com/datacenter/tesla/mig-user-guide/) for more information.
+
+    First decide which Amphere based GPU you are using. In the example we use the A100.
+    Decide the number of MIG instances and [instance profiles to use](https://docs.nvidia.com/datacenter/tesla/mig-user-guide/#lgi).
+    By default if the MIG profiles are not specified it will configure 2 MIG instances with profile id 9. If
+    a different instance profile is required, you can specify it in the MIG_CGI metadata parameter. Either a
+    profile id or the name (ie 3g.20gb) can be specified. For example:
+
+    ```bash
+        --metadata=^:^MIG_CGI='3g.20gb,9'
+    ```
+
+    Create cluster with MIG enabled:
+
+    ```bash
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --worker-machine-type a2-highgpu-1g
+        --worker-accelerator type=nvidia-tesla-a100,count=1 \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh \
+        --metadata=startup-script-url=gs://goog-dataproc-initialization-actions-${REGION}/gpu/mig.sh
+    ```
+
 #### GPU Scheduling in YARN:
 
 YARN is the default Resource Manager for Dataproc. To use GPU scheduling feature

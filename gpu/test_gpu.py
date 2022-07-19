@@ -1,4 +1,5 @@
 import pkg_resources
+
 from absl.testing import absltest
 from absl.testing import parameterized
 
@@ -9,9 +10,14 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   COMPONENT = "gpu"
   INIT_ACTIONS = ["gpu/install_gpu_driver.sh"]
   GPU_V100 = "type=nvidia-tesla-v100"
+  GPU_A100 = "type=nvidia-tesla-a100"
 
   def verify_instance(self, name):
     self.assert_instance_command(name, "nvidia-smi")
+
+  def verify_mig_instance(self, name):
+    self.assert_instance_command(name,
+        "/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | xargs -I % test % = 'Enabled'")
 
   def verify_instance_gpu_agent(self, name):
     self.assert_instance_command(
@@ -30,6 +36,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_default_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
+    if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
+      self.skipTest("Not supported in pre 2.0 or Rocky images")
+      
     metadata = None
     if driver_provider is not None:
       metadata = "gpu-driver-provider={}".format(driver_provider)
@@ -76,9 +85,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_with_agent(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider):
-    if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs == "rocky":
+    if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
       self.skipTest("Not supported in pre 2.0 or Rocky images")
-
+      
     metadata = "install-gpu-agent=true"
     if driver_provider is not None:
       metadata += ",gpu-driver-provider={}".format(driver_provider)
@@ -143,6 +152,27 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                                 machine_suffix))
 
   @parameterized.parameters(
+      ("STANDARD", ["m", "w-0", "w-1"], None, GPU_A100, "NVIDIA", "us-central1-b"),
+  )
+  def test_install_gpu_with_mig(self, configuration, machine_suffixes,
+                                  master_accelerator, worker_accelerator,
+                                  driver_provider, zone):
+    self.createCluster(
+        configuration,
+        self.INIT_ACTIONS,
+        zone=zone,
+        master_machine_type="n1-standard-4",
+        worker_machine_type="a2-highgpu-1g",
+        master_accelerator=master_accelerator,
+        worker_accelerator=worker_accelerator,
+        metadata=None,
+        timeout_in_minutes=30,
+        startup_script="gpu/mig.sh")
+    for machine_suffix in ["w-0", "w-1"]:
+      self.verify_mig_instance("{}-{}".format(self.getClusterName(),
+                                          machine_suffix))
+
+  @parameterized.parameters(
       ("SINGLE", GPU_V100, None, None),
       ("STANDARD", GPU_V100, GPU_V100, "NVIDIA")
   )
@@ -169,6 +199,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         "spark",
         "--jars=file:///usr/lib/spark/examples/jars/spark-examples.jar --class=org.apache.spark.examples.ml.JavaIndexToStringExample --properties=spark.driver.resource.gpu.amount=1,spark.driver.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh,spark.executor.resource.gpu.amount=1,spark.executor.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh"
     )
+
 
 if __name__ == "__main__":
   absltest.main()

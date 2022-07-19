@@ -85,6 +85,7 @@ class DataprocTestCase(parameterized.TestCase):
     def createCluster(self,
                       configuration,
                       init_actions,
+                      zone=None,
                       metadata=None,
                       scopes=None,
                       properties=None,
@@ -94,10 +95,13 @@ class DataprocTestCase(parameterized.TestCase):
                       worker_accelerator=None,
                       optional_components=None,
                       machine_type="e2-standard-2",
-                      boot_disk_size="50GB"):
+                      master_machine_type=None,
+                      worker_machine_type=None,
+                      boot_disk_size="50GB",
+                      startup_script=None):
         self.initClusterName(configuration)
         self.cluster_version = None
-        self.cluster_zone = None
+        self.cluster_zone = zone
 
         init_actions = [
             "{}/{}".format(self.INIT_ACTIONS_REPO, i)
@@ -114,6 +118,10 @@ class DataprocTestCase(parameterized.TestCase):
             args.append("--optional-components={}".format(
                 ','.join(optional_components)))
 
+        if startup_script:
+            # startup scripts in the same bucket as the init scripts
+            init_startup_script = "{}/{}".format(self.INIT_ACTIONS_REPO, startup_script)
+            args.append("--metadata=startup-script-url='{}'".format(init_startup_script))
         if init_actions:
             args.append("--initialization-actions='{}'".format(
                 ','.join(init_actions)))
@@ -133,9 +141,16 @@ class DataprocTestCase(parameterized.TestCase):
             args.append("--master-accelerator={}".format(master_accelerator))
         if worker_accelerator:
             args.append("--worker-accelerator={}".format(worker_accelerator))
-
-        args.append("--master-machine-type={}".format(machine_type))
-        args.append("--worker-machine-type={}".format(machine_type))
+        
+        if master_machine_type:
+            args.append("--master-machine-type={}".format(master_machine_type))
+        else:
+            args.append("--master-machine-type={}".format(machine_type))
+        
+        if worker_machine_type:
+            args.append("--worker-machine-type={}".format(worker_machine_type))   
+        else:
+            args.append("--worker-machine-type={}".format(machine_type))
 
         args.append("--master-boot-disk-size={}".format(boot_disk_size))
         args.append("--worker-boot-disk-size={}".format(boot_disk_size))
@@ -143,6 +158,8 @@ class DataprocTestCase(parameterized.TestCase):
         args.append("--format=json")
 
         args.append("--region={}".format(self.REGION))
+        if self.cluster_zone:
+          args.append("--zone={}".format(self.cluster_zone))
 
         if not FLAGS.skip_cleanup:
             args.append("--max-age=2h")
