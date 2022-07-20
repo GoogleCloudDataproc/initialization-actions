@@ -21,7 +21,7 @@ class RapidsTestCase(DataprocTestCase):
   # Tests for RAPIDS init action
   DASK_RAPIDS_TEST_SCRIPT_FILE_NAME = "verify_rapids_dask.py"
   SPARK_TEST_SCRIPT_FILE_NAME = "verify_rapids_spark.py"
-  XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME = "verify_xgboost_spark.py"
+  XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME = "verify_xgboost_spark.scala"
 
   def verify_dask_instance(self, name):
     self.assert_instance_command(
@@ -41,16 +41,26 @@ class RapidsTestCase(DataprocTestCase):
   def verify_spark_instance(self, name):
     self.assert_instance_command(name, "nvidia-smi")
 
-  def verify_spark_job(self):
+  def verify_spark_job(self, name=None):
     self.assert_dataproc_job(
         self.name, "pyspark",
         "{}/rapids/{}".format(self.INIT_ACTIONS_REPO,
                               self.SPARK_TEST_SCRIPT_FILE_NAME))
+    
     if self.getImageVersion() > pkg_resources.parse_version("1.5"):
-      self.assert_dataproc_job(
-          self.name, "pyspark",
-          "{}/rapids/{}".format(self.INIT_ACTIONS_REPO,
-                                self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME))
+      self.upload_test_file(
+        os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), 
+            self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME), name)
+        verify_cmd = """spark-shell \
+           --conf spark.executor.resource.gpu.amount=1 \
+           --conf spark.task.resource.gpu.amount=1 \
+           --conf spark.dynamicAllocation.enabled=false < {}""".format(
+             self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME)
+        self.assert_instance_command(name, verify_cmd)
+        self.remove_test_script(
+          self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME, name)
+        
 
   @parameterized.parameters(
     ("STANDARD", ["m", "w-0"], GPU_P100, None),
