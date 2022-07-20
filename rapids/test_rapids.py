@@ -117,7 +117,8 @@ class RapidsTestCase(DataprocTestCase):
       self.verify_spark_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
     # Only need to do this once
-    self.verify_spark_job()
+    self.verify_spark_job(name="{}-{}".format(self.getClusterName(),
+                                                machine_suffix))
 
   @parameterized.parameters(
     ("STANDARD", ["m", "w-0"], GPU_P100, "11.2"))
@@ -144,7 +145,8 @@ class RapidsTestCase(DataprocTestCase):
       self.verify_spark_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
     # Only need to do this once
-    self.verify_spark_job()
+    self.verify_spark_job(name="{}-{}".format(self.getClusterName(),
+                                                machine_suffix))
 
 if __name__ == "__main__":
   absltest.main()
