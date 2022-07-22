@@ -23,5 +23,5 @@ py_test(
 py_library(
     name = "verify_rapids",
     testonly = True,
-    srcs = ["verify_rapids_dask.py", "verify_rapids_spark.py", "verify_xgboost_spark.py"],
+    srcs = ["verify_rapids_dask.py", "verify_rapids_spark.py", "verify_xgboost_spark.scala"],
 )
