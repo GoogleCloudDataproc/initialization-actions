@@ -314,8 +314,16 @@ EOF
 }
 
 function configure_sql_client() {
+  local mysql_conf_dir
+  if [[ -d /etc/mysql/conf.d ]]; then
+    mysql_conf_dir=/etc/mysql/conf.d
+  elif [[ -d /etc/my.cnf.d ]]; then
+    mysql_conf_dir=/etc/my.cnf.d
+  else
+    err "Neither /etc/mysql/conf.d nor /etc/my.cnf.d exists"
+  fi
   # Configure MySQL client to talk to metastore
-  cat <<EOF >/etc/mysql/conf.d/cloud-sql-proxy.cnf
+  cat <<EOF >"${mysql_conf_dir}/cloud-sql-proxy.cnf"
 [client]
 protocol = tcp
 port = ${METASTORE_PROXY_PORT}
@@ -391,6 +399,9 @@ function main() {
       if (systemctl is-enabled --quiet mysql); then
         systemctl stop mysql
         systemctl disable mysql
+      elif systemctl is-enabled --quiet mysqld; then
+        systemctl stop mysqld
+        systemctl disable mysqld
       else
         echo "Service mysql is not enabled"
       fi
