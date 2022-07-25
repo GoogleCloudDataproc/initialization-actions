@@ -6,6 +6,7 @@ from dask.distributed import Client
 import dask.array as da
 import numpy as np
 
+
 def test_rapids():
     # confirm RAPIDS and xgboost are available
     df = cudf.DataFrame()
@@ -17,6 +18,7 @@ def test_rapids():
     # confirm Dask is available
     ds = dask_cudf.from_cudf(df['c'], npartitions=2)
     ds.compute()
+
 
 def test_dask_yarn():
     try:
@@ -31,6 +33,7 @@ def test_dask_yarn():
     cluster.scale(4)
     x = da.sum(np.ones(5))
     x.compute()
+
 
 test_rapids()
 test_dask_yarn()
