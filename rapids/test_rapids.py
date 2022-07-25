@@ -12,7 +12,7 @@ class RapidsTestCase(DataprocTestCase):
   COMPONENT = "rapids"
   INIT_ACTIONS = ["gpu/install_gpu_driver.sh", "rapids/rapids.sh"]
   DASK_INIT_ACTIONS = [
-    "gpu/install_gpu_driver.sh", 
+    "gpu/install_gpu_driver.sh",
     "dask/dask.sh",
     "rapids/rapids.sh"]
 
@@ -30,7 +30,7 @@ class RapidsTestCase(DataprocTestCase):
 
     self.upload_test_file(
         os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), 
+            os.path.dirname(os.path.abspath(__file__)),
             self.DASK_RAPIDS_TEST_SCRIPT_FILE_NAME), name)
     verify_cmd = "/opt/conda/default/bin/python {}".format(
         self.DASK_RAPIDS_TEST_SCRIPT_FILE_NAME)
@@ -41,26 +41,20 @@ class RapidsTestCase(DataprocTestCase):
   def verify_spark_instance(self, name):
     self.assert_instance_command(name, "nvidia-smi")
 
-  def verify_spark_job(self, name=None):
+  def verify_spark_job(self):
     self.assert_dataproc_job(
         self.name, "pyspark",
         "{}/rapids/{}".format(self.INIT_ACTIONS_REPO,
                               self.SPARK_TEST_SCRIPT_FILE_NAME))
-    
-    if self.getImageVersion() > pkg_resources.parse_version("1.5"):
-      self.upload_test_file(
-        os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), 
-            self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME), name)
-        verify_cmd = """spark-shell \
-           --conf spark.executor.resource.gpu.amount=1 \
-           --conf spark.task.resource.gpu.amount=1 \
-           --conf spark.dynamicAllocation.enabled=false < {}""".format(
-             self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME)
-        self.assert_instance_command(name, verify_cmd)
-        self.remove_test_script(
-          self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME, name)
-        
+
+    self.assert_dataproc_job(
+        self.name, "spark",
+        "{}/rapids/{} --properties={},{},{}".format(
+            self.INIT_ACTIONS_REPO,
+            self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME,
+            "spark.executor.resource.gpu.amount=1",
+            "spark.task.resource.gpu.amount=1",
+            "spark.dynamicAllocation.enabled=false"))
 
   @parameterized.parameters(
     ("STANDARD", ["m", "w-0"], GPU_P100, None),
@@ -117,8 +111,7 @@ class RapidsTestCase(DataprocTestCase):
       self.verify_spark_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
     # Only need to do this once
-    self.verify_spark_job(name="{}-{}".format(self.getClusterName(),
-                                                machine_suffix))
+    self.verify_spark_job()
 
   @parameterized.parameters(
     ("STANDARD", ["m", "w-0"], GPU_P100, "11.2"))
@@ -145,8 +138,7 @@ class RapidsTestCase(DataprocTestCase):
       self.verify_spark_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
     # Only need to do this once
-    self.verify_spark_job(name="{}-{}".format(self.getClusterName(),
-                                                machine_suffix))
+    self.verify_spark_job()
 
 if __name__ == "__main__":
   absltest.main()
