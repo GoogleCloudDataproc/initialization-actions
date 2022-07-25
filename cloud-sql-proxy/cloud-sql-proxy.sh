@@ -320,7 +320,11 @@ function configure_sql_client() {
   elif [[ -d /etc/my.cnf.d ]]; then
     mysql_conf_dir=/etc/my.cnf.d
   else
-    err "Neither /etc/mysql/conf.d nor /etc/my.cnf.d exists"
+    # Not m-0.
+    echo "Creating config dir for MySQL client on ${HOSTNAME}"
+    mysql_conf_dir=/etc/mysql/conf.d
+    mkdir -p "${mysql_conf_dir}"
+    ln -s "${mysql_conf_dir}" /etc/my.cnf.d
   fi
   # Configure MySQL client to talk to metastore
   cat <<EOF >"${mysql_conf_dir}/cloud-sql-proxy.cnf"
