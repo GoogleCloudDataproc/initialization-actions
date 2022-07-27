@@ -415,10 +415,8 @@ function main() {
     configure_sql_client
 
     if [[ $ENABLE_CLOUD_SQL_METASTORE == "true" ]]; then
-      if [[ "${HOSTNAME}" == "${DATAPROC_MASTER}" ]]; then
-        # Initialize metastore DB instance.
-        initialize_metastore_db
-      fi
+      # Initialize metastore DB instance.
+      initialize_metastore_db
 
       # Make sure that Hive metastore properly configured.
       run_with_retries run_validation
