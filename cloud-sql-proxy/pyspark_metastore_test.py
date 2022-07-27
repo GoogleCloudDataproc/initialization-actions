@@ -6,7 +6,7 @@ import string
 from xml.dom import minidom
 
 # Constants that must match the constants in cloud-sql-proxy.sh
-METASTORE_DB = 'hive_metastore'
+METASTORE_DB = 'metastore'
 HIVE_USER = 'hive'
 HIVE_USER_PASSWORD = 'hive-password'
 
