@@ -45,11 +45,13 @@ class RapidsTestCase(DataprocTestCase):
                               self.SPARK_TEST_SCRIPT_FILE_NAME))
 
     self.assert_dataproc_job(
-        self.name, "spark", "{}/rapids/{} --properties={},{},{}".format(
+        self.name, "pig", "sh gsutil cp {}/rapids/{} . &&"
+        " echo :quit | spark-shell --conf {} --conf {} --conf {} -i {}".format(
             self.INIT_ACTIONS_REPO, self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME,
             "spark.executor.resource.gpu.amount=1",
             "spark.task.resource.gpu.amount=1",
-            "spark.dynamicAllocation.enabled=false"))
+            "spark.dynamicAllocation.enabled=false",
+            self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME))
 
   @parameterized.parameters(("STANDARD", ["m", "w-0"], GPU_P100, None),
                             ("STANDARD", ["m", "w-0"], GPU_P100, "yarn"),
