@@ -18,7 +18,6 @@ class RapidsTestCase(DataprocTestCase):
 
   # Tests for RAPIDS init action
   DASK_RAPIDS_TEST_SCRIPT_FILE_NAME = "verify_rapids_dask.py"
-  SPARK_TEST_SCRIPT_FILE_NAME = "verify_rapids_spark.py"
   XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME = "verify_xgboost_spark.scala"
 
   def verify_dask_instance(self, name):
@@ -39,11 +38,6 @@ class RapidsTestCase(DataprocTestCase):
     self.assert_instance_command(name, "nvidia-smi")
 
   def verify_spark_job(self):
-    self.assert_dataproc_job(
-        self.name, "pyspark",
-        "{}/rapids/{}".format(self.INIT_ACTIONS_REPO,
-                              self.SPARK_TEST_SCRIPT_FILE_NAME))
-
     instance_name = "{}-m".format(self.getClusterName())
     self.upload_test_file(
         os.path.join(
