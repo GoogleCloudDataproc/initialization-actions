@@ -44,14 +44,19 @@ class RapidsTestCase(DataprocTestCase):
         "{}/rapids/{}".format(self.INIT_ACTIONS_REPO,
                               self.SPARK_TEST_SCRIPT_FILE_NAME))
 
-    self.assert_dataproc_job(
-        self.name, "pig", "sh gsutil cp {}/rapids/{} . &&"
-        " echo :quit | spark-shell --conf {} --conf {} --conf {} -i {}".format(
-            self.INIT_ACTIONS_REPO, self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME,
-            "spark.executor.resource.gpu.amount=1",
-            "spark.task.resource.gpu.amount=1",
-            "spark.dynamicAllocation.enabled=false",
-            self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME))
+    instance_name = "{}-m".format(self.getClusterName())
+    self.upload_test_file(
+        os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME), instance_name)
+    self.assert_instance_command(
+        instance_name, """echo :quit | spark-shell \
+         --conf spark.executor.resource.gpu.amount=1 \
+         --conf spark.task.resource.gpu.amount=1 \
+         --conf spark.dynamicAllocation.enabled=false -i {}""".format(
+             self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME))
+    self.remove_test_script(self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME,
+                            instance_name)
 
   @parameterized.parameters(("STANDARD", ["m", "w-0"], GPU_P100, None),
                             ("STANDARD", ["m", "w-0"], GPU_P100, "yarn"),
