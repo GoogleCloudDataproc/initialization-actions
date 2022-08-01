@@ -237,6 +237,7 @@ function get_proxy_flags() {
 }
 
 function install_cloud_sql_proxy() {
+  echo 'Installing Cloud SQL Proxy ...' >&2
   # Install proxy.
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
     https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64
@@ -274,16 +275,6 @@ ExecStart=/bin/sh -c '${PROXY_BIN} \
 WantedBy=multi-user.target
 EOF
   chmod a+rw ${INIT_SCRIPT}
-  systemctl enable cloud-sql-proxy
-  systemctl start cloud-sql-proxy ||
-    err 'Unable to start cloud-sql-proxy service'
-
-  if [[ $ENABLE_CLOUD_SQL_METASTORE == "true" ]]; then
-    run_with_retries nc -zv localhost "${METASTORE_PROXY_PORT}"
-  fi
-
-  echo 'Cloud SQL Proxy installation succeeded' >&2
-  echo 'Logs can be found in /var/log/cloud-sql-proxy/cloud-sql-proxy.log' >&2
 
   if [[ $ENABLE_CLOUD_SQL_METASTORE == "true" ]]; then
     # Update hive-site.xml
@@ -311,41 +302,54 @@ EOF
       --source_configuration_file hive-template.xml \
       --clobber
   fi
+
+  echo 'Cloud SQL Proxy installation succeeded' >&2
 }
 
 function configure_sql_client() {
+  echo "Configuring SQL client ..." >&2
+  local mysql_conf_dir
+  if [[ -d /etc/mysql/conf.d ]]; then
+    mysql_conf_dir=/etc/mysql/conf.d
+  elif [[ -d /etc/my.cnf.d ]]; then
+    mysql_conf_dir=/etc/my.cnf.d
+  else
+    # Not m-0.
+    echo "Creating config dir for MySQL client on ${HOSTNAME}" >&2
+    mysql_conf_dir=/etc/mysql/conf.d
+    mkdir -p "${mysql_conf_dir}"
+    ln -s "${mysql_conf_dir}" /etc/my.cnf.d
+  fi
   # Configure MySQL client to talk to metastore
-  cat <<EOF >/etc/mysql/conf.d/cloud-sql-proxy.cnf
+  cat <<EOF >"${mysql_conf_dir}/cloud-sql-proxy.cnf"
 [client]
 protocol = tcp
 port = ${METASTORE_PROXY_PORT}
 EOF
+  echo "SQL client configured" >&2
 }
 
 function initialize_metastore_db() {
+  echo 'Initialzing DB for Hive metastore ...' >&2
   # Check if metastore is initialized.
-  if ! mysql -u "${DB_HIVE_USER}" "${DB_HIVE_PASSWORD_PARAMETER}" -e ''; then
-    mysql -u "${DB_ADMIN_USER}" "${DB_ADMIN_PASSWORD_PARAMETER}" -e \
+  if ! mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_HIVE_USER}" "${DB_HIVE_PASSWORD_PARAMETER}" -e ''; then
+    mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_ADMIN_USER}" "${DB_ADMIN_PASSWORD_PARAMETER}" -e \
       "CREATE USER '${DB_HIVE_USER}' IDENTIFIED BY '${DB_HIVE_PASSWORD}';"
   fi
-  if ! mysql -u "${DB_HIVE_USER}" "${DB_HIVE_PASSWORD_PARAMETER}" -e "use ${METASTORE_DB}"; then
+  if ! mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_HIVE_USER}" "${DB_HIVE_PASSWORD_PARAMETER}" -e "use ${METASTORE_DB}"; then
     # Initialize a Hive metastore DB
-    mysql -u "${DB_ADMIN_USER}" "${DB_ADMIN_PASSWORD_PARAMETER}" -e \
+    mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_ADMIN_USER}" "${DB_ADMIN_PASSWORD_PARAMETER}" -e \
       "CREATE DATABASE ${METASTORE_DB};
        GRANT ALL PRIVILEGES ON ${METASTORE_DB}.* TO '${DB_HIVE_USER}';"
     /usr/lib/hive/bin/schematool -dbType mysql -initSchema ||
       err 'Failed to set mysql schema.'
   fi
+  echo 'DB initialized for Hive metastore' >&2
 }
 
+
 function run_validation() {
-  if (systemctl is-enabled --quiet hive-metastore); then
-    # Re-start metastore to pickup config changes.
-    systemctl restart hive-metastore ||
-      err 'Unable to start hive-metastore service'
-  else
-    echo "Service hive-metastore is not loaded"
-  fi
+  echo 'Validating ...' >&2
 
   # Check that metastore schema is compatible.
   /usr/lib/hive/bin/schematool -dbType mysql -info ||
@@ -368,53 +372,141 @@ function run_validation() {
     beeline -u "${hiveserver_uri}" -e "reload function;"
     echo "Reloaded permanent functions"
   fi
+   echo 'Validated' >&2
+}
+
+function install_mysql_cli() {
+  if command -v mysql >/dev/null; then
+    echo "MySQL CLI is already installed" >&2
+    return
+  fi
+
+  echo "Installing MySQL CLI ..." >&2
+  if command -v apt >/dev/null; then
+    apt update && apt install default-mysql-client -y
+  elif command -v yum >/dev/null; then
+    yum -y update && yum -y install mysql
+  fi
+  echo "MySQL CLI installed" >&2
+}
+
+function stop_mysql_service() {
+  # Debian/Ubuntu
+  if (systemctl is-enabled --quiet mysql); then
+    echo 'Stopping and disabling mysql.service ...' >&2
+    systemctl stop mysql
+    systemctl disable mysql
+    echo 'mysql.service stopped and disabled' >&2
+  # CentOS/Rocky
+  elif systemctl is-enabled --quiet mysqld; then
+    echo 'Stopping and disabling mysqld.service ...' >&2
+    systemctl stop mysqld
+    systemctl disable mysqld
+    echo 'mysqld.service stopped and disabled' >&2
+  else
+    echo "Service mysql is not enabled"
+  fi
+}
+
+function stop_hive_services() {
+  if (systemctl is-enabled --quiet hive-server2); then
+    echo 'Stopping Hive server2 ...' >&2
+    systemctl stop hive-server2
+    echo 'Hive server2 stopped' >&2  
+  else
+    echo "Service Hive server2 is not enabled"
+  fi
+
+  if (systemctl is-enabled --quiet hive-metastore); then
+    echo 'Stopping Hive metastore ...' >&2
+    systemctl stop hive-metastore
+    echo 'Hive metastore stopped' >&2  
+  else
+    echo "Service Hive metastore is not enabled"
+  fi
+}
+
+function start_hive_services() {
+  if (systemctl is-enabled --quiet hive-metastore); then
+    echo 'Restarting Hive metastore ...' >&2
+    # Re-start metastore to pickup config changes.
+    systemctl restart hive-metastore ||
+      err 'Unable to start hive-metastore service'
+    echo 'Hive metastore restarted' >&2
+  else
+    echo "Service Hive metastore is not enabled"
+  fi
+
+  if (systemctl is-enabled --quiet hive-server2); then
+    echo 'Restarting Hive server2 ...' >&2
+    # Re-start Hive server2 to re-establish Metastore connection.
+    systemctl restart hive-server2 ||
+      err 'Unable to start hive-server2 service'
+    echo 'Hive server2 restarted' >&2
+  else
+    echo "Service Hive server2 is not enabled"
+  fi
+}
+
+function start_cloud_sql_proxy() {
+  echo 'Starting Cloud SQL proxy ...' >&2
+  systemctl enable cloud-sql-proxy
+  systemctl start cloud-sql-proxy ||
+    err 'Unable to start cloud-sql-proxy service'
+
+  if [[ $ENABLE_CLOUD_SQL_METASTORE == "true" ]]; then
+    run_with_retries nc -zv localhost "${METASTORE_PROXY_PORT}"
+  fi
+
+  echo 'Cloud SQL Proxy started' >&2
+  echo 'Logs can be found in /var/log/cloud-sql-proxy/cloud-sql-proxy.log' >&2
+}
+
+function validate() {
+  if [[ $ENABLE_CLOUD_SQL_METASTORE != "true" ]] && [[ -z "${ADDITIONAL_INSTANCES}" ]]; then
+    err 'No Cloud SQL instances to proxy'
+  fi
+}
+
+function update_master() {
+  if [[ $ENABLE_CLOUD_SQL_METASTORE == "true" ]]; then
+    stop_hive_services
+    stop_mysql_service
+  fi
+
+  install_cloud_sql_proxy
+  start_cloud_sql_proxy
+  configure_sql_client
+
+  if [[ $ENABLE_CLOUD_SQL_METASTORE == "true" ]]; then
+    install_mysql_cli
+    initialize_metastore_db
+    start_hive_services
+    # Make sure that Hive metastore properly configured.
+    run_with_retries run_validation
+  fi
+}
+
+function update_worker() {
+  # This part runs on workers. There is no in-cluster MySQL on workers.
+  if [[ $ENABLE_PROXY_ON_WORKERS == "true" ]]; then
+    install_cloud_sql_proxy
+    start_cloud_sql_proxy
+  fi
 }
 
 function main() {
   local role
   role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 
-  # Validation
-  if [[ $ENABLE_CLOUD_SQL_METASTORE != "true" ]] && [[ -z "${ADDITIONAL_INSTANCES}" ]]; then
-    err 'No Cloud SQL instances to proxy'
-  fi
-
+  validate
   if [[ "${role}" == 'Master' ]]; then
-    # Disable Hive Metastore and MySql Server.
-    if [[ $ENABLE_CLOUD_SQL_METASTORE == "true" ]]; then
-      if (systemctl is-enabled --quiet hive-metastore); then
-        # Stop hive-metastore if it is enabled
-        systemctl stop hive-metastore
-      else
-        echo "Service hive-metastore is not enabled"
-      fi
-      if (systemctl is-enabled --quiet mysql); then
-        systemctl stop mysql
-        systemctl disable mysql
-      else
-        echo "Service mysql is not enabled"
-      fi
-    fi
-
-    install_cloud_sql_proxy
-    configure_sql_client
-
-    if [[ $ENABLE_CLOUD_SQL_METASTORE == "true" ]]; then
-      if [[ "${HOSTNAME}" == "${DATAPROC_MASTER}" ]]; then
-        # Initialize metastore DB instance.
-        initialize_metastore_db
-      fi
-
-      # Make sure that Hive metastore properly configured.
-      run_with_retries run_validation
-    fi
+    update_master
   else
-    # This part runs on workers.
-    # Run installation on workers when ENABLE_PROXY_ON_WORKERS is set.
-    if [[ $ENABLE_PROXY_ON_WORKERS == "true" ]]; then
-      install_cloud_sql_proxy
-    fi
+    update_worker
   fi
+
+  echo 'All done' >&2
 }
 
 main
