@@ -80,7 +80,7 @@ if [[ "${ROLE}" == 'Master' ]]; then
   REPOSITORY_KEY=95C0FAF38DB3CCAD0C080A7BDC78B2DDEABC47B7
   run_with_retries apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys ${REPOSITORY_KEY}
   apt-get install -y software-properties-common
-  add-apt-repository "deb http://cran.r-project.org/bin/linux/${OS_ID} ${OS_CODE}-cran35/"
+  add-apt-repository "deb http://cran.r-project.org/bin/linux/${OS_ID} ${OS_CODE}-cran40/"
   update_apt_get
   apt-get install -y r-base r-base-dev gdebi-core
 
