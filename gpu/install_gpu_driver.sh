@@ -25,21 +25,31 @@ function get_metadata_attribute() {
 OS_NAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
 readonly OS_NAME
 
+DATAPROC_IMAGE_VERSION=$(env|grep DATAPROC_IMAGE_VERSION|awk -F "=" '{print $2}')
+readonly DATAPROC_IMAGE_VERSION
+
+# CUDA Version and Driver version
+if [[ ${DATAPROC_IMAGE_VERSION} == 2.0 ]]; then
+  CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.5')
+  DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='495.29.05'
+  DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX='495'
+else
+  CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.2')
+  DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='460.73.01'
+  DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX='460'
+fi
+readonly CUDA_VERSION
+
 # Dataproc role
 ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly ROLE
 
 # Parameters for NVIDIA-provided Debian GPU driver
-readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='495.29.05'
 readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}.run"
 NVIDIA_DEBIAN_GPU_DRIVER_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL}")
 readonly NVIDIA_DEBIAN_GPU_DRIVER_URL
 
 readonly NVIDIA_BASE_DL_URL='https://developer.download.nvidia.com/compute'
-
-# CUDA Version
-CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.5')
-readonly CUDA_VERSION
 
 # Parameters for NVIDIA-provided NCCL library
 readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb"
@@ -207,12 +217,12 @@ function install_nvidia_gpu_driver() {
       local -r cuda_package=cuda-toolkit
     fi
     # Without --no-install-recommends this takes a very long time.
-    execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-495"
+    execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}"
     execute_with_retries "apt-get install -y -q --no-install-recommends ${cuda_package}"
   elif [[ ${OS_NAME} == rocky ]]; then
     execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPO_URL}"
     execute_with_retries "dnf clean all"
-    execute_with_retries "dnf -y -q module install nvidia-driver:495-dkms"
+    execute_with_retries "dnf -y -q module install nvidia-driver:${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}-dkms"
     execute_with_retries "dnf -y -q install cuda-${CUDA_VERSION//./-}"
   else
     echo "Unsupported OS: '${OS_NAME}'"
