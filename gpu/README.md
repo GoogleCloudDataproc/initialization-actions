@@ -5,8 +5,6 @@ GPUs require special drivers and software which are not pre-installed on
 This initialization action installs GPU driver for NVIDIA GPUs on master and
 worker nodes in a Dataproc cluster.
 
-**Note:** This feature is in Beta mode.
-
 ## Using this initialization action
 
 **:warning: NOTICE:** See
