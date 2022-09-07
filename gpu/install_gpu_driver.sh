@@ -25,22 +25,18 @@ function get_metadata_attribute() {
 OS_NAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
 readonly OS_NAME
 
-DATAPROC_IMAGE_VERSION=$(env|grep DATAPROC_IMAGE_VERSION|awk -F "=" '{print $2}')
-readonly DATAPROC_IMAGE_VERSION
-
-# CUDA Version and Driver version
-if [[ ${DATAPROC_IMAGE_VERSION} == 2.0 ]]; then
+# CUDA version and Driver version
+if [[ ${DATAPROC_IMAGE_VERSION} == 2.* ]]; then
   CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.5')
-  DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='495.29.05'
-  DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX='495'
+  readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='495.29.05'
 else
   CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.2')
-  DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='460.73.01'
-  DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX='460'
+  readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='460.73.01'
 fi
 readonly CUDA_VERSION
+readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX=${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION%%.*}
 
-# Dataproc role
+# Dataproc node role
 ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly ROLE
 
