@@ -53,7 +53,7 @@ NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}
 readonly NCCL_REPO_URL
 readonly NCCL_REPO_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/7fa2af80.pub"
 
-readonly DEFAULT_NCCL_VERSION="2.8.3"
+readonly DEFAULT_NCCL_VERSION="2.11.4"
 readonly DEFAULT_NCCL_VERSION_ROCKY="2.8.4"
 
 if [[ ${OS_NAME} == rocky ]]; then
