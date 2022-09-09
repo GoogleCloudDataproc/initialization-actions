@@ -29,9 +29,13 @@ readonly OS_NAME
 if [[ ${DATAPROC_IMAGE_VERSION} == 2.* ]]; then
   CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.5')
   readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='495.29.05'
+  readonly DEFAULT_NCCL_VERSION="2.11.4"
+  readonly DEFAULT_NCCL_VERSION_ROCKY="2.11.4"
 else
   CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.2')
   readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='460.73.01'
+  readonly DEFAULT_NCCL_VERSION="2.8.3"
+  readonly DEFAULT_NCCL_VERSION_ROCKY="2.8.4"
 fi
 readonly CUDA_VERSION
 readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX=${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION%%.*}
@@ -52,9 +56,6 @@ readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubu
 NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
 readonly NCCL_REPO_URL
 readonly NCCL_REPO_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/7fa2af80.pub"
-
-readonly DEFAULT_NCCL_VERSION="2.11.4"
-readonly DEFAULT_NCCL_VERSION_ROCKY="2.8.4"
 
 if [[ ${OS_NAME} == rocky ]]; then
   NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION_ROCKY})
