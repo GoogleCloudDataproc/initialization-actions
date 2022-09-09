@@ -102,9 +102,6 @@ function install_spark_rapids() {
       "${rapids_repo_url}/xgboost4j_${SPARK_VERSION}/${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}/xgboost4j_${SPARK_VERSION}-${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}.jar" \
       -P /usr/lib/spark/jars/
   fi
-  wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${rapids_repo_url}/cudf/${CUDF_VERSION}/cudf-${CUDF_VERSION}-cuda${cudf_cuda_version}.jar" \
-    -P /usr/lib/spark/jars/
 }
 
 function configure_spark() {
