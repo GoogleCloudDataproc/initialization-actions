@@ -21,10 +21,10 @@
 # Do not use "set -x" to avoid printing passwords in clear in the logs
 set -euo pipefail
 
-declare -A DEFAULT_DB_PORT=(['MYSQL']='3306' ['POSTGRES']='5432' ['SQL']='1433')
-declare -A DEFAULT_DB_ADMIN_USER=(['MYSQL']='root' ['POSTGRES']='postgres' ['SQL']='sa')
-declare -A DEFAULT_DB_PROTO=(['MYSQL']='mysql' ['POSTGRES']='postgresql' ['SQL']='sqlserver')
-declare -A DEFAULT_DB_DRIVER=(['MYSQL']='com.mysql.jdbc.Driver' ['POSTGRES']='org.postgresql.Driver' ['SQL']='com.microsoft.sqlserver.jdbc.SQLServerDriver')
+declare -A DEFAULT_DB_PORT=(['MYSQL']='3306' ['POSTGRES']='5432' ['SQLSERVER']='1433')
+declare -A DEFAULT_DB_ADMIN_USER=(['MYSQL']='root' ['POSTGRES']='postgres' ['SQLSERVER']='sqlserver')
+declare -A DEFAULT_DB_PROTO=(['MYSQL']='mysql' ['POSTGRES']='postgresql' ['SQLSERVER']='sqlserver')
+declare -A DEFAULT_DB_DRIVER=(['MYSQL']='com.mysql.jdbc.Driver' ['POSTGRES']='org.postgresql.Driver' ['SQLSERVER']='com.microsoft.sqlserver.jdbc.SQLServerDriver')
 
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')] [$(hostname)]: $*" >&2
@@ -76,6 +76,7 @@ function get_metastore_instance_type() {
   # Trim off version and whitespaces and use upper case
   # databaseVersion: MYSQL_8_0
   # databaseVersion: POSTGRES_12
+  # databaseVersion: SQLSERVER_2019_STANDARD
   database=${database##*:}
   database=${database%%_*}
   database="${database#"${database%%[![:space:]]*}"}"
@@ -397,8 +398,8 @@ function initialize_metastore_db() {
     POSTGRES)
       initialize_postgres_metastore_db
       ;;
-    SQL)
-      # TODO: add SQL support
+    SQLSERVER)
+      # TODO: add SQLSERVER support
       ;;
     *)
       # NO-OP
@@ -471,9 +472,9 @@ function install_db_cli() {
     POSTGRES)
       install_postgres_cli
       ;;
-    SQL)
+    SQLSERVER)
       # TODO: add SQL support
-      err 'Fail fast here if SQL support is not enabled.'
+      err 'Fail fast here if SQLSERVER support is not enabled.'
       ;;
     *)
       # NO-OP
