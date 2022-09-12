@@ -22,7 +22,7 @@
 set -euo pipefail
 
 declare -A DEFAULT_DB_PORT=(['MYSQL']='3306' ['POSTGRES']='5432' ['SQL']='1433')
-declare -A DEFAULT_DB_ADMIN_USER=(['MYSQL']='root' ['POSTGRES']='postgres' ['SQL']='#TODO')
+declare -A DEFAULT_DB_ADMIN_USER=(['MYSQL']='root' ['POSTGRES']='postgres' ['SQL']='sa')
 declare -A DEFAULT_DB_PROTO=(['MYSQL']='mysql' ['POSTGRES']='postgresql' ['SQL']='sqlserver')
 declare -A DEFAULT_DB_DRIVER=(['MYSQL']='com.mysql.jdbc.Driver' ['POSTGRES']='org.postgresql.Driver' ['SQL']='com.microsoft.sqlserver.jdbc.SQLServerDriver')
 
@@ -58,7 +58,7 @@ readonly USE_CLOUD_SQL_PRIVATE_IP
 METASTORE_INSTANCE="$(/usr/share/google/get_metadata_value attributes/hive-metastore-instance || echo '')"
 readonly METASTORE_INSTANCE
 
-# Get metastore DB instance type
+# Get metastore DB instance type, result be one of MYSQL, POSTGRES,
 function get_metastore_instance_type() {
   local metastore_instance="${METASTORE_INSTANCE}"
   if [[ -z "${metastore_instance}" ]]; then
@@ -74,6 +74,8 @@ function get_metastore_instance_type() {
     err 'Unable to find hive_metastore_instance'
   fi
   # Trim off version and whitespaces and use upper case
+  # databaseVersion: MYSQL_8_0
+  # databaseVersion: POSTGRES_12
   database=${database##*:}
   database=${database%%_*}
   database="${database#"${database%%[![:space:]]*}"}"
@@ -458,7 +460,7 @@ function install_postgres_cli() {
   elif command -v yum >/dev/null; then
     yum -y update && yum -y install postgresql
   fi
-  echo "POSTGRES CLI installed" >&2
+  log "POSTGRES CLI installed"
 }
 
 function install_db_cli() {
@@ -471,6 +473,7 @@ function install_db_cli() {
       ;;
     SQL)
       # TODO: add SQL support
+      err 'Fail fast here if SQL support is not enabled.'
       ;;
     *)
       # NO-OP
