@@ -26,6 +26,7 @@ OS_NAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
 readonly OS_NAME
 
 # CUDA version and Driver version
+RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 if [[ ${DATAPROC_IMAGE_VERSION} == 2.* ]] && [[ "${RUNTIME}" == "SPARK" ]]; then
   CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.5')
   readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='495.29.05'
