@@ -130,12 +130,16 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                           machine_suffix))
 
   @parameterized.parameters(
-      ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "NVIDIA", "8.1.1.33"),
+      ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "NVIDIA", "8.3.0.98", "11.5")
   )
   def test_install_gpu_with_cudnn(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
-                                  driver_provider, cudnn_version):
+                                  driver_provider, cudnn_version, cuda_version):
+    if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+      self.skipTest("Not supported in pre 2.0")
+        
     metadata = "cudnn-version={}".format(cudnn_version)
+    metadata += ",cuda-version={}".format(cuda_version)
     if driver_provider is not None:
       metadata += ",gpu-driver-provider={}".format(driver_provider)
     self.createCluster(
