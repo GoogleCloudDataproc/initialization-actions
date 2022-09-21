@@ -1,0 +1,21 @@
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["spark-rapids.sh"])
+
+py_test(
+    name = "test_spark_rapids",
+    size = "enormous",
+    srcs = ["test_spark_rapids.py"],
+    data = [
+        "spark-rapids.sh",
+        "verify_xgboost_spark_rapids.scala",
+    ],
+    local = True,
+    shard_count = 3,
+    deps = [
+        ":verify_rapids",
+        "//integration_tests:dataproc_test_case",
+        "@io_abseil_py//absl/testing:parameterized",
+    ],
+)
+

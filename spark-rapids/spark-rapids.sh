@@ -40,6 +40,7 @@ readonly DEFAULT_NCCL_VERSION="2.11.4"
 readonly DEFAULT_NCCL_VERSION_ROCKY="2.11.4"
 
 readonly CUDA_VERSION
+readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX=${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION%%.*}
 
 # Parameters for NVIDIA-provided Debian GPU driver
 readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}.run"
@@ -249,22 +250,22 @@ EOF
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
   if [[ ${OS_NAME} == debian ]]; then
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
       "${NVIDIA_UBUNTU_REPO_KEY_PACKAGE}" -o /tmp/cuda-keyring.deb
     dpkg -i "/tmp/cuda-keyring.deb"
 
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
       "${NVIDIA_DEBIAN_GPU_DRIVER_URL}" -o driver.run
     bash "./driver.run" --silent --install-libglvnd
 
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
       "${NVIDIA_DEBIAN_CUDA_URL}" -o cuda.run
     bash "./cuda.run" --silent --toolkit --no-opengl-libs
   elif [[ ${OS_NAME} == ubuntu ]]; then
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
       "${NVIDIA_UBUNTU_REPO_KEY_PACKAGE}" -o /tmp/cuda-keyring.deb
     dpkg -i "/tmp/cuda-keyring.deb"
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
       "${NVIDIA_UBUNTU_REPO_CUDA_PIN}" -o /etc/apt/preferences.d/cuda-repository-pin-600
 
     add-apt-repository "deb ${NVIDIA_UBUNTU_REPO_URL} /"
