@@ -18,8 +18,21 @@
 #
 # This requires that the Jupyter optional component be enabled, and that
 # the `toree` pip package is installed.
+#
+# If the `toree` pip package is not already installed, then a pinned
+# version will be installed from PyPI. To control the specific version
+# of toree used install it ahead of time using the `dataproc:pip.packages`
+# cluster property.
 
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 if [[ "${ROLE}" == 'Master' ]]; then
+  if pip freeze | grep toree; then
+    # toree is already installed
+    true
+  else
+    # toree is not installed yet; install the latest from PyPI
+    pip install --no-deps "toree==0.5.0"
+  fi
+
   jupyter toree install --spark_home=/usr/lib/spark/
 fi
