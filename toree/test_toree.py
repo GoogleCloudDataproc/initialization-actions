@@ -30,7 +30,7 @@ class ToreeTestCase(DataprocTestCase):
             properties=properties)
         instance_name = self.getClusterName() + "-" + machine_suffix
         _, stdout, _ = self.assert_instance_command(
-            instance_name, "curl http://{}:12345/api/kernelspecs".format(instance_name))
+            instance_name, "curl http://127.0.0.1:12345/api/kernelspecs")
         self.assertIn("Apache Toree", stdout)
 
 
