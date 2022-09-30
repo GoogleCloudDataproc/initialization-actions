@@ -34,7 +34,7 @@ test_suite(
         "//solr:test_solr",
         "//sqoop:test_sqoop",
         "//tony:test_tony",
-        "//sparkRapids:test_spark_rapids",
+        "//sparkRapids:test_sparkRapids",
     ],
 )
 
