@@ -13,7 +13,6 @@ py_test(
     local = True,
     shard_count = 3,
     deps = [
-        ":verify_rapids",
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",
     ],
