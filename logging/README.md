@@ -23,3 +23,9 @@ gcloud dataproc clusters create ${CLUSTER_NAME?} \
 ```
 
 
+## Notes
+- Update the value of MAX_MNT_DISK_FOR_LOGS to specify the total number of local SSDs we want to use for logging. I've currently set the default to 3 but you can change according to the workload
+- Update LOGPATH to the required path under /mnt// to specify the logging directory. I've currently set it to hadoop/yarn/userlogs. So logs will go to /mnt//hadoop/yarn/userlogs
+- If there are no local SSDs, the script will not add any property to yarn-site and the default boot disk path will be used
+- If there are multiple mounts, it will create a comma separated list of paths for the property based on the MAX_MNT_DISK_FOR_LOGS setting.
+- If MAX_MNT_DISK_FOR_LOGS is greater than the actual disks, then the actual disk count will be used. If not, the configuration will be honoured.
