@@ -15,12 +15,15 @@
 # This script sets the yarn.nodemanager.log-dirs value to the Local SSD mounts.
 
 # Dataproc configurations
+# Modify these configurations as needed
 # MAX_MNT_DISK_FOR_LOGS is the maximum number of disks to be used for creating the logs
 # LOGPATH is the path under /mnt/<mount number> where the application logs are created
-
-readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
 readonly MAX_MNT_DISK_FOR_LOGS=3
 readonly LOGPATH='hadoop/yarn/userlogs'
+
+# DO NOT CHANGE THESE VARIABLES UNLESS THE SOURCE FRAMEWORKS MODIFY IT
+readonly FLUENTD_YARN_USERLOGS='/etc/google-fluentd/config.d/dataproc-yarn-userlogs.conf'
+readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
 
 function set_hadoop_property() {
     local -r config_file=$1
@@ -74,9 +77,9 @@ function configure_yarn() {
 }
 
 #Getting Container Logs of Executor from mount paths added in yarn.nodemanager.log-dirs
+# This function adds the /mnt/ paths to the fluentd configuration file to the path variable
 function configure_fluentd() {
-  sudo sed -i 's:path:path /mnt/\*/hadoop/yarn/userlogs/*,:g' /etc/google-fluentd/config.d/dataproc-yarn-userlogs.conf
-  sudo sed -i 's:path /var/log/hadoop-yarn/:path /mnt/\*/hadoop/yarn/:g' /etc/google-fluentd/config.d/dataproc-yarn-userlogs.conf
+  sudo sed -i "s:path:path /mnt/\*/$LOGPATH/*,:g" $FLUENTD_YARN_USERLOGS
 }
 
 
