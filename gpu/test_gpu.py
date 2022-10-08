@@ -116,6 +116,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
+    if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
+      self.skipTest("Not supported in pre 2.0 or Rocky images")
+        
     metadata = "gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
         configuration,
