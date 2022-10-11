@@ -79,6 +79,10 @@ if [[ "${ROLE}" == 'Master' ]]; then
   # Install RStudio Server
   REPOSITORY_KEY=95C0FAF38DB3CCAD0C080A7BDC78B2DDEABC47B7
   run_with_retries apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys ${REPOSITORY_KEY}
+  # https://cran.r-project.org/bin/linux/ubuntu/
+  if [[ "${OS_ID}" == "ubuntu" ]]; then
+    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc | tee -a /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc
+  fi
   apt-get install -y software-properties-common
   add-apt-repository "deb http://cran.r-project.org/bin/linux/${OS_ID} ${OS_CODE}-cran40/"
   update_apt_get
