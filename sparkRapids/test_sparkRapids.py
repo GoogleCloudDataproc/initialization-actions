@@ -61,7 +61,7 @@ class RapidsTestCase(DataprocTestCase):
     # Only need to do this once
     self.verify_spark_job()
 
-  @parameterized.parameters(("STANDARD", ["m", "w-0"], GPU_P100, "11.2"))
+  @parameterized.parameters(("STANDARD", ["w-0"], GPU_P100, "11.2"))
   def test_non_default_cuda_versions(self, configuration, machine_suffixes,
                                      accelerator, cuda_version):
     if self.getImageOs() == "rocky":
