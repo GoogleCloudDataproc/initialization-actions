@@ -167,6 +167,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_with_mig(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider, zone):
+    if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
+      self.skipTest("Not supported in pre 2.0 or Rocky images")
+        
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
@@ -178,8 +181,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         metadata=None,
         timeout_in_minutes=30,
         startup_script="gpu/mig.sh")
-    if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
-      self.skipTest("Not supported in pre 2.0 or Rocky images")
         
     for machine_suffix in ["w-0", "w-1"]:
       self.verify_mig_instance("{}-{}".format(self.getClusterName(),
