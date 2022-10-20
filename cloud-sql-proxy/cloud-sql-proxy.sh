@@ -21,21 +21,8 @@
 # Do not use "set -x" to avoid printing passwords in clear in the logs
 set -euo pipefail
 
-declare -A DEFAULT_DB_PORT=(['MYSQL']='3306' ['POSTGRES']='5432' ['SQLSERVER']='1433')
-declare -A DEFAULT_DB_ADMIN_USER=(['MYSQL']='root' ['POSTGRES']='postgres' ['SQLSERVER']='sqlserver')
-declare -A DEFAULT_DB_PROTO=(['MYSQL']='mysql' ['POSTGRES']='postgresql' ['SQLSERVER']='sqlserver')
-declare -A DEFAULT_DB_DRIVER=(['MYSQL']='com.mysql.jdbc.Driver' ['POSTGRES']='org.postgresql.Driver' ['SQLSERVER']='com.microsoft.sqlserver.jdbc.SQLServerDriver')
-
-function err() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')] [$(hostname)]: $*" >&2
-  return 1
-}
-
-function log() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')] [$(hostname)]: $*" >&2
-}
-
 readonly ADDITIONAL_INSTANCES_KEY='attributes/additional-cloud-sql-instances'
+
 readonly PROXY_DIR='/var/run/cloud_sql_proxy'
 readonly PROXY_BIN='/usr/local/bin/cloud_sql_proxy'
 readonly INIT_SCRIPT='/usr/lib/systemd/system/cloud-sql-proxy.service'
@@ -55,57 +42,11 @@ readonly ENABLE_PROXY_ON_WORKERS
 USE_CLOUD_SQL_PRIVATE_IP="$(/usr/share/google/get_metadata_value attributes/use-cloud-sql-private-ip || echo 'false')"
 readonly USE_CLOUD_SQL_PRIVATE_IP
 
-METASTORE_INSTANCE="$(/usr/share/google/get_metadata_value attributes/hive-metastore-instance || echo '')"
-readonly METASTORE_INSTANCE
-
-# Get metastore DB instance type, result be one of MYSQL, POSTGRES,
-function get_metastore_instance_type() {
-  local metastore_instance="${METASTORE_INSTANCE}"
-  if [[ -z "${metastore_instance}" ]]; then
-    err 'Must specify hive-metastore-instance VM metadata'
-  fi
-  if ! [[ "${metastore_instance}" =~ .+:.+:.+ ]]; then
-    err 'hive-metastore-instance must be of form project:region:instance'
-  fi
-  local project=${metastore_instance%*:*:*}
-  local instance=${metastore_instance##*:}
-  local database=$(gcloud sql instances describe --project=${project} ${instance} | grep 'databaseVersion')
-  if [[ -z "${database}" ]]; then
-    err 'Unable to find hive_metastore_instance'
-  fi
-  # Trim off version and whitespaces and use upper case
-  # databaseVersion: MYSQL_8_0
-  # databaseVersion: POSTGRES_12
-  # databaseVersion: SQLSERVER_2019_STANDARD
-  database=${database##*:}
-  database=${database%%_*}
-  database="${database#"${database%%[![:space:]]*}"}"
-  echo "${database^^}"
-}
-
-# CLOUD SQL instance type is one of MYSQL, POSTGRES, SQL
-METASTORE_INSTANCE_TYPE=$(get_metastore_instance_type)
-readonly METASTORE_INSTANCE_TYPE
-
-ADDITIONAL_INSTANCES="$(/usr/share/google/get_metadata_value ${ADDITIONAL_INSTANCES_KEY} || echo '')"
-readonly ADDITIONAL_INSTANCES
-
-METASTORE_PROXY_PORT="$(/usr/share/google/get_metadata_value attributes/metastore-proxy-port || echo '')"
-if [[ "${METASTORE_INSTANCE}" =~ =tcp:[0-9]+$ ]]; then
-  METASTORE_PROXY_PORT="${METASTORE_INSTANCE##*:}"
-else
-  METASTORE_PROXY_PORT=${DEFAULT_DB_PORT["${METASTORE_INSTANCE_TYPE}"]}
-fi
-readonly METASTORE_PROXY_PORT
-
 # Database user to use to access metastore.
 DB_HIVE_USER="$(/usr/share/google/get_metadata_value attributes/db-hive-user || echo 'hive')"
 readonly DB_HIVE_USER
 
-DB_ADMIN_USER="$(/usr/share/google/get_metadata_value attributes/db-admin-user || echo '')"
-if [[ -z ${DB_ADMIN_USER} ]]; then
-  DB_ADMIN_USER=${DEFAULT_DB_ADMIN_USER["${METASTORE_INSTANCE_TYPE}"]}
-fi
+DB_ADMIN_USER="$(/usr/share/google/get_metadata_value attributes/db-admin-user || echo 'root')"
 readonly DB_ADMIN_USER
 
 KMS_KEY_URI="$(/usr/share/google/get_metadata_value attributes/kms-key-uri || echo '')"
@@ -114,8 +55,6 @@ readonly KMS_KEY_URI
 # Database admin user password used to create the metastore database and user.
 DB_ADMIN_PASSWORD_URI="$(/usr/share/google/get_metadata_value attributes/db-admin-password-uri || echo '')"
 readonly DB_ADMIN_PASSWORD_URI
-
-DB_ADMIN_PASSWORD=''
 if [[ -n "${DB_ADMIN_PASSWORD_URI}" ]]; then
   # Decrypt password
   DB_ADMIN_PASSWORD="$(gsutil cat "${DB_ADMIN_PASSWORD_URI}" |
@@ -123,11 +62,17 @@ if [[ -n "${DB_ADMIN_PASSWORD_URI}" ]]; then
       --ciphertext-file - \
       --plaintext-file - \
       --key "${KMS_KEY_URI}")"
+  readonly DB_ADMIN_PASSWORD
+else
+  readonly DB_ADMIN_PASSWORD=''
 fi
-if [[ "${METASTORE_INSTANCE_TYPE}" == "POSTGRES" && -z "${DB_ADMIN_PASSWORD}" ]]; then
-  err 'POSTGRES DB Admin password can not be empty'
+
+if [[ -z ${DB_ADMIN_PASSWORD} ]]; then
+  readonly DB_ADMIN_PASSWORD_PARAMETER='--password='
+else
+  DB_ADMIN_PASSWORD_PARAMETER="--password=${DB_ADMIN_PASSWORD}"
+  readonly DB_ADMIN_PASSWORD_PARAMETER
 fi
-readonly DB_ADMIN_PASSWORD
 
 # Database password used to access metastore.
 DB_HIVE_PASSWORD_URI="$(/usr/share/google/get_metadata_value attributes/db-hive-password-uri || echo '')"
@@ -149,6 +94,25 @@ else
   fi
   readonly DB_HIVE_PASSWORD=${db_hive_pwd}
 fi
+if [[ -z ${DB_HIVE_PASSWORD} ]]; then
+  readonly DB_HIVE_PASSWORD_PARAMETER=''
+else
+  readonly DB_HIVE_PASSWORD_PARAMETER="-p${DB_HIVE_PASSWORD}"
+fi
+
+METASTORE_INSTANCE="$(/usr/share/google/get_metadata_value attributes/hive-metastore-instance || echo '')"
+readonly METASTORE_INSTANCE
+
+ADDITIONAL_INSTANCES="$(/usr/share/google/get_metadata_value ${ADDITIONAL_INSTANCES_KEY} || echo '')"
+readonly ADDITIONAL_INSTANCES
+
+METASTORE_PROXY_PORT="$(/usr/share/google/get_metadata_value attributes/metastore-proxy-port || echo '')"
+if [[ "${METASTORE_INSTANCE}" =~ =tcp:[0-9]+$ ]]; then
+  METASTORE_PROXY_PORT="${METASTORE_INSTANCE##*:}"
+else
+  METASTORE_PROXY_PORT='3306'
+fi
+readonly METASTORE_PROXY_PORT
 
 # Name of MySQL database to use for the metastore.
 # Will be created if it doesn't exist.
@@ -211,30 +175,41 @@ function get_hiveserver_uri() {
   fi
 }
 
+function err() {
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
+  return 1
+}
+
 # Helper to run any command with Fibonacci backoff.
 # If all retries fail, returns last attempt's exit code.
 # Args: "$@" is the command to run.
 function run_with_retries() {
   local retry_backoff=(1 1 2 3 5 8 13 21 34 55 89 144)
   local -a cmd=("$@")
-  log "About to run '${cmd[*]}' with retries..."
+  echo "About to run '${cmd[*]}' with retries..."
 
   for ((i = 0; i < ${#retry_backoff[@]}; i++)); do
     if "${cmd[@]}"; then
       return 0
     fi
     local sleep_time=${retry_backoff[$i]}
-    log "'${cmd[*]}' attempt $((i + 1)) failed! Sleeping ${sleep_time}."
+    echo "'${cmd[*]}' attempt $((i + 1)) failed! Sleeping ${sleep_time}." >&2
     sleep "${sleep_time}"
   done
 
-  log "Final attempt of '${cmd[*]}'..."
+  echo "Final attempt of '${cmd[*]}'..."
   # Let any final error propagate all the way out to any error traps.
   "${cmd[@]}"
 }
 
 function get_metastore_instance() {
   local metastore_instance="${METASTORE_INSTANCE}"
+  if [[ -z "${metastore_instance}" ]]; then
+    err 'Must specify hive-metastore-instance VM metadata'
+  fi
+  if ! [[ "${metastore_instance}" =~ .+:.+:.+ ]]; then
+    err 'hive-metastore-instance must be of form project:region:instance'
+  fi
   if ! [[ "${metastore_instance}" =~ =tcp:[0-9]+$ ]]; then
     metastore_instance+="=tcp:${METASTORE_PROXY_PORT}"
   fi
@@ -302,21 +277,14 @@ EOF
   chmod a+rw ${INIT_SCRIPT}
 
   if [[ $ENABLE_CLOUD_SQL_METASTORE == "true" ]]; then
-    local db_url=jdbc:${DEFAULT_DB_PROTO["${METASTORE_INSTANCE_TYPE}"]}://localhost:${METASTORE_PROXY_PORT}/${METASTORE_DB}
-    local db_driver=${DEFAULT_DB_DRIVER["${METASTORE_INSTANCE_TYPE}"]}
-
     # Update hive-site.xml
     cat <<EOF >hive-template.xml
 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
 <configuration>
   <property>
     <name>javax.jdo.option.ConnectionURL</name>
-    <value>${db_url}</value>
+    <value>jdbc:mysql://localhost:${METASTORE_PROXY_PORT}/${METASTORE_DB}</value>
     <description>the URL of the MySQL database</description>
-  </property>
-  <property>
-    <name>javax.jdo.option.ConnectionDriverName</name>
-    <value>${db_driver}</value>
   </property>
   <property>
     <name>javax.jdo.option.ConnectionUserName</name>
@@ -335,84 +303,57 @@ EOF
       --clobber
   fi
 
-  log 'Cloud SQL Proxy installation succeeded'
+  echo 'Cloud SQL Proxy installation succeeded' >&2
 }
 
-function initialize_mysql_metastore_db() {
-  log 'Initialzing MYSQL DB for Hive metastore ...'
-  local db_password_param='--password='
-  if [[ -n ${DB_ADMIN_PASSWORD} ]]; then
-      db_password_param+=${DB_ADMIN_PASSWORD}
+function configure_sql_client() {
+  echo "Configuring SQL client ..." >&2
+  local mysql_conf_dir
+  if [[ -d /etc/mysql/conf.d ]]; then
+    mysql_conf_dir=/etc/mysql/conf.d
+  elif [[ -d /etc/my.cnf.d ]]; then
+    mysql_conf_dir=/etc/my.cnf.d
+  else
+    # Not m-0.
+    echo "Creating config dir for MySQL client on ${HOSTNAME}" >&2
+    mysql_conf_dir=/etc/mysql/conf.d
+    mkdir -p "${mysql_conf_dir}"
+    ln -s "${mysql_conf_dir}" /etc/my.cnf.d
   fi
-  local db_hive_password_param=''
-  if [[ -n ${DB_HIVE_PASSWORD} ]]; then
-    db_hive_password_param+="-p${DB_HIVE_PASSWORD}"
-  fi
+  # Configure MySQL client to talk to metastore
+  cat <<EOF >"${mysql_conf_dir}/cloud-sql-proxy.cnf"
+[client]
+protocol = tcp
+port = ${METASTORE_PROXY_PORT}
+EOF
+  echo "SQL client configured" >&2
+}
 
+function initialize_metastore_db() {
+  echo 'Initialzing DB for Hive metastore ...' >&2
   # Check if metastore is initialized.
-  if ! mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_HIVE_USER}" "${db_hive_password_param}" -e ''; then
-    mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_ADMIN_USER}" "${db_password_param}" -e \
+  if ! mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_HIVE_USER}" "${DB_HIVE_PASSWORD_PARAMETER}" -e ''; then
+    mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_ADMIN_USER}" "${DB_ADMIN_PASSWORD_PARAMETER}" -e \
       "CREATE USER '${DB_HIVE_USER}' IDENTIFIED BY '${DB_HIVE_PASSWORD}';"
   fi
-  if ! mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_HIVE_USER}" "${db_hive_password_param}" -e "use ${METASTORE_DB}"; then
+  if ! mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_HIVE_USER}" "${DB_HIVE_PASSWORD_PARAMETER}" -e "use ${METASTORE_DB}"; then
     # Initialize a Hive metastore DB
-    mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_ADMIN_USER}" "${db_password_param}" -e \
+    mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_ADMIN_USER}" "${DB_ADMIN_PASSWORD_PARAMETER}" -e \
       "CREATE DATABASE ${METASTORE_DB};
        GRANT ALL PRIVILEGES ON ${METASTORE_DB}.* TO '${DB_HIVE_USER}';"
     /usr/lib/hive/bin/schematool -dbType mysql -initSchema ||
       err 'Failed to set mysql schema.'
   fi
-  log 'MYSQL DB initialized for Hive metastore'
+  echo 'DB initialized for Hive metastore' >&2
 }
 
-function initialize_postgres_metastore_db() {
-  log 'Initialzing POSTGRES DB for Hive metastore ...'
-  local admin_connection=postgresql://"${DB_ADMIN_USER}":"${DB_ADMIN_PASSWORD}"@127.0.0.1:"${METASTORE_PROXY_PORT}"/
-  local hive_connection=postgresql://"${DB_HIVE_USER}":"${DB_HIVE_PASSWORD}"@127.0.0.1:"${METASTORE_PROXY_PORT}"/postgres
-
-  # Check if metastore is initialized.
-  sleep $(($RANDOM%60))
-  if ! psql "${hive_connection}" -c ''; then
-    log 'Create DB Hive user...'
-    psql "${admin_connection}" -c "CREATE USER ${DB_HIVE_USER} WITH PASSWORD '${DB_HIVE_PASSWORD}';"
-  fi
-  sleep $(($RANDOM%60))
-  if ! psql "${hive_connection}" -c '\c "${METASTORE_DB}" ' ; then
-    log 'Create Hive Metastore database...'
-    psql "${admin_connection}" -c "CREATE DATABASE ${METASTORE_DB};"
-    psql "${hive_connection}" -c '\c "${METASTORE_DB}" '
-    psql "${admin_connection}" -c "GRANT ALL PRIVILEGES ON DATABASE ${METASTORE_DB} TO ${DB_HIVE_USER} ;"
-
-    log 'Create Hive Metastore schema...'
-    /usr/lib/hive/bin/schematool -dbType postgres -initSchema ||
-      err 'Failed to set postgres schema.'
-  fi
-  log 'POSTGRES DB initialized for Hive metastore'
-}
-
-function initialize_metastore_db() {
-  case ${METASTORE_INSTANCE_TYPE} in
-    MYSQL)
-      initialize_mysql_metastore_db
-      ;;
-    POSTGRES)
-      initialize_postgres_metastore_db
-      ;;
-    SQLSERVER)
-      # TODO: add SQLSERVER support
-      ;;
-    *)
-      # NO-OP
-      ;;
-  esac
-}
 
 function run_validation() {
-  log 'Validating Hive is running...'
+  echo 'Validating ...' >&2
 
   # Check that metastore schema is compatible.
-  /usr/lib/hive/bin/schematool -dbType ${METASTORE_INSTANCE_TYPE,,} -info ||
-    err 'Run /usr/lib/hive/bin/schematool -dbType ${METASTORE_INSTANCE_TYPE,,} -upgradeSchemaFrom <schema-version> to upgrade the schema. Note that this may break Hive metastores that depend on the old schema'
+  /usr/lib/hive/bin/schematool -dbType mysql -info ||
+    err 'Run /usr/lib/hive/bin/schematool -dbType mysql -upgradeSchemaFrom <schema-version> to upgrade the schema. Note that this may break Hive metastores that depend on the old schema'
 
   # Validate it's functioning.
   # On newer Dataproc images, we start hive-server2 after init actions are run,
@@ -423,96 +364,63 @@ function run_validation() {
     if ! timeout 60s beeline -u "${hiveserver_uri}" -e 'SHOW TABLES;' >&/dev/null; then
       err 'Failed to bring up Cloud SQL Metastore'
     else
-      log 'Cloud SQL Hive Metastore initialization succeeded'
+      echo 'Cloud SQL Hive Metastore initialization succeeded' >&2
     fi
 
     # Execute the Hive "reload function" DDL to reflect permanent functions
     # that have already been created in the HiveServer.
     beeline -u "${hiveserver_uri}" -e "reload function;"
-    log 'Reloaded permanent functions'
+    echo "Reloaded permanent functions"
   fi
-   log 'Validated Hive functioning'
+   echo 'Validated' >&2
 }
 
 function install_mysql_cli() {
   if command -v mysql >/dev/null; then
-    log "MySQL CLI is already installed"
+    echo "MySQL CLI is already installed" >&2
     return
   fi
 
-  log "Installing MySQL CLI ..."
+  echo "Installing MySQL CLI ..." >&2
   if command -v apt >/dev/null; then
     apt update && apt install default-mysql-client -y
   elif command -v yum >/dev/null; then
     yum -y update && yum -y install mysql
   fi
-  log "MySQL CLI installed"
-}
-
-function install_postgres_cli() {
-  if command -v psql >/dev/null; then
-    log "POSTGRES CLI is already installed"
-    return
-  fi
-
-  log "Installing POSTGRES CLI ..."
-  if command -v apt >/dev/null; then
-    apt update && apt install postgresql-client -y
-  elif command -v yum >/dev/null; then
-    yum -y update && yum -y install postgresql
-  fi
-  log "POSTGRES CLI installed"
-}
-
-function install_db_cli() {
-  case ${METASTORE_INSTANCE_TYPE} in
-    MYSQL)
-      install_mysql_cli
-      ;;
-    POSTGRES)
-      install_postgres_cli
-      ;;
-    SQLSERVER)
-      # TODO: add SQL support
-      err 'Fail fast here if SQLSERVER support is not enabled.'
-      ;;
-    *)
-      # NO-OP
-      ;;
-  esac
+  echo "MySQL CLI installed" >&2
 }
 
 function stop_mysql_service() {
   # Debian/Ubuntu
   if (systemctl is-enabled --quiet mysql); then
-    log 'Stopping and disabling mysql.service ...'
+    echo 'Stopping and disabling mysql.service ...' >&2
     systemctl stop mysql
     systemctl disable mysql
-    log 'mysql.service stopped and disabled'
+    echo 'mysql.service stopped and disabled' >&2
   # CentOS/Rocky
   elif systemctl is-enabled --quiet mysqld; then
-    log 'Stopping and disabling mysqld.service ...'
+    echo 'Stopping and disabling mysqld.service ...' >&2
     systemctl stop mysqld
     systemctl disable mysqld
-    log 'mysqld.service stopped and disabled'
+    echo 'mysqld.service stopped and disabled' >&2
   else
-    log 'Service mysql is not enabled'
+    echo "Service mysql is not enabled"
   fi
 }
 
 function stop_hive_services() {
   if (systemctl is-enabled --quiet hive-server2); then
-    log 'Stopping Hive server2 ...'
+    echo 'Stopping Hive server2 ...' >&2
     systemctl stop hive-server2
-    log 'Hive server2 stopped'
+    echo 'Hive server2 stopped' >&2  
   else
     echo "Service Hive server2 is not enabled"
   fi
 
   if (systemctl is-enabled --quiet hive-metastore); then
-    log 'Stopping Hive metastore ...'
+    echo 'Stopping Hive metastore ...' >&2
     systemctl stop hive-metastore
-    log 'Hive metastore stopped'
+    echo 'Hive metastore stopped' >&2  
   else
     echo "Service Hive metastore is not enabled"
   fi
@@ -520,28 +428,28 @@ function stop_hive_services() {
 
 function start_hive_services() {
   if (systemctl is-enabled --quiet hive-metastore); then
-    log 'Restarting Hive metastore ...'
+    echo 'Restarting Hive metastore ...' >&2
     # Re-start metastore to pickup config changes.
     systemctl restart hive-metastore ||
       err 'Unable to start hive-metastore service'
-    log 'Hive metastore restarted'
+    echo 'Hive metastore restarted' >&2
   else
     echo "Service Hive metastore is not enabled"
   fi
 
   if (systemctl is-enabled --quiet hive-server2); then
-    log 'Restarting Hive server2 ...'
+    echo 'Restarting Hive server2 ...' >&2
     # Re-start Hive server2 to re-establish Metastore connection.
     systemctl restart hive-server2 ||
       err 'Unable to start hive-server2 service'
-    log 'Hive server2 restarted'
+    echo 'Hive server2 restarted' >&2
   else
     echo "Service Hive server2 is not enabled"
   fi
 }
 
 function start_cloud_sql_proxy() {
-  log 'Starting Cloud SQL proxy ...'
+  echo 'Starting Cloud SQL proxy ...' >&2
   systemctl enable cloud-sql-proxy
   systemctl start cloud-sql-proxy ||
     err 'Unable to start cloud-sql-proxy service'
@@ -550,8 +458,8 @@ function start_cloud_sql_proxy() {
     run_with_retries nc -zv localhost "${METASTORE_PROXY_PORT}"
   fi
 
-  log 'Cloud SQL Proxy started'
-  log 'Logs can be found in /var/log/cloud-sql-proxy/cloud-sql-proxy.log'
+  echo 'Cloud SQL Proxy started' >&2
+  echo 'Logs can be found in /var/log/cloud-sql-proxy/cloud-sql-proxy.log' >&2
 }
 
 function validate() {
@@ -568,13 +476,11 @@ function update_master() {
 
   install_cloud_sql_proxy
   start_cloud_sql_proxy
+  configure_sql_client
 
   if [[ $ENABLE_CLOUD_SQL_METASTORE == "true" ]]; then
-    install_db_cli
-
-    # Retry as there may be failures due to race condition
-    run_with_retries initialize_metastore_db
-
+    install_mysql_cli
+    initialize_metastore_db
     start_hive_services
     # Make sure that Hive metastore properly configured.
     run_with_retries run_validation
@@ -600,7 +506,7 @@ function main() {
     update_worker
   fi
 
-  log 'All done'
+  echo 'All done' >&2
 }
 
 main
