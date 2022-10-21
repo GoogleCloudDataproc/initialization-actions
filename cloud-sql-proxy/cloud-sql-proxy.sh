@@ -74,7 +74,7 @@ function get_cloudsql_instance_type() {
     instance=${instance##*:}
     database=$(gcloud sql instances describe --project=${project} ${instance} | grep 'databaseVersion')
     if [[ -z "${database}" ]]; then
-      log 'Unable to find metastore_instance'
+      log 'Unable to describe metastore_instance'
     else
       # Trim off version and whitespaces and use upper case
       # databaseVersion: MYSQL_8_0
@@ -103,7 +103,6 @@ if [[ -z "${CLOUDSQL_INSTANCE_TYPE}" ]]; then
   CLOUDSQL_INSTANCE_TYPE='MYSQL'
 fi
 readonly CLOUDSQL_INSTANCE_TYPE
-
 
 METASTORE_PROXY_PORT="$(/usr/share/google/get_metadata_value attributes/metastore-proxy-port || echo '')"
 if [[ "${METASTORE_INSTANCE}" =~ =tcp:[0-9]+$ ]]; then
@@ -140,7 +139,7 @@ if [[ -n "${DB_ADMIN_PASSWORD_URI}" ]]; then
       --key "${KMS_KEY_URI}")"
 fi
 if [[ "${CLOUDSQL_INSTANCE_TYPE}" == "POSTGRES" && -z "${DB_ADMIN_PASSWORD}" ]]; then
-  log 'POSTGRES DB Admin password is not set'
+  log 'POSTGRES DB admin password is not set'
 fi
 readonly DB_ADMIN_PASSWORD
 
