@@ -236,6 +236,9 @@ function install_nvidia_gpu_driver() {
     execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPO_URL}"
     execute_with_retries "dnf clean all"
     execute_with_retries "dnf -y -q module install nvidia-driver:${NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}-dkms"
+    NVIDIA_ROCKY_GPU_DRIVER_VERSION="$(ls -d /usr/src/nvidia-* | awk -F"nvidia-" '{print $2}')"
+    execute_with_retries "dkms build nvidia/${NVIDIA_ROCKY_GPU_DRIVER_VERSION}"
+    execute_with_retries "dkms install nvidia/${NVIDIA_ROCKY_GPU_DRIVER_VERSION}"
     execute_with_retries "dnf -y -q install cuda-${CUDA_VERSION//./-}"
   else
     echo "Unsupported OS: '${OS_NAME}'"
