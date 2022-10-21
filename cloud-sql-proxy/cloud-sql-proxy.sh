@@ -27,12 +27,12 @@ declare -A DEFAULT_DB_PROTO=(['MYSQL']='mysql' ['POSTGRES']='postgresql' ['SQLSE
 declare -A DEFAULT_DB_DRIVER=(['MYSQL']='com.mysql.jdbc.Driver' ['POSTGRES']='org.postgresql.Driver' ['SQLSERVER']='com.microsoft.sqlserver.jdbc.SQLServerDriver')
 
 function err() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')] [$(hostname)]: $*" >&2
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')] [$(hostname)]: ERROR: $*" >&2
   return 1
 }
 
 function log() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')] [$(hostname)]: $*" >&2
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')] [$(hostname)]: INFO: $*" >&2
 }
 
 readonly ADDITIONAL_INSTANCES_KEY='attributes/additional-cloud-sql-instances'
@@ -58,43 +58,57 @@ readonly USE_CLOUD_SQL_PRIVATE_IP
 METASTORE_INSTANCE="$(/usr/share/google/get_metadata_value attributes/hive-metastore-instance || echo '')"
 readonly METASTORE_INSTANCE
 
-# Get metastore DB instance type, result be one of MYSQL, POSTGRES,
-function get_metastore_instance_type() {
-  local metastore_instance="${METASTORE_INSTANCE}"
-  if [[ -z "${metastore_instance}" ]]; then
-    err 'Must specify hive-metastore-instance VM metadata'
+ADDITIONAL_INSTANCES="$(/usr/share/google/get_metadata_value ${ADDITIONAL_INSTANCES_KEY} || echo '')"
+readonly ADDITIONAL_INSTANCES
+
+# Get metastore DB instance type, result be one of MYSQL, POSTGRES, SQLSERVER
+function get_cloudsql_instance_type() {
+  local instance=$(echo "$1" | cut -d "," -f 1)
+  local database=''
+  if [[ -z "${instance}" ]]; then
+    log 'cloudsql instance VM metadata not specified'
+  elif ! [[ "${instance}" =~ .+:.+:.+ ]]; then
+    log 'cloudsql instance not of form project:region:instance'
+  else
+    local project=${instance%*:*:*}
+    instance=${instance##*:}
+    database=$(gcloud sql instances describe --project=${project} ${instance} | grep 'databaseVersion')
+    if [[ -z "${database}" ]]; then
+      log 'Unable to describe metastore_instance'
+    else
+      # Trim off version and whitespaces and use upper case
+      # databaseVersion: MYSQL_8_0
+      # databaseVersion: POSTGRES_12
+      # databaseVersion: SQLSERVER_2019_STANDARD
+      database=${database##*:}
+      database=${database%%_*}
+      database="${database#"${database%%[![:space:]]*}"}"
+    fi
   fi
-  if ! [[ "${metastore_instance}" =~ .+:.+:.+ ]]; then
-    err 'hive-metastore-instance must be of form project:region:instance'
-  fi
-  local project=${metastore_instance%*:*:*}
-  local instance=${metastore_instance##*:}
-  local database=$(gcloud sql instances describe --project=${project} ${instance} | grep 'databaseVersion')
-  if [[ -z "${database}" ]]; then
-    err 'Unable to find hive_metastore_instance'
-  fi
-  # Trim off version and whitespaces and use upper case
-  # databaseVersion: MYSQL_8_0
-  # databaseVersion: POSTGRES_12
-  # databaseVersion: SQLSERVER_2019_STANDARD
-  database=${database##*:}
-  database=${database%%_*}
-  database="${database#"${database%%[![:space:]]*}"}"
   echo "${database^^}"
 }
 
-# CLOUD SQL instance type is one of MYSQL, POSTGRES, SQL
-METASTORE_INSTANCE_TYPE=$(get_metastore_instance_type)
-readonly METASTORE_INSTANCE_TYPE
-
-ADDITIONAL_INSTANCES="$(/usr/share/google/get_metadata_value ${ADDITIONAL_INSTANCES_KEY} || echo '')"
-readonly ADDITIONAL_INSTANCES
+# CLOUD SQL instance type is one of MYSQL, POSTGRES, SQLSERVER. If not specified
+# try to infer it from METASTORE_INSTANCE, ADDITIONAL_INSTANCES, default to MYSQL
+CLOUDSQL_INSTANCE_TYPE="$(/usr/share/google/get_metadata_value attributes/cloud-sql-instance-type || echo '')"
+CLOUDSQL_INSTANCE_TYPE=${CLOUDSQL_INSTANCE_TYPE^^}
+if [[ -z "${CLOUDSQL_INSTANCE_TYPE}" ]]; then
+  if [[ -n "${METASTORE_INSTANCE}" ]]; then
+    CLOUDSQL_INSTANCE_TYPE=$(get_cloudsql_instance_type "${METASTORE_INSTANCE}")
+  elif [[ -n "${ADDITIONAL_INSTANCES}" ]]; then
+    CLOUDSQL_INSTANCE_TYPE=$(get_cloudsql_instance_type "${ADDITIONAL_INSTANCES}")
+  fi
+fi
+if [[ -z "${CLOUDSQL_INSTANCE_TYPE}" ]]; then
+  CLOUDSQL_INSTANCE_TYPE='MYSQL'
+fi
+readonly CLOUDSQL_INSTANCE_TYPE
 
 METASTORE_PROXY_PORT="$(/usr/share/google/get_metadata_value attributes/metastore-proxy-port || echo '')"
 if [[ "${METASTORE_INSTANCE}" =~ =tcp:[0-9]+$ ]]; then
   METASTORE_PROXY_PORT="${METASTORE_INSTANCE##*:}"
 else
-  METASTORE_PROXY_PORT=${DEFAULT_DB_PORT["${METASTORE_INSTANCE_TYPE}"]}
+  METASTORE_PROXY_PORT=${DEFAULT_DB_PORT["${CLOUDSQL_INSTANCE_TYPE}"]}
 fi
 readonly METASTORE_PROXY_PORT
 
@@ -104,7 +118,7 @@ readonly DB_HIVE_USER
 
 DB_ADMIN_USER="$(/usr/share/google/get_metadata_value attributes/db-admin-user || echo '')"
 if [[ -z ${DB_ADMIN_USER} ]]; then
-  DB_ADMIN_USER=${DEFAULT_DB_ADMIN_USER["${METASTORE_INSTANCE_TYPE}"]}
+  DB_ADMIN_USER=${DEFAULT_DB_ADMIN_USER["${CLOUDSQL_INSTANCE_TYPE}"]}
 fi
 readonly DB_ADMIN_USER
 
@@ -124,8 +138,8 @@ if [[ -n "${DB_ADMIN_PASSWORD_URI}" ]]; then
       --plaintext-file - \
       --key "${KMS_KEY_URI}")"
 fi
-if [[ "${METASTORE_INSTANCE_TYPE}" == "POSTGRES" && -z "${DB_ADMIN_PASSWORD}" ]]; then
-  err 'POSTGRES DB Admin password can not be empty'
+if [[ "${CLOUDSQL_INSTANCE_TYPE}" == "POSTGRES" && -z "${DB_ADMIN_PASSWORD}" ]]; then
+  log 'POSTGRES DB admin password is not set'
 fi
 readonly DB_ADMIN_PASSWORD
 
@@ -302,8 +316,8 @@ EOF
   chmod a+rw ${INIT_SCRIPT}
 
   if [[ $ENABLE_CLOUD_SQL_METASTORE == "true" ]]; then
-    local db_url=jdbc:${DEFAULT_DB_PROTO["${METASTORE_INSTANCE_TYPE}"]}://localhost:${METASTORE_PROXY_PORT}/${METASTORE_DB}
-    local db_driver=${DEFAULT_DB_DRIVER["${METASTORE_INSTANCE_TYPE}"]}
+    local db_url=jdbc:${DEFAULT_DB_PROTO["${CLOUDSQL_INSTANCE_TYPE}"]}://localhost:${METASTORE_PROXY_PORT}/${METASTORE_DB}
+    local db_driver=${DEFAULT_DB_DRIVER["${CLOUDSQL_INSTANCE_TYPE}"]}
 
     # Update hive-site.xml
     cat <<EOF >hive-template.xml
@@ -371,12 +385,10 @@ function initialize_postgres_metastore_db() {
   local hive_connection=postgresql://"${DB_HIVE_USER}":"${DB_HIVE_PASSWORD}"@127.0.0.1:"${METASTORE_PROXY_PORT}"/postgres
 
   # Check if metastore is initialized.
-  sleep $(($RANDOM%60))
   if ! psql "${hive_connection}" -c ''; then
     log 'Create DB Hive user...'
     psql "${admin_connection}" -c "CREATE USER ${DB_HIVE_USER} WITH PASSWORD '${DB_HIVE_PASSWORD}';"
   fi
-  sleep $(($RANDOM%60))
   if ! psql "${hive_connection}" -c '\c "${METASTORE_DB}" ' ; then
     log 'Create Hive Metastore database...'
     psql "${admin_connection}" -c "CREATE DATABASE ${METASTORE_DB};"
@@ -391,7 +403,7 @@ function initialize_postgres_metastore_db() {
 }
 
 function initialize_metastore_db() {
-  case ${METASTORE_INSTANCE_TYPE} in
+  case ${CLOUDSQL_INSTANCE_TYPE} in
     MYSQL)
       initialize_mysql_metastore_db
       ;;
@@ -411,8 +423,8 @@ function run_validation() {
   log 'Validating Hive is running...'
 
   # Check that metastore schema is compatible.
-  /usr/lib/hive/bin/schematool -dbType ${METASTORE_INSTANCE_TYPE,,} -info ||
-    err 'Run /usr/lib/hive/bin/schematool -dbType ${METASTORE_INSTANCE_TYPE,,} -upgradeSchemaFrom <schema-version> to upgrade the schema. Note that this may break Hive metastores that depend on the old schema'
+  /usr/lib/hive/bin/schematool -dbType ${CLOUDSQL_INSTANCE_TYPE,,} -info ||
+    err 'Run /usr/lib/hive/bin/schematool -dbType ${CLOUDSQL_INSTANCE_TYPE,,} -upgradeSchemaFrom <schema-version> to upgrade the schema. Note that this may break Hive metastores that depend on the old schema'
 
   # Validate it's functioning.
   # On newer Dataproc images, we start hive-server2 after init actions are run,
@@ -465,7 +477,7 @@ function install_postgres_cli() {
 }
 
 function install_db_cli() {
-  case ${METASTORE_INSTANCE_TYPE} in
+  case ${CLOUDSQL_INSTANCE_TYPE} in
     MYSQL)
       install_mysql_cli
       ;;
