@@ -26,6 +26,10 @@ OS_NAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
 distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
 readonly OS_NAME
 
+# node role
+ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+readonly ROLE
+
 # CUDA version and Driver version
 # https://docs.nvidia.com/deeplearning/frameworks/support-matrix/index.html
 readonly -A DRIVER_FOR_CUDA=([10.1]="418.88"    [10.2]="440.33.01"
