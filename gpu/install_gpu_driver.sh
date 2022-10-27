@@ -32,7 +32,7 @@ readonly ROLE
 
 # CUDA version and Driver version
 # https://docs.nvidia.com/deeplearning/frameworks/support-matrix/index.html
-readonly -A DRIVER_FOR_CUDA=([10.1]="418.88"    [10.2]="440.33.01"
+readonly -A DRIVER_FOR_CUDA=([10.1]="418.88"    [10.2]="440.64.00"
           [11.0]="450.51.06" [11.1]="455.45.01" [11.2]="460.73.01"
           [11.5]="495.29.05" [11.6]="510.47.03" [11.7]="515.65.01")
 readonly -A CUDNN_FOR_CUDA=( [10.1]="7.6.4.38"  [10.2]="7.6.5.32"
@@ -52,8 +52,12 @@ if [[ ${DATAPROC_IMAGE_VERSION} == 2.* ]] && [[ "${RUNTIME}" == "SPARK" ]]; then
 fi
 readonly DEFAULT_CUDA_VERSION
 readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
+# Fail early for configurations known to be unsupported
 if [[ ${OS_NAME} != ubuntu ]]; then
-   if [[ ${CUDA_VERSION} == "10.1" || ( ${OS_NAME} == debian && ${CUDA_VERSION} > "11.5" ) ]]; then
+   if [[ ${CUDA_VERSION} == "10.1" 
+      || ( ${OS_NAME} == debian
+         && ( "${CUDA_VERSION}" < "11.1" || "${CUDA_VERSION}" > "11.5" )
+      ) ]]; then
      echo "Unsupported CUDA on ${distribution}: '${CUDA_VERSION}'"
      exit -1
    fi
@@ -63,14 +67,18 @@ readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION=${DRIVER_FOR_CUDA["${CUDA_VERS
 readonly NVIDIA_DEBIAN_GPU_DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' ${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION})
 readonly NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX=${NVIDIA_DEBIAN_GPU_DRIVER_VERSION%%.*}
 DEFAULT_NCCL_VERSION=${NCCL_FOR_CUDA["${CUDA_VERSION}"]}
-if [[ ${OS_NAME} == rocky ]] && [[ ${DEFAULT_NCCL_VERSION} == "2.8.3" ]]; then
+if [[ "${OS_NAME}" == "rocky" ]] && [[ "${DEFAULT_NCCL_VERSION}" == "2.8.3" ]]; then
   DEFAULT_NCCL_VERSION="2.8.4"
 fi
 readonly DEFAULT_NCCL_VERSION
 readonly NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION})
 
 # Parameters for NVIDIA-provided Debian GPU driver
-readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${NVIDIA_DEBIAN_GPU_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${NVIDIA_DEBIAN_GPU_DRIVER_VERSION}.run"
+DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${NVIDIA_DEBIAN_GPU_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${NVIDIA_DEBIAN_GPU_DRIVER_VERSION}.run"
+if [[ "$(curl -s -I ${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL} | head -1 | awk '{print $2}')" != "200" ]]; then
+  DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${NVIDIA_DEBIAN_GPU_DRIVER_VERSION%.*}/NVIDIA-Linux-x86_64-${NVIDIA_DEBIAN_GPU_DRIVER_VERSION%.*}.run"
+fi
+readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL
 
 NVIDIA_DEBIAN_GPU_DRIVER_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL}")
 readonly NVIDIA_DEBIAN_GPU_DRIVER_URL
@@ -243,6 +251,7 @@ function install_nvidia_gpu_driver() {
     NVIDIA_ROCKY_GPU_DRIVER_VERSION="$(ls -d /usr/src/nvidia-* | awk -F"nvidia-" '{print $2}')"
     execute_with_retries "dkms build nvidia/${NVIDIA_ROCKY_GPU_DRIVER_VERSION}"
     execute_with_retries "dkms install nvidia/${NVIDIA_ROCKY_GPU_DRIVER_VERSION}"
+    modprobe nvidia
     execute_with_retries "dnf -y -q install cuda-${CUDA_VERSION//./-}"
   else
     echo "Unsupported OS: '${OS_NAME}'"
