@@ -53,14 +53,10 @@ fi
 readonly DEFAULT_CUDA_VERSION
 readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
 # Fail early for configurations known to be unsupported
-if [[ ${OS_NAME} != ubuntu ]]; then
-   if [[ ${CUDA_VERSION} == "10.1" 
-      || ( ${OS_NAME} == debian
-         && ( "${CUDA_VERSION}" < "11.1" || "${CUDA_VERSION}" > "11.5" )
-      ) ]]; then
+if [[ ("${OS_NAME}" == "rocky" && "${CUDA_VERSION}" == "10.1")
+   || ("${OS_NAME}" == "debian" && "${CUDA_VERSION}" < "11.1") ]]; then
      echo "Unsupported CUDA on ${distribution}: '${CUDA_VERSION}'"
      exit -1
-   fi
 fi
 
 readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION=${DRIVER_FOR_CUDA["${CUDA_VERSION}"]}
@@ -115,8 +111,17 @@ readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/rhel8/x86_64/cu
 # Parameters for NVIDIA-provided CUDNN library
 readonly DEFAULT_CUDNN_VERSION=${CUDNN_FOR_CUDA["${CUDA_VERSION}"]}
 readonly CUDNN_VERSION=$(get_metadata_attribute 'cudnn-version' "${DEFAULT_CUDNN_VERSION}")
-readonly CUDNN_TARBALL="cudnn-${CUDA_VERSION}-linux-x64-v${CUDNN_VERSION}.tgz"
-readonly CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN_VERSION%.*}/${CUDNN_TARBALL}"
+CUDNN_TARBALL="cudnn-${CUDA_VERSION}-linux-x64-v${CUDNN_VERSION}.tgz"
+CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN_VERSION%.*}/${CUDNN_TARBALL}"
+if [[ ${CUDNN_VERSION} > 11.5 ]]; then
+  CUDNN_TARBALL="cudnn-linux-x86_64-${CUDNN_VERSION}_cuda${CUDA_VERSION%.*}-archive.tar.xz"
+  if [[ ${CUDNN_VERSION} == 11.6 ]]; then
+    CUDNN_TARBALL="cudnn-linux-x86_64-${CUDNN_VERSION}_cuda${CUDA_VERSION}-archive.tar.xz"
+  fi
+  CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN_VERSION%.*}/local_installers/${CUDA_VERSION}/${CUDNN_TARBALL}"
+fi
+readonly CUDNN_TARBALL
+readonly CUDNN_TARBALL_URL
 
 # Whether to install NVIDIA-provided or OS-provided GPU driver
 GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'NVIDIA')
@@ -193,18 +198,27 @@ function install_nvidia_cudnn() {
       "libcudnn${major_version}-dev=${cudnn_pkg_version}")
     execute_with_retries \
       "apt-get install -y --no-install-recommends ${packages[*]}"
-  else
+  elif [[ ${OS_NAME} == debian ]]; then
     local tmp_dir
     tmp_dir=$(mktemp -d -t gpu-init-action-cudnn-XXXX)
 
     curl -fSsL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${CUDNN_TARBALL_URL}" -o "${tmp_dir}/${CUDNN_TARBALL}"
 
-    tar -xzf "${tmp_dir}/${CUDNN_TARBALL}" -C /usr/local
+    if [[ "${CUDNN_VERSION}" < "11.6" ]]; then
+      tar -xzf "${tmp_dir}/${CUDNN_TARBALL}" -C /usr/local
+    else
+      ln -sf /usr/local/cuda/targets/x86_64-linux/lib /usr/local/cuda/lib
+      tar -h --no-same-owner --strip-components=1 \
+        -xJf "${tmp_dir}/${CUDNN_TARBALL}" -C /usr/local/cuda
+    fi
 
     cat <<'EOF' >>/etc/profile.d/cudnn.sh
 export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 EOF
+  else
+    echo "Unsupported OS: '${OS_NAME}'"
+    exit 1
   fi
 
   ldconfig
