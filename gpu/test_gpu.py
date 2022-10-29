@@ -38,7 +38,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                      driver_provider):
     if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
       self.skipTest("Not supported in pre 2.0 or Rocky images")
-      
+
     metadata = None
     if driver_provider is not None:
       metadata = "gpu-driver-provider={}".format(driver_provider)
@@ -64,7 +64,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                      driver_provider):
     if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
       self.skipTest("Not supported in pre 2.0 or Rocky images")
-        
+
     metadata = "install-gpu-agent=false"
     if driver_provider is not None:
       metadata += ",gpu-driver-provider={}".format(driver_provider)
@@ -90,7 +90,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                   driver_provider):
     if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
       self.skipTest("Not supported in pre 2.0 or Rocky images")
-      
+
     metadata = "install-gpu-agent=true"
     if driver_provider is not None:
       metadata += ",gpu-driver-provider={}".format(driver_provider)
@@ -119,9 +119,15 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
-    if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
-      self.skipTest("Not supported in pre 2.0 or Rocky images")
-        
+    image_os = self.getImageOs()
+
+    if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+      self.skipTest("Not supported in pre 2.0 images")
+
+    if ( image_os == "rocky" and (cuda_version < 11.2 and cuda_version != 11.0) ) or \
+       ( image_os == "debian" and cuda_version < 11.1 ):
+      self.skipTest(f'CUDA version {cuda_version} is not supported on os {image_os}')
+
     metadata = "gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
         configuration,
@@ -143,7 +149,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                   driver_provider, zone):
     if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
       self.skipTest("Not supported in pre 2.0 or Rocky images")
-        
+
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
@@ -155,7 +161,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         metadata=None,
         timeout_in_minutes=30,
         startup_script="gpu/mig.sh")
-        
+
     for machine_suffix in ["w-0", "w-1"]:
       self.verify_mig_instance("{}-{}".format(self.getClusterName(),
                                           machine_suffix))
@@ -168,10 +174,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                           worker_accelerator, driver_provider):
     if configuration == "SINGLE" and self.getImageOs() == "rocky":
       self.skipTest("Test hangs on single-node clsuter with Rocky Linux-based images")
-        
+
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0")
-        
+
     metadata = None
     if driver_provider is not None:
       metadata = "gpu-driver-provider={}".format(driver_provider)

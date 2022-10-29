@@ -16,6 +16,14 @@
 
 set -euxo pipefail
 
+function compare_versions_lte {
+  [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]
+}
+
+function compare_versions_lt() {
+  [ "$1" = "$2" ] && return 1 || compare_versions_lte $1 $2
+}
+
 function get_metadata_attribute() {
   local -r attribute_name=$1
   local -r default_value=$2
@@ -34,16 +42,20 @@ readonly ROLE
 # https://docs.nvidia.com/deeplearning/frameworks/support-matrix/index.html
 readonly -A DRIVER_FOR_CUDA=([10.1]="418.88"    [10.2]="440.64.00"
           [11.0]="450.51.06" [11.1]="455.45.01" [11.2]="460.73.01"
-          [11.5]="495.29.05" [11.6]="510.47.03" [11.7]="515.65.01")
+          [11.5]="495.29.05" [11.6]="510.47.03" [11.7]="515.65.01"
+          [11.8]="520.56.06")
 readonly -A CUDNN_FOR_CUDA=( [10.1]="7.6.4.38"  [10.2]="7.6.5.32"
           [11.0]="8.0.4.30"  [11.1]="8.0.5.39"  [11.2]="8.1.1.33"
-          [11.5]="8.3.0.98"  [11.6]="8.4.0.27"  [11.7]="8.5.0.96")
+          [11.5]="8.3.3.40"  [11.6]="8.4.1.50"  [11.7]="8.5.0.96"
+          [11.8]="8.6.0.163")
 readonly -A NCCL_FOR_CUDA=(  [10.1]="2.4.8"     [10.2]="2.5.6"
           [11.0]="2.7.8"     [11.1]="2.8.3"     [11.2]="2.8.3"
-          [11.5]="2.11.4"    [11.6]="2.11.4"    [11.7]="2.12.12")
+          [11.5]="2.11.4"    [11.6]="2.11.4"    [11.7]="2.12.12"
+          [11.8]="2.15.5")
 readonly -A CUDA_SUBVER=(    [10.1]="10.1.243"  [10.2]="10.2.89"
           [11.0]="11.0.3"    [11.1]="11.1.0"    [11.2]="11.2.2"
-          [11.5]="11.5.2"    [11.6]="11.6.2"    [11.7]="11.7.1")
+          [11.5]="11.5.2"    [11.6]="11.6.2"    [11.7]="11.7.1"
+          [11.8]="11.8.0")
 
 RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 DEFAULT_CUDA_VERSION='11.2'
@@ -52,18 +64,33 @@ if [[ ${DATAPROC_IMAGE_VERSION} == 2.* ]] && [[ "${RUNTIME}" == "SPARK" ]]; then
 fi
 readonly DEFAULT_CUDA_VERSION
 readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
-# Fail early for configurations known to be unsupported
-if [[ ("${OS_NAME}" == "rocky" && "${CUDA_VERSION}" == "10.1")
-   || ("${OS_NAME}" == "debian" && $(echo "${CUDA_VERSION} < 11.1" | bc -l) == 1 ) ]]; then
-     echo "Unsupported CUDA on ${distribution}: '${CUDA_VERSION}'"
-     exit 0
-fi
-
 readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION=${DRIVER_FOR_CUDA["${CUDA_VERSION}"]}
 readonly NVIDIA_DEBIAN_GPU_DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' ${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION})
 readonly NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX=${NVIDIA_DEBIAN_GPU_DRIVER_VERSION%%.*}
+readonly DRIVER=${NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}
+
+# Fail early for configurations known to be unsupported
+function unsupported_error {
+  echo "Unsupported kernel driver on ${distribution}: '${DRIVER}'"
+  exit -1
+}
+if [[ "${OS_NAME}" == "rocky" ]]; then
+  KERNEL_SUBVERSION=$(uname -r | awk -F- '{print $2}')
+  if [[ "${DRIVER}" < "460" && "${DRIVER}" != "450"
+     && "${KERNEL_SUBVERSION%%.*}" > "305" ]]; then
+    unsupported_error
+  fi
+elif [[ "${OS_NAME}" == "debian" ]]; then
+  KERNEL_VERSION=$(uname -r | awk -F- '{print $1}')
+  if [[ "${DRIVER}" < "455"
+     && $(echo "${KERNEL_VERSION%.*} > 5.7" | bc -l) == 1  ]]; then
+    unsupported_error
+  fi
+fi
+
 DEFAULT_NCCL_VERSION=${NCCL_FOR_CUDA["${CUDA_VERSION}"]}
-if [[ "${OS_NAME}" == "rocky" ]] && [[ "${DEFAULT_NCCL_VERSION}" == "2.8.3" ]]; then
+if [[ "${OS_NAME}" == "rocky" ]] \
+   && (compare_versions_lte "${DEFAULT_NCCL_VERSION}" "2.8.4") ; then
   DEFAULT_NCCL_VERSION="2.8.4"
 fi
 readonly DEFAULT_NCCL_VERSION
@@ -95,7 +122,8 @@ readonly -A DEFAULT_NVIDIA_DEBIAN_CUDA_URLS=(
   [11.2]="${NVIDIA_BASE_DL_URL}/cuda/11.2.2/local_installers/cuda_11.2.2_460.32.03_linux.run"
   [11.5]="${NVIDIA_BASE_DL_URL}/cuda/11.5.2/local_installers/cuda_11.5.2_495.29.05_linux.run"
   [11.6]="${NVIDIA_BASE_DL_URL}/cuda/11.6.2/local_installers/cuda_11.6.2_510.47.03_linux.run"
-  [11.7]="${NVIDIA_BASE_DL_URL}/cuda/11.7.1/local_installers/cuda_11.7.1_515.65.01_linux.run")
+  [11.7]="${NVIDIA_BASE_DL_URL}/cuda/11.7.1/local_installers/cuda_11.7.1_515.65.01_linux.run"
+  [11.8]="${NVIDIA_BASE_DL_URL}/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run")
 readonly DEFAULT_NVIDIA_DEBIAN_CUDA_URL=${DEFAULT_NVIDIA_DEBIAN_CUDA_URLS["${CUDA_VERSION}"]}
 NVIDIA_DEBIAN_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_DEBIAN_CUDA_URL}")
 readonly NVIDIA_DEBIAN_CUDA_URL
@@ -108,22 +136,19 @@ readonly NVIDIA_UBUNTU_REPO_CUDA_PIN="${NVIDIA_UBUNTU_REPO_URL}/cuda-ubuntu1804.
 # Parameter for NVIDIA-provided Rocky Linux GPU driver
 readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/rhel8/x86_64/cuda-rhel8.repo"
 
-function compare_versions_lte {
-  [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]
-}
-
-function compare_versions_lt() {
-  [ "$1" = "$2" ] && return 1 || compare_versions_lte $1 $2
-}
-
 # Parameters for NVIDIA-provided CUDNN library
-readonly DEFAULT_CUDNN_VERSION=${CUDNN_FOR_CUDA["${CUDA_VERSION}"]}
+DEFAULT_CUDNN_VERSION=${CUDNN_FOR_CUDA["${CUDA_VERSION}"]}
+if [[ "${OS_NAME}" == "rocky" ]] \
+   && (compare_versions_lte "${DEFAULT_CUDNN_VERSION}" "8.0.5.39") ; then
+  DEFAULT_CUDNN_VERSION="8.0.5.39"
+fi
+readonly DEFAULT_CUDNN_VERSION
 readonly CUDNN_VERSION=$(get_metadata_attribute 'cudnn-version' "${DEFAULT_CUDNN_VERSION}")
 CUDNN_TARBALL="cudnn-${CUDA_VERSION}-linux-x64-v${CUDNN_VERSION}.tgz"
 CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN_VERSION%.*}/${CUDNN_TARBALL}"
 if ( compare_versions_lte "8.3.1.22" "${CUDNN_VERSION}" ); then
   CUDNN_TARBALL="cudnn-linux-x86_64-${CUDNN_VERSION}_cuda${CUDA_VERSION%.*}-archive.tar.xz"
-  if ( compare_version_lte ${CUDNN_VERSION} "8.4.1.50" ); then
+  if ( compare_versions_lte "${CUDNN_VERSION}" "8.4.1.50" ); then
     CUDNN_TARBALL="cudnn-linux-x86_64-${CUDNN_VERSION}_cuda${CUDA_VERSION}-archive.tar.xz"
   fi
   CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN_VERSION%.*}/local_installers/${CUDA_VERSION}/${CUDNN_TARBALL}"
