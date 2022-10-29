@@ -40,7 +40,7 @@ ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly ROLE
 
 # Parameters for NVIDIA-provided Debian GPU driver
-readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='460.73.01'
+readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='495.29.05'
 readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}.run"
 NVIDIA_DEBIAN_GPU_DRIVER_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL}")
 readonly NVIDIA_DEBIAN_GPU_DRIVER_URL
@@ -48,31 +48,19 @@ readonly NVIDIA_DEBIAN_GPU_DRIVER_URL
 readonly NVIDIA_BASE_DL_URL='https://developer.download.nvidia.com/compute'
 
 # CUDA Version
-CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.2')
+CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.5')
 readonly CUDA_VERSION
-
-# Parameters for NVIDIA-provided NCCL library
-readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb"
-NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
-readonly NCCL_REPO_URL
-readonly NCCL_REPO_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/7fa2af80.pub"
-
-readonly DEFAULT_NCCL_VERSION="2.8.3"
-readonly DEFAULT_NCCL_VERSION_ROCKY="2.8.4"
-
-if [[ ${OS_NAME} == rocky ]]; then
-  NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION_ROCKY})
-else
-  NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION})
-fi
-readonly NCCL_VERSION
+readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX=${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION%%.*}
 
 readonly -A DEFAULT_NVIDIA_DEBIAN_CUDA_URLS=(
   [10.1]="${NVIDIA_BASE_DL_URL}/cuda/10.1/Prod/local_installers/cuda_10.1.243_418.87.00_linux.run"
   [10.2]="${NVIDIA_BASE_DL_URL}/cuda/10.2/Prod/local_installers/cuda_10.2.89_440.33.01_linux.run"
   [11.0]="${NVIDIA_BASE_DL_URL}/cuda/11.0.3/local_installers/cuda_11.0.3_450.51.06_linux.run"
   [11.1]="${NVIDIA_BASE_DL_URL}/cuda/11.1.0/local_installers/cuda_11.1.0_455.23.05_linux.run"
-  [11.2]="${NVIDIA_BASE_DL_URL}/cuda/11.2.2/local_installers/cuda_11.2.2_460.32.03_linux.run")
+  [11.2]="${NVIDIA_BASE_DL_URL}/cuda/11.2.2/local_installers/cuda_11.2.2_460.32.03_linux.run"
+  [11.5]="${NVIDIA_BASE_DL_URL}/cuda/11.5.2/local_installers/cuda_11.5.2_495.29.05_linux.run"
+  [11.6]="${NVIDIA_BASE_DL_URL}/cuda/11.6.2/local_installers/cuda_11.6.2_510.47.03_linux.run"
+  [11.7]="${NVIDIA_BASE_DL_URL}/cuda/11.7.1/local_installers/cuda_11.7.1_515.65.01_linux.run")
 readonly DEFAULT_NVIDIA_DEBIAN_CUDA_URL=${DEFAULT_NVIDIA_DEBIAN_CUDA_URLS["${CUDA_VERSION}"]}
 NVIDIA_DEBIAN_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_DEBIAN_CUDA_URL}")
 readonly NVIDIA_DEBIAN_CUDA_URL
@@ -84,11 +72,6 @@ readonly NVIDIA_UBUNTU_REPO_CUDA_PIN="${NVIDIA_UBUNTU_REPO_URL}/cuda-ubuntu1804.
 
 # Parameter for NVIDIA-provided Rocky Linux GPU driver
 readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/rhel8/x86_64/cuda-rhel8.repo"
-
-# Parameters for NVIDIA-provided CUDNN library
-readonly CUDNN_VERSION=$(get_metadata_attribute 'cudnn-version' '')
-readonly CUDNN_TARBALL="cudnn-${CUDA_VERSION}-linux-x64-v${CUDNN_VERSION}.tgz"
-readonly CUDNN_TARBALL_URL="http://developer.download.nvidia.com/compute/redist/cudnn/v${CUDNN_VERSION%.*}/${CUDNN_TARBALL}"
 
 # Whether to install NVIDIA-provided or OS-provided GPU driver
 GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'NVIDIA')
@@ -109,70 +92,6 @@ function execute_with_retries() {
     sleep 5
   done
   return 1
-}
-
-function install_nvidia_nccl() {
-  local -r nccl_version="${NCCL_VERSION}-1+cuda${CUDA_VERSION}"
-
-  if [[ ${OS_NAME} == rocky ]]; then
-    execute_with_retries "dnf -y -q install libnccl-${nccl_version} libnccl-devel-${nccl_version} libnccl-static-${nccl_version}"
-  elif [[ ${OS_NAME} == ubuntu ]] || [[ ${OS_NAME} == debian ]]; then
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 "${NCCL_REPO_KEY}" | apt-key add -
-
-    local tmp_dir
-    tmp_dir=$(mktemp -d -t gpu-init-action-nccl-XXXX)
-
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${NCCL_REPO_URL}" -o "${tmp_dir}/nvidia-ml-repo.deb"
-    dpkg -i "${tmp_dir}/nvidia-ml-repo.deb"
-
-    execute_with_retries "apt-get update"
-
-    execute_with_retries \
-      "apt-get install -y --allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
-  else
-    echo "Unsupported OS: '${OS_NAME}'"
-    exit 1
-  fi
-}
-
-function install_nvidia_cudnn() {
-  local major_version
-  major_version="${CUDNN_VERSION%%.*}"
-  local cudnn_pkg_version
-  cudnn_pkg_version="${CUDNN_VERSION}-1+cuda${CUDA_VERSION}"
-
-  if [[ ${OS_NAME} == rocky ]]; then
-    if [[ ${major_version} == 8 ]]; then
-      execute_with_retries "dnf -y -q install libcudnn8-${cudnn_pkg_version} libcudnn8-devel-${cudnn_pkg_version}"
-    else
-      echo "Unsupported CUDNN version: '${CUDNN_VERSION}'"
-      exit 1
-    fi
-  elif [[ ${OS_NAME} == ubuntu ]]; then
-    local -a packages
-    packages=(
-      "libcudnn${major_version}=${cudnn_pkg_version}"
-      "libcudnn${major_version}-dev=${cudnn_pkg_version}")
-    execute_with_retries \
-      "apt-get install -y --no-install-recommends ${packages[*]}"
-  else
-    local tmp_dir
-    tmp_dir=$(mktemp -d -t gpu-init-action-cudnn-XXXX)
-
-    curl -fSsL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${CUDNN_TARBALL_URL}" -o "${tmp_dir}/${CUDNN_TARBALL}"
-
-    tar -xzf "${tmp_dir}/${CUDNN_TARBALL}" -C /usr/local
-
-    cat <<'EOF' >>/etc/profile.d/cudnn.sh
-export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
-EOF
-  fi
-
-  ldconfig
-
-  echo "NVIDIA cuDNN successfully installed for ${OS_NAME}."
 }
 
 # Install NVIDIA GPU driver provided by NVIDIA
@@ -202,12 +121,12 @@ function install_nvidia_gpu_driver() {
       local -r cuda_package=cuda-toolkit
     fi
     # Without --no-install-recommends this takes a very long time.
-    execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-460"
+    execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}"
     execute_with_retries "apt-get install -y -q --no-install-recommends ${cuda_package}"
   elif [[ ${OS_NAME} == rocky ]]; then
     execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPO_URL}"
     execute_with_retries "dnf clean all"
-    execute_with_retries "dnf -y -q module install nvidia-driver:460-dkms"
+    execute_with_retries "dnf -y -q module install nvidia-driver:${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}-dkms"
     execute_with_retries "dnf -y -q install cuda-${CUDA_VERSION//./-}"
   else
     echo "Unsupported OS: '${OS_NAME}'"
@@ -318,10 +237,6 @@ function main() {
     fi
 
     install_nvidia_gpu_driver
-    if [[ -n ${CUDNN_VERSION} ]]; then
-      install_nvidia_nccl
-      install_nvidia_cudnn
-    fi
     
     # Install GPU metrics collection in Stackdriver if needed
     if [[ ${INSTALL_GPU_AGENT} == true ]]; then

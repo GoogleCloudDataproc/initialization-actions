@@ -62,6 +62,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_without_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
+    if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
+      self.skipTest("Not supported in pre 2.0 or Rocky images")
+        
     metadata = "install-gpu-agent=false"
     if driver_provider is not None:
       metadata += ",gpu-driver-provider={}".format(driver_provider)
@@ -116,6 +119,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
+    if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
+      self.skipTest("Not supported in pre 2.0 or Rocky images")
+        
     metadata = "gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
         configuration,
@@ -130,37 +136,14 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                           machine_suffix))
 
   @parameterized.parameters(
-      ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "NVIDIA", "8.3.0.98", "11.5")
-  )
-  def test_install_gpu_with_cudnn(self, configuration, machine_suffixes,
-                                  master_accelerator, worker_accelerator,
-                                  driver_provider, cudnn_version, cuda_version):
-    if self.getImageVersion() < pkg_resources.parse_version("2.0"):
-      self.skipTest("Not supported in pre 2.0")
-        
-    metadata = "cudnn-version={}".format(cudnn_version)
-    metadata += ",cuda-version={}".format(cuda_version)
-    if driver_provider is not None:
-      metadata += ",gpu-driver-provider={}".format(driver_provider)
-    self.createCluster(
-        configuration,
-        self.INIT_ACTIONS,
-        machine_type="n1-standard-2",
-        master_accelerator=master_accelerator,
-        worker_accelerator=worker_accelerator,
-        metadata=metadata,
-        timeout_in_minutes=30,
-        scopes="https://www.googleapis.com/auth/monitoring.write")
-    for machine_suffix in machine_suffixes:
-      self.verify_instance_cudnn("{}-{}".format(self.getClusterName(),
-                                                machine_suffix))
-
-  @parameterized.parameters(
       ("STANDARD", ["m", "w-0", "w-1"], None, GPU_A100, "NVIDIA", "us-central1-b"),
   )
   def test_install_gpu_with_mig(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider, zone):
+    if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
+      self.skipTest("Not supported in pre 2.0 or Rocky images")
+        
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
@@ -172,6 +155,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         metadata=None,
         timeout_in_minutes=30,
         startup_script="gpu/mig.sh")
+        
     for machine_suffix in ["w-0", "w-1"]:
       self.verify_mig_instance("{}-{}".format(self.getClusterName(),
                                           machine_suffix))
@@ -184,7 +168,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                           worker_accelerator, driver_provider):
     if configuration == "SINGLE" and self.getImageOs() == "rocky":
       self.skipTest("Test hangs on single-node clsuter with Rocky Linux-based images")
-      
+        
+    if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+      self.skipTest("Not supported in pre 2.0")
+        
     metadata = None
     if driver_provider is not None:
       metadata = "gpu-driver-provider={}".format(driver_provider)
