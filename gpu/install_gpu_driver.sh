@@ -54,9 +54,9 @@ readonly DEFAULT_CUDA_VERSION
 readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
 # Fail early for configurations known to be unsupported
 if [[ ("${OS_NAME}" == "rocky" && "${CUDA_VERSION}" == "10.1")
-   || ("${OS_NAME}" == "debian" && "${CUDA_VERSION}" < "11.1") ]]; then
+   || ("${OS_NAME}" == "debian" && $(echo "${CUDA_VERSION} < 11.1" | bc -l) == 1 ) ]]; then
      echo "Unsupported CUDA on ${distribution}: '${CUDA_VERSION}'"
-     exit -1
+     exit 0
 fi
 
 readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION=${DRIVER_FOR_CUDA["${CUDA_VERSION}"]}
@@ -108,14 +108,22 @@ readonly NVIDIA_UBUNTU_REPO_CUDA_PIN="${NVIDIA_UBUNTU_REPO_URL}/cuda-ubuntu1804.
 # Parameter for NVIDIA-provided Rocky Linux GPU driver
 readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/rhel8/x86_64/cuda-rhel8.repo"
 
+function compare_versions_lte {
+  [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]
+}
+
+function compare_versions_lt() {
+  [ "$1" = "$2" ] && return 1 || compare_versions_lte $1 $2
+}
+
 # Parameters for NVIDIA-provided CUDNN library
 readonly DEFAULT_CUDNN_VERSION=${CUDNN_FOR_CUDA["${CUDA_VERSION}"]}
 readonly CUDNN_VERSION=$(get_metadata_attribute 'cudnn-version' "${DEFAULT_CUDNN_VERSION}")
 CUDNN_TARBALL="cudnn-${CUDA_VERSION}-linux-x64-v${CUDNN_VERSION}.tgz"
 CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN_VERSION%.*}/${CUDNN_TARBALL}"
-if [[ ${CUDNN_VERSION} > 11.5 ]]; then
+if ( compare_versions_lte "8.3.1.22" "${CUDNN_VERSION}" ); then
   CUDNN_TARBALL="cudnn-linux-x86_64-${CUDNN_VERSION}_cuda${CUDA_VERSION%.*}-archive.tar.xz"
-  if [[ ${CUDNN_VERSION} == 11.6 ]]; then
+  if ( compare_version_lte ${CUDNN_VERSION} "8.4.1.50" ); then
     CUDNN_TARBALL="cudnn-linux-x86_64-${CUDNN_VERSION}_cuda${CUDA_VERSION}-archive.tar.xz"
   fi
   CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN_VERSION%.*}/local_installers/${CUDA_VERSION}/${CUDNN_TARBALL}"
@@ -205,7 +213,7 @@ function install_nvidia_cudnn() {
     curl -fSsL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${CUDNN_TARBALL_URL}" -o "${tmp_dir}/${CUDNN_TARBALL}"
 
-    if [[ "${CUDNN_VERSION}" < "11.6" ]]; then
+    if ( compare_versions_lte "${CUDNN_VERSION}" "8.3.0.98" ); then
       tar -xzf "${tmp_dir}/${CUDNN_TARBALL}" -C /usr/local
     else
       ln -sf /usr/local/cuda/targets/x86_64-linux/lib /usr/local/cuda/lib
