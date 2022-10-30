@@ -124,8 +124,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0 images")
 
-    if ( image_os == "rocky" and (cuda_version < 11.2 and cuda_version != 11.0) ) or \
-       ( image_os == "debian" and cuda_version < 11.1 ):
+    if ( image_os == "rocky" and (cuda_version < "11.2" and cuda_version != "11.0") ) or \
+       ( image_os == "debian" and cuda_version < "11.1" ):
       self.skipTest(f'CUDA version {cuda_version} is not supported on os {image_os}')
 
     metadata = "gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
