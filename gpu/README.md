@@ -5,6 +5,25 @@ GPUs require special drivers and software which are not pre-installed on
 This initialization action installs GPU driver for NVIDIA GPUs on master and
 worker nodes in a Dataproc cluster.
 
+## Default versions
+
+A reasonable default version will be selected for CUDA, the nvidia kernel
+driver, cuDNN, and NCCL.  When using dataproc images 2.0 or later with the
+default rapids-runtime, CUDA will default to `11.5`, and will otherwise default
+to `11.2`.
+
+CUDA | Full Version | Driver    | CuDNN     | NCCL    | Supported OSs
+-----| ------------ | --------- | --------- | ------- | -------------------
+10.1 | 10.1.243     | 418.88    | 7.6.4.38  | 2.4.8   | Ubuntu
+10.2 | 10.2.89      | 440.64.00 | 7.6.5.32  | 2.5.6   | Ubuntu
+11.0 | 11.0.3       | 450.51.06 | 8.0.4.30  | 2.7.8   | Ubuntu,Rocky
+11.1 | 11.1.0       | 455.45.01 | 8.0.5.39  | 2.8.3   | Ubuntu,Debian
+11.2 | 11.2.2       | 460.73.01 | 8.1.1.33  | 2.8.3   | Ubuntu,Debian,Rocky
+11.5 | 11.5.2       | 495.29.05 | 8.3.0.98  | 2.11.4  | Ubuntu,Debian,Rocky
+11.6 | 11.6.2       | 510.47.03 | 8.4.1.50  | 2.11.4  | Ubuntu,Debian,Rocky
+11.7 | 11.7.1       | 515.65.01 | 8.5.0.96  | 2.12.12 | Ubuntu,Debian,Rocky
+11.8 | 11.8.0       | 520.56.06 | 8.6.0.163 | 2.15.5  | Ubuntu,Debian,Rocky
+
 ## Using this initialization action
 
 **:warning: NOTICE:** See
@@ -124,8 +143,9 @@ script without NVIDIA Docker, you can find more information at
 
 You can also install [cuDNN](https://developer.nvidia.com/CUDNN) on your
 cluster. cuDNN is used as a backend for Deep Learning frameworks, such as
-TensorFlow. To select a version, include the metadata parameter `--metadata
-cudnn-version=x.x.x.x`. You can find the list of archived versions
+TensorFlow. A reasonable default will be selected.  To explicitly select a
+version, include the metadata parameter `--metadata cudnn-version=x.x.x.x`. You
+can find the list of archived versions
 [here](https://developer.nvidia.com/rdp/cudnn-archive) which includes all
 versions except the latest. To locate the version you need, click on Download
 option for the correct cuDNN + CUDA version you desire, copy the link address
@@ -135,12 +155,17 @@ for `libcudnn8_8.0.4.30-1+cuda11.0_amd64.deb`, the version is `8.0.4.30`. Below
 is a table for mapping some recent major.minor cuDNN versions to full versions
 and compatible CUDA versions:
 
-Major.Minor | Full Version | CUDA Versions
------------ | ------------ | --------------------------
-8.1         | 8.1.1.33     | 10.2, 11.0, 11.1, 11.2
-8.0         | 8.0.5.39     | 10.1, 10.2, 11.0, 11.0, 11.1
-7.6         | 7.6.5.32     | 9.0, 9.2, 10.0, 10.1, 10.2
-7.5         | 7.5.1.10     | 9.0, 9.2, 10.0, 10.1
+Major.Minor | Full Version | CUDA Versions              | Release Date
+----------- | ------------ | -------------------------- | ------------
+8.6         | 8.6.0.163    | 10.2, 11.8                 | 2022-09-22
+8.5         | 8.5.0.96     | 10.2, 11.7                 | 2022-08-04
+8.4         | 8.4.1.50     | 10.2, 11.6                 | 2022-05-27
+8.3         | 8.3.3.40     | 10.2, 11.5                 | 2022-03-18
+8.2         | 8.2.4.15     | 10.2, 11.4                 | 2021-08-31
+8.1         | 8.1.1.33     | 10.2, 11.2                 | 2021-02-25
+8.0         | 8.0.5.39     | 10.1, 10.2, 11.0, 11.1     | 2020-11-01
+7.6         | 7.6.5.32     | 9.0, 9.2, 10.0, 10.1, 10.2 | 2019-10-28
+7.5         | 7.5.1.10     | 9.0, 9.2, 10.0, 10.1       | 2019-04-17
 
 To figure out which version you need, refer to the framework's documentation,
 sometimes found in the "building from source" sections.
@@ -155,24 +180,37 @@ sometimes found in the "building from source" sections.
     Stackdriver. Make sure you add the correct scope to access Stackdriver.
 
 -   `gpu-driver-url: <URL>` - this is an optional parameter for customizing
-    NVIDIA-provided GPU driver on Debian.
+    NVIDIA-provided GPU driver on Debian.  Default is
+    `https://download.nvidia.com/XFree86/Linux-x86_64/495.29.05/NVIDIA-Linux-x86_64-495.29.05.run`
 
 -   `cuda-url: <URL>` - this is an optional parameter for customizing
     NVIDIA-provided CUDA on Debian. This is required if not using CUDA `10.1` or
     `10.2` with a Debian image. Please find the appropriate linux-based
     runtime-file URL [here](https://developer.nvidia.com/cuda-toolkit-archive).
+    Default is
+    `https://developer.download.nvidia.com/compute/cuda/11.5.2/local_installers/cuda_11.5.2_495.29.05_linux.run`
+
+-   `rapids-runtime: SPARK|DASK|<RUNTIME>` - this is an optional parameter for
+    customizing the rapids runtime. Default is `SPARK`.
 
 -   `cuda-version: 10.1|10.2|<VERSION>` - this is an optional parameter for
-    customizing NVIDIA-provided CUDA version. Default is `10.2`.
+    customizing NVIDIA-provided CUDA version. Default is `11.5`.
+
+-   `nccl-version: 2.8.3|2.11.4|<VERSION>` - this is an optional parameter for
+    customizing NVIDIA-provided NCCL version. Default is `2.11.4`.
+
+-   `gpu-driver-version: 460.73.01|495.29.05|<VERSION>` - this is an optional
+    parameter for customizing NVIDIA-provided kernel driver version. Default is
+    `495.29.05`.
 
 -   `cudnn-version: <VERSION>` - this is an optional parameter for installing
     [NVIDIA cuDNN](https://developer.nvidia.com/CUDNN) version `x.x.x.x`.
-    There is no default value.
+    Default is `8.3.3.40`.
 
 #### Verification
 
 1.  Once the cluster has been created, you can access the Dataproc cluster and
-    verify NVIDIA drivers are install successfully.
+    verify NVIDIA drivers are installed successfully.
 
     ```bash
     sudo nvidia-smi

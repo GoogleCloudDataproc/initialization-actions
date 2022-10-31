@@ -1,28 +1,6 @@
 #!/bin/bash
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS-IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# This script installs NVIDIA GPU drivers and collects GPU utilization metrics.
 
 set -euxo pipefail
-
-function compare_versions_lte {
-  [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]
-}
-
-function compare_versions_lt() {
-  [ "$1" = "$2" ] && return 1 || compare_versions_lte $1 $2
-}
 
 function get_metadata_attribute() {
   local -r attribute_name=$1
@@ -31,89 +9,45 @@ function get_metadata_attribute() {
 }
 
 OS_NAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
-distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
 readonly OS_NAME
 
-# node role
-ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-readonly ROLE
+readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
+readonly DEFAULT_SPARK_RAPIDS_VERSION="22.08.0"
 
-# CUDA version and Driver version
-# https://docs.nvidia.com/deeplearning/frameworks/support-matrix/index.html
-readonly -A DRIVER_FOR_CUDA=([10.1]="418.88"    [10.2]="440.64.00"
-          [11.0]="450.51.06" [11.1]="455.45.01" [11.2]="460.73.01"
-          [11.5]="495.29.05" [11.6]="510.47.03" [11.7]="515.65.01"
-          [11.8]="520.56.06")
-readonly -A CUDNN_FOR_CUDA=( [10.1]="7.6.4.38"  [10.2]="7.6.5.32"
-          [11.0]="8.0.4.30"  [11.1]="8.0.5.39"  [11.2]="8.1.1.33"
-          [11.5]="8.3.3.40"  [11.6]="8.4.1.50"  [11.7]="8.5.0.96"
-          [11.8]="8.6.0.163")
-readonly -A NCCL_FOR_CUDA=(  [10.1]="2.4.8"     [10.2]="2.5.6"
-          [11.0]="2.7.8"     [11.1]="2.8.3"     [11.2]="2.8.3"
-          [11.5]="2.11.4"    [11.6]="2.11.4"    [11.7]="2.12.12"
-          [11.8]="2.15.5")
-readonly -A CUDA_SUBVER=(    [10.1]="10.1.243"  [10.2]="10.2.89"
-          [11.0]="11.0.3"    [11.1]="11.1.0"    [11.2]="11.2.2"
-          [11.5]="11.5.2"    [11.6]="11.6.2"    [11.7]="11.7.1"
-          [11.8]="11.8.0")
-
-RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
-DEFAULT_CUDA_VERSION='11.2'
-if [[ ${DATAPROC_IMAGE_VERSION} == 2.* ]] && [[ "${RUNTIME}" == "SPARK" ]]; then
-  DEFAULT_CUDA_VERSION='11.5'
-fi
-readonly DEFAULT_CUDA_VERSION
-readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
-readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION=${DRIVER_FOR_CUDA["${CUDA_VERSION}"]}
-readonly NVIDIA_DEBIAN_GPU_DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' ${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION})
-readonly NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX=${NVIDIA_DEBIAN_GPU_DRIVER_VERSION%%.*}
-readonly DRIVER=${NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}
-
-# Fail early for configurations known to be unsupported
-function unsupported_error {
-  echo "Unsupported kernel driver on ${distribution}: '${DRIVER}'"
-  exit -1
-}
-if [[ "${OS_NAME}" == "rocky" ]]; then
-  KERNEL_SUBVERSION=$(uname -r | awk -F- '{print $2}')
-  if [[ "${DRIVER}" < "460" && "${DRIVER}" != "450"
-     && "${KERNEL_SUBVERSION%%.*}" > "305" ]]; then
-    unsupported_error
-  fi
-elif [[ "${OS_NAME}" == "debian" ]]; then
-  KERNEL_VERSION=$(uname -r | awk -F- '{print $1}')
-  if [[ "${DRIVER}" < "455"
-     && $(echo "${KERNEL_VERSION%.*} > 5.7" | bc -l) == 1  ]]; then
-    unsupported_error
-  fi
+if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
+  readonly DEFAULT_CUDA_VERSION="11.5"
+  readonly DEFAULT_CUDF_VERSION="22.08.0"
+  readonly DEFAULT_XGBOOST_VERSION="1.6.2"
+  readonly DEFAULT_XGBOOST_GPU_SUB_VERSION="0.3.0"
+  readonly SPARK_VERSION="3.0"
+else
+  readonly DEFAULT_CUDA_VERSION="10.1"
+  readonly DEFAULT_CUDF_VERSION="0.9.2"
+  readonly DEFAULT_XGBOOST_VERSION="1.0.0"
+  readonly DEFAULT_XGBOOST_GPU_SUB_VERSION="Beta5"
+  readonly SPARK_VERSION="2.x"
 fi
 
-DEFAULT_NCCL_VERSION=${NCCL_FOR_CUDA["${CUDA_VERSION}"]}
-if [[ "${OS_NAME}" == "rocky" ]] \
-   && (compare_versions_lte "${DEFAULT_NCCL_VERSION}" "2.8.4") ; then
-  DEFAULT_NCCL_VERSION="2.8.4"
-fi
-readonly DEFAULT_NCCL_VERSION
-readonly NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION})
+readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
+readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
+
+readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
+
+# CUDA version and Driver version config
+CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.5')
+readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='495.29.05'
+
+readonly CUDA_VERSION
+readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX=${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION%%.*}
 
 # Parameters for NVIDIA-provided Debian GPU driver
-DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${NVIDIA_DEBIAN_GPU_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${NVIDIA_DEBIAN_GPU_DRIVER_VERSION}.run"
-if [[ "$(curl -s -I ${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL} | head -1 | awk '{print $2}')" != "200" ]]; then
-  DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${NVIDIA_DEBIAN_GPU_DRIVER_VERSION%.*}/NVIDIA-Linux-x86_64-${NVIDIA_DEBIAN_GPU_DRIVER_VERSION%.*}.run"
-fi
-readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL
-
+readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION}.run"
 NVIDIA_DEBIAN_GPU_DRIVER_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL}")
 readonly NVIDIA_DEBIAN_GPU_DRIVER_URL
 
 readonly NVIDIA_BASE_DL_URL='https://developer.download.nvidia.com/compute'
 
-# Parameters for NVIDIA-provided NCCL library
-readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb"
-NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
-readonly NCCL_REPO_URL
-readonly NCCL_REPO_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/7fa2af80.pub"
-
+# Parameters for NVIDIA-provided Debian GPU driver
 readonly -A DEFAULT_NVIDIA_DEBIAN_CUDA_URLS=(
   [10.1]="${NVIDIA_BASE_DL_URL}/cuda/10.1/Prod/local_installers/cuda_10.1.243_418.87.00_linux.run"
   [10.2]="${NVIDIA_BASE_DL_URL}/cuda/10.2/Prod/local_installers/cuda_10.2.89_440.33.01_linux.run"
@@ -122,8 +56,7 @@ readonly -A DEFAULT_NVIDIA_DEBIAN_CUDA_URLS=(
   [11.2]="${NVIDIA_BASE_DL_URL}/cuda/11.2.2/local_installers/cuda_11.2.2_460.32.03_linux.run"
   [11.5]="${NVIDIA_BASE_DL_URL}/cuda/11.5.2/local_installers/cuda_11.5.2_495.29.05_linux.run"
   [11.6]="${NVIDIA_BASE_DL_URL}/cuda/11.6.2/local_installers/cuda_11.6.2_510.47.03_linux.run"
-  [11.7]="${NVIDIA_BASE_DL_URL}/cuda/11.7.1/local_installers/cuda_11.7.1_515.65.01_linux.run"
-  [11.8]="${NVIDIA_BASE_DL_URL}/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run")
+  [11.7]="${NVIDIA_BASE_DL_URL}/cuda/11.7.1/local_installers/cuda_11.7.1_515.65.01_linux.run")
 readonly DEFAULT_NVIDIA_DEBIAN_CUDA_URL=${DEFAULT_NVIDIA_DEBIAN_CUDA_URLS["${CUDA_VERSION}"]}
 NVIDIA_DEBIAN_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_DEBIAN_CUDA_URL}")
 readonly NVIDIA_DEBIAN_CUDA_URL
@@ -135,26 +68,6 @@ readonly NVIDIA_UBUNTU_REPO_CUDA_PIN="${NVIDIA_UBUNTU_REPO_URL}/cuda-ubuntu1804.
 
 # Parameter for NVIDIA-provided Rocky Linux GPU driver
 readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/rhel8/x86_64/cuda-rhel8.repo"
-
-# Parameters for NVIDIA-provided CUDNN library
-DEFAULT_CUDNN_VERSION=${CUDNN_FOR_CUDA["${CUDA_VERSION}"]}
-if [[ "${OS_NAME}" == "rocky" ]] \
-   && (compare_versions_lte "${DEFAULT_CUDNN_VERSION}" "8.0.5.39") ; then
-  DEFAULT_CUDNN_VERSION="8.0.5.39"
-fi
-readonly DEFAULT_CUDNN_VERSION
-readonly CUDNN_VERSION=$(get_metadata_attribute 'cudnn-version' "${DEFAULT_CUDNN_VERSION}")
-CUDNN_TARBALL="cudnn-${CUDA_VERSION}-linux-x64-v${CUDNN_VERSION}.tgz"
-CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN_VERSION%.*}/${CUDNN_TARBALL}"
-if ( compare_versions_lte "8.3.1.22" "${CUDNN_VERSION}" ); then
-  CUDNN_TARBALL="cudnn-linux-x86_64-${CUDNN_VERSION}_cuda${CUDA_VERSION%.*}-archive.tar.xz"
-  if ( compare_versions_lte "${CUDNN_VERSION}" "8.4.1.50" ); then
-    CUDNN_TARBALL="cudnn-linux-x86_64-${CUDNN_VERSION}_cuda${CUDA_VERSION}-archive.tar.xz"
-  fi
-  CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN_VERSION%.*}/local_installers/${CUDA_VERSION}/${CUDNN_TARBALL}"
-fi
-readonly CUDNN_TARBALL
-readonly CUDNN_TARBALL_URL
 
 # Whether to install NVIDIA-provided or OS-provided GPU driver
 GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'NVIDIA')
@@ -175,6 +88,11 @@ NVIDIA_SMI_PATH='/usr/bin'
 MIG_MAJOR_CAPS=0
 IS_MIG_ENABLED=0
 
+# SPARK config
+readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
+readonly XGBOOST_VERSION=$(get_metadata_attribute 'xgboost-version' ${DEFAULT_XGBOOST_VERSION})
+readonly XGBOOST_GPU_SUB_VERSION=$(get_metadata_attribute 'spark-gpu-sub-version' ${DEFAULT_XGBOOST_GPU_SUB_VERSION})
+
 function execute_with_retries() {
   local -r cmd=$1
   for ((i = 0; i < 10; i++)); do
@@ -186,98 +104,86 @@ function execute_with_retries() {
   return 1
 }
 
-function install_nvidia_nccl() {
-  local -r nccl_version="${NCCL_VERSION}-1+cuda${CUDA_VERSION}"
+function install_spark_rapids() {
+  local -r rapids_repo_url='https://repo1.maven.org/maven2/ai/rapids'
+  local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
+  local -r dmlc_repo_url='https://repo.maven.apache.org/maven2/ml/dmlc'
+  
+  # Convert . to - for URL formatting
+  local cudf_cuda_version="${CUDA_VERSION//\./-}"
 
-  if [[ ${OS_NAME} == rocky ]]; then
-    execute_with_retries "dnf -y -q install libnccl-${nccl_version} libnccl-devel-${nccl_version} libnccl-static-${nccl_version}"
-  elif [[ ${OS_NAME} == ubuntu ]] || [[ ${OS_NAME} == debian ]]; then
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 "${NCCL_REPO_KEY}" | apt-key add -
+  # There's only one release for all CUDA 11 versions
+  # The version formatting does not have a '.'
+  if [[ ${cudf_cuda_version} == 11* ]]; then
+    cudf_cuda_version="11"
+  fi
 
-    local tmp_dir
-    tmp_dir=$(mktemp -d -t gpu-init-action-nccl-XXXX)
-
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${NCCL_REPO_URL}" -o "${tmp_dir}/nvidia-ml-repo.deb"
-    dpkg -i "${tmp_dir}/nvidia-ml-repo.deb"
-
-    execute_with_retries "apt-get update"
-
-    execute_with_retries \
-      "apt-get install -y --allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
+  if [[ "${SPARK_VERSION}" == "3"* ]]; then
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+      "${dmlc_repo_url}/xgboost4j-spark-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-spark-gpu_2.12-${XGBOOST_VERSION}.jar" \
+      -P /usr/lib/spark/jars/
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+      "${dmlc_repo_url}/xgboost4j-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-gpu_2.12-${XGBOOST_VERSION}.jar" \
+      -P /usr/lib/spark/jars/
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+      "${nvidia_repo_url}/rapids-4-spark_2.12/${SPARK_RAPIDS_VERSION}/rapids-4-spark_2.12-${SPARK_RAPIDS_VERSION}.jar" \
+      -P /usr/lib/spark/jars/
   else
-    echo "Unsupported OS: '${OS_NAME}'"
-    exit 1
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+      "${rapids_repo_url}/xgboost4j-spark_${SPARK_VERSION}/${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}/xgboost4j-spark_${SPARK_VERSION}-${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}.jar" \
+      -P /usr/lib/spark/jars/
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+      "${rapids_repo_url}/xgboost4j_${SPARK_VERSION}/${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}/xgboost4j_${SPARK_VERSION}-${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}.jar" \
+      -P /usr/lib/spark/jars/
   fi
 }
 
-function install_nvidia_cudnn() {
-  local major_version
-  major_version="${CUDNN_VERSION%%.*}"
-  local cudnn_pkg_version
-  cudnn_pkg_version="${CUDNN_VERSION}-1+cuda${CUDA_VERSION}"
+function configure_spark() {
+  if [[ "${SPARK_VERSION}" == "3"* ]]; then
+    cat >>${SPARK_CONF_DIR}/spark-defaults.conf <<EOF
 
-  if [[ ${OS_NAME} == rocky ]]; then
-    if [[ ${major_version} == 8 ]]; then
-      execute_with_retries "dnf -y -q install libcudnn8-${cudnn_pkg_version} libcudnn8-devel-${cudnn_pkg_version}"
-    else
-      echo "Unsupported CUDNN version: '${CUDNN_VERSION}'"
-      exit 1
-    fi
-  elif [[ ${OS_NAME} == ubuntu ]]; then
-    local -a packages
-    packages=(
-      "libcudnn${major_version}=${cudnn_pkg_version}"
-      "libcudnn${major_version}-dev=${cudnn_pkg_version}")
-    execute_with_retries \
-      "apt-get install -y --no-install-recommends ${packages[*]}"
-  elif [[ ${OS_NAME} == debian ]]; then
-    local tmp_dir
-    tmp_dir=$(mktemp -d -t gpu-init-action-cudnn-XXXX)
-
-    curl -fSsL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${CUDNN_TARBALL_URL}" -o "${tmp_dir}/${CUDNN_TARBALL}"
-
-    if ( compare_versions_lte "${CUDNN_VERSION}" "8.3.0.98" ); then
-      tar -xzf "${tmp_dir}/${CUDNN_TARBALL}" -C /usr/local
-    else
-      ln -sf /usr/local/cuda/targets/x86_64-linux/lib /usr/local/cuda/lib
-      tar -h --no-same-owner --strip-components=1 \
-        -xJf "${tmp_dir}/${CUDNN_TARBALL}" -C /usr/local/cuda
-    fi
-
-    cat <<'EOF' >>/etc/profile.d/cudnn.sh
-export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
+###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
+# Rapids Accelerator for Spark can utilize AQE, but when the plan is not finalized, 
+# query explain output won't show GPU operator, if user have doubt
+# they can uncomment the line before seeing the GPU plan explain, but AQE on gives user the best performance.
+# spark.sql.adaptive.enabled=false
+spark.executor.resource.gpu.amount=1
+spark.plugins=com.nvidia.spark.SQLPlugin
+spark.executor.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh
+spark.dynamicAllocation.enabled=false
+spark.sql.autoBroadcastJoinThreshold=10m
+spark.sql.files.maxPartitionBytes=512m
+###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
 EOF
   else
-    echo "Unsupported OS: '${OS_NAME}'"
-    exit 1
+    cat >>${SPARK_CONF_DIR}/spark-defaults.conf <<EOF
+
+###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
+spark.submit.pyFiles=/usr/lib/spark/jars/xgboost4j-spark_${SPARK_VERSION}-${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}.jar
+###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
+EOF
   fi
-
-  ldconfig
-
-  echo "NVIDIA cuDNN successfully installed for ${OS_NAME}."
 }
 
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
   if [[ ${OS_NAME} == debian ]]; then
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
       "${NVIDIA_UBUNTU_REPO_KEY_PACKAGE}" -o /tmp/cuda-keyring.deb
     dpkg -i "/tmp/cuda-keyring.deb"
 
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
       "${NVIDIA_DEBIAN_GPU_DRIVER_URL}" -o driver.run
     bash "./driver.run" --silent --install-libglvnd
 
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
       "${NVIDIA_DEBIAN_CUDA_URL}" -o cuda.run
     bash "./cuda.run" --silent --toolkit --no-opengl-libs
   elif [[ ${OS_NAME} == ubuntu ]]; then
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
       "${NVIDIA_UBUNTU_REPO_KEY_PACKAGE}" -o /tmp/cuda-keyring.deb
     dpkg -i "/tmp/cuda-keyring.deb"
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
       "${NVIDIA_UBUNTU_REPO_CUDA_PIN}" -o /etc/apt/preferences.d/cuda-repository-pin-600
 
     add-apt-repository "deb ${NVIDIA_UBUNTU_REPO_URL} /"
@@ -289,16 +195,12 @@ function install_nvidia_gpu_driver() {
       local -r cuda_package=cuda-toolkit
     fi
     # Without --no-install-recommends this takes a very long time.
-    execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}"
+    execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}"
     execute_with_retries "apt-get install -y -q --no-install-recommends ${cuda_package}"
   elif [[ ${OS_NAME} == rocky ]]; then
     execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPO_URL}"
     execute_with_retries "dnf clean all"
-    execute_with_retries "dnf -y -q module install nvidia-driver:${NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}-dkms"
-    NVIDIA_ROCKY_GPU_DRIVER_VERSION="$(ls -d /usr/src/nvidia-* | awk -F"nvidia-" '{print $2}')"
-    execute_with_retries "dkms build nvidia/${NVIDIA_ROCKY_GPU_DRIVER_VERSION}"
-    execute_with_retries "dkms install nvidia/${NVIDIA_ROCKY_GPU_DRIVER_VERSION}"
-    modprobe nvidia
+    execute_with_retries "dnf -y -q module install nvidia-driver:${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}-dkms"
     execute_with_retries "dnf -y -q install cuda-${CUDA_VERSION//./-}"
   else
     echo "Unsupported OS: '${OS_NAME}'"
@@ -314,7 +216,7 @@ function install_gpu_agent() {
     execute_with_retries "apt-get install -y -q python-pip"
   fi
   local install_dir=/opt/gpu-utilization-agent
-  mkdir -p "${install_dir}"
+  mkdir "${install_dir}"
   curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
     "${GPU_AGENT_REPO_URL}/requirements.txt" -o "${install_dir}/requirements.txt"
   curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
@@ -406,8 +308,8 @@ function configure_gpu_exclusive_mode() {
 function fetch_mig_scripts() {
   mkdir -p /usr/local/yarn-mig-scripts
   sudo chmod 755 /usr/local/yarn-mig-scripts
-  wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.10/examples/MIG-Support/yarn-unpatched/scripts/nvidia-smi
-  wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.10/examples/MIG-Support/yarn-unpatched/scripts/mig2gpu.sh
+  wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.08/examples/MIG-Support/yarn-unpatched/scripts/nvidia-smi
+  wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.08/examples/MIG-Support/yarn-unpatched/scripts/mig2gpu.sh
   sudo chmod 755 /usr/local/yarn-mig-scripts/*
 }
 
@@ -477,7 +379,7 @@ EOF
   systemctl start dataproc-cgroup-device-permissions
 }
 
-function main() {
+function setup_gpu_yarn() {
   if [[ ${OS_NAME} != debian ]] && [[ ${OS_NAME} != ubuntu ]] && [[ ${OS_NAME} != rocky ]]; then
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
@@ -490,7 +392,7 @@ function main() {
   elif [[ ${OS_NAME} == rocky ]] ; then
     execute_with_retries "dnf -y -q update"
     execute_with_retries "dnf -y -q install pciutils"
-    execute_with_retries "dnf -y -q install kernel-devel-$(uname -r)"
+    execute_with_retries "dnf -y -q install kernel-devel"
     execute_with_retries "dnf -y -q install gcc"
   fi
 
@@ -520,10 +422,7 @@ function main() {
     # if mig is enabled drivers would have already been installed
     if [[ $IS_MIG_ENABLED -eq 0 ]]; then
       install_nvidia_gpu_driver
-      if [[ -n ${CUDNN_VERSION} ]]; then
-        install_nvidia_nccl
-        install_nvidia_cudnn
-      fi
+
       #Install GPU metrics collection in Stackdriver if needed
       if [[ ${INSTALL_GPU_AGENT} == true ]]; then
         install_gpu_agent
@@ -547,6 +446,28 @@ function main() {
     systemctl restart hadoop-yarn-resourcemanager.service
   fi
   if [[ $(systemctl show hadoop-yarn-nodemanager.service -p SubState --value) == 'running' ]]; then
+    systemctl restart hadoop-yarn-nodemanager.service
+  fi
+}
+function main() {
+  setup_gpu_yarn
+  
+  if [[ "${RUNTIME}" == "SPARK" ]]; then
+    install_spark_rapids
+    configure_spark
+    echo "RAPIDS initialized with Spark runtime"
+  else
+    echo "Unsupported RAPIDS Runtime: ${RUNTIME}"
+    exit 1
+  fi  
+
+  if [[ "${ROLE}" == "Master" ]]; then
+    systemctl restart hadoop-yarn-resourcemanager.service
+    # Restart NodeManager on Master as well if this is a single-node-cluster.
+    if systemctl status hadoop-yarn-nodemanager; then
+      systemctl restart hadoop-yarn-nodemanager.service
+    fi
+  else
     systemctl restart hadoop-yarn-nodemanager.service
   fi
 }
