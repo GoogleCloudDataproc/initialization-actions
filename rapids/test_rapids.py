@@ -86,13 +86,11 @@ class RapidsTestCase(DataprocTestCase):
   def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
     if self.getImageOs() == "rocky":
       self.skipTest("Not supported in Rocky Linux-based images")
-
+        
+    if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
+      self.skipTest("Not supported in pre 2.0 images")
     optional_components = None
-    metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
-    if self.getImageVersion() < pkg_resources.parse_version("2.0"):
-      optional_components = ["ANACONDA"]
-      metadata += ",cuda-version=10.1"
-
+    
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
@@ -116,7 +114,7 @@ class RapidsTestCase(DataprocTestCase):
     if self.getImageOs() == "rocky":
       self.skipTest("Not supported in Rocky Linux-based images")
 
-    if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
+    if self.getImageVersion() < pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0 images")
 
     metadata = ("gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
