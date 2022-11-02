@@ -309,41 +309,6 @@ function install_nvidia_gpu_driver() {
 }
 
 # Collects 'gpu_utilization' and 'gpu_memory_utilization' metrics
-function install_gpu_agent_bak() {
-  if ! command -v pip; then
-    execute_with_retries "apt-get install -y -q python-pip"
-  fi
-  local install_dir=/opt/gpu-utilization-agent
-  mkdir -p "${install_dir}"
-  curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-    "${GPU_AGENT_REPO_URL}/requirements.txt" -o "${install_dir}/requirements.txt"
-  curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-    "${GPU_AGENT_REPO_URL}/report_gpu_metrics.py" -o "${install_dir}/report_gpu_metrics.py"
-  pip install -r "${install_dir}/requirements.txt"
-
-  # Generate GPU service.
-  cat <<EOF >/lib/systemd/system/gpu-utilization-agent.service
-[Unit]
-Description=GPU Utilization Metric Agent
-
-[Service]
-Type=simple
-PIDFile=/run/gpu_agent.pid
-ExecStart=/bin/bash --login -c 'python "${install_dir}/report_gpu_metrics.py"'
-User=root
-Group=root
-WorkingDirectory=/
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
-  # Reload systemd manager configuration
-  systemctl daemon-reload
-  # Enable gpu-utilization-agent service
-  systemctl --no-reload --now enable gpu-utilization-agent.service
-}
-
 function install_gpu_agent() {
   downloading_agent
   installing_agent_dependency
