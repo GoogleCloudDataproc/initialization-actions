@@ -60,7 +60,7 @@ class RapidsTestCase(DataprocTestCase):
     if self.getImageOs() == "rocky":
       self.skipTest("Not supported in Rocky Linux-based images")
 
-    if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+    if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0 images")
 
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=DASK"
