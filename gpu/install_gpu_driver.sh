@@ -309,7 +309,7 @@ function install_nvidia_gpu_driver() {
 }
 
 # Collects 'gpu_utilization' and 'gpu_memory_utilization' metrics
-function install_gpu_agent() {
+function install_gpu_agent_bak() {
   if ! command -v pip; then
     execute_with_retries "apt-get install -y -q python-pip"
   fi
@@ -342,6 +342,35 @@ EOF
   systemctl daemon-reload
   # Enable gpu-utilization-agent service
   systemctl --no-reload --now enable gpu-utilization-agent.service
+}
+
+function install_gpu_agent() {
+  downloading_agent
+  installing_agent_dependency
+  starting_agent_service
+}
+
+function downloading_agent(){
+  sudo apt-get install git -y
+  sudo mkdir -p /opt/google
+  cd /opt/google
+  sudo git clone https://github.com/GoogleCloudPlatform/compute-gpu-monitoring.git
+}
+
+function installing_agent_dependency(){
+  cd /opt/google/compute-gpu-monitoring/linux
+  sudo apt-get install python3.8-venv python3.8-dev -y
+  sudo python3.8 -m venv venv
+  sudo venv/bin/pip install wheel
+  cd /opt/google/compute-gpu-monitoring/linux/venv/bin
+  sudo ln -sf /usr/bin/python3.8 python3
+  sudo venv/bin/pip install -Ur requirements.txt
+}
+
+function starting_agent_service(){
+  sudo cp /opt/google/compute-gpu-monitoring/linux/systemd/google_gpu_monitoring_agent_venv.service /lib/systemd/system
+  sudo systemctl daemon-reload
+  sudo systemctl --no-reload --now enable /lib/systemd/system/google_gpu_monitoring_agent_venv.service
 }
 
 function set_hadoop_property() {
