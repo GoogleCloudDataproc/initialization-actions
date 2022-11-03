@@ -49,7 +49,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
-        timeout_in_minutes=30)
+        timeout_in_minutes=30,
+        boot_disk_size="200GB")
     for machine_suffix in machine_suffixes:
       self.verify_instance("{}-{}".format(self.getClusterName(),
                                           machine_suffix))
@@ -75,7 +76,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
-        timeout_in_minutes=30)
+        timeout_in_minutes=30,
+        boot_disk_size="200GB")
     for machine_suffix in machine_suffixes:
       self.verify_instance("{}-{}".format(self.getClusterName(),
                                           machine_suffix))
@@ -102,6 +104,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         worker_accelerator=worker_accelerator,
         metadata=metadata,
         timeout_in_minutes=30,
+        boot_disk_size="200GB",
         scopes="https://www.googleapis.com/auth/monitoring.write")
     for machine_suffix in machine_suffixes:
       self.verify_instance("{}-{}".format(self.getClusterName(),
@@ -136,7 +139,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
-        timeout_in_minutes=30)
+        timeout_in_minutes=30,
+        boot_disk_size="200GB")
     for machine_suffix in machine_suffixes:
       self.verify_instance("{}-{}".format(self.getClusterName(),
                                           machine_suffix))
@@ -160,6 +164,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         worker_accelerator=worker_accelerator,
         metadata=None,
         timeout_in_minutes=30,
+        boot_disk_size="200GB",
         startup_script="gpu/mig.sh")
 
     for machine_suffix in ["w-0", "w-1"]:
@@ -189,6 +194,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         machine_type="n1-standard-2",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
+        boot_disk_size="200GB",
         timeout_in_minutes=30)
 
     self.assert_dataproc_job(

@@ -12,11 +12,11 @@ readonly DEFAULT_DASK_RAPIDS_VERSION="22.04"
 readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' ${DEFAULT_DASK_RAPIDS_VERSION})
 
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
-readonly DEFAULT_SPARK_RAPIDS_VERSION="22.08.0"
+readonly DEFAULT_SPARK_RAPIDS_VERSION="22.10.0"
 
 if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
   readonly DEFAULT_CUDA_VERSION="11.5"
-  readonly DEFAULT_CUDF_VERSION="22.08.0"
+  readonly DEFAULT_CUDF_VERSION="22.10.0"
   readonly DEFAULT_XGBOOST_VERSION="1.6.2"
   readonly DEFAULT_XGBOOST_GPU_SUB_VERSION="0.3.0"
   # TODO: uncomment when Spark 3.1 jars will be released - RAPIDS work with Spark 3.1, this is just for Maven URL
@@ -117,6 +117,8 @@ spark.executor.resource.gpu.amount=1
 spark.plugins=com.nvidia.spark.SQLPlugin
 spark.executor.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh
 spark.dynamicAllocation.enabled=false
+spark.sql.autoBroadcastJoinThreshold=10m
+spark.sql.files.maxPartitionBytes=512m
 ###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
 EOF
   else
