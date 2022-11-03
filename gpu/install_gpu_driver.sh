@@ -316,20 +316,27 @@ function install_gpu_agent() {
 }
 
 function downloading_agent(){
-  sudo apt-get install git -y
+  execute_with_retries "sudo apt-get install git -y"
   sudo mkdir -p /opt/google
   cd /opt/google
-  sudo git clone https://github.com/GoogleCloudPlatform/compute-gpu-monitoring.git
+  execute_with_retries "sudo git clone https://github.com/GoogleCloudPlatform/compute-gpu-monitoring.git"
 }
 
 function installing_agent_dependency(){
-  cd /opt/google/compute-gpu-monitoring/linux
-  sudo apt-get install python3.8-venv python3.8-dev -y
-  sudo python3.8 -m venv venv
-  sudo venv/bin/pip install wheel
-  cd /opt/google/compute-gpu-monitoring/linux/venv/bin
-  sudo ln -sf /usr/bin/python3.8 python3
-  sudo venv/bin/pip install -Ur requirements.txt
+  if [[ ${OS_NAME} == debian ]]; then
+    execute_with_retries "sudo apt-get install python3-venv python3-dev -y"
+    sudo python3 -m venv venv
+    execute_with_retries "sudo venv/bin/pip install wheel"
+    execute_with_retries "sudo venv/bin/pip install -Ur requirements.txt"
+  elif [[ ${OS_NAME} == ubuntu ]]; then
+    execute_with_retries "sudo apt-get install python3.8-venv python3.8-dev -y"
+    sudo python3.8 -m venv venv
+    execute_with_retries "sudo venv/bin/pip install wheel setuptools"
+    cd /opt/google/compute-gpu-monitoring/linux/venv/bin
+    sudo ln -sf /opt/conda/default/bin/python3 python3
+    cd /opt/google/compute-gpu-monitoring/linux
+    execute_with_retries "sudo venv/bin/pip install -Ur requirements.txt"
+  fi
 }
 
 function starting_agent_service(){

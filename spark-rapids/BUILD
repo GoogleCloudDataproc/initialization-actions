@@ -3,9 +3,9 @@ package(default_visibility = ["//visibility:public"])
 exports_files(["spark-rapids.sh"])
 
 py_test(
-    name = "test_sparkRapids",
+    name = "test_spark_rapids",
     size = "enormous",
-    srcs = ["test_sparkRapids.py"],
+    srcs = ["test_spark_rapids.py"],
     data = [
         "spark-rapids.sh",
         "verify_xgboost_spark_rapids.scala",

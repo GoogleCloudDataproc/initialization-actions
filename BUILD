@@ -8,6 +8,7 @@ test_suite(
         ":test_hive_hcatalog",
         ":test_hive_llap",
         ":test_starburst_presto",
+        ":test_spark_rapids",
         "//alluxio:test_alluxio",
         "//atlas:test_atlas",
         "//bigtable:test_bigtable",
@@ -34,7 +35,6 @@ test_suite(
         "//solr:test_solr",
         "//sqoop:test_sqoop",
         "//tony:test_tony",
-        "//sparkRapids:test_sparkRapids",
     ],
 )
 
