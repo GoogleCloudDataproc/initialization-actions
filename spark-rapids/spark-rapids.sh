@@ -212,38 +212,30 @@ function install_nvidia_gpu_driver() {
 
 # Collects 'gpu_utilization' and 'gpu_memory_utilization' metrics
 function install_gpu_agent() {
-  if ! command -v pip; then
-    execute_with_retries "apt-get install -y -q python-pip"
-  fi
-  local install_dir=/opt/gpu-utilization-agent
-  mkdir "${install_dir}"
-  curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-    "${GPU_AGENT_REPO_URL}/requirements.txt" -o "${install_dir}/requirements.txt"
-  curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-    "${GPU_AGENT_REPO_URL}/report_gpu_metrics.py" -o "${install_dir}/report_gpu_metrics.py"
-  pip install -r "${install_dir}/requirements.txt"
+  downloading_agent
+  installing_agent_dependency
+  starting_agent_service
+}
 
-  # Generate GPU service.
-  cat <<EOF >/lib/systemd/system/gpu-utilization-agent.service
-[Unit]
-Description=GPU Utilization Metric Agent
+function downloading_agent(){
+  execute_with_retries "sudo apt-get install git -y"
+  sudo mkdir -p /opt/google
+  sudo chmod 777 /opt/google
+  cd /opt/google
+  execute_with_retries "git clone https://github.com/GoogleCloudPlatform/compute-gpu-monitoring.git"
+}
 
-[Service]
-Type=simple
-PIDFile=/run/gpu_agent.pid
-ExecStart=/bin/bash --login -c 'python "${install_dir}/report_gpu_metrics.py"'
-User=root
-Group=root
-WorkingDirectory=/
-Restart=always
+function installing_agent_dependency(){
+  cd /opt/google/compute-gpu-monitoring/linux
+  python3 -m venv venv
+  venv/bin/pip install wheel
+  venv/bin/pip install -Ur requirements.txt
+}
 
-[Install]
-WantedBy=multi-user.target
-EOF
-  # Reload systemd manager configuration
+function starting_agent_service(){
+  sudo cp /opt/google/compute-gpu-monitoring/linux/systemd/google_gpu_monitoring_agent_venv.service /lib/systemd/system
   systemctl daemon-reload
-  # Enable gpu-utilization-agent service
-  systemctl --no-reload --now enable gpu-utilization-agent.service
+  systemctl --no-reload --now enable /lib/systemd/system/google_gpu_monitoring_agent_venv.service
 }
 
 function set_hadoop_property() {

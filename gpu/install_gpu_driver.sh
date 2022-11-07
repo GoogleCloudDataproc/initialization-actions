@@ -318,31 +318,22 @@ function install_gpu_agent() {
 function downloading_agent(){
   execute_with_retries "sudo apt-get install git -y"
   sudo mkdir -p /opt/google
+  sudo chmod 777 /opt/google
   cd /opt/google
-  execute_with_retries "sudo git clone https://github.com/GoogleCloudPlatform/compute-gpu-monitoring.git"
+  execute_with_retries "git clone https://github.com/GoogleCloudPlatform/compute-gpu-monitoring.git"
 }
 
 function installing_agent_dependency(){
-  if [[ ${OS_NAME} == debian ]]; then
-    execute_with_retries "sudo apt-get install python3-venv python3-dev -y"
-    sudo python3 -m venv venv
-    execute_with_retries "sudo venv/bin/pip install wheel"
-    execute_with_retries "sudo venv/bin/pip install -Ur requirements.txt"
-  elif [[ ${OS_NAME} == ubuntu ]]; then
-    execute_with_retries "sudo apt-get install python3.8-venv python3.8-dev -y"
-    sudo python3.8 -m venv venv
-    execute_with_retries "sudo venv/bin/pip install wheel setuptools"
-    cd /opt/google/compute-gpu-monitoring/linux/venv/bin
-    sudo ln -sf /opt/conda/default/bin/python3 python3
-    cd /opt/google/compute-gpu-monitoring/linux
-    execute_with_retries "sudo venv/bin/pip install -Ur requirements.txt"
-  fi
+  cd /opt/google/compute-gpu-monitoring/linux
+  python3 -m venv venv
+  venv/bin/pip install wheel
+  venv/bin/pip install -Ur requirements.txt
 }
 
 function starting_agent_service(){
   sudo cp /opt/google/compute-gpu-monitoring/linux/systemd/google_gpu_monitoring_agent_venv.service /lib/systemd/system
-  sudo systemctl daemon-reload
-  sudo systemctl --no-reload --now enable /lib/systemd/system/google_gpu_monitoring_agent_venv.service
+  systemctl daemon-reload
+  systemctl --no-reload --now enable /lib/systemd/system/google_gpu_monitoring_agent_venv.service
 }
 
 function set_hadoop_property() {
