@@ -35,9 +35,10 @@ readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 
 # CUDA version and Driver version config
 CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.5')
-readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='495.29.05'
+DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '495.29.05')
 
 readonly CUDA_VERSION
+readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION
 readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX=${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION%%.*}
 
 # Parameters for NVIDIA-provided Debian GPU driver
