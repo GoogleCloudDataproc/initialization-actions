@@ -116,7 +116,9 @@ Or go to the Spark UI and click on the application you ran and on the "SQL" tab.
 If you click the operation "count at ...", you should see the graph of Spark
 Executors and some of those should have the "GPU" label as well.
 
-If you want to monitor GPU metrics on Dataproc, you can create the cluster with additional configs:
+If you want to monitor GPU metrics on Dataproc, you can create the cluster with additional
+[metadata](https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/metadata) and 
+[scopes](https://cloud.google.com/sdk/gcloud/reference/dataproc/clusters/create#--scopes):
 ```
 --metadata install-gpu-agent="true"
 --scopes monitoring
