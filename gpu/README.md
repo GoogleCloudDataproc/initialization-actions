@@ -171,6 +171,17 @@ To figure out which version you need, refer to the framework's documentation,
 sometimes found in the "building from source" sections.
 [Here](https://www.tensorflow.org/install/source#gpu) is TensorFlow's.
 
+#### NVIDIA Container Toolkit
+
+If you have chosen to use the [DOCKER optional
+component](https://cloud.google.com/dataproc/docs/concepts/components/docker),
+`--optional-components=DOCKER`, and you have selected a sufficient CUDA version,
+the gpu driver installation script will also install the [NVIDIA Container
+Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/overview.html)
+and configure your cluster to use nvidia-docker for [Launching Applications Using Docker Containers](https://hadoop.apache.org/docs/r3.0.2/hadoop-yarn/hadoop-yarn-site/DockerContainers.html).
+You may specify the docker image on which to run your workload using the
+`yarn-docker-image` metadata parameter.
+
 #### Metadata parameters:
 
 -   `install-gpu-agent: true|false` - this is an optional parameter with
@@ -206,6 +217,20 @@ sometimes found in the "building from source" sections.
 -   `cudnn-version: <VERSION>` - this is an optional parameter for installing
     [NVIDIA cuDNN](https://developer.nvidia.com/CUDNN) version `x.x.x.x`.
     Default is `8.3.3.40`.
+
+-   `yarn-docker-image: nvidia/cuda:11.1.1-base-ubuntu20.04|<DOCKER IMAGE>` -
+    this is an optional parameter to specify the docker image on which to run
+    the nvidia container toolkit test.  Default is
+    `nvidia/cuda:11.1.1-base-ubuntu20.04`
+    
+-   `yarn-container-runtime-type: docker|default|<CONTAINER RUNTIME TYPE>` -
+    Determines whether an application will be launched in a Docker container. If
+    the value is "docker", the application will be launched in a Docker
+    container. Otherwise a regular process tree container will be used, and in
+    order to execute spark jobs in docker containers, the
+    `--properties=spark.executorEnv.YARN_CONTAINER_RUNTIME_TYPE=docker` argument
+    must be passed to your `gcloud dataproc jobs submit pyspark` command, or the
+    property must otherwise be provided to the job.  Default is `default`
 
 #### Verification
 
