@@ -8,7 +8,7 @@ test_suite(
         ":test_hive_hcatalog",
         ":test_hive_llap",
         ":test_starburst_presto",
-        ":test_spark_rapids",
+        "spark-rapids:test_spark_rapids",
         "//alluxio:test_alluxio",
         "//atlas:test_atlas",
         "//bigtable:test_bigtable",
