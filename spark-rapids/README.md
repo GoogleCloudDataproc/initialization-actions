@@ -123,7 +123,7 @@ If you want to monitor GPU metrics on Dataproc, you can create the cluster with 
 --metadata install-gpu-agent="true"
 --scopes monitoring
 ```
-Then you can monitor following metrics on [Web UI](https://console.cloud.google.com/monitoring/metrics-explorer),
+You can then monitor the following metrics on [Web UI](https://console.cloud.google.com/monitoring/metrics-explorer),
 we should be able to see "Resource & Metric" -> "VM Instance" -> "Custom":
 * **custom.googleapis.com/instance/gpu/utilization** - The GPU cores utilization in %.
 * **custom.googleapis.com/instance/gpu/memory_utilization** - The GPU memory bandwidth utilization in %.

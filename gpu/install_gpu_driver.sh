@@ -310,12 +310,12 @@ function install_nvidia_gpu_driver() {
 
 # Collects 'gpu_utilization' and 'gpu_memory_utilization' metrics
 function install_gpu_agent() {
-  downloading_agent
-  installing_agent_dependency
-  starting_agent_service
+  download_agent
+  install_agent_dependency
+  start_agent_service
 }
 
-function downloading_agent(){
+function download_agent(){
   execute_with_retries "sudo apt-get install git -y"
   sudo mkdir -p /opt/google
   sudo chmod 777 /opt/google
@@ -323,14 +323,14 @@ function downloading_agent(){
   execute_with_retries "git clone https://github.com/GoogleCloudPlatform/compute-gpu-monitoring.git"
 }
 
-function installing_agent_dependency(){
+function install_agent_dependency(){
   cd /opt/google/compute-gpu-monitoring/linux
   python3 -m venv venv
   venv/bin/pip install wheel
   venv/bin/pip install -Ur requirements.txt
 }
 
-function starting_agent_service(){
+function start_agent_service(){
   sudo cp /opt/google/compute-gpu-monitoring/linux/systemd/google_gpu_monitoring_agent_venv.service /lib/systemd/system
   systemctl daemon-reload
   systemctl --no-reload --now enable /lib/systemd/system/google_gpu_monitoring_agent_venv.service
