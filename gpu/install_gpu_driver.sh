@@ -316,9 +316,9 @@ function install_gpu_agent() {
 }
 
 function download_agent(){
-  execute_with_retries "sudo apt-get install git -y"
-  sudo mkdir -p /opt/google
-  sudo chmod 777 /opt/google
+  execute_with_retries "apt-get install git -y"
+  mkdir -p /opt/google
+  chmod 777 /opt/google
   cd /opt/google
   execute_with_retries "git clone https://github.com/GoogleCloudPlatform/compute-gpu-monitoring.git"
 }
@@ -331,7 +331,7 @@ function install_agent_dependency(){
 }
 
 function start_agent_service(){
-  sudo cp /opt/google/compute-gpu-monitoring/linux/systemd/google_gpu_monitoring_agent_venv.service /lib/systemd/system
+  cp /opt/google/compute-gpu-monitoring/linux/systemd/google_gpu_monitoring_agent_venv.service /lib/systemd/system
   systemctl daemon-reload
   systemctl --no-reload --now enable /lib/systemd/system/google_gpu_monitoring_agent_venv.service
 }
@@ -397,10 +397,10 @@ function configure_gpu_exclusive_mode() {
 
 function fetch_mig_scripts() {
   mkdir -p /usr/local/yarn-mig-scripts
-  sudo chmod 755 /usr/local/yarn-mig-scripts
+  chmod 755 /usr/local/yarn-mig-scripts
   wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.10/examples/MIG-Support/yarn-unpatched/scripts/nvidia-smi
   wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.10/examples/MIG-Support/yarn-unpatched/scripts/mig2gpu.sh
-  sudo chmod 755 /usr/local/yarn-mig-scripts/*
+  chmod 755 /usr/local/yarn-mig-scripts/*
 }
 
 function configure_gpu_script() {
