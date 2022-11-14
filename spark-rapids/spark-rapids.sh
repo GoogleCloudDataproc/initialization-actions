@@ -219,7 +219,11 @@ function install_gpu_agent() {
 }
 
 function download_agent(){
-  execute_with_retries "apt-get install git -y"
+  if [[ ${OS_NAME} == rocky ]]; then
+    execute_with_retries "dnf -y -q install git"
+  else
+    execute_with_retries "apt-get install git -y"
+  fi
   mkdir -p /opt/google
   chmod 777 /opt/google
   cd /opt/google
