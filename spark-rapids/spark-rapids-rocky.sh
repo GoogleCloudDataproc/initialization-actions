@@ -440,6 +440,12 @@ function setup_gpu_yarn() {
   fi
 
   # Restart YARN services if they are running already
+#  if [[ $(systemctl show hadoop-yarn-resourcemanager.service -p SubState --value) == 'running' ]]; then
+#    systemctl restart hadoop-yarn-resourcemanager.service
+#  fi
+#  if [[ $(systemctl show hadoop-yarn-nodemanager.service -p SubState --value) == 'running' ]]; then
+#    systemctl restart hadoop-yarn-nodemanager.service
+#  fi
   for svc in resourcemanager nodemanager; do
     if [[ $(systemctl show hadoop-yarn-${svc}.service -p SubState --value) == 'running' ]]; then
       systemctl restart hadoop-yarn-${svc}.service
@@ -458,6 +464,15 @@ function main() {
     exit 1
   fi  
 
+#  if [[ "${ROLE}" == "Master" ]]; then
+#    systemctl restart hadoop-yarn-resourcemanager.service
+#    # Restart NodeManager on Master as well if this is a single-node-cluster.
+#    if systemctl status hadoop-yarn-nodemanager; then
+#      systemctl restart hadoop-yarn-nodemanager.service
+#    fi
+#  else
+#    systemctl restart hadoop-yarn-nodemanager.service
+#  fi
   for svc in resourcemanager nodemanager; do
     if [[ $(systemctl show hadoop-yarn-${svc}.service -p SubState --value) == 'running' ]]; then
       systemctl restart hadoop-yarn-${svc}.service
