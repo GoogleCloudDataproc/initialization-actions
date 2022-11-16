@@ -6,7 +6,7 @@ from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
-class RapidsTestCase(DataprocTestCase):
+class SparkRapidsTestCase(DataprocTestCase):
   COMPONENT = "rapids"
   INIT_ACTIONS = ["sparkRapids/spark-rapids.sh"]
 
@@ -35,7 +35,7 @@ class RapidsTestCase(DataprocTestCase):
 
   @parameterized.parameters(("SINGLE", ["m"], GPU_P100),
                             ("STANDARD", ["w-0"], GPU_P100))
-  def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
+  def test_spark_rapids(self, configuration, machine_suffixes, accelerator):
     if self.getImageOs() == "rocky":
       self.skipTest("Not supported in Rocky Linux-based images")
 
