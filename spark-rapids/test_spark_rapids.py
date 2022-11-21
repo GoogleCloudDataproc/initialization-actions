@@ -8,7 +8,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class SparkRapidsTestCase(DataprocTestCase):
   COMPONENT = "rapids"
-  INIT_ACTIONS = ["sparkRapids/spark-rapids.sh"]
+  INIT_ACTIONS = ["spark-rapids/spark-rapids.sh"]
 
   GPU_P100 = "type=nvidia-tesla-p100"
 
