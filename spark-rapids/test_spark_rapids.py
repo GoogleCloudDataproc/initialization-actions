@@ -10,7 +10,7 @@ class SparkRapidsTestCase(DataprocTestCase):
   COMPONENT = "rapids"
   INIT_ACTIONS = ["spark-rapids/spark-rapids.sh"]
 
-  GPU_P100 = "type=nvidia-tesla-p100"
+  GPU_T4 = "type=nvidia-tesla-t4"
 
   # Tests for RAPIDS init action
   XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME = "verify_xgboost_spark_rapids.scala"
@@ -33,8 +33,8 @@ class SparkRapidsTestCase(DataprocTestCase):
     self.remove_test_script(self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME,
                             instance_name)
 
-  @parameterized.parameters(("SINGLE", ["m"], GPU_P100),
-                            ("STANDARD", ["w-0"], GPU_P100))
+  @parameterized.parameters(("SINGLE", ["m"], GPU_T4),
+                            ("STANDARD", ["w-0"], GPU_T4))
   def test_spark_rapids(self, configuration, machine_suffixes, accelerator):
     if self.getImageOs() == "rocky":
       self.skipTest("Not supported in Rocky Linux-based images")
@@ -61,7 +61,7 @@ class SparkRapidsTestCase(DataprocTestCase):
     # Only need to do this once
     self.verify_spark_job()
 
-  @parameterized.parameters(("STANDARD", ["w-0"], GPU_P100, "11.2"))
+  @parameterized.parameters(("STANDARD", ["w-0"], GPU_T4, "11.2"))
   def test_non_default_cuda_versions(self, configuration, machine_suffixes,
                                      accelerator, cuda_version):
     if self.getImageOs() == "rocky":
