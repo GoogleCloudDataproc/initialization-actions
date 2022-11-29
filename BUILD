@@ -35,6 +35,7 @@ test_suite(
         "//sqoop:test_sqoop",
         "//tony:test_tony",
         "//sparkRapids:test_sparkRapids",
+        "//kernel:test_kernel",
     ],
 )
 
