@@ -110,6 +110,22 @@ py_test(
     ],
 )
 
+py_test(
+    name = "test_spark_rapids",
+    size = "enormous",
+    srcs = ["spark-rapids/test_spark_rapids.py"],
+    data = [
+        "spark-rapids/spark-rapids.sh",
+        "spark-rapids/verify_xgboost_spark_rapids.scala",
+    ],
+    local = True,
+    shard_count = 3,
+    deps = [
+        "//integration_tests:dataproc_test_case",
+        "@io_abseil_py//absl/testing:parameterized",
+    ],
+)
+
 py_library(
     name = "pyspark_metastore_test",
     testonly = True,
