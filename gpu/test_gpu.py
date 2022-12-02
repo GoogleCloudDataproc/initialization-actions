@@ -9,7 +9,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 class NvidiaGpuDriverTestCase(DataprocTestCase):
   COMPONENT = "gpu"
   INIT_ACTIONS = ["gpu/install_gpu_driver.sh"]
-  GPU_T4 = "type=nvidia-tesla-t4"
+  GPU_V100 = "type=nvidia-tesla-v100"
   GPU_A100 = "type=nvidia-tesla-a100"
 
   def verify_instance(self, name):
@@ -28,10 +28,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         name, "sudo ldconfig -p | grep -q libcudnn" )
 
   @parameterized.parameters(
-      ("SINGLE", ["m"], GPU_T4, None, None),
-      ("STANDARD", ["m"], GPU_T4, None, None),
-      ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "NVIDIA"),
-      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "NVIDIA"),
+      ("SINGLE", ["m"], GPU_V100, None, None),
+      ("STANDARD", ["m"], GPU_V100, None, None),
+      ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "NVIDIA"),
+      ("STANDARD", ["w-0", "w-1"], None, GPU_V100, "NVIDIA"),
   )
   def test_install_gpu_default_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
@@ -56,9 +56,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                           machine_suffix))
 
   @parameterized.parameters(
-      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, None),
-      ("STANDARD", ["m"], GPU_T4, None, "NVIDIA"),
-      ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "NVIDIA"),
+      ("STANDARD", ["w-0", "w-1"], None, GPU_V100, None),
+      ("STANDARD", ["m"], GPU_V100, None, "NVIDIA"),
+      ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "NVIDIA"),
   )
   def test_install_gpu_without_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
@@ -83,9 +83,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                           machine_suffix))
 
   @parameterized.parameters(
-      ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, None),
-      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "NVIDIA"),
-      ("STANDARD", ["m"], GPU_T4, None, "NVIDIA"),
+      ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, None),
+      ("STANDARD", ["w-0", "w-1"], None, GPU_V100, "NVIDIA"),
+      ("STANDARD", ["m"], GPU_V100, None, "NVIDIA"),
   )
   def test_install_gpu_with_agent(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
@@ -113,11 +113,11 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                                     machine_suffix))
 
   @parameterized.parameters(
-      ("SINGLE", ["m"], GPU_T4, None, "10.1"),
-      ("STANDARD", ["m"], GPU_T4, None, "10.2"),
-      ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "11.0"),
-      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.1"),
-      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.2"),
+      ("SINGLE", ["m"], GPU_V100, None, "10.1"),
+      ("STANDARD", ["m"], GPU_V100, None, "10.2"),
+      ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "11.0"),
+      ("STANDARD", ["w-0", "w-1"], None, GPU_V100, "11.1"),
+      ("STANDARD", ["w-0", "w-1"], None, GPU_V100, "11.2"),
   )
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
@@ -128,7 +128,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       self.skipTest("Not supported in pre 2.0 images")
 
     if ( image_os == "rocky" and (cuda_version < "11.2" and cuda_version != "11.0") ) or \
-        ( image_os == "debian" and cuda_version < "11.1" ):
+       ( image_os == "debian" and cuda_version < "11.1" ):
       self.skipTest(f'CUDA version {cuda_version} is not supported on os {image_os}')
 
     metadata = "gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
@@ -172,17 +172,17 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                           machine_suffix))
 
   @parameterized.parameters(
-      ("SINGLE", GPU_T4, None, None),
-      ("STANDARD", GPU_T4, GPU_T4, "NVIDIA")
+      ("SINGLE", GPU_V100, None, None),
+      ("STANDARD", GPU_V100, GPU_V100, "NVIDIA")
   )
   def test_gpu_allocation(self, configuration, master_accelerator,
                           worker_accelerator, driver_provider):
     if configuration == "SINGLE" and self.getImageOs() == "rocky":
       self.skipTest("Test hangs on single-node clsuter with Rocky Linux-based images")
-        
+
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0")
-        
+
     metadata = None
     if driver_provider is not None:
       metadata = "gpu-driver-provider={}".format(driver_provider)
