@@ -483,7 +483,7 @@ function upgrade_kernel() {
   # Skip this script if we are already on the target version
   if [[ "${CURRENT_KERNEL_VERSION}" == "${TARGET_VERSION}" ]]; then
     echo "target kernel version [${TARGET_VERSION}] is installed"
-    exit 0
+    return 0
   fi
   
   # Install the latest kernel
