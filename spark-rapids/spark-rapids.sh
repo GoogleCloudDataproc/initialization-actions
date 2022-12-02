@@ -201,8 +201,9 @@ function install_nvidia_gpu_driver() {
   elif [[ ${OS_NAME} == rocky ]]; then
     execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPO_URL}"
     execute_with_retries "dnf clean all"
-    execute_with_retries "dnf -y -q module install nvidia-driver:${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}-dkms"
-    execute_with_retries "dnf -y -q install cuda-${CUDA_VERSION//./-}"
+    # Always install the latest cuda/driver version because old driver version 495 has issues
+    execute_with_retries "dnf install -y -q nvidia-driver nvidia-settings"
+    execute_with_retries "dnf install -y -q cuda-driver"
   else
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
