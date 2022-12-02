@@ -529,5 +529,3 @@ function main() {
 }
 
 main
-
-}
