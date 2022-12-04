@@ -518,7 +518,13 @@ function upgrade_kernel() {
 
 function main() {
 
-  upgrade_kernel
+  if [[ "${OS_NAME}" == "rocky" ]]; then
+    if dnf list kernel-devel-$(uname -r) && list kernel-headers-$(uname -r); then
+      echo "kernel devel and headers packages are available.  Proceed without kernel upgrade."
+    else
+      upgrade_kernel
+    fi
+  fi
   setup_gpu_yarn
   if [[ "${RUNTIME}" == "SPARK" ]]; then
     install_spark_rapids
