@@ -109,7 +109,7 @@ function install_spark_rapids() {
   local -r rapids_repo_url='https://repo1.maven.org/maven2/ai/rapids'
   local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
   local -r dmlc_repo_url='https://repo.maven.apache.org/maven2/ml/dmlc'
-  
+
   # Convert . to - for URL formatting
   local cudf_cuda_version="${CUDA_VERSION//\./-}"
 
@@ -144,7 +144,7 @@ function configure_spark() {
     cat >>${SPARK_CONF_DIR}/spark-defaults.conf <<EOF
 
 ###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
-# Rapids Accelerator for Spark can utilize AQE, but when the plan is not finalized, 
+# Rapids Accelerator for Spark can utilize AQE, but when the plan is not finalized,
 # query explain output won't show GPU operator, if user have doubt
 # they can uncomment the line before seeing the GPU plan explain, but AQE on gives user the best performance.
 # spark.sql.adaptive.enabled=false
@@ -462,7 +462,7 @@ function upgrade_kernel() {
     echo "unsupported OS: ${OS_NAME}!"
     exit -1
   fi
-  
+
   # Get latest version available in repos
   if [[ "${OS_NAME}" == "debian" ]]; then
     apt-get -qq update
@@ -480,7 +480,7 @@ function upgrade_kernel() {
       TARGET_VERSION="${CURRENT_KERNEL_VERSION}"
     fi
   fi
-  
+
   # Skip this script if we are already on the target version
   if [[ "${CURRENT_KERNEL_VERSION}" == "${TARGET_VERSION}" ]]; then
     echo "target kernel version [${TARGET_VERSION}] is installed"
@@ -489,10 +489,10 @@ function upgrade_kernel() {
     if [[ "${OS_NAME}" == "debian" || "${OS_NAME}" == "ubuntu" ]]; then
       dpkg --configure -a
     fi
-    
+
     return 0
   fi
-  
+
   # Install the latest kernel
   if [[ ${OS_NAME} == debian ]]; then
     apt-get install -y linux-image-amd64
@@ -501,7 +501,7 @@ function upgrade_kernel() {
   elif [[ "${OS_NAME}" == "rocky" ]]; then
     dnf -y -q install kernel
   fi
-  
+
   # Make it possible to reboot before init actions are complete - #1033
   DP_ROOT=/usr/local/share/google/dataproc
   STARTUP_SCRIPT="${DP_ROOT}/startup-script.sh"
@@ -517,7 +517,7 @@ function upgrade_kernel() {
 }
 
 function main() {
-  
+
   upgrade_kernel
   setup_gpu_yarn
   if [[ "${RUNTIME}" == "SPARK" ]]; then
@@ -527,7 +527,7 @@ function main() {
   else
     echo "Unsupported RAPIDS Runtime: ${RUNTIME}"
     exit 1
-  fi  
+  fi
 
   for svc in resourcemanager nodemanager; do
     if [[ $(systemctl show hadoop-yarn-${svc}.service -p SubState --value) == 'running' ]]; then

@@ -1,6 +1,6 @@
 # SPARK-RAPIDS
 
-The [RAPIDS Accelerator for Apache Spark](https://nvidia.github.io/spark-rapids/) leverages GPUs 
+The [RAPIDS Accelerator for Apache Spark](https://nvidia.github.io/spark-rapids/) leverages GPUs
 to accelerate processing via the [RAPIDS libraries](http://rapids.ai). This initialization
 action supports Spark runtimes for RAPIDS on
 [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster.
@@ -117,7 +117,7 @@ If you click the operation "count at ...", you should see the graph of Spark
 Executors and some of those should have the "GPU" label as well.
 
 If you want to monitor GPU metrics on Dataproc, you can create the cluster with additional
-[metadata](https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/metadata) and 
+[metadata](https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/metadata) and
 [scopes](https://cloud.google.com/sdk/gcloud/reference/dataproc/clusters/create#--scopes):
 ```
 --metadata install-gpu-agent="true"
@@ -131,6 +131,6 @@ we should be able to see "Resource & Metric" -> "VM Instance" -> "Custom":
 * **custom.googleapis.com/instance/gpu/memory_used** - Used memory of the GPU card.
 * **custom.googleapis.com/instance/gpu/memory_free** - Available memory of the GPU card.
 * **custom.googleapis.com/instance/gpu/temperature** - Temperature of the GPU.
-The metrics are sent with attached label, marking them by the gpu_type and gpu_bus_id. 
+The metrics are sent with attached label, marking them by the gpu_type and gpu_bus_id.
 This way, instances with multiple GPUs attached can report the metrics of their cards separately.
 You can later aggregate or filter those metrics in the Cloud Monitoring systems.

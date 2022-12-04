@@ -11,7 +11,7 @@ val schema = StructType(Array(
 
 val features = schema.filter(_.name != label).map(_.name).toArray
 
-val datas = Seq(Row(1.05, 9.05, 0), 
+val datas = Seq(Row(1.05, 9.05, 0),
                Row(2.95, 1.95, 1))
 val df = spark.createDataFrame(
       spark.sparkContext.parallelize(datas),schema)
