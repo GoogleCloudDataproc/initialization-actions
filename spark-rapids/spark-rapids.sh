@@ -484,6 +484,12 @@ function upgrade_kernel() {
   # Skip this script if we are already on the target version
   if [[ "${CURRENT_KERNEL_VERSION}" == "${TARGET_VERSION}" ]]; then
     echo "target kernel version [${TARGET_VERSION}] is installed"
+
+    # Reboot may have interrupted dpkg.  Bring package system to a good state
+    if [[ "${OS_NAME}" == "debian" || "${OS_NAME}" == "ubuntu" ]]; then
+      dpkg --configure -a
+    fi
+    
     return 0
   fi
   
@@ -511,6 +517,7 @@ function upgrade_kernel() {
 }
 
 function main() {
+  
   upgrade_kernel
   setup_gpu_yarn
   if [[ "${RUNTIME}" == "SPARK" ]]; then
