@@ -202,8 +202,8 @@ function install_nvidia_gpu_driver() {
     execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPO_URL}"
     execute_with_retries "dnf clean all"
     # Always install the latest cuda/driver version because old driver version 495 has issues
-    execute_with_retries "dnf install -y -q nvidia-driver nvidia-settings"
-    execute_with_retries "dnf install -y -q cuda-driver"
+    execute_with_retries "dnf install -y -q nvidia-driver nvidia-settings cuda-driver"
+    modprobe nvidia
   else
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
@@ -415,7 +415,7 @@ function setup_gpu_yarn() {
     if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
       execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
     elif [[ ${OS_NAME} == rocky ]]; then
-      execute_with_retries "dnf -y -q install kernel-devel-$(uname -r) kernel-headers-$(uname -r)"
+      echo "kernel devel and headers not required on rocky.  installing from binary"
     fi
 
     # if mig is enabled drivers would have already been installed
