@@ -12,11 +12,11 @@ OS_NAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
 readonly OS_NAME
 
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
-readonly DEFAULT_SPARK_RAPIDS_VERSION="22.08.0"
+readonly DEFAULT_SPARK_RAPIDS_VERSION="22.10.0"
 
 if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
   readonly DEFAULT_CUDA_VERSION="11.5"
-  readonly DEFAULT_CUDF_VERSION="22.08.0"
+  readonly DEFAULT_CUDF_VERSION="22.10.0"
   readonly DEFAULT_XGBOOST_VERSION="1.6.2"
   readonly DEFAULT_XGBOOST_GPU_SUB_VERSION="0.3.0"
   readonly SPARK_VERSION="3.0"
@@ -35,9 +35,10 @@ readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 
 # CUDA version and Driver version config
 CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.5')
-readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION='495.29.05'
+DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '495.29.05')
 
 readonly CUDA_VERSION
+readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION
 readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX=${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION%%.*}
 
 # Parameters for NVIDIA-provided Debian GPU driver
@@ -108,7 +109,7 @@ function install_spark_rapids() {
   local -r rapids_repo_url='https://repo1.maven.org/maven2/ai/rapids'
   local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
   local -r dmlc_repo_url='https://repo.maven.apache.org/maven2/ml/dmlc'
-  
+
   # Convert . to - for URL formatting
   local cudf_cuda_version="${CUDA_VERSION//\./-}"
 
@@ -143,7 +144,7 @@ function configure_spark() {
     cat >>${SPARK_CONF_DIR}/spark-defaults.conf <<EOF
 
 ###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
-# Rapids Accelerator for Spark can utilize AQE, but when the plan is not finalized, 
+# Rapids Accelerator for Spark can utilize AQE, but when the plan is not finalized,
 # query explain output won't show GPU operator, if user have doubt
 # they can uncomment the line before seeing the GPU plan explain, but AQE on gives user the best performance.
 # spark.sql.adaptive.enabled=false
@@ -200,8 +201,9 @@ function install_nvidia_gpu_driver() {
   elif [[ ${OS_NAME} == rocky ]]; then
     execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPO_URL}"
     execute_with_retries "dnf clean all"
-    execute_with_retries "dnf -y -q module install nvidia-driver:${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}-dkms"
-    execute_with_retries "dnf -y -q install cuda-${CUDA_VERSION//./-}"
+    # Always install the latest cuda/driver version because old driver version 495 has issues
+    execute_with_retries "dnf install -y -q nvidia-driver nvidia-settings cuda-driver"
+    modprobe nvidia
   else
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
@@ -212,38 +214,34 @@ function install_nvidia_gpu_driver() {
 
 # Collects 'gpu_utilization' and 'gpu_memory_utilization' metrics
 function install_gpu_agent() {
-  if ! command -v pip; then
-    execute_with_retries "apt-get install -y -q python-pip"
+  download_agent
+  install_agent_dependency
+  start_agent_service
+}
+
+function download_agent(){
+  if [[ ${OS_NAME} == rocky ]]; then
+    execute_with_retries "dnf -y -q install git"
+  else
+    execute_with_retries "apt-get install git -y"
   fi
-  local install_dir=/opt/gpu-utilization-agent
-  mkdir "${install_dir}"
-  curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-    "${GPU_AGENT_REPO_URL}/requirements.txt" -o "${install_dir}/requirements.txt"
-  curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-    "${GPU_AGENT_REPO_URL}/report_gpu_metrics.py" -o "${install_dir}/report_gpu_metrics.py"
-  pip install -r "${install_dir}/requirements.txt"
+  mkdir -p /opt/google
+  chmod 777 /opt/google
+  cd /opt/google
+  execute_with_retries "git clone https://github.com/GoogleCloudPlatform/compute-gpu-monitoring.git"
+}
 
-  # Generate GPU service.
-  cat <<EOF >/lib/systemd/system/gpu-utilization-agent.service
-[Unit]
-Description=GPU Utilization Metric Agent
+function install_agent_dependency(){
+  cd /opt/google/compute-gpu-monitoring/linux
+  python3 -m venv venv
+  venv/bin/pip install wheel
+  venv/bin/pip install -Ur requirements.txt
+}
 
-[Service]
-Type=simple
-PIDFile=/run/gpu_agent.pid
-ExecStart=/bin/bash --login -c 'python "${install_dir}/report_gpu_metrics.py"'
-User=root
-Group=root
-WorkingDirectory=/
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
-  # Reload systemd manager configuration
+function start_agent_service(){
+  cp /opt/google/compute-gpu-monitoring/linux/systemd/google_gpu_monitoring_agent_venv.service /lib/systemd/system
   systemctl daemon-reload
-  # Enable gpu-utilization-agent service
-  systemctl --no-reload --now enable gpu-utilization-agent.service
+  systemctl --no-reload --now enable /lib/systemd/system/google_gpu_monitoring_agent_venv.service
 }
 
 function set_hadoop_property() {
@@ -307,10 +305,10 @@ function configure_gpu_exclusive_mode() {
 
 function fetch_mig_scripts() {
   mkdir -p /usr/local/yarn-mig-scripts
-  sudo chmod 755 /usr/local/yarn-mig-scripts
-  wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.08/examples/MIG-Support/yarn-unpatched/scripts/nvidia-smi
-  wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.08/examples/MIG-Support/yarn-unpatched/scripts/mig2gpu.sh
-  sudo chmod 755 /usr/local/yarn-mig-scripts/*
+  chmod 755 /usr/local/yarn-mig-scripts
+  wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.10/examples/MIG-Support/yarn-unpatched/scripts/nvidia-smi
+  wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.10/examples/MIG-Support/yarn-unpatched/scripts/mig2gpu.sh
+  chmod 755 /usr/local/yarn-mig-scripts/*
 }
 
 function configure_gpu_script() {
@@ -380,20 +378,16 @@ EOF
 }
 
 function setup_gpu_yarn() {
-  if [[ ${OS_NAME} != debian ]] && [[ ${OS_NAME} != ubuntu ]] && [[ ${OS_NAME} != rocky ]]; then
-    echo "Unsupported OS: '${OS_NAME}'"
-    exit 1
-  fi
 
   if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
     export DEBIAN_FRONTEND=noninteractive
     execute_with_retries "apt-get update"
     execute_with_retries "apt-get install -y -q pciutils"
   elif [[ ${OS_NAME} == rocky ]] ; then
-    execute_with_retries "dnf -y -q update"
     execute_with_retries "dnf -y -q install pciutils"
-    execute_with_retries "dnf -y -q install kernel-devel"
-    execute_with_retries "dnf -y -q install gcc"
+  else
+    echo "Unsupported OS: '${OS_NAME}'"
+    exit 1
   fi
 
   # This configuration should be ran on all nodes
@@ -417,6 +411,8 @@ function setup_gpu_yarn() {
 
     if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
       execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
+    elif [[ ${OS_NAME} == rocky ]]; then
+      echo "kernel devel and headers not required on rocky.  installing from binary"
     fi
 
     # if mig is enabled drivers would have already been installed
@@ -442,16 +438,91 @@ function setup_gpu_yarn() {
   fi
 
   # Restart YARN services if they are running already
-  if [[ $(systemctl show hadoop-yarn-resourcemanager.service -p SubState --value) == 'running' ]]; then
-    systemctl restart hadoop-yarn-resourcemanager.service
-  fi
-  if [[ $(systemctl show hadoop-yarn-nodemanager.service -p SubState --value) == 'running' ]]; then
-    systemctl restart hadoop-yarn-nodemanager.service
-  fi
+  for svc in resourcemanager nodemanager; do
+    if [[ $(systemctl show hadoop-yarn-${svc}.service -p SubState --value) == 'running' ]]; then
+      systemctl restart hadoop-yarn-${svc}.service
+    fi
+  done
 }
+
+function upgrade_kernel() {
+  # Determine which kernel is installed
+  if [[ "${OS_NAME}" == "debian" ]]; then
+    CURRENT_KERNEL_VERSION=`cat /proc/version  | perl -ne 'print( / Debian (\S+) / )'`
+  elif [[ "${OS_NAME}" == "ubuntu" ]]; then
+    CURRENT_KERNEL_VERSION=`cat /proc/version | perl -ne 'print( /^Linux version (\S+) / )'`
+  elif [[ ${OS_NAME} == rocky ]]; then
+    KERN_VER=$(yum info --installed kernel | awk '/^Version/ {print $3}')
+    KERN_REL=$(yum info --installed kernel | awk '/^Release/ {print $3}')
+    CURRENT_KERNEL_VERSION="${KERN_VER}-${KERN_REL}"
+  else
+    echo "unsupported OS: ${OS_NAME}!"
+    exit -1
+  fi
+
+  # Get latest version available in repos
+  if [[ "${OS_NAME}" == "debian" ]]; then
+    apt-get -qq update
+    TARGET_VERSION=$(apt-cache show --no-all-versions linux-image-amd64 | awk '/^Version/ {print $2}')
+  elif [[ "${OS_NAME}" == "ubuntu" ]]; then
+    apt-get -qq update
+    LATEST_VERSION=$(apt-cache show --no-all-versions linux-image-gcp | awk '/^Version/ {print $2}')
+    TARGET_VERSION=`echo ${LATEST_VERSION} | perl -ne 'printf(q{%s-%s-gcp},/(\d+\.\d+\.\d+)\.(\d+)/)'`
+  elif [[ "${OS_NAME}" == "rocky" ]]; then
+    if yum info --available kernel ; then
+      KERN_VER=$(yum info --available kernel | awk '/^Version/ {print $3}')
+      KERN_REL=$(yum info --available kernel | awk '/^Release/ {print $3}')
+      TARGET_VERSION="${KERN_VER}-${KERN_REL}"
+    else
+      TARGET_VERSION="${CURRENT_KERNEL_VERSION}"
+    fi
+  fi
+
+  # Skip this script if we are already on the target version
+  if [[ "${CURRENT_KERNEL_VERSION}" == "${TARGET_VERSION}" ]]; then
+    echo "target kernel version [${TARGET_VERSION}] is installed"
+
+    # Reboot may have interrupted dpkg.  Bring package system to a good state
+    if [[ "${OS_NAME}" == "debian" || "${OS_NAME}" == "ubuntu" ]]; then
+      dpkg --configure -a
+    fi
+
+    return 0
+  fi
+
+  # Install the latest kernel
+  if [[ ${OS_NAME} == debian ]]; then
+    apt-get install -y linux-image-amd64
+  elif [[ "${OS_NAME}" == "ubuntu" ]]; then
+    apt-get install -y linux-image-gcp
+  elif [[ "${OS_NAME}" == "rocky" ]]; then
+    dnf -y -q install kernel
+  fi
+
+  # Make it possible to reboot before init actions are complete - #1033
+  DP_ROOT=/usr/local/share/google/dataproc
+  STARTUP_SCRIPT="${DP_ROOT}/startup-script.sh"
+  POST_HDFS_STARTUP_SCRIPT="${DP_ROOT}/post-hdfs-startup-script.sh"
+
+  for startup_script in ${STARTUP_SCRIPT} ${POST_HDFS_STARTUP_SCRIPT} ; do
+    sed -i -e 's:/usr/bin/env bash:/usr/bin/env bash\nexit 0:' ${startup_script}
+  done
+
+  cp /var/log/dataproc-initialization-script-0.log /var/log/dataproc-initialization-script-0.log.0
+
+  systemctl reboot
+}
+
 function main() {
+
+  if [[ "${OS_NAME}" == "rocky" ]]; then
+    if dnf list kernel-devel-$(uname -r) && list kernel-headers-$(uname -r); then
+      echo "kernel devel and headers packages are available.  Proceed without kernel upgrade."
+    else
+      upgrade_kernel
+    fi
+  fi
   setup_gpu_yarn
-  
   if [[ "${RUNTIME}" == "SPARK" ]]; then
     install_spark_rapids
     configure_spark
@@ -459,17 +530,13 @@ function main() {
   else
     echo "Unsupported RAPIDS Runtime: ${RUNTIME}"
     exit 1
-  fi  
-
-  if [[ "${ROLE}" == "Master" ]]; then
-    systemctl restart hadoop-yarn-resourcemanager.service
-    # Restart NodeManager on Master as well if this is a single-node-cluster.
-    if systemctl status hadoop-yarn-nodemanager; then
-      systemctl restart hadoop-yarn-nodemanager.service
-    fi
-  else
-    systemctl restart hadoop-yarn-nodemanager.service
   fi
+
+  for svc in resourcemanager nodemanager; do
+    if [[ $(systemctl show hadoop-yarn-${svc}.service -p SubState --value) == 'running' ]]; then
+      systemctl restart hadoop-yarn-${svc}.service
+    fi
+  done
 }
 
 main

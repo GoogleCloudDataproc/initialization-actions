@@ -1,6 +1,6 @@
 # SPARK-RAPIDS
 
-The [RAPIDS Accelerator for Apache Spark](https://nvidia.github.io/spark-rapids/) leverages GPUs 
+The [RAPIDS Accelerator for Apache Spark](https://nvidia.github.io/spark-rapids/) leverages GPUs
 to accelerate processing via the [RAPIDS libraries](http://rapids.ai). This initialization
 action supports Spark runtimes for RAPIDS on
 [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster.
@@ -28,7 +28,7 @@ To use RAPIDS Accelerator For Apache Spark, XGBoost4j with Spark 3
     *   NVIDIA GPU driver 440.33+
     *   CUDA v11.5/v11.0/v10.2/v10.1
     *   NCCL 2.11.4+
-    *   Ubuntu 18.04, Ubuntu 20.04 or Rocky Linux 7, Rocky Linux8, Debian 10
+    *   Ubuntu 18.04, Ubuntu 20.04 or Rocky Linux 7, Rocky Linux8, Debian 10, Debian 11
 
 This section describes how to create
 [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster with
@@ -67,7 +67,7 @@ gcloud dataproc clusters create $CLUSTER_NAME  \
     --worker-accelerator type=nvidia-tesla-t4,count=$NUM_GPUS \
     --worker-machine-type n1-standard-8 \
     --num-worker-local-ssds 1 \
-    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/sparkRapids/spark-rapids.sh \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/spark-rapids/spark-rapids.sh \
     --optional-components=JUPYTER,ZEPPELIN \
     --metadata gpu-driver-provider="NVIDIA",rapids-runtime="SPARK",cuda-version="$CUDA_VER" \
     --bucket $GCS_BUCKET \
@@ -115,3 +115,22 @@ In some releases, you might not see that due to AQE has not finalized the plan. 
 Or go to the Spark UI and click on the application you ran and on the "SQL" tab.
 If you click the operation "count at ...", you should see the graph of Spark
 Executors and some of those should have the "GPU" label as well.
+
+If you want to monitor GPU metrics on Dataproc, you can create the cluster with additional
+[metadata](https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/metadata) and
+[scopes](https://cloud.google.com/sdk/gcloud/reference/dataproc/clusters/create#--scopes):
+```
+--metadata install-gpu-agent="true"
+--scopes monitoring
+```
+You can then monitor the following metrics on [Web UI](https://console.cloud.google.com/monitoring/metrics-explorer),
+we should be able to see "Resource & Metric" -> "VM Instance" -> "Custom":
+* **custom.googleapis.com/instance/gpu/utilization** - The GPU cores utilization in %.
+* **custom.googleapis.com/instance/gpu/memory_utilization** - The GPU memory bandwidth utilization in %.
+* **custom.googleapis.com/instance/gpu/memory_total** - Total memory of the GPU card in MB.
+* **custom.googleapis.com/instance/gpu/memory_used** - Used memory of the GPU card.
+* **custom.googleapis.com/instance/gpu/memory_free** - Available memory of the GPU card.
+* **custom.googleapis.com/instance/gpu/temperature** - Temperature of the GPU.
+The metrics are sent with attached label, marking them by the gpu_type and gpu_bus_id.
+This way, instances with multiple GPUs attached can report the metrics of their cards separately.
+You can later aggregate or filter those metrics in the Cloud Monitoring systems.
