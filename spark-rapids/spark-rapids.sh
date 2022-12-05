@@ -384,10 +384,7 @@ function setup_gpu_yarn() {
     execute_with_retries "apt-get update"
     execute_with_retries "apt-get install -y -q pciutils"
   elif [[ ${OS_NAME} == rocky ]] ; then
-    execute_with_retries "dnf -y -q update"
     execute_with_retries "dnf -y -q install pciutils"
-    execute_with_retries "dnf -y -q install kernel-devel"
-    execute_with_retries "dnf -y -q install gcc"
   else
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
