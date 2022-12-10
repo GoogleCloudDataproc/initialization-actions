@@ -285,12 +285,6 @@ function configure_yarn_nodemanager() {
     'org.apache.hadoop.yarn.server.nodemanager.LinuxContainerExecutor'
   set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.linux-container-executor.group' 'yarn'
 
-  # Fix local dirs access permissions
-  local yarn_local_dirs=()
-  readarray -d ',' yarn_local_dirs < <(bdconfig get_property_value \
-    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
-    --name "yarn.nodemanager.local-dirs" 2>/dev/null | tr -d '\n')
-  chown yarn:yarn -R "${yarn_local_dirs[@]/,/}"
 }
 
 function configure_gpu_exclusive_mode() {
