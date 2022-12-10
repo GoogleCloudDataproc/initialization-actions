@@ -145,9 +145,9 @@ function install_oozie() {
   
   # Detect if current node configuration is HA and then set oozie servers
   local additional_nodes
-  additional_nodes=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional |
-    sed 's/,/\n/g' | wc -l)
-  if [[ ${additional_nodes} -ge 2 ]]; then
+  additional_nodes=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)
+  additional_nodes_count=$(echo "$additional_nodes"| sed 's/,/\n/g' | wc -l)
+  if [[ ${additional_nodes_count} -ge 2 ]]; then
     echo 'Starting configuration for HA'
     # List of servers is used for proper zookeeper configuration.
     # It is needed to replace original ports range with specific one
