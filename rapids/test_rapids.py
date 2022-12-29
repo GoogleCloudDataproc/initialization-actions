@@ -57,8 +57,6 @@ class RapidsTestCase(DataprocTestCase):
                             ("STANDARD", ["m"], GPU_P100, "standalone"))
   def test_rapids_dask(self, configuration, machine_suffixes, accelerator,
                        dask_runtime):
-    if self.getImageOs() == "rocky":
-      self.skipTest("Not supported in Rocky Linux-based images")
 
     if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0 images")
@@ -84,13 +82,11 @@ class RapidsTestCase(DataprocTestCase):
   @parameterized.parameters(("SINGLE", ["m"], GPU_P100),
                             ("STANDARD", ["w-0"], GPU_P100))
   def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
-    if self.getImageOs() == "rocky":
-      self.skipTest("Not supported in Rocky Linux-based images")
-        
+
     if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0 images")
     optional_components = None
-    
+
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
@@ -111,8 +107,6 @@ class RapidsTestCase(DataprocTestCase):
   @parameterized.parameters(("STANDARD", ["w-0"], GPU_P100, "11.2"))
   def test_non_default_cuda_versions(self, configuration, machine_suffixes,
                                      accelerator, cuda_version):
-    if self.getImageOs() == "rocky":
-      self.skipTest("Not supported in Rocky Linux-based images")
 
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0 images")

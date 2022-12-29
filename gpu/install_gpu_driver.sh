@@ -68,6 +68,10 @@ readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION=${DRIVER_FOR_CUDA["${CUDA_VERS
 readonly NVIDIA_DEBIAN_GPU_DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' ${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION})
 readonly NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX=${NVIDIA_DEBIAN_GPU_DRIVER_VERSION%%.*}
 readonly DRIVER=${NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}
+# As of Rocky 8.7, kernel 4.18.0-425 is unable to build older nvidia kernel drivers
+if [[ "${OS_NAME}" == "rocky" &&  "${DRIVER}" < "510" ]]; then
+  readonly ROCKY_BINARY_INSTALL="true"
+fi
 
 # Fail early for configurations known to be unsupported
 function unsupported_error {
@@ -294,7 +298,12 @@ function install_nvidia_gpu_driver() {
   elif [[ ${OS_NAME} == rocky ]]; then
     execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPO_URL}"
     execute_with_retries "dnf clean all"
-    execute_with_retries "dnf -y -q module install nvidia-driver:${NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}-dkms"
+
+    if [[ "${ROCKY_BINARY_INSTALL}" == "true" ]]; then
+      execute_with_retries "dnf -y -q module install nvidia-driver"
+    else
+      execute_with_retries "dnf -y -q module install nvidia-driver:${NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}-dkms"
+    fi
     NVIDIA_ROCKY_GPU_DRIVER_VERSION="$(ls -d /usr/src/nvidia-* | awk -F"nvidia-" '{print $2}')"
     execute_with_retries "dkms build nvidia/${NVIDIA_ROCKY_GPU_DRIVER_VERSION}"
     execute_with_retries "dkms install nvidia/${NVIDIA_ROCKY_GPU_DRIVER_VERSION}"
