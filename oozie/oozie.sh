@@ -175,6 +175,15 @@ function install_oozie() {
       --configuration_file "/etc/oozie/conf/oozie-site.xml" \
       --name 'oozie.zookeeper.connection.string' --value "${servers}" \
       --clobber
+
+    #Workaround to avoid classnotfound issues due to old curator jar in Oozie classpath
+    if [ -f "/usr/lib/oozie/lib/curator-framework-2.5.0.jar" ]
+    then
+	find /usr/lib/oozie/lib -name "curator-framework*.jar" -delete
+	find /usr/lib/oozie/lib -name "curator-recipes*.jar" -delete
+	find /usr/lib/oozie/lib -name "curator-client*.jar" -delete
+	cp /usr/lib/hadoop/lib/curator*-2.13.0.jar /usr/lib/oozie/lib
+    fi
   fi
 
   /usr/lib/zookeeper/bin/zkServer.sh restart
