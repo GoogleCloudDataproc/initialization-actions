@@ -63,9 +63,9 @@ function construct_log_dirs() {
 }
 
 function configure_yarn() {
-    ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+    local -r ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
     echo "Role = ${ROLE}"
-    logdirs="$(construct_log_dirs)"
+    local -r logdirs="$(construct_log_dirs)"
     echo "Log dir = ${logdirs}"
     if [[ "${ROLE}" != 'Master' && ! -z "${logdirs}" ]]; then
         # This block is entered only if the script is running on a Worker node and the logdirs variable is not empty which means
