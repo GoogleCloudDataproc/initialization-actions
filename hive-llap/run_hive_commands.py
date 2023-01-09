@@ -13,7 +13,7 @@ def create_commands_file():
 def main():
     create_commands_file()
     hostname=subprocess.check_output(['hostname']).decode('UTF-8').replace("\n","")
-    beeline_connection='jdbc:hive2://'+ hostname +':10000/default'
+    beeline_connection='jdbc:hive2://'+ hostname +':10500/default'
     subprocess.check_output(['beeline', '-u', beeline_connection, '-f' ,'commands.sql'])
 
 if __name__ == '__main__':

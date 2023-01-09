@@ -43,8 +43,12 @@ function pre_flight_checks(){
     # check for bad configurations
     if [[ "${NUM_LLAP_NODES}" -ge "${WORKER_NODE_COUNT}" ]]; then
         echo "LLAP node count equals total worker count. There are no nodes to support Tez AM's. Please reduce LLAP instance count and re-deploy." && exit 1
+    else 
+        echo "LLAP node count < worker count...continue with deployment..."
     fi
 }
+
+
 
 # modify yarn-site.xml buy adjusting the classpath
 function configure_yarn_site(){
@@ -78,6 +82,17 @@ function configure_hive_site(){
 
     # different configuration if HA
     echo "configure hive-site.xml...."
+
+    local llap_instances=0
+
+
+    # keep one node in reserve for handling the duties of Tez AM
+    # if user didn't pass in num llap instances, take worker node count -1
+    if [[ -z $NUM_LLAP_NODES ]]; then
+        llap_instances=$(expr ${WORKER_NODE_COUNT} - 1) 
+    else
+        llap_instances=$NUM_LLAP_NODES
+    fi 
 
     bdconfig set_property \
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
@@ -113,6 +128,10 @@ function configure_hive_site(){
         --clobber
     bdconfig set_property \
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.exec.dynamic.partition.mode' --value 'nonstrict' \
+        --clobber
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
         --name 'hive.llap.io.allocator.alloc.min' --value '256Kb' \
         --clobber
     bdconfig set_property \
@@ -127,6 +146,51 @@ function configure_hive_site(){
         --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
         --name 'hive.tez.container.size' --value "${EXECUTOR_SIZE}" \
         --clobber
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.auto.convert.join.noconditionaltask' --value 'true' \
+        --clobber
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.tez.auto.reducer.parallelism' --value 'true' \
+        --clobber
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.llap.io.encode.formats' --value 'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' \
+        --clobber
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.llap.io.use.lrfu' --value 'true' \
+        --clobber
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'tez.am.resource.memory.mb' --value '4096' \
+        --clobber
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.server2.tez.sessions.per.default.queue' --value "${llap_instances}" \
+        --clobber
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.server2.tez.initialize.default.sessions' --value 'true' \
+        --clobber
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'tez.am.container.reuse.enabled' --value 'true' \
+        --clobber
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.server2.tez.default.queues' --value 'default' \
+        --clobber
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.limit.optimize.enable' --value 'true' \
+        --clobber
+    bdconfig set_property \
+        --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
+        --name 'hive.server2.thrift.port' --value '10500' \
+        --clobber
+
 
     if [[ -z "$ADDITIONAL_MASTER" ]]; then
         bdconfig set_property \
@@ -243,10 +307,6 @@ function configure_SSD_caching_worker(){
             --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
             --name 'hive.llap.io.memory.mode' --value 'cache' \
             --clobber
-        bdconfig set_property \
-            --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-            --name 'hive.llap.io.use.lrfu' --value 'true' \
-            --clobber
     fi
 }
 # if the user has added ssd=1 as a metadata option, then we need to configure hive-site.xml for using the ssd as a memory cache extension. 
@@ -265,10 +325,6 @@ function configure_SSD_caching_master(){
         bdconfig set_property \
             --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
             --name 'hive.llap.io.memory.mode' --value 'cache' \
-            --clobber
-        bdconfig set_property \
-            --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-            --name 'hive.llap.io.use.lrfu' --value 'true' \
             --clobber
     fi
 }

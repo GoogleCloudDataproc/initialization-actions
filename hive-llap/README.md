@@ -4,7 +4,7 @@ This initialization action configures Google Cloud Dataproc to run Hive LLAP. Fo
 
 ## Optional Configuration Options
 * num_llap_nodes: The number of nodes you wish LLAP to run on. This configuration will use 100% of the YARN resources LLAP is deployed on. Do not deploy on 100% of the deployed dataproc workers. You need available nodes in order to run the Tez Application Masters spawned by Hive sessions. Understand how many concurrent queries you'd like to support to determine out how many workers you need available to support your users. Please visit: https://community.cloudera.com/t5/Community-Articles/LLAP-sizing-and-setup/ta-p/247425 for more details on tuning LLAP.
-* ssd: LLAP can extend the memory cache pool to local SSD on the workers it's deployed on. This increases the amount of data that can be cached to help with accelerating queries. This option may only be used when you include local ssd (num-worker-local-ssds flag) when deploying your dataproc cluster. Today we only support 1 SSD deployment. Note that if you use this option, you cannot start/stop your dataproc instance. 
+* ssd: LLAP can extend the memory cache pool to local SSD on the workers it's deployed on. This increases the amount of data that can be cached to help with accelerating queries. This option may only be used when you include local ssd (num-worker-local-ssds flag) when deploying your dataproc cluster. Only 1 SSD can be utilized per node. Note that if you use this option, you cannot start/stop your dataproc instance. 
 * exec_size_mb: This is the size of the executors running on LLAP. This is related to the hive.tez.container.size hive parameter. By default this number is 4096MB if not supplied directly. This knob allows you to configure clusters for uses cases where the default exec size may not be appropriate. 
 * init-actions-repo: if you are sourcing the initialization action script from a personal bucket, this metadata configuration tells the script where to find the startup script for the LLAP service. This configuration is not required. If you don't specific the init-actions-repo, the required files will be procured through the default initialization action bucket.
 
@@ -63,7 +63,7 @@ You can find more information about using initialization actions with Dataproc i
 * Clusters must be deployed with the zookeeper optional component selected
 * This initialization action doesn't support single node deployments
 * This initialization action supports HA and non-HA depolyments
-* It is highly recommended to deploy high memory machine types to ensure LLAP will have space available for cache
+* It is highly recommended to deploy high memory machine types to ensure LLAP will have space available for cache.
 * LLAP will auto configure based on the machine shape. It will adhere to 4GB/executor and ensure that the LLAP Container itself has enough headroom for the JVM (6% or 6GB MAX). Any remainder is treated as off heap cache
 * Clusters must have at least 2 worker nodes to deploy LLAP. Set num-llap-nodes=[num llap nodes] to tell the script how many LLAP instances to run. If the number of LLAP instances are >= the worker node count, the provisioning will fail. LLAP runs on 100% of the resources of a yarn node. 
 * LLAP enables extending the cache pool to include SSD's. Users can deploy dataproc workers with local SSD's to extend LLAP's cache pool. To enable the SSD configuration, simply deploy dataproc with 1 local SSD and apply custom cluster metadata SSD=1 to trigger the configuration of the SSD in LLAP cache. 
