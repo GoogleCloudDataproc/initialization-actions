@@ -37,7 +37,6 @@ readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.5')
 DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '495.29.05')
 
-readonly CUDA_VERSION
 readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION
 readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX=${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION%%.*}
 
@@ -63,9 +62,14 @@ NVIDIA_DEBIAN_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_DEB
 readonly NVIDIA_DEBIAN_CUDA_URL
 
 # Parameters for NVIDIA-provided Ubuntu GPU driver
-readonly NVIDIA_UBUNTU_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/ubuntu1804/x86_64"
+NVIDIA_UBUNTU_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/ubuntu1804/x86_64"
+NVIDIA_UBUNTU_REPO_CUDA_PIN="${NVIDIA_UBUNTU_REPO_URL}/cuda-ubuntu1804.pin"
 readonly NVIDIA_UBUNTU_REPO_KEY_PACKAGE="${NVIDIA_UBUNTU_REPO_URL}/cuda-keyring_1.0-1_all.deb"
-readonly NVIDIA_UBUNTU_REPO_CUDA_PIN="${NVIDIA_UBUNTU_REPO_URL}/cuda-ubuntu1804.pin"
+
+if [[ ${DATAPROC_IMAGE_VERSION} == 2.1 ]]; then
+  NVIDIA_UBUNTU_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/ubuntu2004/x86_64"
+  NVIDIA_UBUNTU_REPO_CUDA_PIN="${NVIDIA_UBUNTU_REPO_URL}/cuda-ubuntu2004.pin"
+fi
 
 # Parameter for NVIDIA-provided Rocky Linux GPU driver
 readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/rhel8/x86_64/cuda-rhel8.repo"
@@ -180,23 +184,83 @@ function install_nvidia_gpu_driver() {
       "${NVIDIA_DEBIAN_CUDA_URL}" -o cuda.run
     bash "./cuda.run" --silent --toolkit --no-opengl-libs
   elif [[ ${OS_NAME} == ubuntu ]]; then
-    curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
-      "${NVIDIA_UBUNTU_REPO_KEY_PACKAGE}" -o /tmp/cuda-keyring.deb
-    dpkg -i "/tmp/cuda-keyring.deb"
-    curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
-      "${NVIDIA_UBUNTU_REPO_CUDA_PIN}" -o /etc/apt/preferences.d/cuda-repository-pin-600
-
-    add-apt-repository "deb ${NVIDIA_UBUNTU_REPO_URL} /"
-    execute_with_retries "apt-get update"
-
-    if [[ -n "${CUDA_VERSION}" ]]; then
-      local -r cuda_package=cuda-toolkit-${CUDA_VERSION//./-}
+    
+    # we need to install additional modules with enabling secure boot, see issue: https://github.com/GoogleCloudDataproc/initialization-actions/issues/1043
+    # following [guide](https://cloud.google.com/compute/docs/gpus/install-drivers-gpu#secure-boot) for detailed information.
+    if [[ ${DATAPROC_IMAGE_VERSION} == 2.1 ]]; then
+      NVIDIA_DRIVER_VERSION=$(apt-cache search 'linux-modules-nvidia-[0-9]+-gcp$' | awk '{print $1}' | sort | tail -n 1 | head -n 1 | awk -F"-" '{print $4}')
+      apt install linux-modules-nvidia-${NVIDIA_DRIVER_VERSION}-gcp -y
+      apt install nvidia-driver-${NVIDIA_DRIVER_VERSION} -y
+      
+      echo """
+        Package: nsight-compute
+        Pin: origin *ubuntu.com*
+        Pin-Priority: -1
+        
+        Package: nsight-systems
+        Pin: origin *ubuntu.com*
+        Pin-Priority: -1
+        
+        Package: nvidia-modprobe
+        Pin: release l=NVIDIA CUDA
+        Pin-Priority: 600
+        
+        Package: nvidia-settings
+        Pin: release l=NVIDIA CUDA
+        Pin-Priority: 600
+        
+        Package: *
+        Pin: release l=NVIDIA CUDA
+        Pin-Priority: 100
+        """ > /etc/apt/preferences.d/cuda-repository-pin-600
+        
+      apt install software-properties-common
+      
+      apt-key adv --fetch-keys ${NVIDIA_UBUNTU_REPO_URL}/3bf863cc.pub
+      add-apt-repository "deb ${NVIDIA_UBUNTU_REPO_URL} /"
+      
+      # CUDA_DRIVER_VERSION should be like "525.60.13-1"
+      CUDA_DRIVER_VERSION=$(apt-cache madison cuda-drivers | awk '{print $3}' | sort -r | while read line; do
+        if dpkg --compare-versions $(dpkg-query -f='${Version}\n' -W nvidia-driver-${NVIDIA_DRIVER_VERSION}) ge $line ; then
+           echo "$line"
+           break
+        fi
+      done)
+      
+#      apt-get install -y cuda-drivers-${NVIDIA_DRIVER_VERSION} cuda-drivers=${CUDA_DRIVER_VERSION}
+      apt install -y cuda-drivers-${NVIDIA_DRIVER_VERSION}=${CUDA_DRIVER_VERSION} cuda-drivers=${CUDA_DRIVER_VERSION}
+      
+      apt-get remove dkms && apt-mark hold dkms
+      
+      # the $line should be "cuda-runtime-12-0,cuda-drivers 525.85.12"
+      CUDA_VERSION=$(apt-cache showpkg cuda-drivers | grep -o 'cuda-runtime-[0-9][0-9]-[0-9],cuda-drivers [0-9\.]*' | while read line; do
+         if dpkg --compare-versions ${CUDA_DRIVER_VERSION} ge $(echo $line | grep -Eo '[[:digit:]]+\.[[:digit:]]+') ; then
+             echo $(echo $line | grep -Eo '[[:digit:]]+-[[:digit:]]')
+             break
+         fi
+      done)
+      
+      apt install -y cuda-${CUDA_VERSION}
+      
     else
-      local -r cuda_package=cuda-toolkit
+      curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
+      "${NVIDIA_UBUNTU_REPO_KEY_PACKAGE}" -o /tmp/cuda-keyring.deb
+      dpkg -i "/tmp/cuda-keyring.deb"
+      curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
+        "${NVIDIA_UBUNTU_REPO_CUDA_PIN}" -o /etc/apt/preferences.d/cuda-repository-pin-600
+
+      add-apt-repository "deb ${NVIDIA_UBUNTU_REPO_URL} /"
+      execute_with_retries "apt-get update"
+
+      if [[ -n "${CUDA_VERSION}" ]]; then
+        local -r cuda_package=cuda-toolkit-${CUDA_VERSION//./-}
+      else
+        local -r cuda_package=cuda-toolkit
+      fi
+      # Without --no-install-recommends this takes a very long time.
+      execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}"
+      execute_with_retries "apt-get install -y -q --no-install-recommends ${cuda_package}"  
     fi
-    # Without --no-install-recommends this takes a very long time.
-    execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}"
-    execute_with_retries "apt-get install -y -q --no-install-recommends ${cuda_package}"
   elif [[ ${OS_NAME} == rocky ]]; then
     execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPO_URL}"
     execute_with_retries "dnf clean all"
