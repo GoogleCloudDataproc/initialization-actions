@@ -142,6 +142,13 @@ function start_services() {
 }
 
 function configure_hadoop() {
+
+if [[ "${ROLE}" == 'Master' ]]; then
+  stop_service_gracefully hadoop-yarn-resourcemanager.service
+  else
+    stop_service_gracefully hadoop-yarn-nodemanager.service
+  fi
+  
   cat <<EOF >/etc/hadoop/conf/hadoop-metrics2.properties
 resourcemanager.sink.statsd.class=org.apache.hadoop.metrics2.sink.StatsDSink
 resourcemanager.sink.statsd.server.host=${HOSTNAME}
@@ -156,10 +163,10 @@ mrappmaster.sink.statsd.skip.hostname=true
 mrappmaster.sink.statsd.service.name=MRAPP
 EOF
 
-  if [[ "${ROLE}" == 'Master' ]]; then
-    restart_service_gracefully hadoop-yarn-resourcemanager.service
+if [[ "${ROLE}" == 'Master' ]]; then
+  start_service_gracefully hadoop-yarn-resourcemanager.service
   else
-    restart_service_gracefully hadoop-yarn-nodemanager.service
+    start_service_gracefully hadoop-yarn-nodemanager.service
   fi
 }
 
@@ -194,14 +201,14 @@ function configure_components() {
   fi
 }
 
-function restart_service_gracefully() {
-  while true; do
-    if systemctl status "$1" | grep -q 'Active: active (running)'; then
-      systemctl restart "$1"
-      break
-    fi
-    sleep 5
-  done
+function stop_service_gracefully() {
+  systemctl stop "$1"
+  sleep 5
+}
+
+function start_service_gracefully() {
+  systemctl start "$1"
+  sleep 5
 }
 
 function main() {
