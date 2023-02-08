@@ -18,7 +18,7 @@ if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
   readonly DEFAULT_CUDA_VERSION="11.5"
   readonly DEFAULT_CUDF_VERSION="22.12.0"
   readonly DEFAULT_XGBOOST_VERSION="1.7.1"
-  readonly SPARK_VERSION="3.0"
+  readonly SPARK_VERSION=${SPARK_VERSION_ENV}
 else
   readonly DEFAULT_CUDA_VERSION="10.1"
   readonly DEFAULT_CUDF_VERSION="0.9.2"
