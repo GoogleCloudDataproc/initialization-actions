@@ -37,8 +37,8 @@ class SparkRapidsTestCase(DataprocTestCase):
                             ("STANDARD", ["w-0"], GPU_T4))
   def test_spark_rapids(self, configuration, machine_suffixes, accelerator):
 
-    if self.getImageVersion() < pkg_resources.parse_version("2.0") and self.getImageOs() == "rocky":
-      self.skipTest("Not supported in pre 2.0 rocky images")
+    if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+      self.skipTest("Not supported in pre 2.0 images")
 
     optional_components = None
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
@@ -64,8 +64,8 @@ class SparkRapidsTestCase(DataprocTestCase):
   def test_non_default_cuda_versions(self, configuration, machine_suffixes,
                                      accelerator, cuda_version):
 
-    if self.getImageVersion() < pkg_resources.parse_version("2.0") and self.getImageOs() == "rocky":
-      self.skipTest("Not supported in pre 2.0 rocky images")
+    if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+      self.skipTest("Not supported in pre 2.0 images")
 
     metadata = ("gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
                 ",cuda-version={}".format(cuda_version))
