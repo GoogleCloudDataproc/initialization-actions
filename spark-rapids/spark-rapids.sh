@@ -114,15 +114,6 @@ function install_spark_rapids() {
   local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
   local -r dmlc_repo_url='https://repo.maven.apache.org/maven2/ml/dmlc'
 
-  # Convert . to - for URL formatting
-  local cudf_cuda_version="${CUDA_VERSION//\./-}"
-
-  # There's only one release for all CUDA 11 versions
-  # The version formatting does not have a '.'
-  if [[ ${cudf_cuda_version} == 11* ]]; then
-    cudf_cuda_version="11"
-  fi
-
   if [[ "${SPARK_VERSION}" == "3"* ]]; then
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
       "${dmlc_repo_url}/xgboost4j-spark-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-spark-gpu_2.12-${XGBOOST_VERSION}.jar" \
