@@ -93,6 +93,41 @@ clusters created under your project directory. You can see `CLUSTER_NAME` with
 status "Running". This cluster is now ready to host RAPIDS Spark and XGBoost
 applications.
 
+* Advanced feature:
+
+  We also support [Multi-Instance GPU](https://www.nvidia.com/en-gb/technologies/multi-instance-gpu/) (MIG) feature of the NVIDIA Ampere architecture. 
+
+  After cluster creation each MIG instance will show up like a regular GPU to YARN. For instance, if you requested
+2 workers each with 1 A100 and used the default 2 MIG instances per A100, the cluster would have a total of 4 GPUs
+that can be allocated.
+
+  It is important to note that CUDA 11 only supports enumeration of a single MIG instance. It is recommended that you
+only request a single MIG instance per container. For instance, if running Spark only request
+1 GPU per executor (spark.executor.resource.gpu.amount=1). Please see the
+[MIG user guide](https://docs.nvidia.com/datacenter/tesla/mig-user-guide/) for more information.
+
+  First decide which Ampere based GPU you are using. In the example we use the A100.
+Decide the number of MIG instances and [instance profiles to use](https://docs.nvidia.com/datacenter/tesla/mig-user-guide/#lgi).
+By default if the MIG profiles are not specified it will configure 2 MIG instances with profile id 9. If
+a different instance profile is required, you can specify it in the MIG_CGI metadata parameter. Either a
+profile id or the name (ie 3g.20gb) can be specified. For example:
+
+    ```bash
+        --metadata=^:^MIG_CGI='3g.20gb,9'
+    ```
+  Create cluster with MIG enabled:
+    
+    ```bash
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --worker-machine-type a2-highgpu-1g
+        --worker-accelerator type=nvidia-tesla-a100,count=1 \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/spark-rapids/spark-rapids.sh \
+        --metadata=startup-script-url=gs://goog-dataproc-initialization-actions-${REGION}/spark-rapids/spark-rapids-mig.sh
+    ```
+
 ### Step 2. Run a sample query and exam GPU usage
 
 Once you have started your Spark shell or Zeppelin notebook you can run the

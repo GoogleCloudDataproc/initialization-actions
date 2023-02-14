@@ -67,6 +67,9 @@ NVIDIA_UBUNTU_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/ubuntu1804/x86_64"
 NVIDIA_UBUNTU_REPO_CUDA_PIN="${NVIDIA_UBUNTU_REPO_URL}/cuda-ubuntu1804.pin"
 readonly NVIDIA_UBUNTU_REPO_KEY_PACKAGE="${NVIDIA_UBUNTU_REPO_URL}/cuda-keyring_1.0-1_all.deb"
 
+SECURE_BOOT="disabled"
+SECURE_BOOT=$(mokutil --sb-state|awk '{print $2}')
+
 if [[ ${DATAPROC_IMAGE_VERSION} == 2.1 ]]; then
   NVIDIA_UBUNTU_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/ubuntu2004/x86_64"
   NVIDIA_UBUNTU_REPO_CUDA_PIN="${NVIDIA_UBUNTU_REPO_URL}/cuda-ubuntu2004.pin"
@@ -80,7 +83,6 @@ GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'NVIDIA')
 readonly GPU_DRIVER_PROVIDER
 
 # Stackdriver GPU agent parameters
-readonly GPU_AGENT_REPO_URL='https://raw.githubusercontent.com/GoogleCloudPlatform/ml-on-gcp/master/dlvm/gcp-gpu-utilization-metrics'
 # Whether to install GPU monitoring agent that sends GPU metrics to Stackdriver
 INSTALL_GPU_AGENT=$(get_metadata_attribute 'install-gpu-agent' 'false')
 readonly INSTALL_GPU_AGENT
@@ -179,7 +181,7 @@ function install_nvidia_gpu_driver() {
     
     # we need to install additional modules with enabling secure boot, see issue: https://github.com/GoogleCloudDataproc/initialization-actions/issues/1043
     # following [guide](https://cloud.google.com/compute/docs/gpus/install-drivers-gpu#secure-boot) for detailed information.
-    if [[ ${DATAPROC_IMAGE_VERSION} == 2.1 ]]; then
+    if [[ ${SECURE_BOOT} == enabled ]]; then
       NVIDIA_DRIVER_VERSION=$(apt-cache search 'linux-modules-nvidia-[0-9]+-gcp$' | awk '{print $1}' | sort | tail -n 1 | head -n 1 | awk -F"-" '{print $4}')
       apt install linux-modules-nvidia-${NVIDIA_DRIVER_VERSION}-gcp -y
       apt install nvidia-driver-${NVIDIA_DRIVER_VERSION} -y
@@ -552,7 +554,7 @@ function upgrade_kernel() {
   DP_ROOT=/usr/local/share/google/dataproc
   STARTUP_SCRIPT="${DP_ROOT}/startup-script.sh"
   POST_HDFS_STARTUP_SCRIPT="${DP_ROOT}/post-hdfs-startup-script.sh"
-
+  
   for startup_script in ${STARTUP_SCRIPT} ${POST_HDFS_STARTUP_SCRIPT} ; do
     sed -i -e 's:/usr/bin/env bash:/usr/bin/env bash\nexit 0:' ${startup_script}
   done
