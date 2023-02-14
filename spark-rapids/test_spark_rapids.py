@@ -11,13 +11,18 @@ class SparkRapidsTestCase(DataprocTestCase):
   INIT_ACTIONS = ["spark-rapids/spark-rapids.sh"]
 
   GPU_T4 = "type=nvidia-tesla-t4"
-
+  GPU_A100 = "type=nvidia-tesla-a100"
+  
   # Tests for RAPIDS init action
   XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME = "verify_xgboost_spark_rapids.scala"
 
   def verify_spark_instance(self, name):
     self.assert_instance_command(name, "nvidia-smi")
 
+  def verify_mig_instance(self, name):
+    self.assert_instance_command(name,
+        "/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | xargs -I % test % = 'Enabled'")
+      
   def verify_spark_job(self):
     instance_name = "{}-m".format(self.getClusterName())
     self.upload_test_file(
@@ -86,6 +91,29 @@ class SparkRapidsTestCase(DataprocTestCase):
     # Only need to do this once
     self.verify_spark_job()
 
+  @parameterized.parameters(("STANDARD", ["m", "w-0", "w-1"], None, GPU_A100, "NVIDIA", "us-central1-b"))
+  def test_install_gpu_with_mig(self, configuration, machine_suffixes,
+                                  master_accelerator, worker_accelerator,
+                                  driver_provider, zone):
+    if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
+      self.skipTest("Not supported in pre 2.0 or Rocky images")
+
+    self.createCluster(
+        configuration,
+        self.INIT_ACTIONS,
+        zone=zone,
+        master_machine_type="n1-standard-4",
+        worker_machine_type="a2-highgpu-1g",
+        master_accelerator=master_accelerator,
+        worker_accelerator=worker_accelerator,
+        metadata=None,
+        timeout_in_minutes=30,
+        boot_disk_size="200GB",
+        startup_script="spark-rapids/mig.sh")
+
+    for machine_suffix in ["w-0", "w-1"]:
+      self.verify_mig_instance("{}-{}".format(self.getClusterName(),
+                                          machine_suffix))
 
 if __name__ == "__main__":
   absltest.main()
