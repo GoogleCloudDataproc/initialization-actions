@@ -125,7 +125,7 @@ profile id or the name (ie 3g.20gb) can be specified. For example:
         --worker-machine-type a2-highgpu-1g
         --worker-accelerator type=nvidia-tesla-a100,count=1 \
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/spark-rapids/spark-rapids.sh \
-        --metadata=startup-script-url=gs://goog-dataproc-initialization-actions-${REGION}/spark-rapids/spark-rapids-mig.sh
+        --metadata=startup-script-url=gs://goog-dataproc-initialization-actions-${REGION}/spark-rapids/mig.sh
     ```
 
 ### Step 2. Run a sample query and exam GPU usage
