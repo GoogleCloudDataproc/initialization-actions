@@ -77,7 +77,7 @@ steps:
 
 # Run presubmit tests in parallel for 2.1 Debian image
   - name: 'gcr.io/cloud-builders/kubectl'
-    id: 'dataproc-2.0-debian10-tests'
+    id: 'dataproc-2.1-debian11-tests'
     waitFor: ['gcr-push']
     entrypoint: 'bash'
     args: ['cloudbuild/run-presubmit-on-k8s.sh', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID', '$BUILD_ID', '2.1-debian11']
@@ -88,7 +88,7 @@ steps:
 
 # Run presubmit tests in parallel for 2.1 Rocky Linux image
   - name: 'gcr.io/cloud-builders/kubectl'
-    id: 'dataproc-2.0-rocky8-tests'
+    id: 'dataproc-2.1-rocky8-tests'
     waitFor: ['gcr-push']
     entrypoint: 'bash'
     args: ['cloudbuild/run-presubmit-on-k8s.sh', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID', '$BUILD_ID', '2.1-rocky8']
@@ -99,7 +99,7 @@ steps:
 
 # Run presubmit tests in parallel for 2.1 Ubuntu image
   - name: 'gcr.io/cloud-builders/kubectl'
-    id: 'dataproc-2.0-ubuntu18-tests'
+    id: 'dataproc-2.1-ubuntu20-tests'
     waitFor: ['gcr-push']
     entrypoint: 'bash'
     args: ['cloudbuild/run-presubmit-on-k8s.sh', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID', '$BUILD_ID', '2.1-ubuntu20']
