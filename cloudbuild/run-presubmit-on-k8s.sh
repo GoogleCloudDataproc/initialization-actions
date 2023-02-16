@@ -14,6 +14,7 @@ LOGS_SINCE_TIME=$(date --iso-8601=seconds)
 
 kubectl run "${POD_NAME}" \
   --image="${IMAGE}" \
+  --requests='cpu=750m,memory=2Gi,ephemeral-storage=2Gi' \
   --restart=Never \
   --env="COMMIT_SHA=${COMMIT_SHA}" \
   --env="IMAGE_VERSION=${DATAPROC_IMAGE_VERSION}" \
