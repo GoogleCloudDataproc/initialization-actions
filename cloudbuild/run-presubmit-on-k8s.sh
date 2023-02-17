@@ -22,8 +22,6 @@ kubectl run "${POD_NAME}" \
 # Delete POD on exit and describe it before deletion if exit was unsuccessful
 trap '[[ $? != 0 ]] && kubectl describe "pod/${POD_NAME}"; kubectl delete pods "${POD_NAME}"' EXIT
 
-kubectl set resources deployment ${POD_NAME}   --limits=cpu=750m,memory=2Gi,ephemeral-storage=2Gi --requests=cpu=750m,memory=2Gi,ephemeral-storage=2Gi
-
 kubectl wait --for=condition=Ready "pod/${POD_NAME}" --timeout=15m
 
 while ! kubectl describe "pod/${POD_NAME}" | grep -q Terminated; do
