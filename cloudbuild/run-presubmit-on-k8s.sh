@@ -14,7 +14,6 @@ LOGS_SINCE_TIME=$(date --iso-8601=seconds)
 
 kubectl run "${POD_NAME}" \
   --image="${IMAGE}" \
-  --requests='cpu=750m,memory=2Gi,ephemeral-storage=2Gi' \
   --restart=Never \
   --env="COMMIT_SHA=${COMMIT_SHA}" \
   --env="IMAGE_VERSION=${DATAPROC_IMAGE_VERSION}" \
@@ -23,12 +22,15 @@ kubectl run "${POD_NAME}" \
 # Delete POD on exit and describe it before deletion if exit was unsuccessful
 trap '[[ $? != 0 ]] && kubectl describe "pod/${POD_NAME}"; kubectl delete pods "${POD_NAME}"' EXIT
 
+kubectl set resources deployment ${POD_NAME}   --limits=cpu=750m,memory=2Gi,ephemeral-storage=2Gi --requests=cpu=750m,memory=2Gi,ephemeral-storage=2Gi
+
 kubectl wait --for=condition=Ready "pod/${POD_NAME}" --timeout=15m
 
 while ! kubectl describe "pod/${POD_NAME}" | grep -q Terminated; do
   kubectl logs -f "${POD_NAME}" --since-time="${LOGS_SINCE_TIME}" --timestamps=true
   LOGS_SINCE_TIME=$(date --iso-8601=seconds)
 done
+
 
 EXIT_CODE=$(kubectl get pod "${POD_NAME}" \
   -o go-template="{{range .status.containerStatuses}}{{.state.terminated.exitCode}}{{end}}")
