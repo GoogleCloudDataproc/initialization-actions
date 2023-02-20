@@ -7,7 +7,7 @@
 # Usage: ./push-to-gcs.sh <git-ref> <module>
 #
 # Example: ./push-to-gcs.sh cbde05 kafka
-
+echo "[!] Pushing to gcs"
 set -euo pipefail
 
 [[ $# -eq 2 ]] || {
