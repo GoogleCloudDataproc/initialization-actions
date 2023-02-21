@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: {{IMAGE_NAME}}
+  name: {{IMAGE_NAME}}
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{IMAGE_NAME}}
+  template:
+    metadata:
+      labels:
+        app: {{IMAGE_NAME}}
+    spec:
+      containers:
+      - command:
+        - bash
+        - /init-actions/cloudbuild/presubmit.sh
+        env:
+        - name: COMMIT_SHA
+          value: {{COMMIT_SHA}}
+        - name: IMAGE_VERSION
+          value: {{IMAGE_VERSION}}
+        name: {{IMAGE_NAME}}
+        image: {{IMAGE_BUILD_ID}}
+        resources:
+          limits:
+            cpu: 500m
+            ephemeral-storage: 1Gi
+            memory: 2Gi
+          requests:
+            cpu: 500m
+            ephemeral-storage: 1Gi
+            memory: 2Gi
