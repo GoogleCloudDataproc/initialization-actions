@@ -24,9 +24,6 @@ export IMAGE_VERSION=${DATAPROC_IMAGE_VERSION}
 export IMAGE_BUILD_ID=${BUILD_ID}
 
 ls
-pwd
-ls -lrth /init-actions/cloudbuild/workspace/cloudbuild
-
 envsubst < cloudbuild/deployment.yaml | kubectl apply -f -
 
 # Delete POD on exit and describe it before deletion if exit was unsuccessful
