@@ -5,7 +5,6 @@ set -euxo pipefail
 readonly IMAGE=$1
 readonly BUILD_ID=$2
 readonly DATAPROC_IMAGE_VERSION=$3
-apt-get install -y gettext
 
 readonly POD_NAME=presubmit-${DATAPROC_IMAGE_VERSION//./-}-${BUILD_ID//_/-}
 
@@ -24,7 +23,6 @@ export COMMIT_SHA=${COMMIT_SHA}
 export IMAGE_VERSION=${DATAPROC_IMAGE_VERSION}
 export IMAGE_BUILD_ID=${BUILD_ID}
 
-ls
 cat cloudbuild/deployment.yaml |sed "s/{{IMAGE_NAME}}/${IMAGE_NAME}/g;s/{{COMMIT_SHA}}/${COMMIT_SHA}/g;s/{{IMAGE_VERSION}}/${IMAGE_VERSION}/g;s/{{IMAGE_BUILD_ID}}/${IMAGE_BUILD_ID}/g" | kubectl apply -f -
 
 # Delete POD on exit and describe it before deletion if exit was unsuccessful
