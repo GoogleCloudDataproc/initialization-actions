@@ -1,4 +1,4 @@
-apiVersion: v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
@@ -7,7 +7,13 @@ metadata:
   namespace: default
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: {{IMAGE_NAME}}
   template:
+    metadata:
+      labels:
+        app: {{IMAGE_NAME}}
     spec:
       containers:
       - command:
@@ -29,13 +35,3 @@ spec:
             cpu: 500m
             ephemeral-storage: 1Gi
             memory: 2Gi
-        securityContext:
-          capabilities:
-            drop:
-            - NET_RAW
-        terminationMessagePath: /dev/termination-log
-        terminationMessagePolicy: File
-        volumeMounts:
-        - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
-          name: kube-api-access-9ltw8
-          readOnly: true
