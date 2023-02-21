@@ -24,9 +24,7 @@ export IMAGE_VERSION=${DATAPROC_IMAGE_VERSION}
 export IMAGE_BUILD_ID=${BUILD_ID}
 export IMAGE_BUILD_ID=gcr.io/cloud-dataproc-ci/init-actions-image:${BUILD_ID}
 
-cat cloudbuild/deployment.yaml
-
-cat cloudbuild/deployment.yaml |sed "s/{{IMAGE_NAME}}/${IMAGE_NAME}/g;s/{{COMMIT_SHA}}/${COMMIT_SHA}/g;s/{{IMAGE_VERSION}}/${IMAGE_VERSION}/g;s|{{IMAGE_BUILD_ID}}|${IMAGE_BUILD_ID}|g" | kubectl apply -f -
+cat cloudbuild/deployment.yaml | sed "s/{{IMAGE_NAME}}/${IMAGE_NAME}/g;s/{{COMMIT_SHA}}/${COMMIT_SHA}/g;s/{{IMAGE_VERSION}}/${IMAGE_VERSION}/g;s|{{IMAGE_BUILD_ID}}|${IMAGE_BUILD_ID}|g" | kubectl apply -f -
 
 # Delete POD on exit and describe it before deletion if exit was unsuccessful
 trap '[[ $? != 0 ]] && kubectl describe "pod/${POD_NAME}"; kubectl delete pods "${POD_NAME}"' EXIT
