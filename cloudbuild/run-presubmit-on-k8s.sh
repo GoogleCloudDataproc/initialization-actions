@@ -12,12 +12,18 @@ gcloud container clusters get-credentials "${CLOUDSDK_CONTAINER_CLUSTER}"
 
 LOGS_SINCE_TIME=$(date --iso-8601=seconds)
 
-kubectl run "${POD_NAME}" \
-  --image="${IMAGE}" \
-  --restart=Never \
-  --env="COMMIT_SHA=${COMMIT_SHA}" \
-  --env="IMAGE_VERSION=${DATAPROC_IMAGE_VERSION}" \
-  --command -- bash /init-actions/cloudbuild/presubmit.sh
+#kubectl run "${POD_NAME}" \
+#  --image="${IMAGE}" \
+#  --restart=Never \
+#  --env="COMMIT_SHA=${COMMIT_SHA}" \
+#  --env="IMAGE_VERSION=${DATAPROC_IMAGE_VERSION}" \
+#  --command -- bash /init-actions/cloudbuild/presubmit.sh
+export IMAGE_NAME=${POD_NAME}
+export COMMIT_SHA=${COMMIT_SHA}
+export IMAGE_VERSION=${DATAPROC_IMAGE_VERSION}
+export BUILD_ID=${BUILD_ID}
+
+envsubst < /init-actions/cloudbuild/deployment.yaml | kubectl apply -f -
 
 # Delete POD on exit and describe it before deletion if exit was unsuccessful
 trap '[[ $? != 0 ]] && kubectl describe "pod/${POD_NAME}"; kubectl delete pods "${POD_NAME}"' EXIT
