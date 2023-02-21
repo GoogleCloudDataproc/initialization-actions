@@ -21,7 +21,7 @@ LOGS_SINCE_TIME=$(date --iso-8601=seconds)
 export IMAGE_NAME=${POD_NAME}
 export COMMIT_SHA=${COMMIT_SHA}
 export IMAGE_VERSION=${DATAPROC_IMAGE_VERSION}
-export BUILD_ID=${BUILD_ID}
+export IMAGE_BUILD_ID=${BUILD_ID}
 
 envsubst < /init-actions/cloudbuild/deployment.yaml | kubectl apply -f -
 
