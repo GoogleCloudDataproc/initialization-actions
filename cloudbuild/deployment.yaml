@@ -2,8 +2,8 @@ apiVersion: v1
 kind: Deployment
 metadata:
   labels:
-    run: ${IMAGE_NAME}
-  name: ${IMAGE_NAME}
+    run: {{IMAGE_NAME}}
+  name: {{IMAGE_NAME}}
   namespace: default
 spec:
   replicas: 1
@@ -15,10 +15,10 @@ spec:
         - /init-actions/cloudbuild/presubmit.sh
         env:
         - name: COMMIT_SHA
-          value: ${COMMIT_SHA}
+          value: {{COMMIT_SHA}}
         - name: IMAGE_VERSION
-          value:${IMAGE_VERSION}
-        image: gcr.io/cloud-dataproc-ci/init-actions-image:${IMAGE_BUILD_ID}
+          value:{{IMAGE_VERSION}}
+        image: gcr.io/cloud-dataproc-ci/init-actions-image:{{IMAGE_BUILD_ID}}
         name: ${IMAGE_NAME}
         resources:
           limits:
