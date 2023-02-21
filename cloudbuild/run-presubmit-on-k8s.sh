@@ -5,6 +5,7 @@ set -euxo pipefail
 readonly IMAGE=$1
 readonly BUILD_ID=$2
 readonly DATAPROC_IMAGE_VERSION=$3
+apt-get install -y gettext-base
 
 readonly POD_NAME=presubmit-${DATAPROC_IMAGE_VERSION//./-}-${BUILD_ID//_/-}
 
