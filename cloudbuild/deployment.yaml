@@ -18,7 +18,7 @@ spec:
           value: {{COMMIT_SHA}}
         - name: IMAGE_VERSION
           value:{{IMAGE_VERSION}}
-        image: gcr.io/cloud-dataproc-ci/init-actions-image:{{IMAGE_BUILD_ID}}
+        image: {{IMAGE_BUILD_ID}}
         name: ${IMAGE_NAME}
         resources:
           limits:
