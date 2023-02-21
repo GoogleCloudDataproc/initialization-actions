@@ -25,9 +25,9 @@ export IMAGE_BUILD_ID=${BUILD_ID}
 
 ls
 pwd
-ls -lrth /init-actions/cloudbuild
+ls -lrth /init-actions/cloudbuild/workspace/cloudbuild
 
-envsubst < /init-actions/cloudbuild/deployment.yaml | kubectl apply -f -
+envsubst < cloudbuild/deployment.yaml | kubectl apply -f -
 
 # Delete POD on exit and describe it before deletion if exit was unsuccessful
 trap '[[ $? != 0 ]] && kubectl describe "pod/${POD_NAME}"; kubectl delete pods "${POD_NAME}"' EXIT
