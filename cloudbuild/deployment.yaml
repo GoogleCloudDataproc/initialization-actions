@@ -17,8 +17,9 @@ spec:
         - name: COMMIT_SHA
           value: {{COMMIT_SHA}}
         - name: IMAGE_VERSION
-          value:{{IMAGE_VERSION}}
+          value: {{IMAGE_VERSION}}
         name: {{IMAGE_NAME}}
+        image: {{IMAGE_BUILD_ID}}
         resources:
           limits:
             cpu: 500m
