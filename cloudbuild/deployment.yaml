@@ -19,7 +19,7 @@ spec:
         - name: IMAGE_VERSION
           value:{{IMAGE_VERSION}}
         image: {{IMAGE_BUILD_ID}}
-        name: ${IMAGE_NAME}
+        name: {{IMAGE_NAME}}
         resources:
           limits:
             cpu: 500m
