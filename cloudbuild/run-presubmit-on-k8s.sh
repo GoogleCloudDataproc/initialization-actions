@@ -23,6 +23,10 @@ export COMMIT_SHA=${COMMIT_SHA}
 export IMAGE_VERSION=${DATAPROC_IMAGE_VERSION}
 export IMAGE_BUILD_ID=${BUILD_ID}
 
+echo ls
+echo pwd
+echo ls -lrth /init-actions/cloudbuild
+
 envsubst < /init-actions/cloudbuild/deployment.yaml | kubectl apply -f -
 
 # Delete POD on exit and describe it before deletion if exit was unsuccessful
