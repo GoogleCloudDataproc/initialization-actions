@@ -149,6 +149,7 @@ spark.executor.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusRe
 spark.dynamicAllocation.enabled=false
 spark.sql.autoBroadcastJoinThreshold=10m
 spark.sql.files.maxPartitionBytes=512m
+spark.task.resource.gpu.amount=0.25
 ###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
 EOF
   else
