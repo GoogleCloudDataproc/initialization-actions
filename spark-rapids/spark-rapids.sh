@@ -503,6 +503,7 @@ function upgrade_kernel() {
   elif [[ ${OS_NAME} == rocky ]]; then
     KERN_VER=$(yum info --installed kernel | awk '/^Version/ {print $3}')
     KERN_REL=$(yum info --installed kernel | awk '/^Release/ {print $3}')
+    # something like 4.18.0-425.10.1.el8_7
     CURRENT_KERNEL_VERSION="${KERN_VER}-${KERN_REL}"
   else
     echo "unsupported OS: ${OS_NAME}!"
@@ -565,7 +566,7 @@ function upgrade_kernel() {
 function main() {
 
   if [[ "${OS_NAME}" == "rocky" ]]; then
-    if dnf list kernel-devel-$(uname -r) && list kernel-headers-$(uname -r); then
+    if dnf list kernel-devel-$(uname -r) && dnf list kernel-headers-$(uname -r); then
       echo "kernel devel and headers packages are available.  Proceed without kernel upgrade."
     else
       upgrade_kernel
