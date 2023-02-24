@@ -334,7 +334,7 @@ function main() {
   fi
     
   if [[ "${OS_NAME}" == "rocky" ]]; then
-    if dnf list kernel-devel-$(uname -r) && list kernel-headers-$(uname -r); then
+    if dnf list kernel-devel-$(uname -r) && dnf list kernel-headers-$(uname -r); then
       echo "kernel devel and headers packages are available.  Proceed without kernel upgrade."
     else
       upgrade_kernel
