@@ -142,13 +142,13 @@ function configure_spark() {
 # Rapids Accelerator for Spark can utilize AQE, but when the plan is not finalized,
 # query explain output won't show GPU operator, if user have doubt
 # they can uncomment the line before seeing the GPU plan explain, but AQE on gives user the best performance.
-# spark.sql.adaptive.enabled=false
 spark.executor.resource.gpu.amount=1
 spark.plugins=com.nvidia.spark.SQLPlugin
 spark.executor.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh
 spark.dynamicAllocation.enabled=false
 spark.sql.autoBroadcastJoinThreshold=10m
 spark.sql.files.maxPartitionBytes=512m
+# please update this config according to your application
 spark.task.resource.gpu.amount=0.25
 ###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
 EOF

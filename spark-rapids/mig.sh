@@ -91,10 +91,6 @@ readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/rhel8/x86_64/cu
 GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'NVIDIA')
 readonly GPU_DRIVER_PROVIDER
 
-# Stackdriver GPU agent parameters
-# Whether to install GPU monitoring agent that sends GPU metrics to Stackdriver
-INSTALL_GPU_AGENT=$(get_metadata_attribute 'install-gpu-agent' 'false')
-readonly INSTALL_GPU_AGENT
 function execute_with_retries() {
   local -r cmd=$1
   for ((i = 0; i < 10; i++)); do
@@ -209,39 +205,6 @@ function install_nvidia_gpu_driver() {
   fi
   ldconfig
   echo "NVIDIA GPU driver provided by NVIDIA was installed successfully"
-}
-
-
-# Collects 'gpu_utilization' and 'gpu_memory_utilization' metrics
-function install_gpu_agent() {
-  download_agent
-  install_agent_dependency
-  start_agent_service
-}
-
-function download_agent(){
-  if [[ ${OS_NAME} == rocky ]]; then
-    execute_with_retries "dnf -y -q install git"
-  else
-    execute_with_retries "apt-get install git -y"
-  fi
-  mkdir -p /opt/google
-  chmod 777 /opt/google
-  cd /opt/google
-  execute_with_retries "git clone https://github.com/GoogleCloudPlatform/compute-gpu-monitoring.git"
-}
-
-function install_agent_dependency(){
-  cd /opt/google/compute-gpu-monitoring/linux
-  python3 -m venv venv
-  venv/bin/pip install wheel
-  venv/bin/pip install -Ur requirements.txt
-}
-
-function start_agent_service(){
-  cp /opt/google/compute-gpu-monitoring/linux/systemd/google_gpu_monitoring_agent_venv.service /lib/systemd/system
-  systemctl daemon-reload
-  systemctl --no-reload --now enable /lib/systemd/system/google_gpu_monitoring_agent_venv.service
 }
 
 function enable_mig() {
@@ -386,14 +349,6 @@ function main() {
     fi
 
     install_nvidia_gpu_driver
-
-    # Install GPU metrics collection in Stackdriver if needed
-    if [[ ${INSTALL_GPU_AGENT} == true ]]; then
-      install_gpu_agent
-      echo 'GPU metrics agent successfully deployed.'
-    else
-      echo 'GPU metrics agent will not be installed.'
-    fi
 
     if [[ ${META_MIG_VALUE} -ne 0 ]]; then
       enable_mig
