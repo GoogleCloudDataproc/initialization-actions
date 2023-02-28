@@ -98,7 +98,6 @@ class DataprocTestCase(parameterized.TestCase):
                       master_machine_type=None,
                       worker_machine_type=None,
                       boot_disk_size="50GB",
-                      no_secure_boot=False,
                       startup_script=None):
         self.initClusterName(configuration)
         self.cluster_version = None
@@ -129,10 +128,7 @@ class DataprocTestCase(parameterized.TestCase):
         if timeout_in_minutes:
             args.append("--initialization-action-timeout={}m".format(
                 timeout_in_minutes))
-        
-        if no_secure_boot:
-            args.append("--no-shielded-secure-boot")
-        
+
         if properties:
             args.append("--properties={}".format(properties))
         if metadata:
