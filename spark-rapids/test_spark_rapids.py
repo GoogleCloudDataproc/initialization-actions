@@ -12,6 +12,7 @@ class SparkRapidsTestCase(DataprocTestCase):
 
   GPU_T4 = "type=nvidia-tesla-t4"
   GPU_A100 = "type=nvidia-tesla-a100"
+  NO_SECURE_BOOT = False
   
   # Tests for RAPIDS init action
   XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME = "verify_xgboost_spark_rapids.scala"
@@ -47,7 +48,10 @@ class SparkRapidsTestCase(DataprocTestCase):
 
     optional_components = None
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
-
+    
+    if self.getImageOs() == "rocky" or self.getImageOs() == "debian":
+        NO_SECURE_BOOT = True
+    
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
@@ -57,6 +61,7 @@ class SparkRapidsTestCase(DataprocTestCase):
         master_accelerator=accelerator if configuration == "SINGLE" else None,
         worker_accelerator=accelerator,
         boot_disk_size="1024GB",
+        no_secure_boot=NO_SECURE_BOOT,
         timeout_in_minutes=30)
 
     for machine_suffix in machine_suffixes:
@@ -72,6 +77,9 @@ class SparkRapidsTestCase(DataprocTestCase):
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0 images")
 
+    if self.getImageOs() == "rocky" or self.getImageOs() == "debian":
+        NO_SECURE_BOOT = True
+        
     metadata = ("gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
                 ",cuda-version={}".format(cuda_version))
 
@@ -83,6 +91,7 @@ class SparkRapidsTestCase(DataprocTestCase):
         master_accelerator=accelerator if configuration == "SINGLE" else None,
         worker_accelerator=accelerator,
         boot_disk_size="1024GB",
+        no_secure_boot=NO_SECURE_BOOT,
         timeout_in_minutes=30)
 
     for machine_suffix in machine_suffixes:
@@ -97,7 +106,10 @@ class SparkRapidsTestCase(DataprocTestCase):
                                   driver_provider, zone):
     if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
       self.skipTest("Not supported in pre 2.0 or Rocky images")
-
+        
+    if self.getImageOs() == "rocky" or self.getImageOs() == "debian":
+        NO_SECURE_BOOT = True
+        
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
@@ -109,6 +121,7 @@ class SparkRapidsTestCase(DataprocTestCase):
         metadata=None,
         timeout_in_minutes=30,
         boot_disk_size="200GB",
+        no_secure_boot=NO_SECURE_BOOT,
         startup_script="spark-rapids/mig.sh")
 
     for machine_suffix in ["w-0", "w-1"]:
