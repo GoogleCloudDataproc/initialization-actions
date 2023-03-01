@@ -6,7 +6,7 @@ py_test(
     name = "test_spark_rapids",
     size = "enormous",
     srcs = ["test_spark_rapids.py"],
-    data = ["spark-rapids.sh", "mig.sh"],
+    data = ["spark-rapids.sh", "mig.sh", "verify_xgboost_spark.scala"],
     local = True,
     shard_count = 15,
     deps = [
