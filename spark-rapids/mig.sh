@@ -146,7 +146,7 @@ function install_nvidia_gpu_driver() {
         Pin-Priority: 100
         """ > /etc/apt/preferences.d/cuda-repository-pin-600
 
-      apt install software-properties-common
+      apt install software-properties-common -y
 
       apt-key adv --fetch-keys ${NVIDIA_UBUNTU_REPO_URL}/3bf863cc.pub
       add-apt-repository "deb ${NVIDIA_UBUNTU_REPO_URL} /"

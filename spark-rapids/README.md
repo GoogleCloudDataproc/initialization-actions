@@ -49,6 +49,9 @@ A few notes:
     `spark.rapids.sql.concurrentGpuTasks`
 *   For best practice, please refer to NVIDIA
     [getting started guide](https://nvidia.github.io/spark-rapids/)
+*   For some images version such as 2.1-ubuntu20 we need to disable secure boot by adding
+    the config `--no-shielded-secure-boot` while creating the cluster, because it requires 
+    reboot after installing GPU driver.
 
 ```bash
 export CLUSTER_NAME=<cluster_name>
