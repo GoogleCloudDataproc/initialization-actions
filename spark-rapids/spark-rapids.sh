@@ -12,16 +12,14 @@ OS_NAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
 readonly OS_NAME
 
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
-readonly DEFAULT_SPARK_RAPIDS_VERSION="22.12.0"
+readonly DEFAULT_SPARK_RAPIDS_VERSION="23.02.0"
 
 if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
   readonly DEFAULT_CUDA_VERSION="11.5"
-  readonly DEFAULT_CUDF_VERSION="22.12.0"
   readonly DEFAULT_XGBOOST_VERSION="1.7.1"
   readonly SPARK_VERSION="3.0"
 else
   readonly DEFAULT_CUDA_VERSION="10.1"
-  readonly DEFAULT_CUDF_VERSION="0.9.2"
   readonly DEFAULT_XGBOOST_VERSION="1.0.0"
   readonly DEFAULT_XGBOOST_GPU_SUB_VERSION="Beta5"
   readonly SPARK_VERSION="2.x"
@@ -37,7 +35,6 @@ readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '11.5')
 DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '495.29.05')
 
-readonly CUDA_VERSION
 readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION
 readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX=${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION%%.*}
 
@@ -57,15 +54,24 @@ readonly -A DEFAULT_NVIDIA_DEBIAN_CUDA_URLS=(
   [11.2]="${NVIDIA_BASE_DL_URL}/cuda/11.2.2/local_installers/cuda_11.2.2_460.32.03_linux.run"
   [11.5]="${NVIDIA_BASE_DL_URL}/cuda/11.5.2/local_installers/cuda_11.5.2_495.29.05_linux.run"
   [11.6]="${NVIDIA_BASE_DL_URL}/cuda/11.6.2/local_installers/cuda_11.6.2_510.47.03_linux.run"
-  [11.7]="${NVIDIA_BASE_DL_URL}/cuda/11.7.1/local_installers/cuda_11.7.1_515.65.01_linux.run")
+  [11.7]="${NVIDIA_BASE_DL_URL}/cuda/11.7.1/local_installers/cuda_11.7.1_515.65.01_linux.run"
+  [11.8]="${NVIDIA_BASE_DL_URL}/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run")
 readonly DEFAULT_NVIDIA_DEBIAN_CUDA_URL=${DEFAULT_NVIDIA_DEBIAN_CUDA_URLS["${CUDA_VERSION}"]}
 NVIDIA_DEBIAN_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_DEBIAN_CUDA_URL}")
 readonly NVIDIA_DEBIAN_CUDA_URL
 
 # Parameters for NVIDIA-provided Ubuntu GPU driver
-readonly NVIDIA_UBUNTU_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/ubuntu1804/x86_64"
+NVIDIA_UBUNTU_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/ubuntu1804/x86_64"
+NVIDIA_UBUNTU_REPO_CUDA_PIN="${NVIDIA_UBUNTU_REPO_URL}/cuda-ubuntu1804.pin"
 readonly NVIDIA_UBUNTU_REPO_KEY_PACKAGE="${NVIDIA_UBUNTU_REPO_URL}/cuda-keyring_1.0-1_all.deb"
-readonly NVIDIA_UBUNTU_REPO_CUDA_PIN="${NVIDIA_UBUNTU_REPO_URL}/cuda-ubuntu1804.pin"
+
+SECURE_BOOT="disabled"
+SECURE_BOOT=$(mokutil --sb-state|awk '{print $2}')
+
+if [[ ${DATAPROC_IMAGE_VERSION} == 2.1 ]]; then
+  NVIDIA_UBUNTU_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/ubuntu2004/x86_64"
+  NVIDIA_UBUNTU_REPO_CUDA_PIN="${NVIDIA_UBUNTU_REPO_URL}/cuda-ubuntu2004.pin"
+fi
 
 # Parameter for NVIDIA-provided Rocky Linux GPU driver
 readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/rhel8/x86_64/cuda-rhel8.repo"
@@ -75,7 +81,6 @@ GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'NVIDIA')
 readonly GPU_DRIVER_PROVIDER
 
 # Stackdriver GPU agent parameters
-readonly GPU_AGENT_REPO_URL='https://raw.githubusercontent.com/GoogleCloudPlatform/ml-on-gcp/master/dlvm/gcp-gpu-utilization-metrics'
 # Whether to install GPU monitoring agent that sends GPU metrics to Stackdriver
 INSTALL_GPU_AGENT=$(get_metadata_attribute 'install-gpu-agent' 'false')
 readonly INSTALL_GPU_AGENT
@@ -109,15 +114,6 @@ function install_spark_rapids() {
   local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
   local -r dmlc_repo_url='https://repo.maven.apache.org/maven2/ml/dmlc'
 
-  # Convert . to - for URL formatting
-  local cudf_cuda_version="${CUDA_VERSION//\./-}"
-
-  # There's only one release for all CUDA 11 versions
-  # The version formatting does not have a '.'
-  if [[ ${cudf_cuda_version} == 11* ]]; then
-    cudf_cuda_version="11"
-  fi
-
   if [[ "${SPARK_VERSION}" == "3"* ]]; then
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
       "${dmlc_repo_url}/xgboost4j-spark-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-spark-gpu_2.12-${XGBOOST_VERSION}.jar" \
@@ -146,13 +142,14 @@ function configure_spark() {
 # Rapids Accelerator for Spark can utilize AQE, but when the plan is not finalized,
 # query explain output won't show GPU operator, if user have doubt
 # they can uncomment the line before seeing the GPU plan explain, but AQE on gives user the best performance.
-# spark.sql.adaptive.enabled=false
 spark.executor.resource.gpu.amount=1
 spark.plugins=com.nvidia.spark.SQLPlugin
 spark.executor.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh
 spark.dynamicAllocation.enabled=false
 spark.sql.autoBroadcastJoinThreshold=10m
 spark.sql.files.maxPartitionBytes=512m
+# please update this config according to your application
+spark.task.resource.gpu.amount=0.25
 ###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
 EOF
   else
@@ -180,23 +177,83 @@ function install_nvidia_gpu_driver() {
       "${NVIDIA_DEBIAN_CUDA_URL}" -o cuda.run
     bash "./cuda.run" --silent --toolkit --no-opengl-libs
   elif [[ ${OS_NAME} == ubuntu ]]; then
-    curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
-      "${NVIDIA_UBUNTU_REPO_KEY_PACKAGE}" -o /tmp/cuda-keyring.deb
-    dpkg -i "/tmp/cuda-keyring.deb"
-    curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
-      "${NVIDIA_UBUNTU_REPO_CUDA_PIN}" -o /etc/apt/preferences.d/cuda-repository-pin-600
-
-    add-apt-repository "deb ${NVIDIA_UBUNTU_REPO_URL} /"
-    execute_with_retries "apt-get update"
-
-    if [[ -n "${CUDA_VERSION}" ]]; then
-      local -r cuda_package=cuda-toolkit-${CUDA_VERSION//./-}
+    
+    # we need to install additional modules with enabling secure boot, see issue: https://github.com/GoogleCloudDataproc/initialization-actions/issues/1043
+    # following [guide](https://cloud.google.com/compute/docs/gpus/install-drivers-gpu#secure-boot) for detailed information.
+    if [[ ${SECURE_BOOT} == enabled ]]; then
+      NVIDIA_DRIVER_VERSION=$(apt-cache search 'linux-modules-nvidia-[0-9]+-gcp$' | awk '{print $1}' | sort | tail -n 1 | head -n 1 | awk -F"-" '{print $4}')
+      apt install linux-modules-nvidia-${NVIDIA_DRIVER_VERSION}-gcp -y
+      apt install nvidia-driver-${NVIDIA_DRIVER_VERSION} -y
+      
+      echo """
+        Package: nsight-compute
+        Pin: origin *ubuntu.com*
+        Pin-Priority: -1
+        
+        Package: nsight-systems
+        Pin: origin *ubuntu.com*
+        Pin-Priority: -1
+        
+        Package: nvidia-modprobe
+        Pin: release l=NVIDIA CUDA
+        Pin-Priority: 600
+        
+        Package: nvidia-settings
+        Pin: release l=NVIDIA CUDA
+        Pin-Priority: 600
+        
+        Package: *
+        Pin: release l=NVIDIA CUDA
+        Pin-Priority: 100
+        """ > /etc/apt/preferences.d/cuda-repository-pin-600
+        
+      apt install software-properties-common -y
+      
+      apt-key adv --fetch-keys ${NVIDIA_UBUNTU_REPO_URL}/3bf863cc.pub
+      add-apt-repository "deb ${NVIDIA_UBUNTU_REPO_URL} /"
+      
+      # CUDA_DRIVER_VERSION should be like "525.60.13-1"
+      CUDA_DRIVER_VERSION=$(apt-cache madison cuda-drivers | awk '{print $3}' | sort -r | while read line; do
+        if dpkg --compare-versions $(dpkg-query -f='${Version}\n' -W nvidia-driver-${NVIDIA_DRIVER_VERSION}) ge $line ; then
+           echo "$line"
+           break
+        fi
+      done)
+      
+#      apt-get install -y cuda-drivers-${NVIDIA_DRIVER_VERSION} cuda-drivers=${CUDA_DRIVER_VERSION}
+      apt install -y cuda-drivers-${NVIDIA_DRIVER_VERSION}=${CUDA_DRIVER_VERSION} cuda-drivers=${CUDA_DRIVER_VERSION}
+      
+      apt-get remove dkms && apt-mark hold dkms
+      
+      # the $line should be "cuda-runtime-12-0,cuda-drivers 525.85.12"
+      CUDA_VERSION=$(apt-cache showpkg cuda-drivers | grep -o 'cuda-runtime-[0-9][0-9]-[0-9],cuda-drivers [0-9\.]*' | while read line; do
+         if dpkg --compare-versions ${CUDA_DRIVER_VERSION} ge $(echo $line | grep -Eo '[[:digit:]]+\.[[:digit:]]+') ; then
+             echo $(echo $line | grep -Eo '[[:digit:]]+-[[:digit:]]')
+             break
+         fi
+      done)
+      
+      apt install -y cuda-${CUDA_VERSION}
+      
     else
-      local -r cuda_package=cuda-toolkit
+      curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
+      "${NVIDIA_UBUNTU_REPO_KEY_PACKAGE}" -o /tmp/cuda-keyring.deb
+      dpkg -i "/tmp/cuda-keyring.deb"
+      curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
+        "${NVIDIA_UBUNTU_REPO_CUDA_PIN}" -o /etc/apt/preferences.d/cuda-repository-pin-600
+
+      add-apt-repository "deb ${NVIDIA_UBUNTU_REPO_URL} /"
+      execute_with_retries "apt-get update"
+
+      if [[ -n "${CUDA_VERSION}" ]]; then
+        local -r cuda_package=cuda-toolkit-${CUDA_VERSION//./-}
+      else
+        local -r cuda_package=cuda-toolkit
+      fi
+      # Without --no-install-recommends this takes a very long time.
+      execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}"
+      execute_with_retries "apt-get install -y -q --no-install-recommends ${cuda_package}"  
     fi
-    # Without --no-install-recommends this takes a very long time.
-    execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}"
-    execute_with_retries "apt-get install -y -q --no-install-recommends ${cuda_package}"
   elif [[ ${OS_NAME} == rocky ]]; then
     execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPO_URL}"
     execute_with_retries "dnf clean all"
@@ -447,6 +504,7 @@ function upgrade_kernel() {
   elif [[ ${OS_NAME} == rocky ]]; then
     KERN_VER=$(yum info --installed kernel | awk '/^Version/ {print $3}')
     KERN_REL=$(yum info --installed kernel | awk '/^Release/ {print $3}')
+    # something like 4.18.0-425.10.1.el8_7
     CURRENT_KERNEL_VERSION="${KERN_VER}-${KERN_REL}"
   else
     echo "unsupported OS: ${OS_NAME}!"
@@ -496,7 +554,7 @@ function upgrade_kernel() {
   DP_ROOT=/usr/local/share/google/dataproc
   STARTUP_SCRIPT="${DP_ROOT}/startup-script.sh"
   POST_HDFS_STARTUP_SCRIPT="${DP_ROOT}/post-hdfs-startup-script.sh"
-
+  
   for startup_script in ${STARTUP_SCRIPT} ${POST_HDFS_STARTUP_SCRIPT} ; do
     sed -i -e 's:/usr/bin/env bash:/usr/bin/env bash\nexit 0:' ${startup_script}
   done
@@ -509,7 +567,7 @@ function upgrade_kernel() {
 function main() {
 
   if [[ "${OS_NAME}" == "rocky" ]]; then
-    if dnf list kernel-devel-$(uname -r) && list kernel-headers-$(uname -r); then
+    if dnf list kernel-devel-$(uname -r) && dnf list kernel-headers-$(uname -r); then
       echo "kernel devel and headers packages are available.  Proceed without kernel upgrade."
     else
       upgrade_kernel

@@ -117,6 +117,7 @@ py_test(
     data = [
         "spark-rapids/spark-rapids.sh",
         "spark-rapids/verify_xgboost_spark_rapids.scala",
+        "spark-rapids/mig.sh",
     ],
     local = True,
     shard_count = 3,
