@@ -56,6 +56,14 @@ readonly -A DEFAULT_NVIDIA_DEBIAN_CUDA_URLS=(
   [11.6]="${NVIDIA_BASE_DL_URL}/cuda/11.6.2/local_installers/cuda_11.6.2_510.47.03_linux.run"
   [11.7]="${NVIDIA_BASE_DL_URL}/cuda/11.7.1/local_installers/cuda_11.7.1_515.65.01_linux.run"
   [11.8]="${NVIDIA_BASE_DL_URL}/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run")
+
+if [[ ${!DEFAULT_NVIDIA_DEBIAN_CUDA_URLS[@]} =~ ${CUDA_VERSION} ]]; then
+  echo "CUDA version ${CUDA_VERSION} is supported."
+else
+  echo "Error: CUDA version ${CUDA_VERSION} is not supported. Supported version : ${!DEFAULT_NVIDIA_DEBIAN_CUDA_URLS[@]}"
+  exit 1
+fi
+
 readonly DEFAULT_NVIDIA_DEBIAN_CUDA_URL=${DEFAULT_NVIDIA_DEBIAN_CUDA_URLS["${CUDA_VERSION}"]}
 NVIDIA_DEBIAN_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_DEBIAN_CUDA_URL}")
 readonly NVIDIA_DEBIAN_CUDA_URL
