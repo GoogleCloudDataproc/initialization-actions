@@ -250,6 +250,7 @@ function install_nvidia_gpu_driver() {
       curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
         "${NVIDIA_UBUNTU_REPO_CUDA_PIN}" -o /etc/apt/preferences.d/cuda-repository-pin-600
 
+      apt-key adv --fetch-keys ${NVIDIA_UBUNTU_REPO_URL}/3bf863cc.pub
       add-apt-repository "deb ${NVIDIA_UBUNTU_REPO_URL} /"
       execute_with_retries "apt-get update"
 
