@@ -12,7 +12,7 @@ OS_NAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
 readonly OS_NAME
 
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
-readonly DEFAULT_SPARK_RAPIDS_VERSION="23.02.0"
+readonly DEFAULT_SPARK_RAPIDS_VERSION="23.04.0"
 
 if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
   readonly DEFAULT_CUDA_VERSION="11.5"
