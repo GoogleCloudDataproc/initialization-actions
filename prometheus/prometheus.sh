@@ -145,9 +145,9 @@ function configure_hadoop() {
 
 if [[ "${ROLE}" == 'Master' ]]; then
   stop_service_gracefully hadoop-yarn-resourcemanager.service
-  else
-    stop_service_gracefully hadoop-yarn-nodemanager.service
-  fi
+else
+   stop_service_gracefully hadoop-yarn-nodemanager.service
+fi
   
   cat <<EOF >/etc/hadoop/conf/hadoop-metrics2.properties
 resourcemanager.sink.statsd.class=org.apache.hadoop.metrics2.sink.StatsDSink
@@ -165,9 +165,9 @@ EOF
 
 if [[ "${ROLE}" == 'Master' ]]; then
   start_service_gracefully hadoop-yarn-resourcemanager.service
-  else
-    start_service_gracefully hadoop-yarn-nodemanager.service
-  fi
+else
+   start_service_gracefully hadoop-yarn-nodemanager.service
+fi
 }
 
 function configure_spark() {
