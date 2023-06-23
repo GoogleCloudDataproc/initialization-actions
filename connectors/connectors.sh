@@ -43,7 +43,7 @@ get_connector_url() {
   #   gs://spark-lib/bigquery/spark-bigquery-connector-with-dependencies_${scala_version}-${version}.jar
   #
   # Hive BigQuery connector:
-  #   gs://hadoop-lib/hive-bigquery-connector/hive-bigquery-connector-${version}.jar
+  #   gs://hadoop-lib/hive-bigquery/hive-bigquery-connector-${version}.jar
 
   local -r name=$1
   local -r version=$2
@@ -67,7 +67,7 @@ get_connector_url() {
 
   # hive-bigquery
   if [[ "${name}" == "hive-bigquery" ]]; then
-    echo "gs://hadoop-lib/hive-bigquery-connector/hive-bigquery-connector-${version}.jar"
+    echo "gs://hadoop-lib/hive-bigquery/hive-bigquery-connector-${version}.jar"
     return
   fi
 
