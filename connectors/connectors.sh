@@ -35,6 +35,14 @@ min_version() {
   echo -e "$1\n$2" | sort -r -t'.' -n -k1,1 -k2,2 -k3,3 | tail -n1
 }
 
+function compare_versions_lte {
+  [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]
+}
+
+function compare_versions_lt() {
+  [ "$1" = "$2" ] && return 1 || compare_versions_lte $1 $2
+}
+
 get_connector_url() {
   # Hadoop BigQuery connector:
   #   gs://hadoop-lib/bigquery-connector/bigquery-connector-hadoop{hadoop_version}-${version}.jar
@@ -50,13 +58,17 @@ get_connector_url() {
 
   # spark-bigquery
   if [[ $name == spark-bigquery ]]; then
-    # DATAPROC_VERSION is an environment variable set on the cluster.
+    # DATAPROC_IMAGE_VERSION is an environment variable set on the cluster.
     # We will use this to determine the appropriate connector to use
     # based on the scala version.
-    if [[ $(min_version "$DATAPROC_VERSION" 1.5) == 1.5 ]]; then
-      local -r scala_version=2.12
-    else
+    if compare_versions_lt $DATAPROC_IMAGE_VERSION 2.0 ; then
       local -r scala_version=2.11
+    else if compare_versions_lt $DATAPROC_IMAGE_VERSION 2.1 ; then
+           local -r scala_version=2.12
+         else if compare_versions_lt $DATAPROC_IMAGE_VERSION 2.2 ; then
+                local -r scala_version=2.13
+              fi
+         fi
     fi
 
     local -r jar_name="spark-bigquery-with-dependencies_${scala_version}-${version}.jar"
@@ -72,7 +84,7 @@ get_connector_url() {
   fi
 
   # bigquery
-  if [[ $(min_version "$DATAPROC_VERSION" 2.0) == 2.0 ]]; then
+  if [[ $(min_version "$DATAPROC_IMAGE_VERSION" 2.0) == 2.0 ]]; then
     local -r hadoop_version_suffix=hadoop3
   else
     local -r hadoop_version_suffix=hadoop2
