@@ -41,7 +41,7 @@ updated Hadoop BigQuery connector and Spark BigQuery connector installed:
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/connectors/connectors.sh \
         --metadata bigquery-connector-version=1.2.0 \
         --metadata spark-bigquery-connector-version=0.21.0 \
-        --metadata hive-bigquery-connector-version=2.0.1-preview
+        --metadata hive-bigquery-connector-version=2.0.3
     ```
 
 *   to update connector by specifying URL, use `bigquery-connector-url`,
