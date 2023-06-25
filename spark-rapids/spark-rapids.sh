@@ -9,6 +9,9 @@ function get_metadata_attribute() {
 }
 
 OS_NAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
+DATAPROC_IMAGE_VERSION=$(/usr/share/google/get_metadata_value image|grep -Eo 'dataproc-[0-9]-[0-9]'|grep -Eo '[0-9]-[0-9]'|sed -e 's/-/./g')
+
+readonly DATAPROC_IMAGE_VERSION
 readonly OS_NAME
 
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
