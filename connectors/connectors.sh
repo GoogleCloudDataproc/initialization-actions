@@ -14,6 +14,11 @@ MIN_CONNECTOR_VERSIONS=(
   ["spark-bigquery"]="0.17.0"
   ["hive-bigquery"]="0.0.0")
 
+# Detect dataproc image version from its various names
+if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
+  DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
+fi
+
 readonly BIGQUERY_CONNECTOR_VERSION=$(/usr/share/google/get_metadata_value attributes/bigquery-connector-version || true)
 readonly SPARK_BIGQUERY_CONNECTOR_VERSION=$(/usr/share/google/get_metadata_value attributes/spark-bigquery-connector-version || true)
 readonly HIVE_BIGQUERY_CONNECTOR_VERSION=$(/usr/share/google/get_metadata_value attributes/hive-bigquery-connector-version || true)
@@ -43,7 +48,7 @@ function compare_versions_lt() {
   [ "$1" = "$2" ] && return 1 || compare_versions_lte $1 $2
 }
 
-get_connector_url() {
+function get_connector_url() {
   # Hadoop BigQuery connector:
   #   gs://hadoop-lib/bigquery-connector/bigquery-connector-hadoop{hadoop_version}-${version}.jar
   #
@@ -58,17 +63,24 @@ get_connector_url() {
 
   # spark-bigquery
   if [[ $name == spark-bigquery ]]; then
-    # DATAPROC_IMAGE_VERSION is an environment variable set on the cluster.
-    # We will use this to determine the appropriate connector to use
+    readonly -A LT_DP_VERSION_SCALA=([2.0]="2.11" # On Dataproc images < 2.0, use Scala 2.11
+                                     [2.1]="2.12" # On Dataproc images < 2.1, use Scala 2.12
+                                     [2.2]="2.13" # On Dataproc images < 2.2, use Scala 2.13
+                                    )
+    # DATAPROC_IMAGE_VERSION is built from an environment variable set on the
+    # cluster.  We will use this to determine the appropriate connector to use
     # based on the scala version.
-    if compare_versions_lt $DATAPROC_IMAGE_VERSION 2.0 ; then
-      local -r scala_version=2.11
-    else if compare_versions_lt $DATAPROC_IMAGE_VERSION 2.1 ; then
-           local -r scala_version=2.12
-         else if compare_versions_lt $DATAPROC_IMAGE_VERSION 2.2 ; then
-                local -r scala_version=2.13
-              fi
-         fi
+
+    for LT_DP_VER in 2.0 2.1 2.2 ; do
+      if ! test -v scala_version && compare_versions_lt $DATAPROC_IMAGE_VERSION ${LT_DP_VER} ; then
+        local -r scala_version=${LT_DP_VERSION_SCALA[${LT_DP_VER}]}
+        continue
+      fi
+    done
+
+    if ! test -v scala_version ; then
+      echo "unsupported DATAPROC_IMAGE_VERSION" >&2
+      exit -1
     fi
 
     local -r jar_name="spark-bigquery-with-dependencies_${scala_version}-${version}.jar"
@@ -117,10 +129,12 @@ update_connector_url() {
 
   # Remove old connector if exists
   if [[ "${name}" == spark-bigquery || "${name}" == hive-bigquery ]]; then
-    find "${vm_connectors_dir}/" -name "${name}*.jar" -delete
+    local pattern="${name}*.jar"
   else
-    find "${vm_connectors_dir}/" -name "${name}-connector-*.jar" -delete
+    local pattern="${name}-connector-*.jar"
   fi
+
+  find "${vm_connectors_dir}/" -name "$pattern" -delete
 
   gsutil cp -P "${url}" "${vm_connectors_dir}/"
 
