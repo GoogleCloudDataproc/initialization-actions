@@ -15,11 +15,11 @@ class ConnectorsTestCase(DataprocTestCase):
     BQ_CONNECTOR_VERSION = "1.2.0"
     BQ_CONNECTOR_URL = "gs://hadoop-lib/bigquery/bigquery-connector-{}-1.2.0.jar"
 
-    # if image version is less than 2.0:
-    SPARK_BQ_CONNECTOR_VERSION = "0.29.0"
-    # else
-    #   SPARK_BQ_CONNECTOR_VERSION = "0.31.1"
-    # fi
+    if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+        SPARK_BQ_CONNECTOR_VERSION = "0.29.0"
+    else:
+        SPARK_BQ_CONNECTOR_VERSION = "0.31.1"
+
     SPARK_BQ_CONNECTOR_URL = "gs://spark-lib/bigquery/spark-bigquery-with-dependencies_{}-{}.jar"
 
     def verify_instances(self, cluster, instances, connector,
@@ -100,13 +100,8 @@ class ConnectorsTestCase(DataprocTestCase):
           self.skipTest("Not supported in Rocky Linux-based images")
 
         logging.warning("image version: " + str( self.getImageVersion() ) )
-
-        if self.getImageVersion() == "1.5":
-            self.SPARK_BQ_CONNECTOR_VERSION = "0.29.0"
-        else:
-            self.SPARK_BQ_CONNECTOR_VERSION = "0.31.1"
-
         logging.warning("SPARK_BQ_CONNECTOR_VERSION=" + self.SPARK_BQ_CONNECTOR_VERSION )
+        logging.warning("scala_version=" + self._scala_version())
 
         self.createCluster(configuration,
                            self.INIT_ACTIONS,

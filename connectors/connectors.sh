@@ -27,15 +27,6 @@ readonly BIGQUERY_CONNECTOR_URL=$(/usr/share/google/get_metadata_value attribute
 readonly SPARK_BIGQUERY_CONNECTOR_URL=$(/usr/share/google/get_metadata_value attributes/spark-bigquery-connector-url || true)
 readonly HIVE_BIGQUERY_CONNECTOR_URL=$(/usr/share/google/get_metadata_value attributes/hive-bigquery-connector-url || true)
 
-is_worker() {
-  local role
-  role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-  if [[ $role != Master ]]; then
-    return 0
-  fi
-  return 1
-}
-
 min_version() {
   echo -e "$1\n$2" | sort -r -t'.' -n -k1,1 -k2,2 -k3,3 | tail -n1
 }
@@ -63,7 +54,8 @@ function get_connector_url() {
 
   # spark-bigquery
   if [[ $name == spark-bigquery ]]; then
-    readonly -A LT_DP_VERSION_SCALA=([2.0]="2.11" # On Dataproc images < 2.0, use Scala 2.11
+    readonly -A LT_DP_VERSION_SCALA=([1.5]="2.11" # On Dataproc images < 1.5, use Scala 2.11
+                                     [2.0]="2.12" # On Dataproc images < 2.0, use Scala 2.12
                                      [2.1]="2.12" # On Dataproc images < 2.1, use Scala 2.12
                                      [2.2]="2.13" # On Dataproc images < 2.2, use Scala 2.13
                                     )
@@ -71,7 +63,7 @@ function get_connector_url() {
     # cluster.  We will use this to determine the appropriate connector to use
     # based on the scala version.
 
-    for LT_DP_VER in 2.0 2.1 2.2 ; do
+    for LT_DP_VER in 1.5 2.0 2.1 2.2 ; do
       if ! test -v scala_version && compare_versions_lt $DATAPROC_IMAGE_VERSION ${LT_DP_VER} ; then
         local -r scala_version=${LT_DP_VERSION_SCALA[${LT_DP_VER}]}
         continue
