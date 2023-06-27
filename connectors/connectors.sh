@@ -54,33 +54,26 @@ function get_connector_url() {
 
   # spark-bigquery
   if [[ $name == spark-bigquery ]]; then
-    readonly -A LT_DP_VERSION_SCALA=([1.5]="2.11" # On Dataproc images < 1.5, use Scala 2.11
-                                     [2.0]="2.12" # On Dataproc images < 2.0, use Scala 2.12
-                                     [2.1]="2.12" # On Dataproc images < 2.1, use Scala 2.12
-                                     [2.2]="2.13" # On Dataproc images < 2.2, use Scala 2.13
-                                    )
     # DATAPROC_IMAGE_VERSION is built from an environment variable set on the
     # cluster.  We will use this to determine the appropriate connector to use
     # based on the scala version.
 
-    for LT_DP_VER in 1.5 2.0 2.1 2.2 ; do
-      if ! test -v scala_version && compare_versions_lt $DATAPROC_IMAGE_VERSION ${LT_DP_VER} ; then
-        local -r scala_version=${LT_DP_VERSION_SCALA[${LT_DP_VER}]}
-        continue
-      fi
-    done
-
-    if compare_versions_lt $DATAPROC_IMAGE_VERSION 2.0 ; then
-      if ! compare_versions_lt ${version} 0.30.0 ; then
-        echo "spark-bigquery-with-dependencies version ${version} does not target scala versions below 2.12 (${scala_version})" >&2
-        exit -1
-      fi
-    fi
-
-    if ! test -v scala_version ; then
-      echo "unsupported DATAPROC_IMAGE_VERSION" >&2
-      exit -1
-    fi
+    case "${DATAPROC_IMAGE_VERSION}" in
+      "1.4")
+        scala_version="2.11"
+        if ! compare_versions_lt ${version} 0.30.0 ; then
+          echo "${name} version ${version} does not target scala versions below 2.12 (${scala_version})" >&2
+          exit 1
+        fi
+        ;;
+      "1.5" | "2.0" | "2.1")
+        scala_version="2.12"
+        ;;
+      *)
+        echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
+        exit 1
+        ;;
+    esac
 
     local -r jar_name="spark-bigquery-with-dependencies_${scala_version}-${version}.jar"
 
@@ -95,7 +88,7 @@ function get_connector_url() {
   fi
 
   # bigquery
-  if [[ $(min_version "$DATAPROC_IMAGE_VERSION" 2.0) == 2.0 ]]; then
+  if [[ $(min_version "${DATAPROC_IMAGE_VERSION}" 2.0) == 2.0 ]]; then
     local -r hadoop_version_suffix=hadoop3
   else
     local -r hadoop_version_suffix=hadoop2
