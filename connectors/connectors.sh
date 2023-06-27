@@ -79,8 +79,8 @@ function get_connector_url() {
     done
 
     if compare_versions_lt $DATAPROC_IMAGE_VERSION 2.0 ; then
-      if ! compare_version_lte ${version} 0.30.0 ; then
-        echo "spark-bigquery-with-dependencies version ${version} does not target scala versions above 0.29.* (${scala_version})" >&2
+      if ! compare_versions_lt ${version} 0.30.0 ; then
+        echo "spark-bigquery-with-dependencies version ${version} does not target scala versions below 2.12 (${scala_version})" >&2
         exit -1
       fi
     fi
