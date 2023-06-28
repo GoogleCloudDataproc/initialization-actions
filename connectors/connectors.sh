@@ -50,10 +50,10 @@ get_connector_url() {
 
   # spark-bigquery
   if [[ $name == spark-bigquery ]]; then
-    # DATAPROC_VERSION is an environment variable set on the cluster.
+    # DATAPROC_IMAGE_VERSION is an environment variable set on the cluster.
     # We will use this to determine the appropriate connector to use
     # based on the scala version.
-    if [[ $(min_version "$DATAPROC_VERSION" 1.5) == 1.5 ]]; then
+    if [[ $(min_version "$DATAPROC_IMAGE_VERSION" 1.5) == 1.5 ]]; then
       local -r scala_version=2.12
     else
       local -r scala_version=2.11
@@ -72,7 +72,7 @@ get_connector_url() {
   fi
 
   # bigquery
-  if [[ $(min_version "$DATAPROC_VERSION" 2.0) == 2.0 ]]; then
+  if [[ $(min_version "$DATAPROC_IMAGE_VERSION" 2.0) == 2.0 ]]; then
     local -r hadoop_version_suffix=hadoop3
   else
     local -r hadoop_version_suffix=hadoop2
