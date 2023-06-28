@@ -9,16 +9,15 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 logging.basicConfig(level=os.getenv("LOG_LEVEL", logging.INFO))
 
 class ConnectorsTestCase(DataprocTestCase):
+
+
+    SPARK_BQ_CONNECTOR_VERSION = "0.31.1"
     COMPONENT = "connectors"
     INIT_ACTIONS = ['connectors/connectors.sh']
 
     BQ_CONNECTOR_VERSION = "1.2.0"
     BQ_CONNECTOR_URL = "gs://hadoop-lib/bigquery/bigquery-connector-{}-1.2.0.jar"
 
-    if self.getImageVersion() < pkg_resources.parse_version("1.5"):
-        SPARK_BQ_CONNECTOR_VERSION = "0.29.0"
-    else:
-        SPARK_BQ_CONNECTOR_VERSION = "0.31.1"
 
     SPARK_BQ_CONNECTOR_URL = "gs://spark-lib/bigquery/spark-bigquery-with-dependencies_{}-{}.jar"
 
@@ -67,6 +66,11 @@ class ConnectorsTestCase(DataprocTestCase):
     @parameterized.parameters(("SINGLE", ["m"]),
                               ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
     def test_spark_bq_connector_version(self, configuration, instances):
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            self.SPARK_BQ_CONNECTOR_VERSION = "0.29.0"
+        else:
+            self.SPARK_BQ_CONNECTOR_VERSION = "0.31.1"
+
         if self.getImageOs() == 'rocky':
           self.skipTest("Not supported in Rocky Linux-based images")
 
@@ -82,6 +86,11 @@ class ConnectorsTestCase(DataprocTestCase):
     @parameterized.parameters(("SINGLE", ["m"]),
                               ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
     def test_bq_connector_url(self, configuration, instances):
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            self.SPARK_BQ_CONNECTOR_VERSION = "0.29.0"
+        else:
+            self.SPARK_BQ_CONNECTOR_VERSION = "0.31.1"
+
         if self.getImageOs() == 'rocky':
           self.skipTest("Not supported in Rocky Linux-based images")
 
@@ -96,6 +105,11 @@ class ConnectorsTestCase(DataprocTestCase):
     @parameterized.parameters(("SINGLE", ["m"]),
                               ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
     def test_spark_bq_connector_url(self, configuration, instances):
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            self.SPARK_BQ_CONNECTOR_VERSION = "0.29.0"
+        else:
+            self.SPARK_BQ_CONNECTOR_VERSION = "0.31.1"
+
         if self.getImageOs() == 'rocky':
           self.skipTest("Not supported in Rocky Linux-based images")
 
