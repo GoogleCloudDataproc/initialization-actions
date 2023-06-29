@@ -14,6 +14,11 @@ MIN_CONNECTOR_VERSIONS=(
   ["spark-bigquery"]="0.17.0"
   ["hive-bigquery"]="0.0.0")
 
+# Detect dataproc image version from its various names
+if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
+  DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
+fi
+
 readonly BIGQUERY_CONNECTOR_VERSION=$(/usr/share/google/get_metadata_value attributes/bigquery-connector-version || true)
 readonly SPARK_BIGQUERY_CONNECTOR_VERSION=$(/usr/share/google/get_metadata_value attributes/spark-bigquery-connector-version || true)
 readonly HIVE_BIGQUERY_CONNECTOR_VERSION=$(/usr/share/google/get_metadata_value attributes/hive-bigquery-connector-version || true)
@@ -22,20 +27,19 @@ readonly BIGQUERY_CONNECTOR_URL=$(/usr/share/google/get_metadata_value attribute
 readonly SPARK_BIGQUERY_CONNECTOR_URL=$(/usr/share/google/get_metadata_value attributes/spark-bigquery-connector-url || true)
 readonly HIVE_BIGQUERY_CONNECTOR_URL=$(/usr/share/google/get_metadata_value attributes/hive-bigquery-connector-url || true)
 
-is_worker() {
-  local role
-  role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-  if [[ $role != Master ]]; then
-    return 0
-  fi
-  return 1
-}
-
 min_version() {
   echo -e "$1\n$2" | sort -r -t'.' -n -k1,1 -k2,2 -k3,3 | tail -n1
 }
 
-get_connector_url() {
+function compare_versions_lte {
+  [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]
+}
+
+function compare_versions_lt() {
+  [ "$1" = "$2" ] && return 1 || compare_versions_lte $1 $2
+}
+
+function get_connector_url() {
   # Hadoop BigQuery connector:
   #   gs://hadoop-lib/bigquery-connector/bigquery-connector-hadoop{hadoop_version}-${version}.jar
   #
@@ -49,15 +53,27 @@ get_connector_url() {
   local -r version=$2
 
   # spark-bigquery
-  if [[ $name == spark-bigquery ]]; then
-    # DATAPROC_VERSION is an environment variable set on the cluster.
-    # We will use this to determine the appropriate connector to use
+  if [[ "${name}" == spark-bigquery ]]; then
+    # DATAPROC_IMAGE_VERSION is built from an environment variable set on the
+    # cluster.  We will use this to determine the appropriate connector to use
     # based on the scala version.
-    if [[ $(min_version "$DATAPROC_VERSION" 1.5) == 1.5 ]]; then
-      local -r scala_version=2.12
-    else
-      local -r scala_version=2.11
-    fi
+
+    case "${DATAPROC_IMAGE_VERSION}" in
+      "1.4")
+        scala_version="2.11"
+        if ! compare_versions_lt ${version} 0.30.0 ; then
+          echo "${name} version ${version} does not target scala versions below 2.12 (${scala_version})" >&2
+          exit 1
+        fi
+        ;;
+      "1.5" | "2.0" | "2.1")
+        scala_version="2.12"
+        ;;
+      *)
+        echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
+        exit 1
+        ;;
+    esac
 
     local -r jar_name="spark-bigquery-with-dependencies_${scala_version}-${version}.jar"
 
@@ -72,7 +88,7 @@ get_connector_url() {
   fi
 
   # bigquery
-  if [[ $(min_version "$DATAPROC_VERSION" 2.0) == 2.0 ]]; then
+  if [[ $(min_version "${DATAPROC_IMAGE_VERSION}" 2.0) == 2.0 ]]; then
     local -r hadoop_version_suffix=hadoop3
   else
     local -r hadoop_version_suffix=hadoop2
@@ -86,9 +102,9 @@ get_connector_url() {
 validate_version() {
   local name=$1    # connector name: "bigquery" or "spark-bigquery"
   local version=$2 # connector version
-  local min_valid_version=${MIN_CONNECTOR_VERSIONS[$name]}
-  if [[ "$(min_version "$min_valid_version" "$version")" != "$min_valid_version" ]]; then
-    echo "ERROR: ${name}-connector version should be greater than or equal to $min_valid_version, but was $version"
+  local min_valid_version="${MIN_CONNECTOR_VERSIONS[${name}]}"
+  if [[ "$(min_version "${min_valid_version}" "${version}")" != "${min_valid_version}" ]]; then
+    echo "ERROR: ${name}-connector version should be greater than or equal to ${min_valid_version}, but was ${version}"
     return 1
   fi
 }
@@ -105,10 +121,12 @@ update_connector_url() {
 
   # Remove old connector if exists
   if [[ "${name}" == spark-bigquery || "${name}" == hive-bigquery ]]; then
-    find "${vm_connectors_dir}/" -name "${name}*.jar" -delete
+    local pattern="${name}*.jar"
   else
-    find "${vm_connectors_dir}/" -name "${name}-connector-*.jar" -delete
+    local pattern="${name}-connector-*.jar"
   fi
+
+  find "${vm_connectors_dir}/" -name "${pattern}" -delete
 
   gsutil cp -P "${url}" "${vm_connectors_dir}/"
 
@@ -123,11 +141,11 @@ update_connector_version() {
   local -r version=$2 # connector version
 
   # validate new connector version
-  validate_version "$name" "$version"
+  validate_version "${name}" "${version}"
 
-  local -r connector_url=$(get_connector_url "$name" "$version")
+  local -r connector_url=$(get_connector_url "${name}" "${version}")
 
-  update_connector_url "$name" "$connector_url"
+  update_connector_url "${name}" "${connector_url}"
 }
 
 update_connector() {
@@ -135,27 +153,27 @@ update_connector() {
   local -r version=$2
   local -r url=$3
 
-  if [[ -n $version && -n $url ]]; then
+  if [[ -n "${version}" && -n "${url}" ]]; then
     echo "ERROR: Both, connector version and URL are specified for the same connector"
     exit 1
   fi
 
-  if [[ -n $version ]]; then
-    update_connector_version "$name" "$version"
+  if [[ -n "${version}" ]]; then
+    update_connector_version "${name}" "${version}"
   fi
 
-  if [[ -n $url ]]; then
-    update_connector_url "$name" "$url"
+  if [[ -n "${url}" ]]; then
+    update_connector_url "${name}" "${url}"
   fi
 }
 
-if [[ -z $BIGQUERY_CONNECTOR_VERSION && -z $BIGQUERY_CONNECTOR_URL ]] &&
-  [[ -z $HIVE_BIGQUERY_CONNECTOR_VERSION && -z $HIVE_BIGQUERY_CONNECTOR_URL ]] &&
-  [[ -z $SPARK_BIGQUERY_CONNECTOR_VERSION && -z $SPARK_BIGQUERY_CONNECTOR_URL ]]; then
+if [[ -z "${BIGQUERY_CONNECTOR_VERSION}" && -z "${BIGQUERY_CONNECTOR_URL}" ]] &&
+  [[ -z "${HIVE_BIGQUERY_CONNECTOR_VERSION}" && -z "${HIVE_BIGQUERY_CONNECTOR_URL}" ]] &&
+  [[ -z "${SPARK_BIGQUERY_CONNECTOR_VERSION}" && -z "${SPARK_BIGQUERY_CONNECTOR_URL}" ]]; then
   echo "ERROR: None of connector versions or URLs are specified"
   exit 1
 fi
 
-update_connector "bigquery" "$BIGQUERY_CONNECTOR_VERSION" "$BIGQUERY_CONNECTOR_URL"
-update_connector "spark-bigquery" "$SPARK_BIGQUERY_CONNECTOR_VERSION" "$SPARK_BIGQUERY_CONNECTOR_URL"
-update_connector "hive-bigquery" "$HIVE_BIGQUERY_CONNECTOR_VERSION" "$HIVE_BIGQUERY_CONNECTOR_URL"
+update_connector "bigquery" "${BIGQUERY_CONNECTOR_VERSION}" "${BIGQUERY_CONNECTOR_URL}"
+update_connector "spark-bigquery" "${SPARK_BIGQUERY_CONNECTOR_VERSION}" "${SPARK_BIGQUERY_CONNECTOR_URL}"
+update_connector "hive-bigquery" "${HIVE_BIGQUERY_CONNECTOR_VERSION}" "${HIVE_BIGQUERY_CONNECTOR_URL}"
