@@ -28,8 +28,23 @@ set -euxo pipefail
 # Use Python from /usr/bin instead of /opt/conda.
 export PATH=/usr/bin:$PATH
 
-function retry_apt_command() {
-  local cmd="$1"
+function is_centos() {
+  [[ "$(. /etc/os-release && echo "${ID}")" == 'centos' ]]
+  return $?
+}
+
+function is_debian() {
+  [[ "$(. /etc/os-release && echo "${ID}")" == 'debian' ]]
+  return $?
+}
+
+function is_ubuntu() {
+  [[ "$(. /etc/os-release && echo "${ID}")" == 'ubuntu' ]]
+  return $?
+}
+
+function retry_command() {
+  cmd="$1"
   for ((i = 0; i < 10; i++)); do
     if eval "$cmd"; then
       return 0
@@ -37,6 +52,33 @@ function retry_apt_command() {
     sleep 5
   done
   return 1
+}
+
+function install_yum() {
+  local pkgs="$*"
+  retry_command "yum install -y $pkgs"
+}
+
+function install_apt_get() {
+  local pkgs="$*"
+  retry_command "apt-get install -y $pkgs"
+}
+
+function install_packages() {
+  local pkgs="$*"
+  if is_centos; then
+    install_yum "$pkgs"
+  else
+    install_apt_get "$pkgs"
+  fi
+}
+
+function update_repo() {
+  if is_centos; then
+    retry_command "yum -y update"
+  else
+    retry_command "apt-get update"
+  fi
 }
 
 function min_version() {
@@ -48,8 +90,8 @@ function install_oozie() {
   master_node=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 
   # Upgrade the repository and install Oozie
-  retry_apt_command "apt-get update"
-  retry_apt_command "apt-get install -q -y oozie oozie-client"
+  update_repo
+  install_packages oozie oozie-client
 
   # For Oozie, remove Log4j 2 jar not compatible with Log4j 1 that was brought by Hive 2
   find /usr/lib/oozie/lib -name "log4j-1.2-api*.jar" -delete
