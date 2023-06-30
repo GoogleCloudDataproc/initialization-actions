@@ -1,4 +1,4 @@
-#!/bin/bash
+#!bin/bash
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,14 +27,15 @@ set -euxo pipefail
 
 # Use Python from /usr/bin instead of /opt/conda.
 export PATH=/usr/bin:$PATH
+export DATAPROC_IMAGE=$(/usr/share/google/get_metadata_value image)
 
-function retry_apt_command() {
+function retry_command() {
   local cmd="$1"
   for ((i = 0; i < 10; i++)); do
     if eval "$cmd"; then
       return 0
     fi
-    sleep 5
+    sleep $((i * 5 ))
   done
   return 1
 }
@@ -48,8 +49,30 @@ function install_oozie() {
   master_node=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 
   # Upgrade the repository and install Oozie
-  retry_apt_command "apt-get update"
-  retry_apt_command "apt-get install -q -y oozie oozie-client"
+  if [[ "$DATAPROC_IMAGE" == *"cen"* ]]; then
+    retry_command "dnf -y -q install oozie oozie-client"
+
+    # Setup symlinks for hadoop jar dependencies on centos
+    ln -sf /usr/lib/hadoop/hadoop-common.jar /usr/lib/oozie/lib/
+    ln -sf /usr/lib/hadoop/hadoop-auth.jar /usr/lib/oozie/lib/
+    ln -sf /usr/lib/hadoop/hadoop-annotations.jar /usr/lib/oozie/lib/
+
+    ln -sf /usr/lib/hadoop-hdfs/hadoop-hdfs-client.jar /usr/lib/oozie/lib/
+
+    ln -sf /usr/lib/hadoop-yarn/hadoop-yarn-common.jar /usr/lib/oozie/lib/
+    ln -sf /usr/lib/hadoop-yarn/hadoop-yarn-client.jar /usr/lib/oozie/lib/
+    ln -sf /usr/lib/hadoop-yarn/hadoop-yarn-server-common.jar /usr/lib/oozie/lib/
+    ln -sf /usr/lib/hadoop-yarn/hadoop-yarn-api.jar /usr/lib/oozie/lib/
+
+    ln -sf /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-jobclient.jar /usr/lib/oozie/lib/
+    ln -sf /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-app.jar /usr/lib/oozie/lib/
+    ln -sf /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-common.jar /usr/lib/oozie/lib/
+    ln -sf /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-core.jar /usr/lib/oozie/lib/
+    ln -sf /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-shuffle.jar /usr/lib/oozie/lib/
+  else
+    retry_command "apt-get update"
+    retry_command "apt-get install -q -y oozie oozie-client"
+  fi
 
   # For Oozie, remove Log4j 2 jar not compatible with Log4j 1 that was brought by Hive 2
   find /usr/lib/oozie/lib -name "log4j-1.2-api*.jar" -delete
@@ -102,12 +125,69 @@ function install_oozie() {
     hadoop fs -mkdir -p /user/oozie/
     hadoop fs -put -f "${tmp_dir}/share" /user/oozie/
 
+    # These jars are required to run the spark example in cluster mode
+    hadoop fs -put -f ${tmp_dir}/share/lib/hive/hadoop-common-3.2.2.jar /user/oozie/share/lib/spark
+    hadoop fs -put -f ${tmp_dir}/share/lib/hive/woodstox-core-5.0.3.jar /user/oozie/share/lib/spark
+    hadoop fs -put -f ${tmp_dir}/share/lib/hive/stax-api-1.0.1.jar /user/oozie/share/lib/spark
+    hadoop fs -put -f ${tmp_dir}/share/lib/hive/stax2-api-3.1.4.jar /user/oozie/share/lib/spark
+    hadoop fs -put -f ${tmp_dir}/share/lib/hive/commons-collections4-4.1.jar /user/oozie/share/lib/spark
+    hadoop fs -put -f ${tmp_dir}/share/lib/hive/commons-collections4-4.1.jar /user/oozie/share/lib/spark
+    hadoop fs -put -f ${tmp_dir}/share/lib/hive/commons-collections-3.2.2.jar /user/oozie/share/lib/spark
+    hadoop fs -put -f ${tmp_dir}/share/lib/hive/commons-collections-3.2.2.jar /user/oozie/share/lib/spark
+    hadoop fs -put -f ${tmp_dir}/share/lib/hive/commons-*.jar /user/oozie/share/lib/spark
+    hadoop fs -put -f ${tmp_dir}/share/lib/hive/htrace-core4-4.1.0-incubating.jar /user/oozie/share/lib/spark
+    hadoop fs -put -f ${tmp_dir}/share/lib/hive/hadoop*.jar /user/oozie/share/lib/spark
+    hadoop fs -put -f /usr/lib/spark/jars/hadoop*.jar /user/oozie/share/lib/spark
+    hadoop fs -put -f /usr/lib/spark/jars/spark-hadoop-cloud_2.12-3.1.2.jar /user/oozie/share/lib/spark
+    hadoop fs -put -f /usr/lib/spark/jars/hadoop-cloud-storage-3.2.2.jar /user/oozie/share/lib/spark
+    hadoop fs -put -f /usr/local/share/google/dataproc/lib/gcs-connector.jar /user/oozie/share/lib/spark
+    hadoop fs -put -f /usr/lib/spark/jars/re2j-1.1.jar /user/oozie/share/lib/spark
+
+    # Update properties for database
+    /usr/bin/mysqladmin -u root --password=root-password create oozie
+    /usr/bin/mysql -u root --password=root-password <<EOM
+CREATE USER 'oozie'@'%' IDENTIFIED BY 'oozie-password';
+GRANT ALL PRIVILEGES ON *.* TO 'oozie'@'%';
+FLUSH PRIVILEGES;
+EOM
+
     # Clean up temporary fles
     rm -rf "${tmp_dir}"
   fi
 
+  # Link the MySQL JDBC driver to the Oozie library directory
+  ln -s /usr/share/java/mysql.jar /usr/lib/oozie/lib/mysql.jar
+
+  # Set JDBC properties
+  mysql_host=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
+
+  bdconfig set_property \
+    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
+    --name 'oozie.service.JPAService.jdbc.driver' --value "com.mysql.cj.jdbc.Driver" \
+    --clobber
+
+  bdconfig set_property \
+    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
+    --name 'oozie.service.JPAService.jdbc.url' --value "jdbc:mysql://${mysql_host}/oozie" \
+    --clobber
+
+  bdconfig set_property \
+    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
+    --name 'oozie.service.JPAService.jdbc.username' --value "oozie" \
+    --clobber
+
+  bdconfig set_property \
+    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
+    --name 'oozie.service.JPAService.jdbc.password' --value "oozie-password" \
+    --clobber
+
+  bdconfig set_property \
+    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
+    --name 'oozie.service.JPAService.pool.max.active.conn' --value "20" \
+    --clobber
+
   # Create the Oozie database
-  sudo -u oozie /usr/lib/oozie/bin/ooziedb.sh create -run
+  retry_command "sudo -u oozie /usr/lib/oozie/bin/ooziedb.sh create -run"
 
   # Set hostname to allow connection from other hosts (not only localhost)
   bdconfig set_property \
@@ -198,7 +278,7 @@ function install_oozie() {
 
   # Leave a safe mode - HDFS will enter a safe mode because of Name Node restart
   if [[ "${HOSTNAME}" == "${master_node}" ]]; then
-    hadoop dfsadmin -safemode leave
+    hdfs dfsadmin -safemode leave
   fi
 }
 
