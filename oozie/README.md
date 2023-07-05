@@ -29,7 +29,10 @@ You can find more information about using initialization actions with Dataproc i
 
 ## Testing Oozie
 
-You can test this Oozie installation by running the `oozie-examples` included with Oozie. The examples are in an archive at `/usr/share/doc/oozie/oozie-examples.tar.gz`. To run the MapReduce example, you can do the following:
+You can test this Oozie installation by running the `oozie-examples` included
+with Oozie. The examples are in an archive at
+`/usr/share/doc/oozie/oozie-examples.tar.gz`. To run the MapReduce example, you
+can do the following from (one of) the cluster master node(s):
 
 1. Move the examples to your home directory:
     ```
@@ -54,11 +57,11 @@ You can test this Oozie installation by running the `oozie-examples` included wi
     ```
 1. Move the Oozie examples to HDFS:
     ```
-    hadoop fs -put ~/examples/ /user/<username>/
+    hadoop fs -put ~/examples/ /user/${USER}/
     ```
 1. Run the example on the command line with:<br/>
     ```
-    oozie job -oozie http://127.0.0.1:11000/oozie -config ~/examples/apps/map-reduce/job.properties -run
+    oozie job -oozie http://${HOSTNAME}:11000/oozie -config ~/examples/apps/map-reduce/job.properties -run
     ```
 
 ## Oozie web interface

@@ -29,6 +29,25 @@ set -euxo pipefail
 
 # Use Python from /usr/bin instead of /opt/conda.
 export PATH=/usr/bin:$PATH
+readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+
+# Detect dataproc image version from its various names
+if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
+  DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
+fi
+
+case "${DATAPROC_IMAGE_VERSION}" in
+  "1.3" | "1.4" | "1.5" | "2.0" )
+    curator_version="2.13.0"
+    ;;
+  "2.1")
+    curator_version="5.2.0"
+    ;;
+  *)
+    echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
+    exit 1
+    ;;
+esac
 
 function retry_apt_command() {
   local cmd="$1"
@@ -82,7 +101,7 @@ function install_oozie() {
     find /usr/lib/oozie/ -name "jetty*-7.*.jar" -delete
   fi
 
-  if [[ "${HOSTNAME}" == "${master_node}" ]]; then
+  if [[ "${ROLE}" == "Master" ]]; then
     local tmp_dir
     tmp_dir=$(mktemp -d -t oozie-install-XXXX)
 
@@ -181,10 +200,13 @@ function install_oozie() {
     #Workaround to avoid classnotfound issues due to old curator jar in Oozie classpath
     if [ -f "/usr/lib/oozie/lib/curator-framework-2.5.0.jar" ]
     then
-	find /usr/lib/oozie/lib -name "curator-framework*.jar" -delete
-	find /usr/lib/oozie/lib -name "curator-recipes*.jar" -delete
-	find /usr/lib/oozie/lib -name "curator-client*.jar" -delete
-	cp /usr/lib/hadoop/lib/curator*-2.13.0.jar /usr/lib/oozie/lib
+	    find /usr/lib/oozie/lib \
+        -name "curator-framework*.jar" -o \
+        -name "curator-recipes*.jar" -o \
+        -name "curator-client*.jar" \
+        -delete
+#      cp /usr/lib/spark/jars/curator*-2.13.0.jar /usr/lib/oozie/lib
+	    cp /usr/lib/hadoop/lib/curator*-${curator_version}.jar /usr/lib/oozie/lib
     fi
   fi
 
@@ -200,7 +222,7 @@ function install_oozie() {
 
   # Leave a safe mode - HDFS will enter a safe mode because of Name Node restart
   if [[ "${HOSTNAME}" == "${master_node}" ]]; then
-    hadoop dfsadmin -safemode leave
+    hdfs dfsadmin -safemode leave
   fi
 }
 
