@@ -463,10 +463,26 @@ EOM
       dd if=/dev/zero of=/tmp/zero bs=1 count=1
       hadoop fs -put -f /tmp/zero                                                       /user/oozie/__manual_sharelib_started__
 
-      if [[ ${OS_NAME} != rocky && $(echo "${DATAPROC_IMAGE_VERSION} > 1.5" | bc -l) == 1  ]]; then
-        ADDITIONAL_FILES="/usr/lib/spark/jars/spark-hadoop-cloud*.jar  /usr/lib/spark/jars/hadoop-cloud-storage-*.jar /usr/lib/spark/jars/re2j-1.1.jar"
-      else
-        ADDITIONAL_FILES=""
+      local ADDITIONAL_JARS=""
+      if [[ ${OS_NAME} == rocky ]]; then
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/spark-hadoop-cloud*.jar  /usr/lib/spark/jars/hadoop-cloud-storage-*.jar /usr/lib/spark/jars/re2j-1.1.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
+      elif [[ ${OS_NAME} == debian ]]; then
+        if [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.5" | bc -l) == 1  ]]; then
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/spark-hadoop-cloud*.jar  /usr/lib/spark/jars/hadoop-cloud-storage-*.jar /usr/lib/spark/jars/re2j-1.1.jar"
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
+        else
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
+        fi
+      elif [[ ${OS_NAME} == ubuntu ]]; then
+        if [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 2.1" | bc -l) == 1  ]]; then
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/spark-hadoop-cloud*.jar  /usr/lib/spark/jars/hadoop-cloud-storage-*.jar"
+        elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.5" | bc -l) == 1  ]]; then
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/spark-hadoop-cloud*.jar  /usr/lib/spark/jars/hadoop-cloud-storage-*.jar /usr/lib/spark/jars/re2j-1.1.jar"
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
+        else
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
+        fi
       fi
 
       hadoop fs -put -f \
@@ -475,15 +491,14 @@ EOM
         ${tmp_dir}/share/lib/hive/stax-api-*.jar                \
         ${tmp_dir}/share/lib/hive/stax2-api-*.jar               \
         ${tmp_dir}/share/lib/hive/commons-*.jar                 \
-        ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar \
         ${tmp_dir}/share/lib/hive/hadoop*.jar                   \
         /usr/lib/spark/jars/hadoop*.jar                         \
         /usr/local/share/google/dataproc/lib/gcs-connector.jar  \
         /usr/lib/spark/python/lib/py*.zip                       \
-        ${ADDITIONAL_FILES}                                     \
+        ${ADDITIONAL_JARS}                                      \
         /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar /user/oozie/share/lib/spark
-      hadoop fs -put -f /usr/lib/hive/lib/disruptor*.jar                                /user/oozie/share/lib/hive
-      hadoop fs -put -f /usr/lib/hive/lib/hive-service-*.jar                            /user/oozie/share/lib/hive2
+      hadoop fs -put -f /usr/lib/hive/lib/disruptor*.jar                /user/oozie/share/lib/hive
+      hadoop fs -put -f /usr/lib/hive/lib/hive-service-*.jar            /user/oozie/share/lib/hive2
       # end - copy spark and hive dependencies
     fi
 
@@ -655,8 +670,6 @@ EOF
 
 
 function main() {
-  # Determine the role of this node
-
   # Only run on the master node of the cluster
   if [[ "${ROLE}" == 'Master' ]]; then
     install_oozie
