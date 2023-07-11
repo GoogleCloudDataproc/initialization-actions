@@ -246,6 +246,7 @@ function install_oozie() {
 
     hadoop fs -mkdir -p /user/oozie/
     hadoop fs -put -f "${tmp_dir}/share" /user/oozie/
+    sudo -u dataproc hadoop fs -chown oozie /user/oozie
 
     # Clean up temporary fles
     rm -rf "${tmp_dir}"
@@ -445,9 +446,6 @@ EOM
       http://archive.cloudera.com/gplextras/misc/ext-2.2.zip -P "${tmp_dir}"
     unzip -o -q "${tmp_dir}/ext-2.2.zip" -d /var/lib/oozie
 
-    # Install share lib
-    tar -xzf /usr/lib/oozie/oozie-sharelib.tar.gz -C "${tmp_dir}"
-
     if [[ $(min_version '5.0.0' "${oozie_version}") != 5.0.0 ]]; then
       # Workaround to issue where jackson 1.8 and 1.9 jars are found on the classpath, causing
       # AbstractMethodError at runtime. We know hadoop/lib has matching vesions of jackson.
@@ -455,29 +453,29 @@ EOM
       cp /usr/lib/hadoop/lib/jackson-* "${tmp_dir}/share/lib/hive2/"
     fi
 
-    hadoop fs -mkdir -p /user/oozie/
-    sudo -u dataproc hadoop fs -chown oozie /user/oozie
-    hadoop fs -put -f "${tmp_dir}/share" /user/oozie/
-
     # start - copy spark and hive dependencies
-    hadoop fs -put -f ${tmp_dir}/share/lib/hive/hadoop-common-3.2.3.jar /user/oozie/share/lib/spark
-    hadoop fs -put -f ${tmp_dir}/share/lib/hive/woodstox-core-5.3.0.jar /user/oozie/share/lib/spark
-    hadoop fs -put -f ${tmp_dir}/share/lib/hive/stax-api-1.0.1.jar /user/oozie/share/lib/spark
-    hadoop fs -put -f ${tmp_dir}/share/lib/hive/stax2-api-4.2.1.jar /user/oozie/share/lib/spark
-    hadoop fs -put -f ${tmp_dir}/share/lib/hive/commons-collections4-4.1.jar /user/oozie/share/lib/spark
-    hadoop fs -put -f ${tmp_dir}/share/lib/hive/commons-collections-3.2.2.jar /user/oozie/share/lib/spark
-    hadoop fs -put -f ${tmp_dir}/share/lib/hive/commons-*.jar /user/oozie/share/lib/spark
-    hadoop fs -put -f ${tmp_dir}/share/lib/hive/htrace-core4-4.1.0-incubating.jar /user/oozie/share/lib/spark
-    hadoop fs -put -f ${tmp_dir}/share/lib/hive/hadoop*.jar /user/oozie/share/lib/spark
-    hadoop fs -put -f /usr/lib/spark/jars/hadoop*.jar /user/oozie/share/lib/spark
-    hadoop fs -put -f /usr/lib/spark/jars/spark-hadoop-cloud_2.12-3.1.3.jar /user/oozie/share/lib/spark
-    hadoop fs -put -f /usr/lib/spark/jars/hadoop-cloud-storage-3.2.3.jar /user/oozie/share/lib/spark
-    hadoop fs -put -f /usr/local/share/google/dataproc/lib/gcs-connector.jar /user/oozie/share/lib/spark
-    hadoop fs -put -f /usr/lib/spark/jars/re2j-1.1.jar /user/oozie/share/lib/spark
-    hadoop fs -put -f /usr/lib/hive/lib/disruptor*.jar /user/oozie/share/lib/hive
-    hadoop fs -put -f /usr/lib/hive/lib/hive-service-3.1.2.jar /user/oozie/share/lib/hive2/
-    hadoop fs -put -f /usr/lib/spark/python/lib/py*.zip /user/oozie/share/lib/spark/
-    hadoop fs -put -f /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar /user/oozie/share/lib/spark
+    if [[ ${OS_NAME} == rocky ]]; then
+      hadoop fs -put -f ${tmp_dir}/share/lib/hive/hadoop-common-3.2.3.jar /user/oozie/share/lib/spark
+      hadoop fs -put -f ${tmp_dir}/share/lib/hive/woodstox-core-5.3.0.jar /user/oozie/share/lib/spark
+      hadoop fs -put -f ${tmp_dir}/share/lib/hive/stax-api-1.0.1.jar /user/oozie/share/lib/spark
+      hadoop fs -put -f ${tmp_dir}/share/lib/hive/stax2-api-4.2.1.jar /user/oozie/share/lib/spark
+      hadoop fs -put -f ${tmp_dir}/share/lib/hive/commons-collections4-4.1.jar /user/oozie/share/lib/spark
+      hadoop fs -put -f ${tmp_dir}/share/lib/hive/commons-collections-3.2.2.jar /user/oozie/share/lib/spark
+      hadoop fs -put -f ${tmp_dir}/share/lib/hive/commons-*.jar /user/oozie/share/lib/spark
+      hadoop fs -put -f ${tmp_dir}/share/lib/hive/htrace-core4-4.1.0-incubating.jar /user/oozie/share/lib/spark
+      hadoop fs -put -f ${tmp_dir}/share/lib/hive/hadoop*.jar /user/oozie/share/lib/spark
+      hadoop fs -put -f /usr/lib/spark/jars/hadoop*.jar /user/oozie/share/lib/spark
+      hadoop fs -put -f /usr/lib/spark/jars/spark-hadoop-cloud_2.12-3.1.3.jar /user/oozie/share/lib/spark
+      hadoop fs -put -f /usr/lib/spark/jars/hadoop-cloud-storage-3.2.3.jar /user/oozie/share/lib/spark
+      hadoop fs -put -f /usr/local/share/google/dataproc/lib/gcs-connector.jar /user/oozie/share/lib/spark
+      hadoop fs -put -f /usr/lib/spark/jars/re2j-1.1.jar /user/oozie/share/lib/spark
+      hadoop fs -put -f /usr/lib/hive/lib/disruptor*.jar /user/oozie/share/lib/hive
+      hadoop fs -put -f /usr/lib/hive/lib/hive-service-3.1.2.jar /user/oozie/share/lib/hive2/
+      hadoop fs -put -f /usr/lib/spark/python/lib/py*.zip /user/oozie/share/lib/spark/
+      hadoop fs -put -f /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar /user/oozie/share/lib/spark
+    elif [[ ${OS_NAME} == ubuntu ]] || [[ ${OS_NAME} == debian ]]; then
+      echo "debian"
+    fi
     # end - copy spark and hive dependencies
 
     # For oozie actions, remove log4j from oozie sharelib to allow log4j api classes loaded to avoid conflicts
@@ -560,9 +558,20 @@ EOM
     fi
   done
 
-  # Leave a safe mode - HDFS will enter a safe mode because of Name Node restart
+  # Leave safe mode - HDFS will enter safe mode because of Name Node restart
   if [[ "${HOSTNAME}" == "${master_node}" ]]; then
-    hdfs dfsadmin -safemode leave
+    case "${DATAPROC_IMAGE_VERSION}" in
+      "1.3" | "1.4" | "1.5" | "2.0" )
+        hadoop dfsadmin -safemode leave
+        ;;
+      "2.1")
+        hdfs dfsadmin -safemode leave
+        ;;
+      *)
+        echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
+        exit 1
+        ;;
+    esac
   fi
 }
 
