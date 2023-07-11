@@ -244,9 +244,11 @@ function install_oozie() {
       cp /usr/lib/hadoop/lib/jackson-* "${tmp_dir}/share/lib/hive2/"
     fi
 
-    hadoop fs -mkdir -p /user/oozie/
-    hadoop fs -put -f "${tmp_dir}/share" /user/oozie/
-    sudo -u dataproc hadoop fs -chown oozie /user/oozie
+    if ! hdfs dfs -test -d "/user/oozie"; then
+      hadoop fs -mkdir -p /user/oozie/
+      hadoop fs -put -f "${tmp_dir}/share" /user/oozie/
+      sudo -u dataproc hadoop fs -chown oozie /user/oozie
+    fi
 
     # Clean up temporary fles
     rm -rf "${tmp_dir}"
@@ -561,10 +563,10 @@ EOM
   # Leave safe mode - HDFS will enter safe mode because of Name Node restart
   if [[ "${HOSTNAME}" == "${master_node}" ]]; then
     case "${DATAPROC_IMAGE_VERSION}" in
-      "1.3" | "1.4" | "1.5" | "2.0" )
+      "1.3" | "1.4")
         hadoop dfsadmin -safemode leave
         ;;
-      "2.1")
+      "1.5" | "2.0" | "2.1")
         hdfs dfsadmin -safemode leave
         ;;
       *)
