@@ -3,6 +3,7 @@
 set -euxo pipefail
 
 readonly CLUSTER_NAME=$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)
+readonly master_node=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 readonly MASTER_ADDITIONAL=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)
 CLUSTER_HOSTNAME="${CLUSTER_NAME}"
 if [[ -z "${MASTER_ADDITIONAL}" ]]; then
@@ -24,10 +25,16 @@ cat job.properties
 
 echo -e "\nStarting validation on ${HOSTNAME}:"
 
-oozie admin -sharelibupdate
+if [[ -z "${MASTER_ADDITIONAL}" ]]; then
+  OOZIE_URL="http://${CLUSTER_HOSTNAME}:11000/oozie"
+else
+  OOZIE_URL="http://${master_node}:11000/oozie"
+fi
+
+oozie admin -oozie ${OOZIE_URL} -sharelibupdate
 
 # Start example Oozie job
-job=$(oozie job -config job.properties -run \
+job=$(oozie job -oozie ${OOZIE_URL} -config job.properties -run \
   -D "nameNode=hdfs://${CLUSTER_HOSTNAME}:8020" \
   -D "jobTracker=${CLUSTER_HOSTNAME}:8032" \
   -D "resourceManager=${CLUSTER_HOSTNAME}:8032" \
@@ -36,7 +43,7 @@ job="${job:5:${#job}}"
 
 # Poll Oozie job info until it's not running
 for _ in {1..20}; do
-  job_status=$(oozie job -info "${job}" | grep "^Status")
+  job_status=$(oozie job -oozie ${OOZIE_URL} -info "${job}" | grep "^Status")
   if [[ $job_status != *"RUNNING"* ]]; then
     break
   fi
@@ -48,5 +55,5 @@ if [[ $job_status == *"SUCCEEDED"* ]]; then
 fi
 
 echo "Job ${job} did not succeed:"
-oozie job -info "${job}"
+oozie job -oozie ${OOZIE_URL} -info "${job}"
 exit 1
