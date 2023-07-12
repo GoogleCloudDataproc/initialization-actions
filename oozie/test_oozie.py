@@ -29,6 +29,8 @@ class OozieTestCase(DataprocTestCase):
         ("HA", ["m-0", "m-1", "m-2"]),
     )
     def test_oozie(self, configuration, machine_suffixes):
+        if self.getImageOs() == 'rocky':
+            self.skipTest("Not supported in Rocky Linux-based images")
 
         self.createCluster(
             configuration,
@@ -38,7 +40,6 @@ class OozieTestCase(DataprocTestCase):
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
-
 
 if __name__ == '__main__':
     absltest.main()
