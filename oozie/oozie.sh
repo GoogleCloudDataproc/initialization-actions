@@ -467,9 +467,13 @@ EOM
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/spark-hadoop-cloud*.jar  /usr/lib/spark/jars/hadoop-cloud-storage-*.jar "
         find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
         cp /usr/lib/hive/lib/guava-*.jar /usr/lib/oozie/lib
-      else
+      elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.5" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/spark-hadoop-cloud*.jar  /usr/lib/spark/jars/hadoop-cloud-storage-*.jar /usr/lib/spark/jars/re2j-1.1.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
+      else
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
+        find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
+        wget -P /usr/lib/oozie/lib https://repo1.maven.org/maven2/com/google/guava/guava/11.0.2/guava-11.0.2.jar
       fi
     else
       if [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 2.1" | bc -l) == 1  ]]; then
@@ -479,6 +483,8 @@ EOM
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
       else
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
+        find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
+        wget -P /usr/lib/oozie/lib https://repo1.maven.org/maven2/com/google/guava/guava/11.0.2/guava-11.0.2.jar
       fi
     fi
 
