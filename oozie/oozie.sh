@@ -165,6 +165,11 @@ function install_oozie() {
 
   # Upgrade the repository and install Oozie
   if [[ ${OS_NAME} == rocky ]]; then
+    # unzip does not come pre-installed on the 2.1-rocky8 image
+    if [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 2.1" | bc -l) == 1  ]]; then
+      retry_command "dnf -y install unzip"
+    fi
+
     # update dnf proxy
     retry_command "dnf -y -v install oozie"
 
@@ -172,22 +177,19 @@ function install_oozie() {
     sed -i '/^# Required-Start:/ s/$/ mysqld.service/' /etc/init.d/oozie
 
     # setup symlinks for hadoop jar dependencies
-    ln -sf /usr/lib/hadoop/hadoop-common.jar /usr/lib/oozie/lib/
-    ln -sf /usr/lib/hadoop/hadoop-auth.jar /usr/lib/oozie/lib/
-    ln -sf /usr/lib/hadoop/hadoop-annotations.jar /usr/lib/oozie/lib/
-
-    ln -sf /usr/lib/hadoop-hdfs/hadoop-hdfs-client.jar /usr/lib/oozie/lib/
-
-    ln -sf /usr/lib/hadoop-yarn/hadoop-yarn-common.jar /usr/lib/oozie/lib/
-    ln -sf /usr/lib/hadoop-yarn/hadoop-yarn-client.jar /usr/lib/oozie/lib/
-    ln -sf /usr/lib/hadoop-yarn/hadoop-yarn-server-common.jar /usr/lib/oozie/lib/
-    ln -sf /usr/lib/hadoop-yarn/hadoop-yarn-api.jar /usr/lib/oozie/lib/
-
-    ln -sf /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-jobclient.jar /usr/lib/oozie/lib/
-    ln -sf /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-app.jar /usr/lib/oozie/lib/
-    ln -sf /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-common.jar /usr/lib/oozie/lib/
-    ln -sf /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-core.jar /usr/lib/oozie/lib/
-    ln -sf /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-shuffle.jar /usr/lib/oozie/lib/
+    ln -sf /usr/lib/hadoop/hadoop-common.jar                               \
+           /usr/lib/hadoop/hadoop-auth.jar                                 \
+           /usr/lib/hadoop/hadoop-annotations.jar                          \
+           /usr/lib/hadoop-hdfs/hadoop-hdfs-client.jar                     \
+           /usr/lib/hadoop-yarn/hadoop-yarn-common.jar                     \
+           /usr/lib/hadoop-yarn/hadoop-yarn-client.jar                     \
+           /usr/lib/hadoop-yarn/hadoop-yarn-server-common.jar              \
+           /usr/lib/hadoop-yarn/hadoop-yarn-api.jar                        \
+           /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-jobclient.jar \
+           /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-app.jar       \
+           /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-common.jar    \
+           /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-core.jar      \
+           /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-shuffle.jar   /usr/lib/oozie/lib/
   elif [[ ${OS_NAME} == ubuntu ]] || [[ ${OS_NAME} == debian ]]; then
     retry_command "apt-get update"
     retry_command "apt-get install -q -y oozie oozie-client"
@@ -458,42 +460,41 @@ EOM
       cp /usr/lib/hadoop/lib/jackson-* "${tmp_dir}/share/lib/hive2/"
     fi
 
-    if ! hdfs dfs -test -f "/usr/oozie/__manual_sharelib_started__"; then
-      # start - copy spark and hive dependencies
-      dd if=/dev/zero of=/tmp/zero bs=1 count=1
-      hadoop fs -put -f /tmp/zero                                                       /user/oozie/__manual_sharelib_started__
-
-      local ADDITIONAL_JARS=""
-      if [[ ${OS_NAME} == rocky ]]; then
+    # start - copy spark and hive dependencies
+    local ADDITIONAL_JARS=""
+    if [[ ${OS_NAME} == rocky ]]; then
+      if [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 2.1" | bc -l) == 1  ]]; then
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/spark-hadoop-cloud*.jar  /usr/lib/spark/jars/hadoop-cloud-storage-*.jar "
+      else
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/spark-hadoop-cloud*.jar  /usr/lib/spark/jars/hadoop-cloud-storage-*.jar /usr/lib/spark/jars/re2j-1.1.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
-      else
-        if [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 2.1" | bc -l) == 1  ]]; then
-          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/spark-hadoop-cloud*.jar  /usr/lib/spark/jars/hadoop-cloud-storage-*.jar"
-        elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.5" | bc -l) == 1  ]]; then
-          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/spark-hadoop-cloud*.jar  /usr/lib/spark/jars/hadoop-cloud-storage-*.jar /usr/lib/spark/jars/re2j-1.1.jar"
-          ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
-        else
-          ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
-        fi
       fi
-
-      hadoop fs -put -f \
-        ${tmp_dir}/share/lib/hive/hadoop-common-*.jar           \
-        ${tmp_dir}/share/lib/hive/woodstox-core-*.jar           \
-        ${tmp_dir}/share/lib/hive/stax-api-*.jar                \
-        ${tmp_dir}/share/lib/hive/stax2-api-*.jar               \
-        ${tmp_dir}/share/lib/hive/commons-*.jar                 \
-        ${tmp_dir}/share/lib/hive/hadoop*.jar                   \
-        /usr/lib/spark/jars/hadoop*.jar                         \
-        /usr/local/share/google/dataproc/lib/gcs-connector.jar  \
-        /usr/lib/spark/python/lib/py*.zip                       \
-        ${ADDITIONAL_JARS}                                      \
-        /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar /user/oozie/share/lib/spark
-      hadoop fs -put -f /usr/lib/hive/lib/disruptor*.jar                /user/oozie/share/lib/hive
-      hadoop fs -put -f /usr/lib/hive/lib/hive-service-*.jar            /user/oozie/share/lib/hive2
-      # end - copy spark and hive dependencies
+    else
+      if [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 2.1" | bc -l) == 1  ]]; then
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/spark-hadoop-cloud*.jar  /usr/lib/spark/jars/hadoop-cloud-storage-*.jar"
+      elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.5" | bc -l) == 1  ]]; then
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/spark-hadoop-cloud*.jar  /usr/lib/spark/jars/hadoop-cloud-storage-*.jar /usr/lib/spark/jars/re2j-1.1.jar"
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
+      else
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
+      fi
     fi
+
+    hadoop fs -put -f \
+      ${tmp_dir}/share/lib/hive/hadoop-common-*.jar           \
+      ${tmp_dir}/share/lib/hive/woodstox-core-*.jar           \
+      ${tmp_dir}/share/lib/hive/stax-api-*.jar                \
+      ${tmp_dir}/share/lib/hive/stax2-api-*.jar               \
+      ${tmp_dir}/share/lib/hive/commons-*.jar                 \
+      ${tmp_dir}/share/lib/hive/hadoop*.jar                   \
+      /usr/lib/spark/jars/hadoop*.jar                         \
+      /usr/local/share/google/dataproc/lib/gcs-connector.jar  \
+      /usr/lib/spark/python/lib/py*.zip                       \
+      ${ADDITIONAL_JARS}                                      \
+      /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar /user/oozie/share/lib/spark
+    hadoop fs -put -f /usr/lib/hive/lib/disruptor*.jar                /user/oozie/share/lib/hive
+    hadoop fs -put -f /usr/lib/hive/lib/hive-service-*.jar            /user/oozie/share/lib/hive2
+    # end - copy spark and hive dependencies
 
     # For oozie actions, remove log4j from oozie sharelib to allow log4j api classes loaded to avoid conflicts
     res=`hadoop fs -find /user/oozie/share/lib/ -name "log4j-1.2.*"`
