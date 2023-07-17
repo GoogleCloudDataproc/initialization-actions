@@ -1,3 +1,14 @@
+--------------------------------------------------------------------------------
+
+# NOTE: *The Dr. Elephant initialization action has been deprecated.*
+
+**[Dr. Elephant](https://github.com/linkedin/dr-elephant) supports Apache Hadoop
+versions 1.x and 2.x. Currently supported
+[Dataproc image versions](https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-version-clusters)
+include later versions of Hadoop.**
+
+--------------------------------------------------------------------------------
+
 # Dr. Elephant
 
 This script installs [Dr. Elephant](https://github.com/linkedin/dr-elephant) on
