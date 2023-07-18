@@ -89,6 +89,16 @@ function set_oozie_property() {
     --clobber
 }
 
+function set_hadoop_property() {
+  local prop_name="$1"
+  local prop_val="$2"
+  /usr/local/bin/bdconfig set_property \
+    --configuration_file '/etc/hadoop/conf/core-site.xml' \
+    --name "${prop_name}" --value "${prop_val}" \
+    --clobber
+}
+
+
 function retry_command() {
   local cmd="$1"
   # First retry is immediate
@@ -301,8 +311,10 @@ function install_oozie() {
   set_oozie_property 'oozie.action.retry.policy' "exponential"
 
   # Hadoop must allow impersonation for Oozie to work properly
-  set_oozie_property 'hadoop.proxyuser.oozie.hosts' '*'
-  set_oozie_property 'hadoop.proxyuser.oozie.groups' '*'
+  set_hadoop_property 'hadoop.proxyuser.oozie.groups' '*'
+  set_hadoop_property 'hadoop.proxyuser.oozie.hosts' '*'
+  set_oozie_property 'oozie.service.ProxyUserService.proxyuser.oozie.hosts' '*'
+  set_oozie_property 'oozie.service.ProxyUserService.proxyuser.oozie.groups' '*'
   set_oozie_property 'oozie.service.HadoopAccessorService.supported.filesystems' 'hdfs,gs'
   set_oozie_property 'fs.AbstractFileSystem.gs.impl' 'com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS'
 
