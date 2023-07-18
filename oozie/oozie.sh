@@ -80,6 +80,15 @@ export MYSQL_ROOT_PASSWORD_SECRET_VERSION=$(/usr/share/google/get_metadata_value
 export MYSQL_ROOT_PASSWORD=$(gcloud secrets versions access --secret ${MYSQL_ROOT_PASSWORD_SECRET_NAME} ${MYSQL_ROOT_PASSWORD_SECRET_VERSION} || \
     grep 'password=' /etc/mysql/my.cnf | sed 's/^.*=//' || echo root-password)
 
+function set_oozie_property() {
+  local prop_name="$1"
+  local prop_val="$2"
+  /usr/local/bin/bdconfig set_property \
+    --configuration_file '/etc/oozie/conf/oozie-site.xml' \
+    --name "${prop_name}" --value "${prop_val}" \
+    --clobber
+}
+
 function retry_command() {
   local cmd="$1"
   # First retry is immediate
@@ -136,25 +145,10 @@ function configure_ssl() {
   # Configure the Oozie client to use the HTTPS URL.
   echo "export OOZIE_URL='https://$(hostname -f):11443/oozie'" >> /usr/lib/oozie/conf/oozie-client-env.sh
 
-  /usr/local/bin/bdconfig set_property \
-      --configuration_file '/etc/oozie/conf/oozie-site.xml' \
-      --name 'oozie.https.enabled' --value 'true' \
-      --clobber
-
-  /usr/local/bin/bdconfig set_property \
-      --configuration_file '/etc/oozie/conf/oozie-site.xml' \
-      --name 'oozie.https.keystore.file' --value "${keystore_file}" \
-      --clobber
-
-  /usr/local/bin/bdconfig set_property \
-      --configuration_file '/etc/oozie/conf/oozie-site.xml' \
-      --name 'oozie.https.keystore.pass' --value "${keystore_password}" \
-      --clobber
-
-  /usr/local/bin/bdconfig set_property \
-      --configuration_file '/etc/oozie/conf/oozie-site.xml' \
-      --name 'oozie.https.truststore.file' --value "${truststore_file}" \
-      --clobber
+  set_oozie_property 'oozie.https.enabled' 'true'
+  set_oozie_property 'oozie.https.keystore.file' "${keystore_file}"
+  set_oozie_property 'oozie.https.keystore.pass' "${keystore_password}"
+  set_oozie_property 'oozie.https.truststore.file' "${truststore_file}"
 }
 
 function install_oozie() {
@@ -249,6 +243,7 @@ function install_oozie() {
     if ! hdfs dfs -test -d "/user/oozie"; then
       hadoop fs -mkdir -p /user/oozie/
       hadoop fs -put -f "${tmp_dir}/share" /user/oozie/
+
       sudo -u dataproc hadoop fs -chown oozie /user/oozie
     fi
 
@@ -266,167 +261,45 @@ function install_oozie() {
     configure_ssl
   fi
 
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.service.JPAService.jdbc.driver' --value "com.mysql.cj.jdbc.Driver" \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.service.JPAService.jdbc.url' --value "jdbc:mysql://${mysql_host}/oozie" \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.service.JPAService.jdbc.username' --value "oozie" \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.service.JPAService.jdbc.password' --value "${OOZIE_PASSWORD}" \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.email.smtp.host' --value "${METADATA_EMAIL_SMTP_HOST}" \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.email.from.address' --value "${METADATA_EMAIL_FROM_ADDRESS}" \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.action.max.output.data' --value "20000" \
-    --clobber
-
+  set_oozie_property 'oozie.service.JPAService.jdbc.driver' "com.mysql.cj.jdbc.Driver"
+  set_oozie_property 'oozie.service.JPAService.jdbc.url' "jdbc:mysql://${mysql_host}/oozie"
+  set_oozie_property 'oozie.service.JPAService.jdbc.username' "oozie"
+  set_oozie_property 'oozie.service.JPAService.jdbc.password' "${OOZIE_PASSWORD}"
+  set_oozie_property 'oozie.email.smtp.host' "${METADATA_EMAIL_SMTP_HOST}"
+  set_oozie_property 'oozie.email.from.address' "${METADATA_EMAIL_FROM_ADDRESS}"
+  set_oozie_property 'oozie.action.max.output.data' "20000"
   # Set hostname to allow connection from other hosts (not only localhost)
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.http.hostname' --value "${HOSTNAME}" \
-    --clobber
-
+  set_oozie_property 'oozie.http.hostname' "${HOSTNAME}"
   # Following property was requested in customer case
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.service.WorkflowAppService.WorkflowDefinitionMaxLength' --value "1500000" \
-    --clobber
-
+  set_oozie_property 'oozie.service.WorkflowAppService.WorkflowDefinitionMaxLength' "1500000"
   # Following 2 properties added for customer case
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.service.URIHandlerService.uri.handlers' --value "org.apache.oozie.dependency.FSURIHandler,org.apache.oozie.dependency.HCatURIHandler" \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.credentials.credentialclasses' --value "hcat=org.apache.oozie.action.hadoop.HCatCredentials,hive2=org.apache.oozie.action.hadoop.Hive2Credentials,hbase=org.apache.oozie.action.hadoop.HbaseCredentials" \
-    --clobber
-
+  set_oozie_property 'oozie.service.URIHandlerService.uri.handlers' "org.apache.oozie.dependency.FSURIHandler,org.apache.oozie.dependency.HCatURIHandler"
+  set_oozie_property 'oozie.credentials.credentialclasses' \
+    "hcat=org.apache.oozie.action.hadoop.HCatCredentials,hive2=org.apache.oozie.action.hadoop.Hive2Credentials,hbase=org.apache.oozie.action.hadoop.HbaseCredentials"
   # Following 4 properties provided by customer platform team for CEAM - Oozie to HCat integration
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.services.ext' --value "org.apache.oozie.service.PartitionDependencyManagerService,org.apache.oozie.service.HCatAccessorService" \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.service.HCatAccessorService.hcat.configuration' --value "/etc/hive/conf.dist/hive-site.xml" \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.service.coord.input.check.requeue.interval' --value "120000" \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.service.coord.push.check.requeue.interval' --value "120000" \
-    --clobber
-
+  set_oozie_property 'oozie.services.ext' "org.apache.oozie.service.PartitionDependencyManagerService,org.apache.oozie.service.HCatAccessorService"
+  set_oozie_property 'oozie.service.HCatAccessorService.hcat.configuration' "/etc/hive/conf.dist/hive-site.xml"
+  set_oozie_property 'oozie.service.coord.input.check.requeue.interval' "120000"
+  set_oozie_property 'oozie.service.coord.push.check.requeue.interval' "120000"
   # Following properties were added for materialization issues observed in the NDL data lake
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.service.PurgeService.purge.interval' --value "86400" \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.service.CallableQueueService.threads' --value "100" \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.service.CallableQueueService.callable.concurrency' --value "50" \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.service.CoordMaterializeTriggerService.lookup.interval' --value "300" \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.service.CoordMaterializeTriggerService.scheduling.interval' --value "60" \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.service.CoordMaterializeTriggerService.materialization.window' --value "1500" \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.service.CoordMaterializeTriggerService.callable.batch.size' --value "10" \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.service.CoordMaterializeTriggerService.materialization.system.limit' --value "150" \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.service.JPAService.pool.max.active.conn' --value "50" \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.service.StatusTransitService.backward.support.for.states.without.error' --value "false" \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-      --name 'oozie.service.ActionCheckerService.action.check.delay' --value "300" \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.action.retry.policy' --value "exponential" \
-    --clobber
+  set_oozie_property 'oozie.service.PurgeService.purge.interval' "86400"
+  set_oozie_property 'oozie.service.CallableQueueService.threads' "100"
+  set_oozie_property 'oozie.service.CallableQueueService.callable.concurrency' "50"
+  set_oozie_property 'oozie.service.CoordMaterializeTriggerService.lookup.interval' "300"
+  set_oozie_property 'oozie.service.CoordMaterializeTriggerService.scheduling.interval' "60"
+  set_oozie_property 'oozie.service.CoordMaterializeTriggerService.materialization.window' "1500"
+  set_oozie_property 'oozie.service.CoordMaterializeTriggerService.callable.batch.size' "10"
+  set_oozie_property 'oozie.service.CoordMaterializeTriggerService.materialization.system.limit' "150"
+  set_oozie_property 'oozie.service.JPAService.pool.max.active.conn' "50"
+  set_oozie_property 'oozie.service.StatusTransitService.backward.support.for.states.without.error' "false"
+  set_oozie_property 'oozie.service.ActionCheckerService.action.check.delay' "300"
+  set_oozie_property 'oozie.action.retry.policy' "exponential"
 
   # Hadoop must allow impersonation for Oozie to work properly
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/hadoop/conf/core-site.xml" \
-    --name 'hadoop.proxyuser.oozie.hosts' --value '*' \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/hadoop/conf/core-site.xml" \
-    --name 'hadoop.proxyuser.oozie.groups' --value '*' \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.service.HadoopAccessorService.supported.filesystems' --value 'hdfs,gs' \
-    --clobber
-
-  /usr/local/bin/bdconfig set_property \
-    --configuration_file "/etc/hadoop/conf/core-site.xml" \
-    --name 'fs.AbstractFileSystem.gs.impl' \
-    --value 'com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS' \
-    --clobber
+  set_oozie_property 'hadoop.proxyuser.oozie.hosts' '*'
+  set_oozie_property 'hadoop.proxyuser.oozie.groups' '*'
+  set_oozie_property 'oozie.service.HadoopAccessorService.supported.filesystems' 'hdfs,gs'
+  set_oozie_property 'fs.AbstractFileSystem.gs.impl' 'com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS'
 
   if [[ "${HOSTNAME}" == "${master_node}" ]]; then
     # Create the Oozie user in MySQL. Do this before the copies, since other
@@ -470,10 +343,13 @@ EOM
       elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.5" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/spark-hadoop-cloud*.jar  /usr/lib/spark/jars/hadoop-cloud-storage-*.jar /usr/lib/spark/jars/re2j-1.1.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
-      else
+      elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.4" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
         find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
         wget -P /usr/lib/oozie/lib https://repo1.maven.org/maven2/com/google/guava/guava/11.0.2/guava-11.0.2.jar
+      else
+        echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
+        exit 1
       fi
     else
       if [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 2.1" | bc -l) == 1  ]]; then
@@ -481,10 +357,13 @@ EOM
       elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.5" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/spark-hadoop-cloud*.jar  /usr/lib/spark/jars/hadoop-cloud-storage-*.jar /usr/lib/spark/jars/re2j-1.1.jar"
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
-      else
+      elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.4" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
         find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
         wget -P /usr/lib/oozie/lib https://repo1.maven.org/maven2/com/google/guava/guava/11.0.2/guava-11.0.2.jar
+      else
+        echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
+        exit 1
       fi
     fi
 
@@ -574,7 +453,18 @@ EOM
     cp ${curator_src}/curator*-${curator_version}.jar /usr/lib/oozie/lib
   fi
 
-  /usr/lib/zookeeper/bin/zkServer.sh restart
+  case "${DATAPROC_IMAGE_VERSION}" in
+    "1.3" | "1.4")
+      /usr/lib/zookeeper/bin/zkServer.sh restart
+      ;;
+    "1.5" | "2.0" | "2.1")
+      systemctl restart zookeeper-server
+      ;;
+    *)
+      echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
+      exit 1
+      ;;
+  esac
 
   # HDFS and YARN must be cycled; restart to clean things up
   for service in hadoop-hdfs-namenode hadoop-hdfs-secondarynamenode hadoop-yarn-resourcemanager oozie; do
