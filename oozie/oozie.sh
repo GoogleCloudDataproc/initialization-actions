@@ -244,7 +244,12 @@ function install_oozie() {
       hadoop fs -mkdir -p /user/oozie/
       hadoop fs -put -f "${tmp_dir}/share" /user/oozie/
 
-      sudo -u dataproc hadoop fs -chown oozie /user/oozie
+      if grep '^dataproc' /etc/passwd ; then
+        local hdfs_username=dataproc
+      else
+        local hdfs_username=hdfs
+      fi
+      sudo -u ${hdfs_username} hadoop fs -chown oozie /user/oozie
     fi
 
     # Clean up temporary fles
@@ -338,29 +343,64 @@ EOM
     if [[ ${OS_NAME} == rocky ]]; then
       if [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 2.1" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/spark-hadoop-cloud*.jar  /usr/lib/spark/jars/hadoop-cloud-storage-*.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop-common-*.jar ${tmp_dir}/share/lib/hive/woodstox-core-*.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/stax2-api-*.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
         find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
         cp /usr/lib/hive/lib/guava-*.jar /usr/lib/oozie/lib
       elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.5" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/spark-hadoop-cloud*.jar  /usr/lib/spark/jars/hadoop-cloud-storage-*.jar /usr/lib/spark/jars/re2j-1.1.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop-common-*.jar ${tmp_dir}/share/lib/hive/woodstox-core-*.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/stax2-api-*.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
       elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.4" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop-common-*.jar ${tmp_dir}/share/lib/hive/woodstox-core-*.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/stax2-api-*.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
         find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
         wget -P /usr/lib/oozie/lib https://repo1.maven.org/maven2/com/google/guava/guava/11.0.2/guava-11.0.2.jar
+      elif [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 1.3" | bc -l) == 1  ]]; then
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
+        ADDITIONAL_JARS=""
+      elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.2" | bc -l) == 1  ]]; then
+        ADDITIONAL_JARS=""
       else
         echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
         exit 1
       fi
     else
       if [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 2.1" | bc -l) == 1  ]]; then
-        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/spark-hadoop-cloud*.jar  /usr/lib/spark/jars/hadoop-cloud-storage-*.jar"
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/spark-hadoop-cloud*.jar  /usr/lib/spark/jars/hadoop-cloud-storage-*.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop-common-*.jar ${tmp_dir}/share/lib/hive/woodstox-core-*.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/stax2-api-*.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
       elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.5" | bc -l) == 1  ]]; then
-        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/spark-hadoop-cloud*.jar  /usr/lib/spark/jars/hadoop-cloud-storage-*.jar /usr/lib/spark/jars/re2j-1.1.jar"
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/spark-hadoop-cloud*.jar  /usr/lib/spark/jars/hadoop-cloud-storage-*.jar /usr/lib/spark/jars/re2j-1.1.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop-common-*.jar ${tmp_dir}/share/lib/hive/woodstox-core-*.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/stax2-api-*.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
       elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.4" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop-common-*.jar ${tmp_dir}/share/lib/hive/woodstox-core-*.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/stax2-api-*.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
         find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
         wget -P /usr/lib/oozie/lib https://repo1.maven.org/maven2/com/google/guava/guava/11.0.2/guava-11.0.2.jar
+      elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.3" | bc -l) == 1  ]]; then
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
+      elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.2" | bc -l) == 1  ]]; then
+        ADDITIONAL_JARS=""
       else
         echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
         exit 1
@@ -368,17 +408,10 @@ EOM
     fi
 
     hadoop fs -put -f \
-      ${tmp_dir}/share/lib/hive/hadoop-common-*.jar           \
-      ${tmp_dir}/share/lib/hive/woodstox-core-*.jar           \
       ${tmp_dir}/share/lib/hive/stax-api-*.jar                \
-      ${tmp_dir}/share/lib/hive/stax2-api-*.jar               \
       ${tmp_dir}/share/lib/hive/commons-*.jar                 \
-      ${tmp_dir}/share/lib/hive/hadoop*.jar                   \
-      /usr/lib/spark/jars/hadoop*.jar                         \
-      /usr/local/share/google/dataproc/lib/gcs-connector.jar  \
       /usr/lib/spark/python/lib/py*.zip                       \
-      ${ADDITIONAL_JARS}                                      \
-      /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar /user/oozie/share/lib/spark
+      ${ADDITIONAL_JARS}                                      /user/oozie/share/lib/spark
     hadoop fs -put -f /usr/lib/hive/lib/disruptor*.jar                /user/oozie/share/lib/hive
     hadoop fs -put -f /usr/lib/hive/lib/hive-service-*.jar            /user/oozie/share/lib/hive2
     # end - copy spark and hive dependencies
@@ -450,21 +483,17 @@ EOM
       -name "curator-recipes*.jar" -o \
       -name "curator-client*.jar" \
       -delete
-    cp ${curator_src}/curator*-${curator_version}.jar /usr/lib/oozie/lib
+    if [ $(ls ${curator_src}/ | grep "curator.*-${curator_version}.jar" | wc -l) -ne 0 ]; then
+      cp ${curator_src}/curator*-${curator_version}.jar /usr/lib/oozie/lib
+    fi
   fi
 
-  case "${DATAPROC_IMAGE_VERSION}" in
-    "1.3" | "1.4")
-      /usr/lib/zookeeper/bin/zkServer.sh restart
-      ;;
-    "1.5" | "2.0" | "2.1")
-      systemctl restart zookeeper-server
-      ;;
-    *)
-      echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
-      exit 1
-      ;;
-  esac
+  # Restart the zookeeper service
+  if which systemctl > /dev/null && systemctl list-units | grep zookeeper-server > /dev/null ; then
+    systemctl restart zookeeper-server
+  else
+    /usr/lib/zookeeper/bin/zkServer.sh restart
+  fi
 
   # HDFS and YARN must be cycled; restart to clean things up
   for service in hadoop-hdfs-namenode hadoop-hdfs-secondarynamenode hadoop-yarn-resourcemanager oozie; do
