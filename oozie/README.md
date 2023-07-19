@@ -23,13 +23,31 @@ You can use this initialization action to create a new Dataproc cluster with Ooz
         --region ${REGION} \
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/oozie/oozie.sh
     ```
+    
+    Optional arguments which can be passed as --metadata values:
+
+    1. http-proxy - HTTP proxy to use for outbound requests
+    1. email-smtp-host - SMTP server to use for outbound email
+    1. email-from-address - Address from which to send email
+    1. oozie-db-name - MySQL database name - default: "oozie"
+    1. oozie-db-username - MySQL user by which the database is accessed - default: "oozie"
+    1. oozie-password-secret-name - Name of [Secret Manager](https://cloud.google.com/secret-manager/) secret used to store oozie database user's password
+    1. oozie-password-secret-version - Version of Secret Manager secret used to store oozie database user's password - default: 1
+    1. mysql-root-username - Administrative MySQL user by which the database is managed - default: "root"
+    1. mysql-root-password-secret-name - Name of [Secret Manager](https://cloud.google.com/secret-manager/) secret used to store MySQL root password
+    1. mysql-root-password-secret-version - Version of Secret Manager secret used to store MySQL root password - default: 1
+    1. oozie-enable-ssl - Whether to enable SSL for oozie service - default: "false"
+
 1. Once the cluster has been created Oozie should be running on the master node.
 
 You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
 
 ## Testing Oozie
 
-You can test this Oozie installation by running the `oozie-examples` included with Oozie. The examples are in an archive at `/usr/share/doc/oozie/oozie-examples.tar.gz`. To run the MapReduce example, you can do the following:
+You can test this Oozie installation by running the `oozie-examples` included
+with Oozie. The examples are in an archive at
+`/usr/share/doc/oozie/oozie-examples.tar.gz`. To run the MapReduce example, you
+can do the following from (one of) the cluster master node(s):
 
 1. Move the examples to your home directory:
     ```
@@ -54,11 +72,11 @@ You can test this Oozie installation by running the `oozie-examples` included wi
     ```
 1. Move the Oozie examples to HDFS:
     ```
-    hadoop fs -put ~/examples/ /user/<username>/
+    hadoop fs -put ~/examples/ /user/${USER}/
     ```
 1. Run the example on the command line with:<br/>
     ```
-    oozie job -oozie http://127.0.0.1:11000/oozie -config ~/examples/apps/map-reduce/job.properties -run
+    oozie job -oozie http://${HOSTNAME}:11000/oozie -config ~/examples/apps/map-reduce/job.properties -run
     ```
 
 ## Oozie web interface

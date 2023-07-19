@@ -41,6 +41,5 @@ class OozieTestCase(DataprocTestCase):
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
 
-
 if __name__ == '__main__':
     absltest.main()
