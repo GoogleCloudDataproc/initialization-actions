@@ -58,7 +58,6 @@ esac
 
 # Use Python from /usr/bin instead of /opt/conda.
 export PATH=/usr/bin:$PATH
-export DATAPROC_IMAGE=$(/usr/share/google/get_metadata_value image)
 export METADATA_HTTP_PROXY=$(/usr/share/google/get_metadata_value attributes/http-proxy)
 export METADATA_EMAIL_SMTP_HOST=$(/usr/share/google/get_metadata_value attributes/email-smtp-host)
 export METADATA_EMAIL_FROM_ADDRESS=$(/usr/share/google/get_metadata_value attributes/email-from-address)
