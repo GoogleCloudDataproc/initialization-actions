@@ -18,7 +18,7 @@ function configure_endpoints() {
   # Storing the list of endpoints in a comma separated string
   for element in "${endpoints_array[@]}"
   do
-  prometheus_scrape_endpoints+="$element,"
+  prometheus_scrape_endpoints+="'$element',"
   done
 
   # Remove the extra comma if endpoints passed
@@ -43,12 +43,6 @@ receivers:
         - targets: [${prometheus_scrape_endpoints}]
 
 processors:
-  resource:
-    attributes:
-      - key: "location"
-        value: "us-central1-a"
-        action: upsert
-
   resourcedetection:
     detectors: [gcp]
     timeout: 10s
@@ -65,7 +59,7 @@ service:
   pipelines:
     metrics:
       receivers: [prometheus]
-      processors: [resource, resourcedetection]
+      processors: [resourcedetection]
       exporters: [googlecloud]
 EOF
 }
