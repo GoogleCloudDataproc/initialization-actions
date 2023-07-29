@@ -27,5 +27,5 @@ OTel installed on every node:
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/otel/otel.sh
     ```
 
-NOTE: Add a string of space separated prometheus scrape urls in `PROMETHEUS_ENDPOINTS`, example value: `'0.0.0.0:1234' '0.0.0.0:1235'`
+NOTE: Add a string of space separated prometheus scrape urls in `PROMETHEUS_ENDPOINTS`, example value: `0.0.0.0:1234 0.0.0.0:1235`
 
