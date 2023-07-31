@@ -54,7 +54,7 @@ function update_repo() {
   if command -v apt-get >/dev/null; then
     retry_command "apt-get update"
   else
-    retry_command "yum update"
+    retry_command "yum -y update"
   fi
 }
 
