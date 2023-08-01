@@ -20,6 +20,9 @@ set -euxo pipefail
 MASTER_HOSTNAME=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 readonly MASTER_HOSTNAME
 
+OS_NAME=$(grep '^ID=' /etc/os-release | cut -d= -f2 | xargs)
+readonly OS_NAME
+
 function random_string() {
   tr </dev/urandom -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1
 }
@@ -55,6 +58,22 @@ function update_repo() {
   else
     retry_command "yum -y update"
   fi
+}
+
+function install_libmysqlclient20() {
+  pushd /tmp
+  if [[ "${OS_NAME}" == "debian" ]]; then
+    wget --tries=3 https://repo.mysql.com/apt/debian/pool/mysql-5.7/m/mysql-community/libmysqlclient20_5.7.42-1debian10_amd64.deb
+    dpkg -i libmysqlclient20_5.7.42-1debian10_amd64.deb
+    rm -f libmysqlclient20_5.7.42-1debian10_amd64.deb
+  elif [[ "${OS_NAME}" == "ubuntu" ]]; then
+    wget --tries=3 https://repo.mysql.com/apt/ubuntu/pool/mysql-5.7/m/mysql-community/libmysqlclient20_5.7.42-1ubuntu18.04_amd64.deb
+    dpkg -i libmysqlclient20_5.7.42-1ubuntu18.04_amd64.deb
+    rm -f libmysqlclient20_5.7.42-1ubuntu18.04_amd64.deb
+  else
+    echo "Skip installing libmysqlclient20 for ${OS_NAME}"
+  fi
+  popd
 }
 
 function install_hue_and_configure() {
@@ -218,5 +237,13 @@ EOF
 # Only run on the master node ("0"-master in HA mode) of the cluster
 if [[ "${HOSTNAME}" == "${MASTER_HOSTNAME}" ]]; then
   update_repo || err "Unable to update repository"
+  # DATAPROC_IMAGE_VERSION is the preferred variable, but it doesn't exist in
+  # old images.
+  if [[ "${DATAPROC_IMAGE_VERSION:-${DATAPROC_VERSION}}" == "2.0"  ]]; then
+    # Hue 4.10 in Dataproc 2.0 depends on libmysqlclient20, but it has been
+    # removed from the MySQL apt repo index, so download and install it
+    # explicitly.
+    install_libmysqlclient20
+  fi
   install_hue_and_configure || err "Hue install process failed"
 fi
