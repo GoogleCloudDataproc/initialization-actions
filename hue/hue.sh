@@ -20,6 +20,8 @@ set -euxo pipefail
 MASTER_HOSTNAME=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 readonly MASTER_HOSTNAME
 
+OS_NAME=$(grep '^ID=' /etc/os-release | cut -d= -f2 | xargs)
+readonly OS_NAME
 
 function random_string() {
   tr </dev/urandom -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1
@@ -60,12 +62,16 @@ function update_repo() {
 
 function install_libmysqlclient20() {
   pushd /tmp
-  if command -v dpkg >/dev/null; then
+  if [[ "${OS_NAME}" == "debian" ]]; then
     wget --tries=3 https://repo.mysql.com/apt/debian/pool/mysql-5.7/m/mysql-community/libmysqlclient20_5.7.42-1debian10_amd64.deb
     dpkg -i libmysqlclient20_5.7.42-1debian10_amd64.deb
     rm -f libmysqlclient20_5.7.42-1debian10_amd64.deb
+  elif [[ "${OS_NAME}" == "ubuntu" ]]; then
+    wget --tries=3 https://repo.mysql.com/apt/ubuntu/pool/mysql-5.7/m/mysql-community/libmysqlclient20_5.7.42-1ubuntu18.04_amd64.deb
+    dpkg -i libmysqlclient20_5.7.42-1ubuntu18.04_amd64.deb
+    rm -f libmysqlclient20_5.7.42-1ubuntu18.04_amd64.deb
   else
-    echo "Skip installing libmysqlclient20"
+    echo "Skip installing libmysqlclient20 for ${OS_NAME}"
   fi
   popd
 }
