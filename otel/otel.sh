@@ -1,17 +1,21 @@
+#!/usr/bin/env bash
+
 # This initialization action installs OpenTelemetry Collector Contrib (otelcol-contrib) in a Dataproc cluster
 # configures OTel and pulls metrics from Prometheus endpoints provided by the customer. 
 # The metrics are then exported to Google Cloud Monitoring (GCM).
 
-set -euxo pipefail
+readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+readonly PROMETHEUS_ENDPOINTS="$(/usr/share/google/get_metadata_value attributes/prometheus-scrape-endpoints || '')"
+readonly MASTER_ONLY="$(/usr/share/google/get_metadata_value attributes/master-only || false)"
+readonly version="0.81.0"
 
 function install_otel() {
   # Install otelcol-contrib as package (https://github.com/open-telemetry/opentelemetry-collector-contrib)
   wget https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.81.0/otelcol-contrib_0.81.0_linux_amd64.deb
-  dpkg -i otelcol-contrib_0.81.0_linux_amd64.deb
+  dpkg -i "otelcol-contrib_${version}_linux_amd64.deb"
 }
 
 function configure_endpoints() {
-  readonly PROMETHEUS_ENDPOINTS="$(/usr/share/google/get_metadata_value attributes/prometheus-scrape-endpoints || '')"
   endpoints_array=($PROMETHEUS_ENDPOINTS)
   prometheus_scrape_endpoints=''
 
@@ -49,8 +53,6 @@ processors:
 
 exporters:
   googlecloud:
-    log:
-      default_log_name: opentelemetry.io/collector-exported-log
     metric:
       prefix: "custom.googleapis.com"
       instrumentation_library_labels: "false"
@@ -66,10 +68,15 @@ EOF
 
 function start_services(){
   systemctl daemon-reload
-  systemctl restart otelcol-contrib
+  systemctl start otelcol-contrib
 }
 
 function main(){
+
+  if [ "${ROLE}" != 'Master' ] && [ $MASTER_ONLY == true ]; then
+    return
+  fi
+  
   install_otel
   configure_endpoints
   configure_otel
