@@ -26,6 +26,13 @@ OTel installed on every node:
         --metadata=prometheus-scrape-endpoints="${PROMETHEUS_ENDPOINTS}"
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/otel/otel.sh
     ```
+ - Use the `master-only` metadata property to install the agent only on master nodes.
 
+    ```bash
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --metadata=prometheus-scrape-endpoints="${PROMETHEUS_ENDPOINTS}",master-only="true"
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/otel/otel.sh
+    ```
 NOTE: Add a string of space separated prometheus scrape urls in `PROMETHEUS_ENDPOINTS`, example value: `0.0.0.0:1234 0.0.0.0:1235`
 
