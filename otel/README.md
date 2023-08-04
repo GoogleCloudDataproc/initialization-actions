@@ -36,3 +36,7 @@ OTel installed on every node:
     ```
 NOTE: Add a string of space separated prometheus scrape urls in `PROMETHEUS_ENDPOINTS`, example value: `0.0.0.0:1234 0.0.0.0:1235`
 
+---
+
+### Usage warning
+This initialisation action is provided without support and currently does not have an integration test. Read more [here](https://github.com/GoogleCloudDataproc/initialization-actions/#why-these-samples-are-provided).
