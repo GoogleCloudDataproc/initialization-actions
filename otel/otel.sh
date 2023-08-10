@@ -14,11 +14,11 @@ function install_otel() {
   # Install otelcol-contrib as package (https://github.com/open-telemetry/opentelemetry-collector-contrib)
   local -r download_url="https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v${version}/otelcol-contrib_${version}_linux_amd64"
   if [[ "${OS_NAME}" == "rocky" ]]; then
-    wget ${download_url}.deb
-    dpkg -i "otelcol-contrib_${version}_linux_amd64.deb"
-  else
     wget ${download_url}.rpm
     yum install -y "otelcol-contrib_${version}_linux_amd64.rpm"
+  else
+    wget ${download_url}.deb
+    dpkg -i "otelcol-contrib_${version}_linux_amd64.deb"
   fi
 }
 
