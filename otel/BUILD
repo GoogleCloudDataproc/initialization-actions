@@ -1,7 +1,5 @@
 package(default_visibility = ["//visibility:public"])
 
-exports_files(["otel.sh"])
-
 py_test(
     name = "test_open_telemetry_agent",
     size = "enormous",

@@ -76,7 +76,7 @@ function main(){
   if [ "${ROLE}" != 'Master' ] && [ $MASTER_ONLY == true ]; then
     return
   fi
-  
+
   install_otel
   configure_endpoints
   configure_otel
