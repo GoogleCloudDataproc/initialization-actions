@@ -9,7 +9,8 @@ class OpenTelemetryTestCase(DataprocTestCase):
   INIT_ACTIONS = ['otel/otel.sh']
 
   def verify_service_status(self):
-    self.assert_command(cmd="systemctl status otelcol-contrib")
+    instance_name = self.getClusterName() + 'm'
+    self.assert_instance_command(instance=instance_name, cmd="systemctl status otelcol-contrib")
 
   @parameterized.parameters(
     'SINGLE',
