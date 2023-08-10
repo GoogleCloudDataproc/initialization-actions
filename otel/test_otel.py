@@ -7,7 +7,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 class OpenTelemetryTestCase(DataprocTestCase):
   COMPONENT = 'open-telemetry-agent'
   INIT_ACTIONS = ['otel/otel.sh']
-  TEST_SCRIPT_FILE_NAME = 'otel/test-otel.py'
+  TEST_SCRIPT_FILE_NAME = 'otel/test_otel.py'
 
   @classmethod
   def setUpClass(cls):
