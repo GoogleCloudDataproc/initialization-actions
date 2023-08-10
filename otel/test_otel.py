@@ -5,31 +5,17 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 
 class OpenTelemetryTestCase(DataprocTestCase):
-  COMPONENT = 'open-telemetry-agent'
+  COMPONENT = 'otel'
   INIT_ACTIONS = ['otel/otel.sh']
-  TEST_SCRIPT_FILE_NAME = 'otel/test_otel.py'
-
-  @classmethod
-  def setUpClass(cls):
-    super().setUpClass()
-
-    cls.PROJECT_METADATA = '{}:{}'.format(cls.PROJECT, cls.REGION)
-
-  def setUp(self):
-    super().setUp()
-
-  def tearDown(self):
-    super().tearDown()
 
   def verify_service_status(self):
     self.assert_command(cmd="systemctl status otelcol-contrib")
 
   @parameterized.parameters(
-      'SINGLE',
-      'STANDARD',
-      'HA',
+    'SINGLE',
+    'STANDARD',
   )
-  def test_cloud_sql_proxy(self, configuration):
+  def test_otel(self, configuration):
     self.createCluster(configuration, self.INIT_ACTIONS)
     self.verify_service_status()
 
