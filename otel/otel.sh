@@ -4,15 +4,22 @@
 # configures OTel and pulls metrics from Prometheus endpoints provided by the customer. 
 # The metrics are then exported to Google Cloud Monitoring (GCM).
 
+readonly version="0.81.0"
+readonly OS_NAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly PROMETHEUS_ENDPOINTS="$(/usr/share/google/get_metadata_value attributes/prometheus-scrape-endpoints || '')"
 readonly MASTER_ONLY="$(/usr/share/google/get_metadata_value attributes/master-only || false)"
-readonly version="0.81.0"
 
 function install_otel() {
   # Install otelcol-contrib as package (https://github.com/open-telemetry/opentelemetry-collector-contrib)
-  wget https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.81.0/otelcol-contrib_0.81.0_linux_amd64.deb
-  dpkg -i "otelcol-contrib_${version}_linux_amd64.deb"
+  local -r download_url="https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v${version}/otelcol-contrib_${version}_linux_amd64"
+  if [[ "${OS_NAME}" == "rocky" ]]; then
+    wget ${download_url}.deb
+    dpkg -i "otelcol-contrib_${version}_linux_amd64.deb"
+  else
+    wget ${download_url}.rpm
+    yum install -y "otelcol-contrib_${version}_linux_amd64.rpm"
+  fi
 }
 
 function configure_endpoints() {
