@@ -3,8 +3,8 @@ package(default_visibility = ["//visibility:public"])
 py_test(
     name = "test_otel",
     size = "enormous",
-    srcs = ["otel/test_otel.py"],
-    data = ["otel/otel.sh"],
+    srcs = ["test_otel.py"],
+    data = ["otel.sh"],
     local = True,
     shard_count = 3,
     deps = [
