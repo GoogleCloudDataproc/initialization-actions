@@ -34,7 +34,7 @@ function configure_endpoints() {
 
   # Remove the extra comma if endpoints passed
   length=${#prometheus_scrape_endpoints}
-  if [ $length -gt 0 ]; then
+  if [ ${length} -gt 0 ]; then
       prometheus_scrape_endpoints="${prometheus_scrape_endpoints: : -1}"
   fi
 }
