@@ -79,6 +79,24 @@ export MYSQL_ROOT_PASSWORD_SECRET_VERSION=$(/usr/share/google/get_metadata_value
 export MYSQL_ROOT_PASSWORD=$(gcloud secrets versions access --secret ${MYSQL_ROOT_PASSWORD_SECRET_NAME} ${MYSQL_ROOT_PASSWORD_SECRET_VERSION} || \
     grep 'password=' /etc/mysql/my.cnf | sed 's/^.*=//' || echo root-password)
 
+function await_hdfs_datanodes() {
+  # Wait for HDFS to come online
+  NUM_LIVE_DATANODES=0
+  tryno=0
+  delay=0
+  until [[ $tryno -gt 9 || ${NUM_LIVE_DATANODES} -gt 0 ]]; do
+    NUM_LIVE_DATANODES=`sudo -u hdfs hdfs dfsadmin -report -live | perl -ne 'print $1 if /^Live.*\((.*)\):/'`
+      sleep ${delay}s
+      (( tryno=${tryno}+1 ))
+      (( delay=${tryno}*5 ))
+  done
+
+  if [[ $tryno -gt 9 ]]; then
+    echo "hdfs did not come online"
+    exit 1
+  fi
+}
+
 function set_oozie_property() {
   local prop_name="$1"
   local prop_val="$2"
@@ -250,6 +268,8 @@ function install_oozie() {
     fi
 
     if ! hdfs dfs -test -d "/user/oozie"; then
+      await_hdfs_datanodes
+
       hadoop fs -mkdir -p /user/oozie/
       hadoop fs -put -f "${tmp_dir}/share" /user/oozie/
 
