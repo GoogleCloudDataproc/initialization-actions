@@ -56,7 +56,7 @@ function update_repo() {
   if command -v apt-get >/dev/null; then
     retry_command "apt-get update"
   else
-    retry_command "yum -y update"
+    retry_command "yum check-update"
   fi
 }
 
@@ -236,7 +236,7 @@ EOF
 
 # Only run on the master node ("0"-master in HA mode) of the cluster
 if [[ "${HOSTNAME}" == "${MASTER_HOSTNAME}" ]]; then
-  update_repo || err "Unable to update repository"
+  update_repo || echo "Ignored errors when updating OS repo index"
   # DATAPROC_IMAGE_VERSION is the preferred variable, but it doesn't exist in
   # old images.
   if [[ "${DATAPROC_IMAGE_VERSION:-${DATAPROC_VERSION}}" == "2.0"  ]]; then
