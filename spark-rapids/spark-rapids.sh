@@ -19,7 +19,7 @@ readonly DEFAULT_SPARK_RAPIDS_VERSION="23.06.0"
 
 if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
   readonly DEFAULT_CUDA_VERSION="11.5"
-  readonly DEFAULT_XGBOOST_VERSION="1.7.1"
+  readonly DEFAULT_XGBOOST_VERSION="1.7.6"
   readonly SPARK_VERSION="3.0"
 else
   readonly DEFAULT_CUDA_VERSION="10.1"

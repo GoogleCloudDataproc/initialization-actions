@@ -12,7 +12,7 @@ class SparkRapidsTestCase(DataprocTestCase):
 
   GPU_T4 = "type=nvidia-tesla-t4"
   GPU_A100 = "type=nvidia-tesla-a100"
-  
+
   # Tests for RAPIDS init action
   XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME = "verify_xgboost_spark_rapids.scala"
 
@@ -22,7 +22,7 @@ class SparkRapidsTestCase(DataprocTestCase):
   def verify_mig_instance(self, name):
     self.assert_instance_command(name,
         "/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | xargs -I % test % = 'Enabled'")
-      
+
   def verify_spark_job(self):
     instance_name = "{}-m".format(self.getClusterName())
     self.upload_test_file(
@@ -47,10 +47,10 @@ class SparkRapidsTestCase(DataprocTestCase):
 
     if self.getImageVersion() == pkg_resources.parse_version("2.1") or self.getImageOs() == "rocky":
       self.skipTest("Not supported in image2.1 or rocky images")
-        
+
     optional_components = None
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
-    
+
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
@@ -74,10 +74,10 @@ class SparkRapidsTestCase(DataprocTestCase):
 
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0 images")
-        
+
     if self.getImageVersion() == pkg_resources.parse_version("2.1") or self.getImageOs() == "rocky":
       self.skipTest("Not supported in image2.1 or rocky images")
-        
+
     metadata = ("gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
                 ",cuda-version={}".format(cuda_version))
 
@@ -97,32 +97,35 @@ class SparkRapidsTestCase(DataprocTestCase):
     # Only need to do this once
     self.verify_spark_job()
 
-  @parameterized.parameters(("STANDARD", ["m", "w-0", "w-1"], None, GPU_A100, "NVIDIA", "us-central1-b"))
-  def test_install_gpu_with_mig(self, configuration, machine_suffixes,
-                                  master_accelerator, worker_accelerator,
-                                  driver_provider, zone):
-    if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
-      self.skipTest("Not supported in pre 2.0 or Rocky images")
-    
-    if self.getImageVersion() == pkg_resources.parse_version("2.1"):
-      self.skipTest("Not supported in 2.1 images")
-    
-    self.createCluster(
-        configuration,
-        self.INIT_ACTIONS,
-        zone=zone,
-        master_machine_type="n1-standard-4",
-        worker_machine_type="a2-highgpu-1g",
-        master_accelerator=master_accelerator,
-        worker_accelerator=worker_accelerator,
-        metadata=None,
-        timeout_in_minutes=30,
-        boot_disk_size="200GB",
-        startup_script="spark-rapids/mig.sh")
+  # Disable MIG related test due to the lack of A100 GPUs, more detail see
+  # https://github.com/GoogleCloudDataproc/initialization-actions/pull/1070
 
-    for machine_suffix in ["w-0", "w-1"]:
-      self.verify_mig_instance("{}-{}".format(self.getClusterName(),
-                                          machine_suffix))
+  # @parameterized.parameters(("STANDARD", ["m", "w-0", "w-1"], None, GPU_A100, "NVIDIA", "us-central1-c"))
+  # def test_install_gpu_with_mig(self, configuration, machine_suffixes,
+  #                                 master_accelerator, worker_accelerator,
+  #                                 driver_provider, zone):
+  #   if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
+  #     self.skipTest("Not supported in pre 2.0 or Rocky images")
+  # 
+  #   if self.getImageVersion() == pkg_resources.parse_version("2.1"):
+  #     self.skipTest("Not supported in 2.1 images")
+  # 
+  #   self.createCluster(
+  #       configuration,
+  #       self.INIT_ACTIONS,
+  #       zone=zone,
+  #       master_machine_type="n1-standard-4",
+  #       worker_machine_type="a2-highgpu-1g",
+  #       master_accelerator=master_accelerator,
+  #       worker_accelerator=worker_accelerator,
+  #       metadata=None,
+  #       timeout_in_minutes=30,
+  #       boot_disk_size="200GB",
+  #       startup_script="spark-rapids/mig.sh")
+  # 
+  #   for machine_suffix in ["w-0", "w-1"]:
+  #     self.verify_mig_instance("{}-{}".format(self.getClusterName(),
+  #                                         machine_suffix))
 
 if __name__ == "__main__":
   absltest.main()
