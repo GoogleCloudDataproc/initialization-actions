@@ -15,7 +15,7 @@ readonly DATAPROC_IMAGE_VERSION
 readonly OS_NAME
 
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
-readonly DEFAULT_SPARK_RAPIDS_VERSION="23.06.0"
+readonly DEFAULT_SPARK_RAPIDS_VERSION="23.08.1"
 
 if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
   readonly DEFAULT_CUDA_VERSION="11.5"
