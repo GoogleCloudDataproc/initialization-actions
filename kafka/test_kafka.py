@@ -16,6 +16,8 @@ class KafkaTestCase(DataprocTestCase):
             os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
                 self.TEST_SCRIPT_FILE_NAME), name)
+        if self.getImageVersion() < pkg_resources.parse_version("2.1"):
+           self.skipTest("Not supported in Dataproc 2.0 or Dataproc 1.5")
         self.__run_test_script(name)
         self.remove_test_script(self.TEST_SCRIPT_FILE_NAME, name)
 
