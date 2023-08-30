@@ -33,11 +33,11 @@ function install_packages(){
 }
 
 function add_sources(){
-   echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | sudo tee /etc/apt/sources.list.d/sbt.list
-   echo "deb https://repo.scala-sbt.org/scalasbt/debian /" | sudo tee /etc/apt/sources.list.d/sbt_old.list
+   echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | tee /etc/apt/sources.list.d/sbt.list
+   echo "deb https://repo.scala-sbt.org/scalasbt/debian /" | tee /etc/apt/sources.list.d/sbt_old.list
 
    curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" |
-      sudo -H gpg --no-default-keyring --keyring gnupg-ring:/etc/apt/trusted.gpg.d/scalasbt-release.gpg --import
+      gpg --no-default-keyring --keyring gnupg-ring:/etc/apt/trusted.gpg.d/scalasbt-release.gpg --import
    chmod 644 /etc/apt/trusted.gpg.d/scalasbt-release.gpg
 }
 
@@ -46,7 +46,7 @@ function install_sbt(){
    apt-get install -yq sbt
 }
 
-function compile_cmak(){
+function build_cmak(){
    mkdir -p "${KAFKA_MANAGER_GIT_DIR}"
    cd "${KAFKA_MANAGER_GIT_DIR}"
    git clone "${KAFKA_MANAGER_GIT_URI}"
@@ -87,17 +87,18 @@ function configure_and_start_cmak(){
 }
 
 function main(){
-   java_major_version=$(java -version 2>&1 | grep -oP 'version "?(1\.)?\K\d+' || true)
+   local java_major_version=$(java -version 2>&1 | grep -oP 'version "?(1\.)?\K\d+' || true)
    if [[ ${java_major_version} -lt 11 ]]; then
-      echo "Java 11 or higher is required for CMAK"
-      echo "CMAK Has not been installed"
+      echo "Error: Java 11 or higher is required for CMAK" >&2
+      echo "CMAK has not been installed" >&2
+      exit 1
    else
       # Run Kafka Manager on the first master node.
       if [[ "${HOSTNAME}" == *-m || "${HOSTNAME}" == *-m-0 ]]; then
          install_packages
          add_sources
          install_sbt
-         compile_cmak
+         build_cmak
          install_cmak
          configure_and_start_cmak
       fi
