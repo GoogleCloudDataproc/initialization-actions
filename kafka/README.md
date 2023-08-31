@@ -47,9 +47,9 @@ You can use this initialization action to create a new Dataproc cluster with Kaf
 
 You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
 
-## Installing Kafka Manager with Kafka
+## Installing CMAK (Kafka Manager) with Kafka
 
-If you would like to use [Kafka Manager](https://github.com/yahoo/kafka-manager) to manage your Kafka cluster through web UI, use the `gcloud` command to create a new Kafka cluster with the Kafka Manager initialization action. The following command will create a new high availability Kafka cluster with Kafka Manager running on the first master node. The default HTTP port for Kafka Manager is 9000. Follow the instructions at [Dataproc cluster web interfaces](https://cloud.google.com/dataproc/docs/concepts/accessing/cluster-web-interfaces) to access the web UI.
+If you would like to use CMAK [(Kafka Manager)](https://github.com/yahoo/CMAK) to manage your Kafka cluster through web UI, use the `gcloud` command to create a new Kafka cluster with the Kafka Manager initialization action. The following command will create a new high availability Kafka cluster with Kafka Manager running on the first master node. The default HTTP port for Kafka Manager is 9000. Follow the instructions at [Dataproc cluster web interfaces](https://cloud.google.com/dataproc/docs/concepts/accessing/cluster-web-interfaces) to access the web UI.
 
 ```bash
 REGION=<region>
