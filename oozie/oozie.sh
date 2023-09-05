@@ -332,10 +332,12 @@ function install_oozie() {
   # Hadoop must allow impersonation for Oozie to work properly
   set_hadoop_property 'hadoop.proxyuser.oozie.groups' '*'
   set_hadoop_property 'hadoop.proxyuser.oozie.hosts' '*'
-  set_oozie_property 'oozie.service.ProxyUserService.proxyuser.oozie.hosts' '*'
-  set_oozie_property 'oozie.service.ProxyUserService.proxyuser.oozie.groups' '*'
   set_oozie_property 'oozie.service.HadoopAccessorService.supported.filesystems' 'hdfs,gs'
   set_oozie_property 'fs.AbstractFileSystem.gs.impl' 'com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS'
+
+  # https://biconsult.ru/files/new2/Data%20Lake%20for%20Enterprises.pdf page 784
+  set_oozie_property 'oozie.service.ProxyUserService.proxyuser.oozie.hosts' '*'
+  set_oozie_property 'oozie.service.ProxyUserService.proxyuser.oozie.groups' '*'
 
   if [[ "${HOSTNAME}" == "${master_node}" ]]; then
     # Create the Oozie user in MySQL. Do this before the copies, since other
@@ -399,8 +401,12 @@ EOM
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
         ADDITIONAL_JARS=""
+        find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
+        wget -P /usr/lib/oozie/lib https://repo1.maven.org/maven2/com/google/guava/guava/11.0.2/guava-11.0.2.jar
       elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.2" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS=""
+        find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
+        wget -P /usr/lib/oozie/lib https://repo1.maven.org/maven2/com/google/guava/guava/11.0.2/guava-11.0.2.jar
       else
         echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
         exit 1
