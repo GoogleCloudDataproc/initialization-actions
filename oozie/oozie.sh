@@ -33,16 +33,6 @@ readonly OS_NAME
 
 readonly master_node=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-if [[ "${ROLE}" == 'Master' ]]; then
-  if [[ "${HOSTNAME}" == "${master_node}" ]]; then
-    echo "instance ${master_node} will proceed without yielding"
-  else
-    echo "instance ${HOSTNAME} will yield so that ${master_node} may proceed first"
-    sleep 15s
-  fi
-  NOW=$(date +"%F-%T")
-  echo "instance ${HOSTNAME} proceeds at ${NOW}"
-fi
 
 # Use Python from /usr/bin instead of /opt/conda.
 export PATH=/usr/bin:$PATH
@@ -174,8 +164,8 @@ function configure_ssl() {
       retry_command "hdfs dfs -put -f ${truststore_file} /tmp/oozie.truststore"
     fi
   else
-    echo "Secondary master; attempting to copy SSL files (truststore, keystore, certificate) from HDFS."
     if [[ ${NUM_LIVE_DATANODES} != 0 ]]; then
+      echo "Secondary master; attempting to copy SSL files (truststore, keystore, certificate) from HDFS."
       retry_command "hdfs dfs -get /tmp/oozie.truststore ${truststore_file}"
       retry_command "hdfs dfs -get /tmp/oozie.keystore ${keystore_file}"
       retry_command "hdfs dfs -get /tmp/oozie.certificate ${certificate_path}"
@@ -480,9 +470,9 @@ EOM
           hadoop fs -rm $i
         fi
       done
+      # Clean up temporary files if datanodes are live
+      rm -rf "${tmp_dir}"
     fi
-    # Clean up temporary files
-    rm -rf "${tmp_dir}"
   fi
 
   if [[ "${HOSTNAME}" == "${master_node}" ]]; then
