@@ -194,35 +194,6 @@ function install_hbase() {
         tar xzf "/tmp/hbase-${HBASE_VERSION}-bin.tar.gz" -C /tmp/
         mkdir -p "${HBASE_HOME}"
         cp -a "/tmp/hbase-${HBASE_VERSION}/." "${HBASE_HOME}/"
-
-      #   DEPENDENCIES="maven"
-      #   local tmp_dir=$(mktemp -d -t bigtable-init-action-hbase-XXXX)
-      #   HBASE_SPARK_JAR="${tmp_dir}/hbase-connectors/spark/hbase-spark/target/hbase-spark-1.0.1-SNAPSHOT.jar"
-
-      #   # This repository only works for cloudera clusters
-      #   # wget https://archive.cloudera.com/p/HDP/2.x/2.6.3.0/${distribution}/hdp.list -O /etc/apt/sources.list.d/hdp.list
-
-      #   retry_command "apt-get update" || err 'Unable to update packages lists.'
-      #   retry_command "apt-get install -y ${DEPENDENCIES}" || err 'Unable to install dependencies.'
-
-      #   cd $tmp_dir
-      #   git clone https://github.com/apache/hbase-connectors.git
-      #   cd hbase-connectors
-      #   # These versions are from https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-release-2.1
-      #   # except hbase, which is the maximal stable version from https://hbase.apache.org/downloads.html
-      #   mvn -Dspark.version=3.3.2 \
-      #     -Dscala.version=2.12.14 \
-      #     -Dhadoop-three.version=3.3.3 \
-      #     -Dscala.binary.version=2.12 \
-      #     -Dhbase.version=2.5.5-hadoop3 \
-      #     clean install \
-      #     -DskipTests
-      #   cp "${HBASE_SPARK_JAR}" /usr/lib/spark/
-
-      #   # clean up a bit
-      #   mvn dependency:purge-local-repository
-      #   apt-get remove -y maven
-      #   apt-get clean
         ;;
       "*")
         echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
