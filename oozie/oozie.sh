@@ -31,9 +31,11 @@ OS_NAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
 distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
 readonly OS_NAME
 
+readonly master_node=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
+readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+
 # Use Python from /usr/bin instead of /opt/conda.
 export PATH=/usr/bin:$PATH
-readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 
 # Detect dataproc image version from its various names
 if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
@@ -64,7 +66,7 @@ export METADATA_EMAIL_FROM_ADDRESS=$(/usr/share/google/get_metadata_value attrib
 export MYSQL_ROOT_USERNAME=$(/usr/share/google/get_metadata_value attributes/mysql-root-username || echo "root")
 export OOZIE_DB_NAME=$(/usr/share/google/get_metadata_value attributes/oozie-db-name || echo "oozie")
 export OOZIE_DB_USERNAME=$(/usr/share/google/get_metadata_value attributes/oozie-db-username || echo "oozie")
-export OOZIE_PASSWORD_SECRET_NAME=$(/usr/share/google/get_metadata_value attributes/oozie-password-secret-name)
+export OOZIE_PASSWORD_SECRET_NAME=$(/usr/share/google/get_metadata_value attributes/oozie-password-secret-name || echo "secret-name")
 export OOZIE_PASSWORD_SECRET_VERSION=$(/usr/share/google/get_metadata_value attributes/oozie-password-secret-version || echo 1)
 export OOZIE_PASSWORD=$(gcloud secrets versions access --secret ${OOZIE_PASSWORD_SECRET_NAME} ${OOZIE_PASSWORD_SECRET_VERSION} || echo oozie-password)
 
@@ -78,6 +80,25 @@ export MYSQL_ROOT_PASSWORD_SECRET_NAME=$(/usr/share/google/get_metadata_value at
 export MYSQL_ROOT_PASSWORD_SECRET_VERSION=$(/usr/share/google/get_metadata_value attributes/mysql-root-password-secret-version || echo 1)
 export MYSQL_ROOT_PASSWORD=$(gcloud secrets versions access --secret ${MYSQL_ROOT_PASSWORD_SECRET_NAME} ${MYSQL_ROOT_PASSWORD_SECRET_VERSION} || \
     grep 'password=' /etc/mysql/my.cnf | sed 's/^.*=//' || echo root-password)
+
+NUM_LIVE_DATANODES=0
+
+function await_hdfs_datanodes() {
+  # Wait for HDFS to come online
+  tryno=0
+  delay=0
+  until [[ $tryno -gt 9 || ${NUM_LIVE_DATANODES} -gt 0 ]]; do
+    NUM_LIVE_DATANODES=`sudo -u hdfs hdfs dfsadmin -report -live | perl -ne 'print $1 if /^Live.*\((.*)\):/'`
+      sleep ${delay}s
+      (( tryno=${tryno}+1 ))
+      (( delay=${tryno}*5 ))
+  done
+
+  if [[ $tryno -gt 9 ]]; then
+    echo "hdfs did not come online"
+    return -1
+  fi
+}
 
 function set_oozie_property() {
   local prop_name="$1"
@@ -122,7 +143,6 @@ function configure_ssl() {
   local truststore_file="${oozie_home}/oozie.truststore"
   local certificate_path="${oozie_home}/certificate.cert"
   local certificate_secret_name=
-  local master_node=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 
   if [[ "${HOSTNAME}" == "$master_node" ]]; then
     test -f ${keystore_file} ||\
@@ -138,14 +158,18 @@ function configure_ssl() {
       sudo -u oozie keytool -import -noprompt -alias jetty -file "${certificate_path}" \
         -keystore "${truststore_file}" -storepass "${keystore_password}"
 
-    retry_command "hdfs dfs -put -f ${certificate_path} /tmp/oozie.certificate"
-    retry_command "hdfs dfs -put -f ${keystore_file} /tmp/oozie.keystore"
-    retry_command "hdfs dfs -put -f ${truststore_file} /tmp/oozie.truststore"
+    if [[ ${NUM_LIVE_DATANODES} != 0 ]]; then
+      retry_command "hdfs dfs -put -f ${certificate_path} /tmp/oozie.certificate"
+      retry_command "hdfs dfs -put -f ${keystore_file} /tmp/oozie.keystore"
+      retry_command "hdfs dfs -put -f ${truststore_file} /tmp/oozie.truststore"
+    fi
   else
+    if [[ ${NUM_LIVE_DATANODES} != 0 ]]; then
       echo "Secondary master; attempting to copy SSL files (truststore, keystore, certificate) from HDFS."
       retry_command "hdfs dfs -get /tmp/oozie.truststore ${truststore_file}"
       retry_command "hdfs dfs -get /tmp/oozie.keystore ${keystore_file}"
       retry_command "hdfs dfs -get /tmp/oozie.certificate ${certificate_path}"
+    fi
   fi
 
   # Configure the Oozie client to use the truststore.
@@ -161,8 +185,6 @@ function configure_ssl() {
 }
 
 function install_oozie() {
-  local master_node
-  master_node=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
   local enable_ssl
   enable_ssl=$(/usr/share/google/get_metadata_value attributes/oozie-enable-ssl || echo "false")
 
@@ -250,15 +272,20 @@ function install_oozie() {
     fi
 
     if ! hdfs dfs -test -d "/user/oozie"; then
-      hadoop fs -mkdir -p /user/oozie/
-      hadoop fs -put -f "${tmp_dir}/share" /user/oozie/
+      await_hdfs_datanodes
 
-      if grep '^dataproc' /etc/passwd ; then
-        local hdfs_username=dataproc
-      else
-        local hdfs_username=hdfs
+      if [[ ${NUM_LIVE_DATANODES} != 0 ]]; then
+        hadoop fs -mkdir -p /user/oozie/
+        hadoop fs -put -f "${tmp_dir}/share" /user/oozie/
+
+        if grep '^dataproc' /etc/passwd ; then
+          local hdfs_username=dataproc
+        else
+          local hdfs_username=hdfs
+        fi
+
+        sudo -u ${hdfs_username} hadoop fs -chown oozie /user/oozie
       fi
-      sudo -u ${hdfs_username} hadoop fs -chown oozie /user/oozie
     fi
 
     # Clean up temporary fles
@@ -312,10 +339,12 @@ function install_oozie() {
   # Hadoop must allow impersonation for Oozie to work properly
   set_hadoop_property 'hadoop.proxyuser.oozie.groups' '*'
   set_hadoop_property 'hadoop.proxyuser.oozie.hosts' '*'
-  set_oozie_property 'oozie.service.ProxyUserService.proxyuser.oozie.hosts' '*'
-  set_oozie_property 'oozie.service.ProxyUserService.proxyuser.oozie.groups' '*'
   set_oozie_property 'oozie.service.HadoopAccessorService.supported.filesystems' 'hdfs,gs'
   set_oozie_property 'fs.AbstractFileSystem.gs.impl' 'com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS'
+
+  # https://biconsult.ru/files/new2/Data%20Lake%20for%20Enterprises.pdf page 784
+  set_oozie_property 'oozie.service.ProxyUserService.proxyuser.oozie.hosts' '*'
+  set_oozie_property 'oozie.service.ProxyUserService.proxyuser.oozie.groups' '*'
 
   if [[ "${HOSTNAME}" == "${master_node}" ]]; then
     # Create the Oozie user in MySQL. Do this before the copies, since other
@@ -379,8 +408,12 @@ EOM
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
         ADDITIONAL_JARS=""
+        find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
+        wget -P /usr/lib/oozie/lib https://repo1.maven.org/maven2/com/google/guava/guava/11.0.2/guava-11.0.2.jar
       elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.2" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS=""
+        find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
+        wget -P /usr/lib/oozie/lib https://repo1.maven.org/maven2/com/google/guava/guava/11.0.2/guava-11.0.2.jar
       else
         echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
         exit 1
@@ -418,26 +451,28 @@ EOM
       fi
     fi
 
-    hadoop fs -put -f \
-      ${tmp_dir}/share/lib/hive/stax-api-*.jar                \
-      ${tmp_dir}/share/lib/hive/commons-*.jar                 \
-      /usr/lib/spark/python/lib/py*.zip                       \
-      ${ADDITIONAL_JARS}                                      /user/oozie/share/lib/spark
-    hadoop fs -put -f /usr/lib/hive/lib/disruptor*.jar                /user/oozie/share/lib/hive
-    hadoop fs -put -f /usr/lib/hive/lib/hive-service-*.jar            /user/oozie/share/lib/hive2
-    # end - copy spark and hive dependencies
+    if [[ ${NUM_LIVE_DATANODES} != 0 ]]; then
+      hadoop fs -put -f \
+        ${tmp_dir}/share/lib/hive/stax-api-*.jar                \
+        ${tmp_dir}/share/lib/hive/commons-*.jar                 \
+        /usr/lib/spark/python/lib/py*.zip                       \
+        ${ADDITIONAL_JARS}                                      /user/oozie/share/lib/spark
+      hadoop fs -put -f /usr/lib/hive/lib/disruptor*.jar                /user/oozie/share/lib/hive
+      hadoop fs -put -f /usr/lib/hive/lib/hive-service-*.jar            /user/oozie/share/lib/hive2
+      # end - copy spark and hive dependencies
 
-    # For oozie actions, remove log4j from oozie sharelib to allow log4j api classes loaded to avoid conflicts
-    res=`hadoop fs -find /user/oozie/share/lib/ -name "log4j-1.2.*"`
-    for i in $res
+      # For oozie actions, remove log4j from oozie sharelib to allow log4j api classes loaded to avoid conflicts
+      res=`hadoop fs -find /user/oozie/share/lib/ -name "log4j-1.2.*"`
+      for i in $res
       do
         if [[ $(hadoop fs -find $(dirname "$i") -name "log4j-1.2-api*" | wc -l) -gt 0 ]]; then
           hadoop fs -cp -f $i $i-backup
           hadoop fs -rm $i
         fi
       done
-    # Clean up temporary files
-    rm -rf "${tmp_dir}"
+      # Clean up temporary files if datanodes are live
+      rm -rf "${tmp_dir}"
+    fi
   fi
 
   if [[ "${HOSTNAME}" == "${master_node}" ]]; then
