@@ -59,6 +59,10 @@ readonly SHC_URL="${SCH_REPO}/shc-core/${SHC_VERSION}/${SHC_JAR}"
 readonly SHC_EXAMPLES_URL="${SCH_REPO}/shc-examples/${SHC_VERSION}/${SHC_EXAMPLES_JAR}"
 
 readonly BIGTABLE_INSTANCE="$(/usr/share/google/get_metadata_value attributes/bigtable-instance)"
+if [[ -z "${BIGTABLE_INSTANCE}" ]]; then
+  echo "failed to determine bigtable-instance attribute ; https://github.com/GoogleCloudDataproc/initialization-actions/tree/master/bigtable#using-this-initialization-action"
+  exit 1
+fi
 readonly BIGTABLE_PROJECT="$(/usr/share/google/get_metadata_value attributes/bigtable-project ||
     /usr/share/google/get_metadata_value ../project/project-id)"
 
@@ -236,7 +240,7 @@ function install_hbase() {
         #   exit 1
         # fi
 
-        # To build the hbase-connectors jar 
+        # To build the hbase-connectors jar
         # DEPENDENCIES="maven"
         # local tmp_dir=$(mktemp -d -t bigtable-init-action-hbase-XXXX)
         # HBASE_SPARK_JAR="${tmp_dir}/hbase-connectors/spark/hbase-spark/target/hbase-spark-1.0.1-SNAPSHOT.jar"
@@ -289,6 +293,7 @@ function install_hbase() {
         # install hbase and hbase-config.sh into normal user $PATH
         ln -sf ${HBASE_HOME}/bin/hbase /usr/bin/
         ln -sf ${HBASE_HOME}/bin/hbase-config.sh /usr/bin/
+
         ;;
       "*")
         echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
