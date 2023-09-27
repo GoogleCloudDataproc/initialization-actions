@@ -29,6 +29,7 @@ if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
 fi
 
 readonly HBASE_HOME='/usr/lib/hbase'
+mkdir -p "${HBASE_HOME}/lib"
 
 readonly BIGTABLE_HBASE_CLIENT_1X_REPO="https://repo1.maven.org/maven2/com/google/cloud/bigtable/bigtable-hbase-1.x-hadoop"
 readonly BIGTABLE_HBASE_CLIENT_1X_VERSION='1.29.2'
@@ -40,7 +41,15 @@ readonly BIGTABLE_HBASE_CLIENT_2X_VERSION='2.7.4'
 readonly BIGTABLE_HBASE_CLIENT_2X_JAR="bigtable-hbase-2.x-${BIGTABLE_HBASE_CLIENT_2X_VERSION}.jar"
 readonly BIGTABLE_HBASE_CLIENT_2X_URL="${BIGTABLE_HBASE_CLIENT_2X_REPO}/${BIGTABLE_HBASE_CLIENT_2X_VERSION}/${BIGTABLE_HBASE_CLIENT_2X_JAR}"
 
-readonly HBASE_VERSION="2.4.17"
+case "${DATAPROC_IMAGE_VERSION}" in
+  "1.3" | "1.4" | "1.5" | "2.0" )
+    readonly HBASE_VERSION="2.4.17"
+    ;;
+
+  "2.1")
+    readonly HBASE_VERSION="3.0.0-alpha-4"
+    ;;
+esac
 
 readonly SCH_REPO="https://repo.hortonworks.com/content/groups/public/com/hortonworks"
 readonly SHC_VERSION='1.1.1-2.1-s_2.11'
@@ -118,10 +127,15 @@ EOF
 </configuration>
 EOF
 
-  bdconfig merge_configurations \
-    --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
-    --source_configuration_file "$hbase_config" \
-    --clobber
+  if [[ -f "${HBASE_HOME}/conf/hbase-site.xml" ]]; then
+    bdconfig merge_configurations \
+      --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
+      --source_configuration_file "$hbase_config" \
+      --clobber
+  else
+    mkdir -p "${HBASE_HOME}/conf"
+    cp "$hbase_config" "${HBASE_HOME}/conf/hbase-site.xml"
+  fi
 }
 
 function configure_bigtable_client_2x() {
@@ -138,7 +152,7 @@ function configure_bigtable_client_2x() {
   </property>
   <property>
     <name>hbase.client.registry.impl</name>
-    <value>org.apache.hadoop.hbase.client.BigtableAsyncRegistry</value>
+    <value>org.apache.hadoop.hbase.client.BigtableConnectionsRegistry</value>
   </property>
   <property>
     <name>hbase.client.async.connection.impl</name>
@@ -150,10 +164,16 @@ function configure_bigtable_client_2x() {
 </configuration>
 EOF
 
-  bdconfig merge_configurations \
-    --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
-    --source_configuration_file "$hbase_config" \
-    --clobber
+  if [[ -f "${HBASE_HOME}/conf/hbase-site.xml" ]]; then
+    bdconfig merge_configurations \
+      --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
+      --source_configuration_file "$hbase_config" \
+      --clobber
+  else
+    mkdir -p "${HBASE_HOME}/conf"
+    cp "$hbase_config" "${HBASE_HOME}/conf/hbase-site.xml"
+  fi
+
 }
 
 function configure_bigtable_client() {
@@ -182,24 +202,101 @@ function install_hbase() {
     case "${DATAPROC_IMAGE_VERSION}" in
       "1.3" | "1.4" | "1.5" | "2.0" )
 
-        # Prior to Dataproc 2.1, hbase could be installed from dpkg repositories
+        echo "x"
+
+        # On images prior to Dataproc 2.1, hbase can be installed from Google's bigtop repositories
         retry_command "apt-get update" || err 'Unable to update packages lists.'
         retry_command "apt-get install -y hbase" || err 'Unable to install HBase.'
         ;;
 
       "2.1")
+
+        echo "y"
+        # # As of 2.1, hbase is not available from the internal bigtop repos
+        # GPG_PUBKEY=https://downloads.apache.org/bigtop/bigtop-3.2.1/repos/GPG-KEY-bigtop
+        # BIGTOP_LISTFILE=/etc/apt/sources.list.d/bigtop.list
+
+        # # Configure apt to use the bigtop repo
+        # if [[ "${distribution}" == 'debian11' ]]; then
+        #   LIST_URL=https://downloads.apache.org/bigtop/bigtop-3.2.1/repos/debian-11/bigtop.list
+        #   BIGTOP_KEYPATH=/etc/apt/keyrings/bigtop-archive-keyring.gpg
+        #   mkdir -p /etc/apt/keyrings
+        #   curl ${LIST_URL} \
+        #     | sed -e 's:^deb:deb [signed-by='${BIGTOP_KEYPATH}']:' \
+        #     | dd of="${BIGTOP_LISTFILE}"
+        #   curl ${GPG_PUBKEY} \
+        #     | dd of="${BIGTOP_KEYPATH}"
+        # elif [[ "${distribution}" == 'ubuntu20.04' ]]; then
+        #   LIST_URL=https://downloads.apache.org/bigtop/bigtop-3.2.1/repos/ubuntu-20.04/bigtop.list
+        #   curl ${LIST_URL} \
+        #     | dd of="${BIGTOP_LISTFILE}"
+        #   curl ${GPG_PUBKEY} | apt-key add -
+        # else
+        #   echo "unsupported distribution: ${distribution}" >&2
+        #   exit 1
+        # fi
+
+        # To build the hbase-connectors jar 
+        # DEPENDENCIES="maven"
+        # local tmp_dir=$(mktemp -d -t bigtable-init-action-hbase-XXXX)
+        # HBASE_SPARK_JAR="${tmp_dir}/hbase-connectors/spark/hbase-spark/target/hbase-spark-1.0.1-SNAPSHOT.jar"
+
+        # # This repository only works for cloudera clusters
+        # # wget https://archive.cloudera.com/p/HDP/2.x/2.6.3.0/${distribution}/hdp.list -O /etc/apt/sources.list.d/hdp.list
+
+        # retry_command "apt-get update" || err 'Unable to update packages lists.'
+        # retry_command "apt-get install -y ${DEPENDENCIES}" || err 'Unable to install dependencies.'
+
+        # cd $tmp_dir
+        # git clone https://github.com/apache/hbase-connectors.git
+        # cd hbase-connectors
+        # # These versions are from https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-release-2.1
+        # # except hbase, which is the maximal stable version from https://hbase.apache.org/downloads.html
+        # mvn \
+        #   -Dspark.version=3.3.2 \
+        #   -Dscala.version=2.12.14 \
+        #   -Dhadoop-three.version=3.3.3 \
+        #   -Dscala.binary.version=2.12 \
+        #   -Dhbase.version=2.5.5-hadoop3 \
+        #   clean install \
+        #   -DskipTests \
+        #   clean install \
+        #   -DskipTests
+        # cp "${HBASE_SPARK_JAR}" /usr/lib/spark/
+
+        # # clean up a bit
+        # mvn dependency:purge-local-repository
+        # apt-get remove -y maven
+        # apt-get clean
+
         # get hbase tar from official site
-        wget "https://dlcdn.apache.org/hbase/${HBASE_VERSION}/hbase-${HBASE_VERSION}-bin.tar.gz" -P /tmp || err 'Unable to download tar'
+        # Variants:
+        # * hadoop3-client-bin
+        # * hadoop3-bin
+        # * client-bin
+        # * bin
+        echo "preparing to install hbase"
+        local VARIANT="bin"
+        local BASENAME="hbase-${HBASE_VERSION}-${VARIANT}.tar.gz"
+        echo "hbase dist basename: ${BASENAME}"
+        wget "https://dlcdn.apache.org/hbase/${HBASE_VERSION}/${BASENAME}" -P /tmp || err 'Unable to download tar'
+
         # extract binaries from bundle
-        tar xzf "/tmp/hbase-${HBASE_VERSION}-bin.tar.gz" -C /tmp/
-        mkdir -p "${HBASE_HOME}"
+        mkdir -p "/tmp/hbase-${HBASE_VERSION}/" "${HBASE_HOME}" 
+        tar xzf "/tmp/${BASENAME}" --strip-components=1 -C "/tmp/hbase-${HBASE_VERSION}/"
         cp -a "/tmp/hbase-${HBASE_VERSION}/." "${HBASE_HOME}/"
+
+        # install hbase and hbase-config.sh into normal user $PATH
+        ln -sf ${HBASE_HOME}/bin/hbase /usr/bin/
+        ln -sf ${HBASE_HOME}/bin/hbase-config.sh /usr/bin/
         ;;
       "*")
         echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
         exit 1
         ;;
     esac
+
+
   else
     retry_command "yum -y update" || err 'Unable to update packages lists.'
     retry_command "yum -y install hbase" || err 'Unable to install HBase.'
@@ -208,11 +305,12 @@ function install_hbase() {
 
 function main() {
 
+  echo "in main"
   # Install HBASE
   install_hbase || err 'Failed to install HBase.'
   install_bigtable_client || err 'Unable to install big table client.'
 
-  if [[ ${DATAPROC_IMAGE_VERSION%%.*} -lt 2 ]]; then
+  if [[ "${DATAPROC_IMAGE_VERSION%%.*}" -lt 2 ]]; then
     install_shc || err 'Failed to install Spark-HBase connector.'
   fi
 
