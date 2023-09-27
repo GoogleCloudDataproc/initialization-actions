@@ -29,7 +29,7 @@ if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
 fi
 
 readonly HBASE_HOME='/usr/lib/hbase'
-mkdir -p "${HBASE_HOME}/lib"
+mkdir -p "${HBASE_HOME}/{lib,conf,logs}"
 
 readonly BIGTABLE_HBASE_CLIENT_1X_REPO="https://repo1.maven.org/maven2/com/google/cloud/bigtable/bigtable-hbase-1.x-hadoop"
 readonly BIGTABLE_HBASE_CLIENT_1X_VERSION='1.29.2'
@@ -137,7 +137,6 @@ EOF
       --source_configuration_file "$hbase_config" \
       --clobber
   else
-    mkdir -p "${HBASE_HOME}/conf"
     cp "$hbase_config" "${HBASE_HOME}/conf/hbase-site.xml"
   fi
 }
@@ -174,7 +173,6 @@ EOF
       --source_configuration_file "$hbase_config" \
       --clobber
   else
-    mkdir -p "${HBASE_HOME}/conf"
     cp "$hbase_config" "${HBASE_HOME}/conf/hbase-site.xml"
   fi
 
