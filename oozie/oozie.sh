@@ -34,6 +34,8 @@ readonly OS_NAME
 readonly master_node=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 
+readonly MAVEN_CENTRAL_URI=https://maven-central.storage-download.googleapis.com/maven2
+
 # Use Python from /usr/bin instead of /opt/conda.
 export PATH=/usr/bin:$PATH
 
@@ -47,8 +49,7 @@ case "${DATAPROC_IMAGE_VERSION}" in
     curator_version="2.13.0"
     curator_src="/usr/lib/hadoop/lib"
     ;;
-  "2.1")
-#    curator_version="5.2.0"
+  "2.1" | "2.2")
     curator_version="2.13.0"
     curator_src="/usr/lib/spark/jars"
     ;;
@@ -238,7 +239,7 @@ function install_oozie() {
   log4j2_version=${log4j2_version/.jar/}
   if [[ -n ${log4j2_version} ]]; then
     local log4j2_to_slf4j=log4j-to-slf4j-${log4j2_version}.jar
-    local log4j2_to_slf4j_url=https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-to-slf4j/${log4j2_version}/${log4j2_to_slf4j}
+    local log4j2_to_slf4j_url=${MAVEN_CENTRAL_URI}/org/apache/logging/log4j/log4j-to-slf4j/${log4j2_version}/${log4j2_to_slf4j}
     wget -nv --timeout=30 --tries=5 --retry-connrefused "${log4j2_to_slf4j_url}" -P /usr/lib/oozie/lib
   fi
 
@@ -403,17 +404,17 @@ EOM
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
         find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
-        wget -P /usr/lib/oozie/lib https://repo1.maven.org/maven2/com/google/guava/guava/11.0.2/guava-11.0.2.jar
+        wget -P /usr/lib/oozie/lib ${MAVEN_CENTRAL_URI}/com/google/guava/guava/11.0.2/guava-11.0.2.jar
       elif [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 1.3" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
         ADDITIONAL_JARS=""
         find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
-        wget -P /usr/lib/oozie/lib https://repo1.maven.org/maven2/com/google/guava/guava/11.0.2/guava-11.0.2.jar
+        wget -P /usr/lib/oozie/lib ${MAVEN_CENTRAL_URI}/com/google/guava/guava/11.0.2/guava-11.0.2.jar
       elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.2" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS=""
         find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
-        wget -P /usr/lib/oozie/lib https://repo1.maven.org/maven2/com/google/guava/guava/11.0.2/guava-11.0.2.jar
+        wget -P /usr/lib/oozie/lib ${MAVEN_CENTRAL_URI}/com/google/guava/guava/11.0.2/guava-11.0.2.jar
       else
         echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
         exit 1
@@ -439,7 +440,7 @@ EOM
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
         find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
-        wget -P /usr/lib/oozie/lib https://repo1.maven.org/maven2/com/google/guava/guava/11.0.2/guava-11.0.2.jar
+        wget -P /usr/lib/oozie/lib ${MAVEN_CENTRAL_URI}/com/google/guava/guava/11.0.2/guava-11.0.2.jar
       elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.3" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
@@ -555,12 +556,8 @@ EOM
       "1.3" | "1.4")
         hadoop dfsadmin -safemode leave
         ;;
-      "1.5" | "2.0" | "2.1")
-        hdfs dfsadmin -safemode leave
-        ;;
       *)
-        echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
-        exit 1
+        hdfs dfsadmin -safemode leave
         ;;
     esac
   fi
@@ -629,7 +626,11 @@ function install_fluentd_configuration() {
 </match>
 EOF
 
-    systemctl reload google-fluentd
+    if [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 2.2" | bc -l) == 1  ]]; then
+      systemctl reload-or-restart google-fluentd-docker
+    else
+      systemctl reload-or-restart google-fluentd
+    fi
   else
     echo "Skipped fluentd configuration for oozie."
   fi
