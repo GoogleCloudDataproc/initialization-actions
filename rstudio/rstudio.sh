@@ -23,11 +23,35 @@ ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 USER_NAME="$(/usr/share/google/get_metadata_value attributes/rstudio-user || echo rstudio)"
 USER_PASSWORD="$(/usr/share/google/get_metadata_value attributes/rstudio-password || true)"
 
-RSTUDIO_SERVER_VERSION=1.2.5019
-RSTUDIO_SERVER_PACKAGE=rstudio-server-${RSTUDIO_SERVER_VERSION}-amd64.deb
-
 OS_ID=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
 OS_CODE=$(lsb_release -cs)
+
+RSTUDIO_SERVER_VERSION=''
+if [[ "${OS_ID}" == debian ]]; then
+  RSTUDIO_SERVER_VERSION=1.2.5019
+  if [[ "${OS_CODE}" == stretch ]]; then
+    RSTUDIO_SERVER_URL=https://download2.rstudio.org/server/debian9/x86_64
+  else
+    RSTUDIO_SERVER_URL=https://download2.rstudio.org/server/bionic/amd64
+  fi
+elif [[ "${OS_ID}" == ubuntu ]]; then
+  # Choose Ubuntu 22 compatible version, see
+  # https://community.rstudio.com/t/dependency-error-when-installing-rstudio-on-ubuntu-22-04-with-libssl/135397.
+  if [[ "${OS_CODE}" == jammy ]]; then
+    RSTUDIO_SERVER_VERSION=2023.09.0-463
+    RSTUDIO_SERVER_URL=https://download2.rstudio.org/server/${OS_CODE}/amd64
+  else
+    RSTUDIO_SERVER_VERSION=1.2.5019
+    RSTUDIO_SERVER_URL=https://download2.rstudio.org/server/bionic/amd64
+  fi
+else
+  echo "Error: OS ${OS_ID} is not supported"
+  exit 1
+fi
+
+RSTUDIO_SERVER_PACKAGE=rstudio-server-${RSTUDIO_SERVER_VERSION}-amd64.deb
+RSTUDIO_SERVER_PACKAGE_URI=${RSTUDIO_SERVER_URL}/${RSTUDIO_SERVER_PACKAGE}
+
 
 function update_apt_get() {
   for ((i = 0; i < 10; i++)); do
@@ -89,14 +113,7 @@ if [[ "${ROLE}" == 'Master' ]]; then
   apt-get install -y r-base r-base-dev gdebi-core
 
   # Download and install RStudio Server package:
-  # https://rstudio.com/products/rstudio/download-server/debian-ubuntu/
-  if [[ ${OS_CODE} == stretch ]]; then
-    RSTUDIO_SERVER_URL=https://download2.rstudio.org/server/debian9/x86_64
-  else
-    RSTUDIO_SERVER_URL=https://download2.rstudio.org/server/bionic/amd64
-  fi
-  wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    ${RSTUDIO_SERVER_URL}/${RSTUDIO_SERVER_PACKAGE} -P /tmp
+  wget -nv --timeout=30 --tries=5 --retry-connrefused ${RSTUDIO_SERVER_PACKAGE_URI} -P /tmp
   gdebi -n /tmp/${RSTUDIO_SERVER_PACKAGE}
 
   if ! getent group "${USER_NAME}"; then
