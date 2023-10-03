@@ -40,7 +40,56 @@ You can decide when to sync your copy of the initialization action with any chan
 
 ## Why these samples are provided
 
-These samples are provided to show how various packages and components can be installed on Dataproc clusters. You should understand how these samples work before running them on your clusters. The initialization actions provided in this repository are provided **without support** and you **use them at your own risk**.
+These samples are provided to show how various packages and components can be
+installed on Dataproc clusters. You should understand how these samples work
+before running them on your clusters. The initialization actions provided in
+this repository are provided **without support** and you **use them at your own
+risk**.
+
+The initialization action scripts should be assumed not to be working with the
+current version of Dataproc unless mentioned below.  Even then, the script is
+only known to work with the cluster configuration on which the tests were
+executed.  Your mileage may vary.
+
+Versions on which initialization actions have been tested and the date and
+version of the tests are included in the table below
+
+| test name | test date | test version | test status |
+| alluxio/test_alluxio.py | N/A       | N/A   | FAIL |
+| atlas/test_atlas.py | N/A       | N/A   | FAIL |
+| bigtable/test_bigtable.py | N/A       | N/A   | FAIL |
+| cloud-sql-proxy/test_cloud_sql_proxy.py | N/A       | N/A   | FAIL |
+| conda/test_conda.py | N/A       | N/A   | FAIL |
+| connectors/test_connectors.py | N/A       | N/A   | FAIL |
+| dask/test_dask.py | N/A       | N/A   | FAIL |
+| dr-elephant/test_dr_elephant.py | N/A       | N/A   | FAIL |
+| drill/test_drill.py | N/A       | N/A   | FAIL |
+| flink/test_flink.py | N/A       | N/A   | FAIL |
+| ganglia/test_ganglia.py | N/A       | N/A   | FAIL |
+| gpu/test_gpu.py | N/A       | N/A   | FAIL |
+| h2o/test_h2o.py | N/A       | N/A   | FAIL |
+| hbase/test_hbase.py | N/A       | N/A   | FAIL |
+| hive-hcatalog/test_hive_hcatalog.py | N/A       | N/A   | FAIL |
+| hive-llap/test_hive_llap.py | N/A       | N/A   | FAIL |
+| horovod/test_horovod.py | N/A       | N/A   | FAIL |
+| hue/test_hue.py | N/A       | N/A   | FAIL |
+| kafka/test_kafka.py | N/A       | N/A   | FAIL |
+| knox/test_knox.py | N/A       | N/A   | FAIL |
+| livy/test_livy.py | N/A       | N/A   | FAIL |
+| mlvm/test_mlvm.py | N/A       | N/A   | FAIL |
+| oozie/test_oozie.py | N/A       | N/A   | FAIL |
+| otel/test_otel.py | N/A       | N/A   | FAIL |
+| presto/test_presto.py | N/A       | N/A   | FAIL |
+| ranger/test_ranger.py | N/A       | N/A   | FAIL |
+| rapids/test_rapids.py | N/A       | N/A   | FAIL |
+| rstudio/test_rstudio.py | N/A       | N/A   | FAIL |
+| solr/test_solr.py | N/A       | N/A   | FAIL |
+| spark-rapids/test_spark_rapids.py | N/A       | N/A   | FAIL |
+| sqoop/test_sqoop.py | N/A       | N/A   | FAIL |
+| starburst-presto/test_starburst_presto.py | N/A       | N/A   | FAIL |
+| tony/test_tony.py | N/A       | N/A   | FAIL |
+| toree/test_toree.py | N/A       | N/A   | FAIL |
+
 
 ## Actions provided
 
