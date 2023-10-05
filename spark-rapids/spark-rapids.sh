@@ -34,16 +34,12 @@ readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 
 # CUDA version and Driver version config
 CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '12.2.2')  #12.2.2
-CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.2
 NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '535.104.05') #535.104.05
+CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.2
 
 # Verify Secure boot
 SECURE_BOOT="disabled"
 SECURE_BOOT=$(mokutil --sb-state|awk '{print $2}')
-if [[ "${SECURE_BOOT}" == "enabled" ]]; then 
-  echo "Error: SECURE_BOOT is enabled. Please disable Secure Boot while creating the cluster."
-  exit 1
-fi
 
 # Stackdriver GPU agent parameters
 # Whether to install GPU monitoring agent that sends GPU metrics to Stackdriver
@@ -123,6 +119,31 @@ EOF
   fi
 }
 
+# Enables a systemd service on bootup to install new headers.
+# This service recompiles kernel modules for Ubuntu and Debian, which are necessary for the functioning of nvidia-smi.
+function setup_systemd_update_headers() {
+  cat <<EOF >/lib/systemd/system/install-headers.service
+[Unit]
+Description=Install Linux headers for the current kernel
+After=network-online.target
+
+[Service]
+ExecStart=/bin/bash -c 'count=0; while [ \$count -lt 3 ]; do /usr/bin/apt-get install -y -q linux-headers-\$(/bin/uname -r) && break; count=\$((count+1)); sleep 5; done'
+Type=oneshot
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  # Reload systemd to recognize the new unit file
+  systemctl daemon-reload
+
+  # Enable and start the service
+  systemctl --now install-headers.service
+}
+
+
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
 
@@ -152,11 +173,14 @@ function install_nvidia_gpu_driver() {
 
     execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${NVIDIA_DRIVER_VERSION_PREFIX}"
     execute_with_retries "apt-get install -y -q --no-install-recommends cuda-toolkit-${CUDA_VERSION_MAJOR//./-}"
+
+    # enable a systemd service that updates kernel headers after reboot
+    setup_systemd_update_headers
    
   elif [[ ${OS_NAME} == "ubuntu" ]]; then
 
-    UBUNTU_VERSION=$(lsb_release -r|awk '{print $2}') # 18.04 or 20.04
-    readonly UBUNTU_VERSION=${UBUNTU_VERSION%.*} # 18 or 20
+    UBUNTU_VERSION=$(lsb_release -r|awk '{print $2}') # 20.04 or 22.04
+    UBUNTU_VERSION=${UBUNTU_VERSION%.*} # 20 or 22
 
     execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
 
@@ -175,9 +199,15 @@ function install_nvidia_gpu_driver() {
     execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${NVIDIA_DRIVER_VERSION_PREFIX}"
     execute_with_retries "apt-get install -y -q --no-install-recommends cuda-toolkit-${CUDA_VERSION_MAJOR//./-}"
 
+    # enable a systemd service that updates kernel headers after reboot
+    setup_systemd_update_headers
+
   elif [[ ${OS_NAME} == "rocky" ]]; then
 
-    readonly NVIDIA_ROCKY_REPO_URL="https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/cuda-rhel8.repo"
+    ROCKY_VERSION=$(lsb_release -r | awk '{print $2}') # 8.8 or 9.1
+    ROCKY_VERSION=${ROCKY_VERSION%.*} # 8 or 9
+
+    readonly NVIDIA_ROCKY_REPO_URL="https://developer.download.nvidia.com/compute/cuda/repos/rhel${ROCKY_VERSION}/x86_64/cuda-rhel${ROCKY_VERSION}.repo"
     execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPO_URL}"
     execute_with_retries "dnf clean all"
     execute_with_retries "dnf install -y -q nvidia-driver:${NVIDIA_DRIVER_VERSION_PREFIX}"
@@ -488,8 +518,39 @@ function upgrade_kernel() {
   systemctl reboot
 }
 
-function main() {
+# Verify if compatible linux distros and secure boot options are used
+function check_os_and_secure_boot() {
+  if [[ "${OS_NAME}" == "debian" ]]; then
+    readonly DEBIAN_VERSION=$(lsb_release -r | awk '{print $2}') # 10 or 11
+    if [[ "${DEBIAN_VERSION}" != "10" && "${DEBIAN_VERSION}" != "11" ]]; then
+      echo "Error: The Debian version (${DEBIAN_VERSION}) is not supported. Please use a compatible Debian version."
+      exit 1
+    fi
+  elif [[ "${OS_NAME}" == "ubuntu" ]]; then
+    UBUNTU_VERSION=$(lsb_release -r | awk '{print $2}') # 20.04
+    UBUNTU_VERSION=${UBUNTU_VERSION%.*}
+    if [[ "${UBUNTU_VERSION}" != "20" && "${UBUNTU_VERSION}" != "22" ]]; then
+      echo "Error: The Ubuntu version (${UBUNTU_VERSION}) is not supported. Please use a compatible Ubuntu version."
+      exit 1
+    fi
+  elif [[ "${OS_NAME}" == "rocky" ]]; then
+    ROCKY_VERSION=$(lsb_release -r | awk '{print $2}') # 8 or 9
+    ROCKY_VERSION=${ROCKY_VERSION%.*}
+    if [[ "${ROCKY_VERSION}" != "8" && "${ROCKY_VERSION}" != "9" ]]; then
+      echo "Error: The Rocky Linux version (${ROCKY_VERSION}) is not supported. Please use a compatible Rocky Linux version."
+      exit 1
+    fi
+  fi
 
+  if [[ "${SECURE_BOOT}" == "enabled" ]]; then 
+    echo "Error: Secure Boot is enabled. Please disable Secure Boot while creating the cluster."
+    exit 1
+  fi
+}
+
+
+function main() {
+  check_os_and_secure_boot
   if [[ "${OS_NAME}" == "rocky" ]]; then
     if dnf list kernel-devel-$(uname -r) && dnf list kernel-headers-$(uname -r); then
       echo "kernel devel and headers packages are available.  Proceed without kernel upgrade."
