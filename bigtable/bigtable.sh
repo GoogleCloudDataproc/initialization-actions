@@ -38,16 +38,20 @@ readonly BIGTABLE_HBASE_CLIENT_1X_URL="${BIGTABLE_HBASE_CLIENT_1X_REPO}/${BIGTAB
 
 readonly BIGTABLE_HBASE_CLIENT_2X_REPO="https://repo1.maven.org/maven2/com/google/cloud/bigtable/bigtable-hbase-2.x"
 readonly BIGTABLE_HBASE_CLIENT_2X_VERSION='2.7.4'
+#readonly BIGTABLE_HBASE_CLIENT_2X_VERSION='2.3.6'
 readonly BIGTABLE_HBASE_CLIENT_2X_JAR="bigtable-hbase-2.x-${BIGTABLE_HBASE_CLIENT_2X_VERSION}.jar"
 readonly BIGTABLE_HBASE_CLIENT_2X_URL="${BIGTABLE_HBASE_CLIENT_2X_REPO}/${BIGTABLE_HBASE_CLIENT_2X_VERSION}/${BIGTABLE_HBASE_CLIENT_2X_JAR}"
 
 case "${DATAPROC_IMAGE_VERSION}" in
   "1.3" | "1.4" | "1.5" | "2.0" )
-    readonly HBASE_VERSION="2.4.17"
+    readonly HBASE_VERSION="2.3.6"
     ;;
 
   "2.1")
-    readonly HBASE_VERSION="3.0.0-alpha-4"
+    #    readonly HBASE_VERSION="3.0.0-alpha-4"
+    # customer in CASE_NUMBER=47245247 uses 2.9.0
+    readonly HBASE_VERSION="2.3.6"
+    #readonly HBASE_VERSION="2.9.0"
     ;;
 esac
 
@@ -281,7 +285,7 @@ function install_hbase() {
         local VARIANT="bin"
         local BASENAME="hbase-${HBASE_VERSION}-${VARIANT}.tar.gz"
         echo "hbase dist basename: ${BASENAME}"
-        wget "https://dlcdn.apache.org/hbase/${HBASE_VERSION}/${BASENAME}" -P /tmp || err 'Unable to download tar'
+        wget "https://archive.apache.org/dist/hbase/${HBASE_VERSION}/${BASENAME}" -P /tmp || err 'Unable to download tar'
 
         # extract binaries from bundle
         mkdir -p "/tmp/hbase-${HBASE_VERSION}/" "${HBASE_HOME}" 
