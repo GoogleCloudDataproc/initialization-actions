@@ -55,6 +55,7 @@ Versions on which initialization actions have been tested and the date and
 version of the tests are included in the table below
 
 | test name | test date | test version | test status |
+| :---      |   :----:  |    :----:    |        ---: |
 | alluxio/test_alluxio.py | N/A       | N/A   | FAIL |
 | atlas/test_atlas.py | N/A       | N/A   | FAIL |
 | bigtable/test_bigtable.py | N/A       | N/A   | FAIL |
