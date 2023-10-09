@@ -54,7 +54,7 @@ executed.  Your mileage may vary.
 Versions on which initialization actions have been tested and the date and
 version of the tests are included in the table below
 
-| test name | test date | test version | test status |
+| test name | test date | image version | test status |
 | :---      |   :----:  |    :----:    |        ---: |
 | alluxio/test_alluxio.py | N/A       | N/A   | FAIL |
 | atlas/test_atlas.py | N/A       | N/A   | FAIL |
@@ -67,7 +67,7 @@ version of the tests are included in the table below
 | drill/test_drill.py | N/A       | N/A   | FAIL |
 | flink/test_flink.py | N/A       | N/A   | FAIL |
 | ganglia/test_ganglia.py | N/A       | N/A   | FAIL |
-| gpu/test_gpu.py | N/A       | N/A   | FAIL |
+| gpu/test_gpu.py | 2023-10-09 |  2.1.27-{debian11,ubuntu20,rocky8}  | SUCCESS |
 | h2o/test_h2o.py | N/A       | N/A   | FAIL |
 | hbase/test_hbase.py | N/A       | N/A   | FAIL |
 | hive-hcatalog/test_hive_hcatalog.py | N/A       | N/A   | FAIL |
