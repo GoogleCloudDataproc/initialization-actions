@@ -140,7 +140,7 @@ EOF
   systemctl daemon-reload
 
   # Enable and start the service
-  systemctl --now install-headers.service
+  systemctl enable --now install-headers.service
 }
 
 
@@ -153,7 +153,7 @@ function install_nvidia_gpu_driver() {
   ## installation steps based OS_NAME
   if [[ ${OS_NAME} == "debian" ]]; then
 
-    readonly DEBIAN_VERSION=$(lsb_release -r|awk '{print $2}') # 10 or 11
+    DEBIAN_VERSION=$(lsb_release -r|awk '{print $2}') # 10 or 11
     export DEBIAN_FRONTEND=noninteractive
 
     execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
@@ -521,7 +521,7 @@ function upgrade_kernel() {
 # Verify if compatible linux distros and secure boot options are used
 function check_os_and_secure_boot() {
   if [[ "${OS_NAME}" == "debian" ]]; then
-    readonly DEBIAN_VERSION=$(lsb_release -r | awk '{print $2}') # 10 or 11
+    DEBIAN_VERSION=$(lsb_release -r | awk '{print $2}') # 10 or 11
     if [[ "${DEBIAN_VERSION}" != "10" && "${DEBIAN_VERSION}" != "11" ]]; then
       echo "Error: The Debian version (${DEBIAN_VERSION}) is not supported. Please use a compatible Debian version."
       exit 1
