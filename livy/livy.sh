@@ -14,9 +14,24 @@
 
 set -euxo pipefail
 
-readonly LIVY_VERSION=$(/usr/share/google/get_metadata_value attributes/livy-version || echo 0.7.0)
-readonly LIVY_PKG_NAME=apache-livy-${LIVY_VERSION}-incubating-bin
-readonly LIVY_URL=https://archive.apache.org/dist/incubator/livy/${LIVY_VERSION}-incubating/${LIVY_PKG_NAME}.zip
+# Detect dataproc image version from its various names
+if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
+  DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
+fi
+
+if [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 2.1" | bc -l) == 1  ]]; then
+  readonly LIVY_DEFAULT_VERSION="0.8.0"
+  readonly SCALA_DEFAULT_VERSION="2.12"
+else
+  readonly LIVY_DEFAULT_VERSION="0.7.1"
+  readonly SCALA_DEFAULT_VERSION="2.11"
+fi
+
+readonly LIVY_VERSION=$(/usr/share/google/get_metadata_value attributes/livy-version || echo ${LIVY_DEFAULT_VERSION})
+readonly SCALA_VERSION=$(/usr/share/google/get_metadata_value attributes/scala-version || echo ${SCALA_DEFAULT_VERSION})
+readonly LIVY_PKG_NAME="apache-livy-${LIVY_VERSION}-incubating_${SCALA_VERSION}-bin"
+readonly LIVY_BASENAME="${LIVY_PKG_NAME}.zip"
+readonly LIVY_URL="https://archive.apache.org/dist/incubator/livy/${LIVY_VERSION}-incubating/${LIVY_BASENAME}"
 readonly LIVY_TIMEOUT_SESSION=$(/usr/share/google/get_metadata_value attributes/livy-timeout-session || echo 1h)
 
 readonly LIVY_DIR=/usr/local/lib/livy

@@ -25,7 +25,7 @@ Livy installed:
     ```
 
 1.  To change installed Livy version, use `livy-version` metadata value:
-    
+
     ```bash
     REGION=<region>
     CLUSTER_NAME=<cluster_name>
@@ -35,8 +35,19 @@ Livy installed:
         --metadata livy-version=0.7.0
     ```
 
+1.  To change version of scala against which livy is linked, use `scala-version` metadata value:
+
+    ```bash
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/livy/livy.sh \
+        --metadata scala-version=2.12
+    ```
+
 1.  To change timeout for Livy session, use `livy-timeout-session` metadata value:
-    
+
     ```bash
     REGION=<region>
     CLUSTER_NAME=<cluster_name>
