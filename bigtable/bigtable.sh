@@ -135,6 +135,20 @@ EOF
 }
 
 function configure_bigtable_client_2x() {
+
+  case "${DATAPROC_IMAGE_VERSION}" in
+    "2.0" )
+      BIGTABLE_REGISTRY_CLASS="BigtableAsyncRegistry"
+      ;;
+    "2.1" | "2.2" )
+      BIGTABLE_REGISTRY_CLASS="BigtableConnectionsRegistry"
+      ;;
+    "*")
+      echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
+      exit 1
+      ;;
+  esac
+
   local -r hbase_config=$(mktemp /tmp/hbase-site.xml-XXXX)
   cat <<EOF >${hbase_config}
 <?xml version="1.0"?>
@@ -148,7 +162,7 @@ function configure_bigtable_client_2x() {
   </property>
   <property>
     <name>hbase.client.registry.impl</name>
-    <value>org.apache.hadoop.hbase.client.BigtableConnectionsRegistry</value>
+    <value>org.apache.hadoop.hbase.client.${BIGTABLE_REGISTRY_CLASS}</value>
   </property>
   <property>
     <name>hbase.client.async.connection.impl</name>
