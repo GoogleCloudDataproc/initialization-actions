@@ -19,7 +19,7 @@ if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
   DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
 fi
 
-if [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 2.1" | bc -l) == 1  ]]; then
+if [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 2.0" | bc -l) == 1  ]]; then
   readonly LIVY_DEFAULT_VERSION="0.8.0"
   readonly SCALA_DEFAULT_VERSION="2.12"
 else
