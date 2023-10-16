@@ -68,6 +68,9 @@ class BigTableTestCase(DataprocTestCase):
         ("HA", ["m-0"]),
     )
     def test_bigtable(self, configuration, machine_suffixes):
+        if self.getImageOs() == 'rocky':
+            self.skipTest("Not supported in Rocky Linux-based images")
+
         self.createCluster(
             configuration, self.INIT_ACTIONS, metadata=self.metadata)
 

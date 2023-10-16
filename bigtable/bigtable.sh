@@ -135,20 +135,6 @@ EOF
 }
 
 function configure_bigtable_client_2x() {
-
-  case "${DATAPROC_IMAGE_VERSION}" in
-    "2.0" )
-      BIGTABLE_REGISTRY_CLASS="BigtableAsyncRegistry"
-      ;;
-    "2.1" | "2.2" )
-      BIGTABLE_REGISTRY_CLASS="BigtableConnectionsRegistry"
-      ;;
-    "*")
-      echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
-      exit 1
-      ;;
-  esac
-
   local -r hbase_config=$(mktemp /tmp/hbase-site.xml-XXXX)
   cat <<EOF >${hbase_config}
 <?xml version="1.0"?>
@@ -162,7 +148,7 @@ function configure_bigtable_client_2x() {
   </property>
   <property>
     <name>hbase.client.registry.impl</name>
-    <value>org.apache.hadoop.hbase.client.${BIGTABLE_REGISTRY_CLASS}</value>
+    <value>org.apache.hadoop.hbase.client.BigtableConnectionsRegistry</value>
   </property>
   <property>
     <name>hbase.client.async.connection.impl</name>
@@ -199,7 +185,7 @@ SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH}:/usr/lib/hbase/lib/*"
 SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH}:/etc/hbase/conf"
 EOF
 
-  if [[ ${DATAPROC_IMAGE_VERSION%%.*} -ge 2 ]]; then
+  if [[ $(echo "${DATAPROC_IMAGE_VERSION} > 2.0" | bc -l) == 1 ]]; then
     configure_bigtable_client_2x || err 'Failed to configure big table 2.x client.'
   else
     configure_bigtable_client_1x || err 'Failed to configure big table 1.x client.'
