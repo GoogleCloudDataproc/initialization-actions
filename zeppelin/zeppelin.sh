@@ -19,9 +19,15 @@
 
 set -euxo pipefail
 
-readonly NOT_SUPPORTED_MESSAGE="Zeppelin initialization action is not supported on Dataproc ${DATAPROC_VERSION}.
+# Detect dataproc image version from its various names
+if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_IMAGE_VERSION; then
+  DATAPROC_IMAGE_VERSION="${DATAPROC_IMAGE_VERSION}"
+fi
+
+
+readonly NOT_SUPPORTED_MESSAGE="Zeppelin initialization action is not supported on Dataproc ${DATAPROC_IMAGE_VERSION}.
 Use Zeppelin Component instead: https://cloud.google.com/dataproc/docs/concepts/components/zeppelin"
-[[ $DATAPROC_VERSION != 1.* ]] && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
+[[ $DATAPROC_IMAGE_VERSION != 1.* ]] && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
 
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly INTERPRETER_FILE='/etc/zeppelin/conf/interpreter.json'
