@@ -76,7 +76,7 @@ function err() {
 }
 
 function install_bigtable_client() {
-  if [[ ${DATAPROC_IMAGE_VERSION%%.*} -ge 2 ]]; then
+  if [[ $(echo "${DATAPROC_IMAGE_VERSION} > 2.0" | bc -l) == 1 ]]; then
     local -r bigtable_hbase_client_jar="$BIGTABLE_HBASE_CLIENT_2X_JAR"
     local -r bigtable_hbase_client_url="$BIGTABLE_HBASE_CLIENT_2X_URL"
   else
