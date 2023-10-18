@@ -36,10 +36,10 @@ readonly BIGTABLE_HBASE_CLIENT_1X_VERSION='1.29.2'
 readonly BIGTABLE_HBASE_CLIENT_1X_JAR="bigtable-hbase-1.x-hadoop-${BIGTABLE_HBASE_CLIENT_1X_VERSION}.jar"
 readonly BIGTABLE_HBASE_CLIENT_1X_URL="${BIGTABLE_HBASE_CLIENT_1X_REPO}/${BIGTABLE_HBASE_CLIENT_1X_VERSION}/${BIGTABLE_HBASE_CLIENT_1X_JAR}"
 
-readonly BIGTABLE_HBASE_CLIENT_2X_REPO="https://repo1.maven.org/maven2/com/google/cloud/bigtable/bigtable-hbase-2.x"
-readonly BIGTABLE_HBASE_CLIENT_2X_VERSION='2.7.4'
-#readonly BIGTABLE_HBASE_CLIENT_2X_VERSION='2.3.6'
-readonly BIGTABLE_HBASE_CLIENT_2X_JAR="bigtable-hbase-2.x-${BIGTABLE_HBASE_CLIENT_2X_VERSION}.jar"
+readonly BIGTABLE_HBASE_CLIENT_2X_REPO="https://repo1.maven.org/maven2/com/google/cloud/bigtable/bigtable-hbase-2.x-hadoop"
+#readonly BIGTABLE_HBASE_CLIENT_2X_VERSION='2.7.4'
+readonly BIGTABLE_HBASE_CLIENT_2X_VERSION='2.3.6'
+readonly BIGTABLE_HBASE_CLIENT_2X_JAR="bigtable-hbase-2.x-hadoop-${BIGTABLE_HBASE_CLIENT_2X_VERSION}.jar"
 readonly BIGTABLE_HBASE_CLIENT_2X_URL="${BIGTABLE_HBASE_CLIENT_2X_REPO}/${BIGTABLE_HBASE_CLIENT_2X_VERSION}/${BIGTABLE_HBASE_CLIENT_2X_JAR}"
 
 readonly HBASE_VERSION="2.3.6"
@@ -76,7 +76,7 @@ function err() {
 }
 
 function install_bigtable_client() {
-  if [[ $(echo "${DATAPROC_IMAGE_VERSION} > 2.0" | bc -l) == 1 ]]; then
+  if [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 2.0" | bc -l) == 1 ]]; then
     local -r bigtable_hbase_client_jar="$BIGTABLE_HBASE_CLIENT_2X_JAR"
     local -r bigtable_hbase_client_url="$BIGTABLE_HBASE_CLIENT_2X_URL"
   else
@@ -135,6 +135,14 @@ EOF
 }
 
 function configure_bigtable_client_2x() {
+
+  INSTALLED_HBASE_VERSION=`hbase version | perl -ne 'print $1 if /^HBase (.+)$/'`
+  if [[ $(echo "${INSTALLED_HBASE_VERSION%.*} < 2.3" | bc -l) == 1 ]]; then
+    BIGTABLE_REGISTRY="BigtableAsyncRegistry"
+  else
+    BIGTABLE_REGISTRY="BigtableConnectionRegistry"
+  fi
+
   local -r hbase_config=$(mktemp /tmp/hbase-site.xml-XXXX)
   cat <<EOF >${hbase_config}
 <?xml version="1.0"?>
@@ -148,7 +156,7 @@ function configure_bigtable_client_2x() {
   </property>
   <property>
     <name>hbase.client.registry.impl</name>
-    <value>org.apache.hadoop.hbase.client.BigtableConnectionsRegistry</value>
+    <value>org.apache.hadoop.hbase.client.${BIGTABLE_REGISTRY}</value>
   </property>
   <property>
     <name>hbase.client.async.connection.impl</name>
@@ -185,7 +193,7 @@ SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH}:/usr/lib/hbase/lib/*"
 SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH}:/etc/hbase/conf"
 EOF
 
-  if [[ $(echo "${DATAPROC_IMAGE_VERSION} > 2.0" | bc -l) == 1 ]]; then
+  if [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 2.0" | bc -l) == 1 ]]; then
     configure_bigtable_client_2x || err 'Failed to configure big table 2.x client.'
   else
     configure_bigtable_client_1x || err 'Failed to configure big table 1.x client.'
@@ -195,14 +203,14 @@ EOF
 function install_hbase() {
   if command -v apt-get >/dev/null; then
     case "${DATAPROC_IMAGE_VERSION}" in
-      "1.3" | "1.4" | "1.5" | "2.0" )
+      "1.3" | "1.4" | "1.5" )
 
-        # On images prior to Dataproc 2.1, hbase can be installed from Google's bigtop repositories
+        # On images prior to Dataproc 2.1, hbase 1.x can be installed from Google's bigtop repositories
         retry_command "apt-get update" || err 'Unable to update packages lists.'
         retry_command "apt-get install -y hbase" || err 'Unable to install HBase.'
         ;;
 
-      "2.1" | "2.2" )
+      "2.0" | "2.1" | "2.2" )
 
         # get hbase tar from official site
         # Variants:
@@ -220,25 +228,6 @@ function install_hbase() {
         mkdir -p "/tmp/hbase-${HBASE_VERSION}/" "${HBASE_HOME}"
         tar xzf "/tmp/${BASENAME}" --strip-components=1 -C "/tmp/hbase-${HBASE_VERSION}/"
         cp -a "/tmp/hbase-${HBASE_VERSION}/." "${HBASE_HOME}/"
-
-        # prune incompatible jars
-        INCOMPATIBLE_JARS="guava protobuf-java"
-        for pkg in ${INCOMPATIBLE_JARS} ; do
-          find ${HBASE_HOME}/lib -name "$pkg-*.jar" -delete
-        done
-
-        # include jars with expected symbols
-        MVN_PFX="https://repo1.maven.org/maven2"
-        for url in \
-          "${MVN_PFX}/com/google/cloud/bigtable/bigtable-hbase-2.x-hadoop/2.7.4/bigtable-hbase-2.x-hadoop-2.7.4.jar" \
-          "${MVN_PFX}/com/google/cloud/google-cloud-bigtable/2.20.4/google-cloud-bigtable-2.20.4.jar" \
-          "${MVN_PFX}/com/google/api/grpc/proto-google-cloud-bigtable-admin-v2/2.20.4/proto-google-cloud-bigtable-admin-v2-2.20.4.jar" \
-          "${MVN_PFX}/com/google/protobuf/protobuf-java/3.23.0/protobuf-java-3.23.0.jar" \
-          "${MVN_PFX}/net/bytebuddy/byte-buddy/1.14.8/byte-buddy-1.14.8.jar" \
-          "${MVN_PFX}/org/threeten/threetenbp/1.6.8/threetenbp-1.6.8.jar"
-        do
-          wget -P "${HBASE_HOME}/lib" ${url}
-        done
 
         # install hbase and hbase-config.sh into normal user $PATH
         ln -sf ${HBASE_HOME}/bin/hbase /usr/bin/
