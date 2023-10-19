@@ -24,9 +24,14 @@
 
 set -euxo pipefail
 
-readonly NOT_SUPPORTED_MESSAGE="Flink initialization action is not supported on Dataproc ${DATAPROC_VERSION}.
-Use Flink Component instead: https://cloud.google.com/dataproc/docs/concepts/components/flink"
-[[ $DATAPROC_VERSION != 1.* ]] && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
+# Detect dataproc image version from its various names
+if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
+  DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
+fi
+
+readonly NOT_SUPPORTED_MESSAGE="Flink initialization action is not supported on Dataproc ${DATAPROC_IMAGE_VERSION}.
+Use Flink Component inssead: https://cloud.google.com/dataproc/docs/concepts/components/flink"
+[[ $DATAPROC_IMAGE_VERSION != 1.* ]] && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
 
 # Use Python from /usr/bin instead of /opt/conda.
 export PATH=/usr/bin:$PATH
