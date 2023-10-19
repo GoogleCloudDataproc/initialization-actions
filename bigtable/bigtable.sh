@@ -37,12 +37,9 @@ readonly BIGTABLE_HBASE_CLIENT_1X_JAR="bigtable-hbase-1.x-hadoop-${BIGTABLE_HBAS
 readonly BIGTABLE_HBASE_CLIENT_1X_URL="${BIGTABLE_HBASE_CLIENT_1X_REPO}/${BIGTABLE_HBASE_CLIENT_1X_VERSION}/${BIGTABLE_HBASE_CLIENT_1X_JAR}"
 
 readonly BIGTABLE_HBASE_CLIENT_2X_REPO="https://repo1.maven.org/maven2/com/google/cloud/bigtable/bigtable-hbase-2.x-hadoop"
-#readonly BIGTABLE_HBASE_CLIENT_2X_VERSION='2.7.4'
-readonly BIGTABLE_HBASE_CLIENT_2X_VERSION='2.3.6'
+readonly BIGTABLE_HBASE_CLIENT_2X_VERSION='2.12.0'
 readonly BIGTABLE_HBASE_CLIENT_2X_JAR="bigtable-hbase-2.x-hadoop-${BIGTABLE_HBASE_CLIENT_2X_VERSION}.jar"
 readonly BIGTABLE_HBASE_CLIENT_2X_URL="${BIGTABLE_HBASE_CLIENT_2X_REPO}/${BIGTABLE_HBASE_CLIENT_2X_VERSION}/${BIGTABLE_HBASE_CLIENT_2X_JAR}"
-
-readonly HBASE_VERSION="2.3.6"
 
 readonly SCH_REPO="https://repo.hortonworks.com/content/groups/public/com/hortonworks"
 readonly SHC_VERSION='1.1.1-2.1-s_2.11'
@@ -219,6 +216,7 @@ function install_hbase() {
         # * client-bin
         # * bin
         echo "preparing to install hbase"
+        local HBASE_VERSION="2.3.6"
         local VARIANT="bin"
         local BASENAME="hbase-${HBASE_VERSION}-${VARIANT}.tar.gz"
         echo "hbase dist basename: ${BASENAME}"
@@ -232,7 +230,7 @@ function install_hbase() {
         # install hbase and hbase-config.sh into normal user $PATH
         ln -sf ${HBASE_HOME}/bin/hbase /usr/bin/
         ln -sf ${HBASE_HOME}/bin/hbase-config.sh /usr/bin/
-
+        echo "hbase binary distribution installed"
         ;;
       "*")
         echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
