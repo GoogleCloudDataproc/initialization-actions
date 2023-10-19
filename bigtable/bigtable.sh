@@ -198,49 +198,48 @@ EOF
 }
 
 function install_hbase() {
-  if command -v apt-get >/dev/null; then
-    case "${DATAPROC_IMAGE_VERSION}" in
-      "1.3" | "1.4" | "1.5" )
-
+  case "${DATAPROC_IMAGE_VERSION}" in
+    "1.3" | "1.4" | "1.5" )
+      if command -v apt-get >/dev/null; then
         # On images prior to Dataproc 2.1, hbase 1.x can be installed from Google's bigtop repositories
         retry_command "apt-get update" || err 'Unable to update packages lists.'
         retry_command "apt-get install -y hbase" || err 'Unable to install HBase.'
-        ;;
+      else
+        retry_command "yum -y update" || err 'Unable to update packages lists.'
+        retry_command "yum -y install hbase" || err 'Unable to install HBase.'
+      fi
+      ;;
 
-      "2.0" | "2.1" | "2.2" )
+    "2.0" | "2.1" | "2.2" )
 
-        # get hbase tar from official site
-        # Variants:
-        # * hadoop3-client-bin
-        # * hadoop3-bin
-        # * client-bin
-        # * bin
-        echo "preparing to install hbase"
-        local HBASE_VERSION="2.3.6"
-        local VARIANT="bin"
-        local BASENAME="hbase-${HBASE_VERSION}-${VARIANT}.tar.gz"
-        echo "hbase dist basename: ${BASENAME}"
-        wget "https://archive.apache.org/dist/hbase/${HBASE_VERSION}/${BASENAME}" -P /tmp || err 'Unable to download tar'
+      # get hbase tar from official site
+      # Variants:
+      # * hadoop3-client-bin
+      # * hadoop3-bin
+      # * client-bin
+      # * bin
+      echo "preparing to install hbase"
+      local HBASE_VERSION="2.3.6"
+      local VARIANT="bin"
+      local BASENAME="hbase-${HBASE_VERSION}-${VARIANT}.tar.gz"
+      echo "hbase dist basename: ${BASENAME}"
+      wget "https://archive.apache.org/dist/hbase/${HBASE_VERSION}/${BASENAME}" -P /tmp || err 'Unable to download tar'
 
-        # extract binaries from bundle
-        mkdir -p "/tmp/hbase-${HBASE_VERSION}/" "${HBASE_HOME}"
-        tar xzf "/tmp/${BASENAME}" --strip-components=1 -C "/tmp/hbase-${HBASE_VERSION}/"
-        cp -a "/tmp/hbase-${HBASE_VERSION}/." "${HBASE_HOME}/"
+      # extract binaries from bundle
+      mkdir -p "/tmp/hbase-${HBASE_VERSION}/" "${HBASE_HOME}"
+      tar xzf "/tmp/${BASENAME}" --strip-components=1 -C "/tmp/hbase-${HBASE_VERSION}/"
+      cp -a "/tmp/hbase-${HBASE_VERSION}/." "${HBASE_HOME}/"
 
-        # install hbase and hbase-config.sh into normal user $PATH
-        ln -sf ${HBASE_HOME}/bin/hbase /usr/bin/
-        ln -sf ${HBASE_HOME}/bin/hbase-config.sh /usr/bin/
-        echo "hbase binary distribution installed"
-        ;;
-      "*")
-        echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
-        exit 1
-        ;;
-    esac
-  else
-    retry_command "yum -y update" || err 'Unable to update packages lists.'
-    retry_command "yum -y install hbase" || err 'Unable to install HBase.'
-  fi
+      # install hbase and hbase-config.sh into normal user $PATH
+      ln -sf ${HBASE_HOME}/bin/hbase /usr/bin/
+      ln -sf ${HBASE_HOME}/bin/hbase-config.sh /usr/bin/
+      echo "hbase binary distribution installed"
+      ;;
+    "*")
+      echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
+      exit 1
+      ;;
+  esac
 }
 
 function main() {
