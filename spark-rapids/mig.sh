@@ -57,6 +57,30 @@ function execute_with_retries() {
   return 1
 }
 
+# Enables a systemd service on bootup to install new headers.
+# This service recompiles kernel modules for Ubuntu and Debian, which are necessary for the functioning of nvidia-smi.
+function setup_systemd_update_headers() {
+  cat <<EOF >/lib/systemd/system/install-headers.service
+[Unit]
+Description=Install Linux headers for the current kernel
+After=network-online.target
+
+[Service]
+ExecStart=/bin/bash -c 'count=0; while [ \$count -lt 3 ]; do /usr/bin/apt-get install -y -q linux-headers-\$(/bin/uname -r) && break; count=\$((count+1)); sleep 5; done'
+Type=oneshot
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  # Reload systemd to recognize the new unit file
+  systemctl daemon-reload
+
+  # Enable and start the service
+  systemctl enable --now install-headers.service
+}
+
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
 
