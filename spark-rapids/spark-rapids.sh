@@ -1,4 +1,21 @@
 #!/bin/bash
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS-IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This script installs NVIDIA GPU drivers (version 535.104.05) along with CUDA 12.2.
+# Additionally, it installs the RAPIDS Spark plugin, configures Spark and YARN, and is compatible with Debian, Ubuntu, and Rocky Linux distributions.
+# Note that the script is designed to work when secure boot is disabled during cluster creation.
+# It also creates a Systemd Service for maintaining up-to-date Kernel Headers on Debian and Ubuntu.
 
 set -euxo pipefail
 
