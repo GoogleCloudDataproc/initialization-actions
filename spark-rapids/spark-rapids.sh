@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # This script installs NVIDIA GPU drivers (version 535.104.05) along with CUDA 12.2.
+# However, Cuda 12.1.1 - Driver v530.30.02 is used for Ubuntu 18 only
 # Additionally, it installs the RAPIDS Spark plugin, configures Spark and YARN, and is compatible with Debian, Ubuntu, and Rocky Linux distributions.
 # Note that the script is designed to work when secure boot is disabled during cluster creation.
 # It also creates a Systemd Service for maintaining up-to-date Kernel Headers on Debian and Ubuntu.
@@ -53,6 +54,17 @@ readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '12.2.2')  #12.2.2
 NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '535.104.05') #535.104.05
 CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.2
+
+# Change CUDA version for Ubuntu 18 (Cuda 12.1.1 - Driver v530.30.02 is the latest version supported by Ubuntu 18)
+if [[ "${OS_NAME}" == "ubuntu" ]]; then
+    UBUNTU_VERSION=$(lsb_release -r | awk '{print $2}') # 20.04
+    UBUNTU_VERSION=${UBUNTU_VERSION%.*}
+    if [[ "${UBUNTU_VERSION}" == "18" ]]; then
+      CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '12.1.1')  #12.1.1
+      NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '530.30.02') #530.30.02
+      CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.1
+    fi
+fi
 
 # Verify Secure boot
 SECURE_BOOT="disabled"
@@ -546,7 +558,7 @@ function check_os_and_secure_boot() {
   elif [[ "${OS_NAME}" == "ubuntu" ]]; then
     UBUNTU_VERSION=$(lsb_release -r | awk '{print $2}') # 20.04
     UBUNTU_VERSION=${UBUNTU_VERSION%.*}
-    if [[ "${UBUNTU_VERSION}" != "20" && "${UBUNTU_VERSION}" != "22" ]]; then
+    if [[ "${UBUNTU_VERSION}" != "18" && "${UBUNTU_VERSION}" != "20" && "${UBUNTU_VERSION}" != "22" ]]; then
       echo "Error: The Ubuntu version (${UBUNTU_VERSION}) is not supported. Please use a compatible Ubuntu version."
       exit 1
     fi
