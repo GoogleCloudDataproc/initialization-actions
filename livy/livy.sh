@@ -22,14 +22,15 @@ fi
 if [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 2.0" | bc -l) == 1  ]]; then
   readonly LIVY_DEFAULT_VERSION="0.8.0"
   readonly SCALA_DEFAULT_VERSION="2.12"
+  readonly LIVY_VERSION=$(/usr/share/google/get_metadata_value attributes/livy-version || echo ${LIVY_DEFAULT_VERSION})
+  readonly SCALA_VERSION=$(/usr/share/google/get_metadata_value attributes/scala-version || echo ${SCALA_DEFAULT_VERSION})
+  readonly LIVY_PKG_NAME="apache-livy-${LIVY_VERSION}-incubating_${SCALA_VERSION}-bin"
 else
   readonly LIVY_DEFAULT_VERSION="0.7.1"
-  readonly SCALA_DEFAULT_VERSION="2.11"
+  readonly LIVY_VERSION=$(/usr/share/google/get_metadata_value attributes/livy-version || echo ${LIVY_DEFAULT_VERSION})
+  readonly LIVY_PKG_NAME="apache-livy-${LIVY_VERSION}-incubating-bin"
 fi
 
-readonly LIVY_VERSION=$(/usr/share/google/get_metadata_value attributes/livy-version || echo ${LIVY_DEFAULT_VERSION})
-readonly SCALA_VERSION=$(/usr/share/google/get_metadata_value attributes/scala-version || echo ${SCALA_DEFAULT_VERSION})
-readonly LIVY_PKG_NAME="apache-livy-${LIVY_VERSION}-incubating_${SCALA_VERSION}-bin"
 readonly LIVY_BASENAME="${LIVY_PKG_NAME}.zip"
 readonly LIVY_URL="https://archive.apache.org/dist/incubator/livy/${LIVY_VERSION}-incubating/${LIVY_BASENAME}"
 readonly LIVY_TIMEOUT_SESSION=$(/usr/share/google/get_metadata_value attributes/livy-timeout-session || echo 1h)
