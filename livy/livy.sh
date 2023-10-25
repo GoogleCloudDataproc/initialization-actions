@@ -29,7 +29,11 @@ fi
 
 readonly LIVY_VERSION=$(/usr/share/google/get_metadata_value attributes/livy-version || echo ${LIVY_DEFAULT_VERSION})
 readonly SCALA_VERSION=$(/usr/share/google/get_metadata_value attributes/scala-version || echo ${SCALA_DEFAULT_VERSION})
-readonly LIVY_PKG_NAME="apache-livy-${LIVY_VERSION}-incubating_${SCALA_VERSION}-bin"
+if [[ $(echo "${LIVY_VERSION%.*} < 0.8" | bc -l) == 1  ]]; then
+  readonly LIVY_PKG_NAME="apache-livy-${LIVY_VERSION}-incubating-bin"
+else
+  readonly LIVY_PKG_NAME="apache-livy-${LIVY_VERSION}-incubating_${SCALA_VERSION}-bin"
+fi
 readonly LIVY_BASENAME="${LIVY_PKG_NAME}.zip"
 readonly LIVY_URL="https://archive.apache.org/dist/incubator/livy/${LIVY_VERSION}-incubating/${LIVY_BASENAME}"
 readonly LIVY_TIMEOUT_SESSION=$(/usr/share/google/get_metadata_value attributes/livy-timeout-session || echo 1h)
