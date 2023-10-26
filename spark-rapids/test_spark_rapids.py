@@ -68,9 +68,9 @@ class SparkRapidsTestCase(DataprocTestCase):
     # Only need to do this once
     self.verify_spark_job()
 
-  @parameterized.parameters(("STANDARD", ["w-0"], GPU_T4, "11.2"))
+  @parameterized.parameters(("STANDARD", ["w-0"], GPU_T4, "12.1.1", "530.30.02"))
   def test_non_default_cuda_versions(self, configuration, machine_suffixes,
-                                     accelerator, cuda_version):
+                                     accelerator, cuda_version, driver_version):
 
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0 images")
@@ -79,7 +79,7 @@ class SparkRapidsTestCase(DataprocTestCase):
       self.skipTest("Not supported in image2.1 or rocky images")
 
     metadata = ("gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
-                ",cuda-version={}".format(cuda_version))
+                ",cuda-version={0},driver-version={1}".format(cuda_version, driver_version))
 
     self.createCluster(
         configuration,
