@@ -19,9 +19,15 @@
 
 set -euxo pipefail
 
-readonly NOT_SUPPORTED_MESSAGE="Zeppelin initialization action is not supported on Dataproc ${DATAPROC_VERSION}.
-Use Zeppelin Component instead: https://cloud.google.com/dataproc/docs/concepts/components/zeppelin"
-[[ $DATAPROC_VERSION != 1.* ]] && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
+# Detect dataproc image version from its various names
+if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
+  DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
+fi
+
+
+readonly NOT_SUPPORTED_MESSAGE="Zeppelin initialization action is not supported on Dataproc ${DATAPROC_IMAGE_VERSION}.
+Use Zeppelin Optional Component instead: https://cloud.google.com/dataproc/docs/concepts/components/zeppelin"
+[[ "${DATAPROC_IMAGE_VERSION}" != 1.* ]] && echo "${NOT_SUPPORTED_MESSAGE}" && exit 1
 
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly INTERPRETER_FILE='/etc/zeppelin/conf/interpreter.json'
@@ -66,8 +72,8 @@ function install_zeppelin() {
   local asm_3_1=/usr/lib/zeppelin/lib/asm-3.1.jar
   local asm_5_0_4=/usr/lib/zeppelin/lib/asm-5.0.4.jar
 
-  if [[ "$zeppelin_version" == "0.7."* && -f "$asm_3_1" && -f "$asm_5_0_4" ]]; then
-    rm "$asm_5_0_4"
+  if [[ "${zeppelin_version}" == "0.7."* && -f "${asm_3_1}" && -f "${asm_5_0_4}" ]]; then
+    rm "${asm_5_0_4}"
   fi
 }
 
