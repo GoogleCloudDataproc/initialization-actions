@@ -21,7 +21,7 @@ set -euxo pipefail
 
 # Detect dataproc image version from its various names
 if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
-  DATAPROC_IMAGE_VERSION="${DATAPROC_IMAGE_VERSION}"
+  DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
 fi
 
 
