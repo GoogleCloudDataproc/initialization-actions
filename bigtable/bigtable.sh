@@ -223,7 +223,7 @@ function install_hbase() {
       local VARIANT="bin"
       local BASENAME="hbase-${HBASE_VERSION}-${VARIANT}.tar.gz"
       echo "hbase dist basename: ${BASENAME}"
-      wget "https://archive.apache.org/dist/hbase/${HBASE_VERSION}/${BASENAME}" -P /tmp || err 'Unable to download tar'
+      wget -q -nv "https://archive.apache.org/dist/hbase/${HBASE_VERSION}/${BASENAME}" -P /tmp || err 'Unable to download tar'
 
       # extract binaries from bundle
       mkdir -p "/tmp/hbase-${HBASE_VERSION}/" "${HBASE_HOME}"
