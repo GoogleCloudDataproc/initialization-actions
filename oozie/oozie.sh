@@ -387,7 +387,12 @@ EOM
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop-common-*.jar ${tmp_dir}/share/lib/hive/woodstox-core-*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/stax2-api-*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
-        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar "
+        if [[ -f /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar ]]; then
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar"
+        else
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/*spark-metrics-listener*.jar "
+        fi
         find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
         cp /usr/lib/hive/lib/guava-*.jar /usr/lib/oozie/lib
       elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.5" | bc -l) == 1  ]]; then
@@ -396,18 +401,33 @@ EOM
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop-common-*.jar ${tmp_dir}/share/lib/hive/woodstox-core-*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/stax2-api-*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
-        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar "
+        if [[ -f /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar ]]; then
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar"
+        else
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/*spark-metrics-listener*.jar "
+        fi
       elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.4" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop-common-*.jar ${tmp_dir}/share/lib/hive/woodstox-core-*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/stax2-api-*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
-        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar "
+        if [[ -f /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar ]]; then
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar"
+        else
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/*spark-metrics-listener*.jar "
+        fi
         find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
         wget -P /usr/lib/oozie/lib ${MAVEN_CENTRAL_URI}/com/google/guava/guava/11.0.2/guava-11.0.2.jar
       elif [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 1.3" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
-        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar "
+        if [[ -f /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar ]]; then
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar"
+        else
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/*spark-metrics-listener*.jar "
+        fi
         ADDITIONAL_JARS=""
         find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
         wget -P /usr/lib/oozie/lib ${MAVEN_CENTRAL_URI}/com/google/guava/guava/11.0.2/guava-11.0.2.jar
@@ -425,25 +445,45 @@ EOM
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop-common-*.jar ${tmp_dir}/share/lib/hive/woodstox-core-*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/stax2-api-*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
-        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar "
+        if [[ -f /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar ]]; then
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar"
+        else
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/*spark-metrics-listener*.jar "
+        fi
       elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.5" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/spark-hadoop-cloud*.jar  /usr/lib/spark/jars/hadoop-cloud-storage-*.jar /usr/lib/spark/jars/re2j-1.1.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop-common-*.jar ${tmp_dir}/share/lib/hive/woodstox-core-*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/stax2-api-*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
-        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar "
+        if [[ -f /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar ]]; then
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar"
+        else
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/*spark-metrics-listener*.jar "
+        fi
       elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.4" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop-common-*.jar ${tmp_dir}/share/lib/hive/woodstox-core-*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/stax2-api-*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
-        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar "
+        if [[ -f /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar ]]; then
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar"
+        else
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/*spark-metrics-listener*.jar "
+        fi
         find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
         wget -P /usr/lib/oozie/lib ${MAVEN_CENTRAL_URI}/com/google/guava/guava/11.0.2/guava-11.0.2.jar
       elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.3" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
-        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
+        ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar "
+        if [[ -f /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar ]]; then
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar"
+        else
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/*spark-metrics-listener*.jar "
+        fi
       elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.2" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS=""
       else
