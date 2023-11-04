@@ -389,7 +389,7 @@ EOM
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar "
         if [[ -f /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar ]]; then
-          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar"
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
         else
           ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/*spark-metrics-listener*.jar "
         fi
@@ -403,7 +403,7 @@ EOM
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar "
         if [[ -f /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar ]]; then
-          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar"
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
         else
           ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/*spark-metrics-listener*.jar "
         fi
@@ -414,7 +414,7 @@ EOM
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar "
         if [[ -f /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar ]]; then
-          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar"
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
         else
           ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/*spark-metrics-listener*.jar "
         fi
@@ -424,7 +424,7 @@ EOM
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar "
         if [[ -f /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar ]]; then
-          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar"
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
         else
           ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/*spark-metrics-listener*.jar "
         fi
@@ -447,7 +447,7 @@ EOM
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar "
         if [[ -f /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar ]]; then
-          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar"
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
         else
           ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/*spark-metrics-listener*.jar "
         fi
@@ -459,7 +459,7 @@ EOM
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar "
         if [[ -f /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar ]]; then
-          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar"
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
         else
           ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/*spark-metrics-listener*.jar "
         fi
@@ -470,7 +470,7 @@ EOM
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar "
         if [[ -f /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar ]]; then
-          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar"
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
         else
           ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/*spark-metrics-listener*.jar "
         fi
@@ -480,7 +480,7 @@ EOM
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar "
         if [[ -f /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar ]]; then
-          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar"
+          ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/spark-metrics-listener.jar "
         else
           ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/*spark-metrics-listener*.jar "
         fi
