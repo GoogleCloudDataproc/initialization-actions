@@ -100,24 +100,15 @@ function install_spark_rapids() {
   local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
   local -r dmlc_repo_url='https://repo.maven.apache.org/maven2/ml/dmlc'
 
-  if [[ "${SPARK_VERSION}" == "3"* ]]; then
-    wget -nv --timeout=30 --tries=5 --retry-connrefused \
-      "${dmlc_repo_url}/xgboost4j-spark-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-spark-gpu_2.12-${XGBOOST_VERSION}.jar" \
-      -P /usr/lib/spark/jars/
-    wget -nv --timeout=30 --tries=5 --retry-connrefused \
-      "${dmlc_repo_url}/xgboost4j-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-gpu_2.12-${XGBOOST_VERSION}.jar" \
-      -P /usr/lib/spark/jars/
-    wget -nv --timeout=30 --tries=5 --retry-connrefused \
-      "${nvidia_repo_url}/rapids-4-spark_2.12/${SPARK_RAPIDS_VERSION}/rapids-4-spark_2.12-${SPARK_RAPIDS_VERSION}.jar" \
-      -P /usr/lib/spark/jars/
-  else
-    wget -nv --timeout=30 --tries=5 --retry-connrefused \
-      "${rapids_repo_url}/xgboost4j-spark_${SPARK_VERSION}/${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}/xgboost4j-spark_${SPARK_VERSION}-${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}.jar" \
-      -P /usr/lib/spark/jars/
-    wget -nv --timeout=30 --tries=5 --retry-connrefused \
-      "${rapids_repo_url}/xgboost4j_${SPARK_VERSION}/${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}/xgboost4j_${SPARK_VERSION}-${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}.jar" \
-      -P /usr/lib/spark/jars/
-  fi
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "${dmlc_repo_url}/xgboost4j-spark-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-spark-gpu_2.12-${XGBOOST_VERSION}.jar" \
+    -P /usr/lib/spark/jars/
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "${dmlc_repo_url}/xgboost4j-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-gpu_2.12-${XGBOOST_VERSION}.jar" \
+    -P /usr/lib/spark/jars/
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "${nvidia_repo_url}/rapids-4-spark_2.12/${SPARK_RAPIDS_VERSION}/rapids-4-spark_2.12-${SPARK_RAPIDS_VERSION}.jar" \
+    -P /usr/lib/spark/jars/
 }
 
 function configure_spark() {
@@ -198,6 +189,8 @@ function install_nvidia_gpu_driver() {
 
     if [[ ${DEBIAN_VERSION} == 10 ]]; then
       apt remove -y libglvnd0
+      apt install -y ca-certificates-java
+
     fi
 
     execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${NVIDIA_DRIVER_VERSION_PREFIX}"
