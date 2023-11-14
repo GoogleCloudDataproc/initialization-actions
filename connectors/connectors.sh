@@ -79,6 +79,7 @@ function get_connector_url() {
           scala_version="2.12"
           local -r jar_name="spark-bigquery-with-dependencies_${scala_version}-${version}.jar"
         fi
+        ;;
       *)
         echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
         exit 1
@@ -122,7 +123,7 @@ update_connector_url() {
   local -r url=$2
 
   if [[ -d ${VM_CONNECTORS_DATAPROC_DIR} ]]; then
-    if [[ $name == spark-bigquery ]] && [[ "${DATAPROC_VERSION}" == '2.2' ]]; then
+    if [[ $name == spark-bigquery ]] && [[ "${DATAPROC_IMAGE_VERSION}" == '2.2' ]]; then
       local vm_connectors_dir=${SPARK_JARS_DIR}
     else
       local vm_connectors_dir=${VM_CONNECTORS_DATAPROC_DIR}
