@@ -7,6 +7,7 @@ set -euxo pipefail
 
 readonly VM_CONNECTORS_HADOOP_DIR=/usr/lib/hadoop/lib
 readonly VM_CONNECTORS_DATAPROC_DIR=/usr/local/share/google/dataproc/lib
+readonly SPARK_JARS_DIR="${SPARK_HOME}/jars"
 
 declare -A MIN_CONNECTOR_VERSIONS
 MIN_CONNECTOR_VERSIONS=(
@@ -65,17 +66,24 @@ function get_connector_url() {
           echo "${name} version ${version} does not target scala versions below 2.12 (${scala_version})" >&2
           exit 1
         fi
+        local -r jar_name="spark-bigquery-with-dependencies_${scala_version}-${version}.jar"
         ;;
       "1.5" | "2.0" | "2.1")
         scala_version="2.12"
+        local -r jar_name="spark-bigquery-with-dependencies_${scala_version}-${version}.jar"
         ;;
+      "2.2")
+        if ! compare_versions_lt ${version} 0.33.0 ; then
+          local -r jar_name="spark-3.4-bigquery-${version}.jar"
+        else
+          scala_version="2.12"
+          local -r jar_name="spark-bigquery-with-dependencies_${scala_version}-${version}.jar"
+        fi
       *)
         echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
         exit 1
         ;;
     esac
-
-    local -r jar_name="spark-bigquery-with-dependencies_${scala_version}-${version}.jar"
 
     echo "gs://spark-lib/bigquery/${jar_name}"
     return
@@ -114,13 +122,19 @@ update_connector_url() {
   local -r url=$2
 
   if [[ -d ${VM_CONNECTORS_DATAPROC_DIR} ]]; then
-    local vm_connectors_dir=${VM_CONNECTORS_DATAPROC_DIR}
+    if [[ $name == spark-bigquery ]] && [[ "${DATAPROC_VERSION}" == '2.2' ]]; then
+      local vm_connectors_dir=${SPARK_JARS_DIR}
+    else
+      local vm_connectors_dir=${VM_CONNECTORS_DATAPROC_DIR}
+    fi
   else
     local vm_connectors_dir=${VM_CONNECTORS_HADOOP_DIR}
   fi
 
   # Remove old connector if exists
-  if [[ "${name}" == spark-bigquery || "${name}" == hive-bigquery ]]; then
+  if [[ "${name}" == spark-bigquery ]]; then
+    local pattern="spark-*bigquery*.jar"
+  elif [[ "${name}" == hive-bigquery ]]; then
     local pattern="${name}*.jar"
   else
     local pattern="${name}-connector-*.jar"
@@ -133,7 +147,9 @@ update_connector_url() {
   local -r jar_name=${url##*/}
 
   # Update or create version-less connector link
-  ln -s -f "${vm_connectors_dir}/${jar_name}" "${vm_connectors_dir}/${name}-connector.jar"
+  if [[ ${vm_connectors_dir} != ${SPARK_JARS_DIR} ]]; then
+    ln -s -f "${vm_connectors_dir}/${jar_name}" "${vm_connectors_dir}/${name}-connector.jar"
+  fi
 }
 
 update_connector_version() {
