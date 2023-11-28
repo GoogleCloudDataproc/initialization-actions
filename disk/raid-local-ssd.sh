@@ -5,7 +5,6 @@ if [[ "${ROLE}" != "Master" ]]; then
   sudo apt-get install mdadm
 
   // Create RAID 0 array
-  // make   sudo mdadm --create --verbose /dev/md0 --level=0 --raid-devices=4 /dev/sdb /dev/sdc /dev/sdd /dev/sde this dynamic
   sudo mdadm --create --verbose /dev/md0 --level=0 --raid-devices=4 /dev/sdb /dev/sdc /dev/sdd /dev/sde
 
   // Format the RAID 0 array
