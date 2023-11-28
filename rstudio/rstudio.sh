@@ -27,21 +27,16 @@ OS_ID=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
 OS_CODE=$(lsb_release -cs)
 
 RSTUDIO_SERVER_VERSION=''
-if [[ "${OS_ID}" == debian ]]; then
+if [[ "${OS_ID}" == debian ]] || [[ "${OS_ID}" == ubuntu ]]; then
   RSTUDIO_SERVER_VERSION=1.2.5019
   if [[ "${OS_CODE}" == stretch ]]; then
     RSTUDIO_SERVER_URL=https://download2.rstudio.org/server/debian9/x86_64
-  else
-    RSTUDIO_SERVER_URL=https://download2.rstudio.org/server/bionic/amd64
-  fi
-elif [[ "${OS_ID}" == ubuntu ]]; then
+  elif [[ "$OS_CODE" == bookworm ]] || [[ "${OS_CODE}" == jammy ]]; then
   # Choose Ubuntu 22 compatible version, see
   # https://community.rstudio.com/t/dependency-error-when-installing-rstudio-on-ubuntu-22-04-with-libssl/135397.
-  if [[ "${OS_CODE}" == jammy ]]; then
-    RSTUDIO_SERVER_VERSION=2023.09.0-463
-    RSTUDIO_SERVER_URL=https://download2.rstudio.org/server/${OS_CODE}/amd64
+    RSTUDIO_SERVER_VERSION=2023.09.1-494
+    RSTUDIO_SERVER_URL=https://download2.rstudio.org/server/jammy/amd64
   else
-    RSTUDIO_SERVER_VERSION=1.2.5019
     RSTUDIO_SERVER_URL=https://download2.rstudio.org/server/bionic/amd64
   fi
 else
@@ -126,7 +121,11 @@ if [[ "${ROLE}" == 'Master' ]]; then
     fi
   fi
   if [[ -z "${USER_PASSWORD}" ]]; then
-    sed -i 's:ExecStart=\(.*\):Environment=USER=rstudio\nExecStart=\1 --auth-none 1:1' /etc/systemd/system/rstudio-server.service
+    service_file=/etc/systemd/system/rstudio-server.service
+    if [[ "${OS_CODE}" == "bookworm" ]];then
+      service_file=/lib/systemd/system/rstudio-server.service
+    fi
+    sed -i 's:ExecStart=\(.*\):Environment=USER=rstudio\nExecStart=\1 --auth-none 1:1' "$service_file"
     systemctl daemon-reload
     systemctl restart rstudio-server
   fi
