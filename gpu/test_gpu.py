@@ -203,6 +203,48 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         "--jars=file:///usr/lib/spark/examples/jars/spark-examples.jar --class=org.apache.spark.examples.ml.JavaIndexToStringExample --properties=spark.driver.resource.gpu.amount=1,spark.driver.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh,spark.executor.resource.gpu.amount=1,spark.executor.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh"
     )
 
+  @parameterized.parameters(
+    ("SINGLE", ["m"], GPU_V100, None, "10.1"),
+    ("STANDARD", ["m"], GPU_V100, None, "10.2"),
+    ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "11.0"),
+    ("STANDARD", ["w-0", "w-1"], None, GPU_V100, "11.1"),
+    ("STANDARD", ["w-0", "w-1"], None, GPU_V100, "11.2"),
+  )
+  def test_install_gpu_cuda_nvidia_with_spark_job(self, configuration, machine_suffixes,
+                                   master_accelerator, worker_accelerator,
+                                   cuda_version):
+    image_os = self.getImageOs()
+
+    if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+      self.skipTest("Not supported in pre 2.0 images")
+
+    if ( image_os == "rocky" and (cuda_version < "11.2" and cuda_version != "11.0") ) or \
+        ( image_os == "debian" and cuda_version < "11.1" ):
+      self.skipTest(f'CUDA version {cuda_version} is not supported on os {image_os}')
+
+    metadata = "gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
+    self.createCluster(
+      configuration,
+      self.INIT_ACTIONS,
+      machine_type="n1-standard-2",
+      master_accelerator=master_accelerator,
+      worker_accelerator=worker_accelerator,
+      metadata=metadata,
+      timeout_in_minutes=30,
+      boot_disk_size="200GB",
+      scopes="https://www.googleapis.com/auth/monitoring.write")
+    for machine_suffix in machine_suffixes:
+      self.verify_instance("{}-{}".format(self.getClusterName(),
+                                          machine_suffix))
+      self.verify_instance_gpu_agent("{}-{}".format(self.getClusterName(),
+                                                    machine_suffix))
+
+    self.assert_dataproc_job(
+      self.getClusterName(),
+      "spark",
+      "--jars=file:///usr/lib/spark/examples/jars/spark-examples.jar --class=org.apache.spark.examples.ml.JavaIndexToStringExample --properties=spark.driver.resource.gpu.amount=1,spark.driver.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh,spark.executor.resource.gpu.amount=1,spark.executor.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh"
+    )
+
 
 if __name__ == "__main__":
   absltest.main()
