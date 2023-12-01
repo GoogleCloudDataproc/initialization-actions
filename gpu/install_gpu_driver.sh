@@ -69,9 +69,11 @@ readonly NVIDIA_DEBIAN_GPU_DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-v
 readonly NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX=${NVIDIA_DEBIAN_GPU_DRIVER_VERSION%%.*}
 readonly DRIVER=${NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}
 # As of Rocky 8.7, kernel 4.18.0-425 is unable to build older nvidia kernel drivers
+ROCKY_BINARY_INSTALL="false"
 if [[ "${OS_NAME}" == "rocky" &&  "${DRIVER}" < "510" ]]; then
   readonly ROCKY_BINARY_INSTALL="true"
 fi
+readonly ROCKY_BINARY_INSTALL
 
 # Fail early for configurations known to be unsupported
 function unsupported_error {
@@ -127,7 +129,8 @@ readonly -A DEFAULT_NVIDIA_DEBIAN_CUDA_URLS=(
   [11.5]="${NVIDIA_BASE_DL_URL}/cuda/11.5.2/local_installers/cuda_11.5.2_495.29.05_linux.run"
   [11.6]="${NVIDIA_BASE_DL_URL}/cuda/11.6.2/local_installers/cuda_11.6.2_510.47.03_linux.run"
   [11.7]="${NVIDIA_BASE_DL_URL}/cuda/11.7.1/local_installers/cuda_11.7.1_515.65.01_linux.run"
-  [11.8]="${NVIDIA_BASE_DL_URL}/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run")
+  [11.8]="${NVIDIA_BASE_DL_URL}/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run"
+  [12.1]="${NVIDIA_BASE_DL_URL}/cuda/12.1.0/local_installers/cuda_12.1.0_530.30.02_linux.run")
 readonly DEFAULT_NVIDIA_DEBIAN_CUDA_URL=${DEFAULT_NVIDIA_DEBIAN_CUDA_URLS["${CUDA_VERSION}"]}
 NVIDIA_DEBIAN_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_DEBIAN_CUDA_URL}")
 readonly NVIDIA_DEBIAN_CUDA_URL
@@ -486,6 +489,75 @@ EOF
   systemctl start dataproc-cgroup-device-permissions
 }
 
+function upgrade_kernel() {
+  # Determine which kernel is installed
+  if [[ "${OS_NAME}" == "debian" ]]; then
+    CURRENT_KERNEL_VERSION=`cat /proc/version  | perl -ne 'print( / Debian (\S+) / )'`
+  elif [[ "${OS_NAME}" == "ubuntu" ]]; then
+    CURRENT_KERNEL_VERSION=`cat /proc/version | perl -ne 'print( /^Linux version (\S+) / )'`
+  elif [[ ${OS_NAME} == rocky ]]; then
+    KERN_VER=$(yum info --installed kernel | awk '/^Version/ {print $3}')
+    KERN_REL=$(yum info --installed kernel | awk '/^Release/ {print $3}')
+    # something like 4.18.0-425.10.1.el8_7
+    CURRENT_KERNEL_VERSION="${KERN_VER}-${KERN_REL}"
+  else
+    echo "unsupported OS: ${OS_NAME}!"
+    exit -1
+  fi
+
+  # Get latest version available in repos
+  if [[ "${OS_NAME}" == "debian" ]]; then
+    apt-get -qq update
+    TARGET_VERSION=$(apt-cache show --no-all-versions linux-image-amd64 | awk '/^Version/ {print $2}')
+  elif [[ "${OS_NAME}" == "ubuntu" ]]; then
+    apt-get -qq update
+    LATEST_VERSION=$(apt-cache show --no-all-versions linux-image-gcp | awk '/^Version/ {print $2}')
+    TARGET_VERSION=`echo ${LATEST_VERSION} | perl -ne 'printf(q{%s-%s-gcp},/(\d+\.\d+\.\d+)\.(\d+)/)'`
+  elif [[ "${OS_NAME}" == "rocky" ]]; then
+    if yum info --available kernel ; then
+      KERN_VER=$(yum info --available kernel | awk '/^Version/ {print $3}')
+      KERN_REL=$(yum info --available kernel | awk '/^Release/ {print $3}')
+      TARGET_VERSION="${KERN_VER}-${KERN_REL}"
+    else
+      TARGET_VERSION="${CURRENT_KERNEL_VERSION}"
+    fi
+  fi
+
+  # Skip this script if we are already on the target version
+  if [[ "${CURRENT_KERNEL_VERSION}" == "${TARGET_VERSION}" ]]; then
+    echo "target kernel version [${TARGET_VERSION}] is installed"
+
+    # Reboot may have interrupted dpkg.  Bring package system to a good state
+    if [[ "${OS_NAME}" == "debian" || "${OS_NAME}" == "ubuntu" ]]; then
+      dpkg --configure -a
+    fi
+
+    return 0
+  fi
+
+  # Install the latest kernel
+  if [[ ${OS_NAME} == debian ]]; then
+    apt-get install -y linux-image-amd64
+  elif [[ "${OS_NAME}" == "ubuntu" ]]; then
+    apt-get install -y linux-image-gcp
+  elif [[ "${OS_NAME}" == "rocky" ]]; then
+    dnf -y -q install kernel
+  fi
+
+  # Make it possible to reboot before init actions are complete - #1033
+  DP_ROOT=/usr/local/share/google/dataproc
+  STARTUP_SCRIPT="${DP_ROOT}/startup-script.sh"
+  POST_HDFS_STARTUP_SCRIPT="${DP_ROOT}/post-hdfs-startup-script.sh"
+
+  for startup_script in ${STARTUP_SCRIPT} ${POST_HDFS_STARTUP_SCRIPT} ; do
+    sed -i -e 's:/usr/bin/env bash:/usr/bin/env bash\nexit 0:' ${startup_script}
+  done
+
+  cp /var/log/dataproc-initialization-script-0.log /var/log/dataproc-initialization-script-0.log.0
+
+  systemctl reboot
+}
+
 function main() {
   if [[ ${OS_NAME} != debian ]] && [[ ${OS_NAME} != ubuntu ]] && [[ ${OS_NAME} != rocky ]]; then
     echo "Unsupported OS: '${OS_NAME}'"
@@ -497,8 +569,13 @@ function main() {
     execute_with_retries "apt-get update"
     execute_with_retries "apt-get install -y -q pciutils"
   elif [[ ${OS_NAME} == rocky ]] ; then
-    execute_with_retries "dnf -y -q update"
+    execute_with_retries "dnf -y -q update --exclude=systemd*,kernel*"
     execute_with_retries "dnf -y -q install pciutils"
+    if dnf list kernel-devel-$(uname -r); then
+      echo "kernel devel package is available.  Proceed without kernel upgrade."
+    else
+      upgrade_kernel
+    fi
     execute_with_retries "dnf -y -q install kernel-devel-$(uname -r)"
     execute_with_retries "dnf -y -q install gcc"
   fi
