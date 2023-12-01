@@ -71,7 +71,7 @@ readonly DRIVER=${NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}
 # As of Rocky 8.7, kernel 4.18.0-425 is unable to build older nvidia kernel drivers
 ROCKY_BINARY_INSTALL="false"
 if [[ "${OS_NAME}" == "rocky" &&  "${DRIVER}" < "510" ]]; then
-  readonly ROCKY_BINARY_INSTALL="true"
+  ROCKY_BINARY_INSTALL="true"
 fi
 readonly ROCKY_BINARY_INSTALL
 
