@@ -54,10 +54,16 @@ class DataprocTestCase(parameterized.TestCase):
 
         _, project, _ = cls.run_command("gcloud config get-value project")
         cls.PROJECT = project.strip()
+        logging.warning("Printing debug logs for project here")
+        logging.warning(cls.run_command("gcloud config get-value project"))
+        logging.warning(project)
 
         _, region, _ = cls.run_command(
             "gcloud config get-value compute/region")
         cls.REGION = region.strip()
+        logging.warning("Printing debug logs for region here")
+        logging.warning(cls.run_command("gcloud config get-value compute/region"))
+        logging.warning(region)
 
         assert cls.PROJECT
         assert cls.REGION
