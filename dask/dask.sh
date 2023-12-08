@@ -21,13 +21,15 @@
 
 set -euxo pipefail
 
+readonly DASK_VERSION='2022.1'
+
 readonly DEFAULT_CONDA_ENV=$(conda info --base)
 readonly DASK_YARN_CONFIG_DIR=/etc/dask/
 readonly DASK_YARN_CONFIG_FILE=${DASK_YARN_CONFIG_DIR}/config.yaml
 
 readonly DASK_RUNTIME="$(/usr/share/google/get_metadata_value attributes/dask-runtime || echo 'yarn')"
 readonly RUN_WORKER_ON_MASTER="$(/usr/share/google/get_metadata_value attributes/dask-worker-on-master || echo 'true')"
-readonly DASK_VERSION='2022.1'
+readonly DASK_CLOUD_LOGGING="$(/usr/share/google/get_metadata_value attributes/dask-cloud-logging || echo 'false')"
 
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly MASTER="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
@@ -292,6 +294,54 @@ EOF
 }
 
 
+function configure_fluentd_for_dask() {
+  cat >/etc/google-fluentd/config.d/dataproc-dask.conf <<EOF
+# Fluentd config for Dask logs
+
+# Dask scheduler
+<source>
+  @type tail
+  path /var/log/dask-scheduler.log
+  pos_file /var/tmp/fluentd.dataproc.dask.scheduler.pos
+  read_from_head true
+  tag google.dataproc.dask-scheduler
+  <parse>
+    @type none
+  </parse>
+</source>
+
+<filter google.dataproc.dask-scheduler>
+  @type record_transformer
+  <record>
+    filename dask-scheduler.log
+  </record>
+</filter>
+
+
+# Dask worker
+<source>
+  @type tail
+  path /var/log/dask-worker.log
+  pos_file /var/tmp/fluentd.dataproc.dask.worker.pos
+  read_from_head true
+  tag google.dataproc.dask-worker
+  <parse>
+    @type none
+  </parse>
+</source>
+
+<filter google.dataproc.dask-worker>
+  @type record_transformer
+  <record>
+    filename dask-worker.log
+  </record>
+</filter>
+EOF
+
+  systemctl restart google-fluentd
+}
+
+
 function main() {
   # Install conda packages
   execute_with_retries "mamba install -y ${CONDA_PACKAGES[*]}"
@@ -307,6 +357,10 @@ function main() {
     systemctl start "${DASK_SERVICE}"
 
     configure_knox_for_dask
+
+    if [[ "${DASK_CLOUD_LOGGING}" == "true" ]]; then
+      configure_fluentd_for_dask
+    fi
   else
     echo "Unsupported Dask Runtime: ${DASK_RUNTIME}"
     exit 1

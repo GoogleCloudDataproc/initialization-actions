@@ -65,6 +65,24 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
   --enable-component-gateway
 ```
 
+### Creating Dataproc Cluster with Dask in standalone mode
+
+The following command will create a
+[Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster with
+[Dask](https://dask.org/) in standalone mode and Cloud Logging enabled.
+
+```bash
+CLUSTER_NAME=<cluster-name>
+REGION=<region>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+  --region ${REGION} \
+  --master-machine-type e2-standard-16 \
+  --worker-machine-type e2-highmem-32 \
+  --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/dask/dask.sh \
+  --initialization-action-timeout 20m \
+  --metadata dask-runtime=standalone \
+  --metadata dask-cloud-logging=true
+
 ### Dask examples
 
 #### Dask standalone
@@ -151,3 +169,5 @@ This initialization action supports the following `metadata` fields:
 *   `dask-runtime=yarn|standalone`: Dask runtime. Default is `yarn`.
 *   `dask-worker-on-master`: Treat Dask master node as an additional worker.
     Default is `true`.
+*   `dask-cloud-logging`: Whether to enable Cloud Logging for Dask logs, only applies
+    to standalone mode. Possible values are `true` and `false`, the default is `false`.
