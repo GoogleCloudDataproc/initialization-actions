@@ -35,6 +35,11 @@ readonly MASTER="$(/usr/share/google/get_metadata_value attributes/dataproc-mast
 # Dask 'standalone' config
 readonly DASK_LAUNCHER=/usr/local/bin/dask-launcher.sh
 readonly DASK_SERVICE=dask-cluster
+readonly DASK_UI_PORT=8787
+
+readonly KNOX_HOME=/usr/lib/knox
+readonly KNOX_DASK_DIR=${KNOX_HOME}/data/services/dask/0.1.0
+readonly KNOX_DASKWS_DIR=${KNOX_HOME}/data/services/daskws/0.1.0
 
 CONDA_PACKAGES=("dask=${DASK_VERSION}" 'dask-bigquery' 'dask-ml' 'dask-sql')
 
@@ -125,6 +130,168 @@ EOF
   systemctl enable "${DASK_SERVICE}"
 }
 
+
+function restart_knox() {
+  systemctl stop knox
+  rm -rf "${KNOX_HOME}/data/deployments/*"
+  systemctl start knox
+}
+
+
+function configure_knox_for_dask() {
+  if [[ ! -d "${KNOX_HOME}" ]]; then
+    echo "Skip configuring Knox rules for Dask"
+    return 0
+  fi
+
+  sed -i \
+    "/<\/topology>/i <service><role>DASK<\/role><url>http://localhost:${DASK_UI_PORT}<\/url><\/service> <service><role>DASKWS<\/role><url>ws:\/\/localhost:${DASK_UI_PORT}<\/url><\/service>" \
+    /etc/knox/conf/topologies/default.xml
+
+  mkdir -p "${KNOX_DASK_DIR}"
+
+  cat >"${KNOX_DASK_DIR}/service.xml" <<'EOF'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+
+<service role="DASK" name="dask" version="0.1.0">
+  <policies>
+    <policy role="webappsec"/>
+    <policy role="authentication" name="Anonymous"/>
+    <policy role="rewrite"/>
+    <policy role="authorization"/>
+  </policies>
+
+  <routes>
+    <!-- Javascript paths -->
+    <route path="/dask/**/*.js">
+      <rewrite apply="DASK/dask/inbound/js/dask" to="request.url"/>
+      <rewrite apply="DASK/dask/outbound/js" to="response.body"/>
+    </route>
+    <route path="/dask/**/*.js?**">
+      <rewrite apply="DASK/dask/inbound/js/dask" to="request.url"/>
+      <rewrite apply="DASK/dask/outbound/js" to="response.body"/>
+    </route>
+
+    <!-- CSS paths -->
+    <route path="/dask/**/*.css">
+      <rewrite apply="DASK/dask/inbound/css/dask" to="request.url"/>
+    </route>
+
+    <!-- General path routing -->
+    <route path="/dask">
+      <rewrite apply="DASK/dask/inbound/root" to="request.url"/>
+      <rewrite apply="DASK/dask/outbound/headers" to="response.headers"/>
+    </route>
+    <route path="/dask/**">
+      <rewrite apply="DASK/dask/inbound/root/path" to="request.url"/>
+      <rewrite apply="DASK/dask/outbound/headers" to="response.headers"/>
+      <rewrite apply="DASK/dask/outbound/logs" to="response.body"/>
+    </route>
+    <route path="/dask/**?**">
+      <rewrite apply="DASK/dask/inbound/root/query" to="request.url"/>
+      <rewrite apply="DASK/dask/outbound/headers" to="response.headers"/>
+      <rewrite apply="DASK/dask/outbound/logs" to="response.body"/>
+    </route>
+  </routes>
+  <dispatch classname="org.apache.knox.gateway.dispatch.PassAllHeadersNoChunkedPostDispatch"/>
+</service>
+EOF
+
+  cat >"${KNOX_DASK_DIR}/rewrite.xml" <<'EOF'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+
+<rules>
+  <rule dir="IN" name="DASK/dask/inbound/js/dask" pattern="http://*:*/**/dask/{**}?{**}">
+    <rewrite template="{$serviceUrl[DASK]}/{**}?{**}"/>
+  </rule>
+  <rule dir="IN" name="DASK/dask/inbound/root" pattern="http://*:*/**/dask">
+    <rewrite template="{$serviceUrl[DASK]}"/>
+  </rule>
+  <rule dir="IN" name="DASK/dask/inbound/root/path" pattern="http://*:*/**/dask/{**}">
+    <rewrite template="{$serviceUrl[DASK]}/{**}"/>
+  </rule>
+  <rule dir="IN" name="DASK/dask/inbound/root/query" pattern="http://*:*/**/dask/{**}?{**}">
+    <rewrite template="{$serviceUrl[DASK]}/{**}?{**}"/>
+  </rule>
+  <rule dir="IN" name="DASK/dask/inbound/css/dask" pattern="http://*:*/**/dask/{**}?{**}">
+    <rewrite template="{$serviceUrl[DASK]}/{**}?{**}"/>
+  </rule>
+  <!-- without the /gateway/default prefix -->
+  <rule dir="IN" name="DASK/dask/inbound/root/noprefix" pattern="http://*:*/dask">
+    <rewrite template="{$serviceUrl[DASK]}"/>
+  </rule>
+
+  <rule dir="OUT" name="DASK/dask/outbound/logs" pattern="/logs">
+    <rewrite template="{$frontend[path]}/dask/info/logs"/>
+  </rule>
+
+  <!-- Rewrite redirect responses Location header -->
+  <filter name="DASK/dask/outbound/headers">
+    <content type="application/x-http-headers">
+      <apply path="Location" rule="DASK/dask/outbound/headers/location"/>
+    </content>
+  </filter>
+
+  <rule dir="OUT" name="DASK/dask/outbound/headers/location" flow="OR">
+    <match pattern="*://*:*/">
+      <rewrite template="{$frontend[path]}/dask/"/>
+    </match>
+    <match pattern="*://*:*/{**}">
+      <rewrite template="{$frontend[path]}/dask/{**}"/>
+    </match>
+    <match pattern="*://*:*/{**}?{**}">
+      <rewrite template="{$frontend[path]}/dask/{**}?{**}"/>
+    </match>
+    <match pattern="/{**}">
+      <rewrite template="{$frontend[path]}/dask/{**}"/>
+    </match>
+    <match pattern="/{**}?{**}">
+      <rewrite template="{$frontend[path]}/dask/{**}?{**}"/>
+    </match>
+  </rule>
+</rules>
+EOF
+
+  mkdir -p "${KNOX_DASKWS_DIR}"
+
+  cat >"${KNOX_DASKWS_DIR}/service.xml" <<'EOF'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+
+<service role="DASKWS" name="daskws" version="0.1.0">
+  <policies>
+    <policy role="webappsec"/>
+    <policy role="authentication" name="Anonymous"/>
+    <policy role="rewrite"/>
+    <policy role="authorization"/>
+  </policies>
+
+  <routes>
+
+    <route path="/dask/**/ws">
+      <rewrite apply="DASKWS/daskws/inbound/ws" to="request.url"/>
+    </route>
+
+  </routes>
+  <dispatch classname="org.apache.knox.gateway.dispatch.PassAllHeadersNoChunkedPostDispatch"/>
+</service>
+EOF
+
+  cat >"${KNOX_DASKWS_DIR}/rewrite.xml" <<'EOF'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+
+<rules>
+  <rule dir="IN" name="DASKWS/daskws/inbound/ws" pattern="ws://*:*/**/dask/{**}/ws">
+    <rewrite template="{$serviceUrl[DASKWS]}/{**}/ws"/>
+  </rule>
+</rules>
+EOF
+
+  chown -R knox:knox "${KNOX_DASK_DIR}" "${KNOX_DASKWS_DIR}"
+
+  restart_knox
+}
+
+
 function main() {
   # Install conda packages
   execute_with_retries "mamba install -y ${CONDA_PACKAGES[*]}"
@@ -138,6 +305,8 @@ function main() {
 
     echo "Starting Dask 'standalone' cluster..."
     systemctl start "${DASK_SERVICE}"
+
+    configure_knox_for_dask
   else
     echo "Unsupported Dask Runtime: ${DASK_RUNTIME}"
     exit 1
@@ -145,5 +314,6 @@ function main() {
 
   echo "Dask for ${DASK_RUNTIME} successfully initialized."
 }
+
 
 main

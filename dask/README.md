@@ -126,7 +126,17 @@ python file.py`
 You can monitor your Dask applications using Web UIs, depending on which
 runtime you are using.
 
-For `standalone` mode, you can access the native Dask UI. Create an [SSH tunnel](https://cloud.google.com/dataproc/docs/concepts/accessing/cluster-web-interfaces#connecting_to_web_interfaces)
+For `standalone` mode, you can access the native Dask UI in one of the following ways:
+
+1) If [Component Gateway](https://cloud.google.com/dataproc/docs/concepts/accessing/dataproc-gateways)
+is enabled, the Dask UI can be accessible through `https://<id>-dot-<region>.dataproc.googleusercontent.com/gateway/default/dask`.
+
+2) Create an [SSH port forwarding](https://cloud.google.com/dataproc/docs/concepts/accessing/cluster-web-interfaces#can_i_use_local_port_forwarding_instead_of_a_socks_proxy)
+by running `gcloud compute ssh ${vm} --zone="${zone}" -- -L ":8787:${vm}:8787" -N`
+on the local machine, then access the Dask UI through `http://localhost:8787` in
+the browser.
+
+3) Create an [SSH tunnel](https://cloud.google.com/dataproc/docs/concepts/accessing/cluster-web-interfaces#connecting_to_web_interfaces)
 to access the Dask UI on port 8787.
 
 For `yarn` mode, you can access the Skein Web UI via the YARN ResourceManager.
