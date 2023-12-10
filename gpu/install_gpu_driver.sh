@@ -486,6 +486,99 @@ EOF
   systemctl start dataproc-cgroup-device-permissions
 }
 
+readonly CONTAINER_EX_CFG="${HADOOP_CONF_DIR}/container-executor.cfg"
+function install_nvidia_container_toolkit() {
+  readonly NV_DOCKER=/usr/bin/nvidia-docker
+  readonly CONTAINER_EX=/usr/lib/hadoop-yarn/bin/container-executor
+  readonly NV_CONTAINER_REPO=https://nvidia.github.io/libnvidia-container
+
+  if [ ${OS_NAME} == rocky ]
+  then
+    curl -s -L ${NV_CONTAINER_REPO}/centos8/libnvidia-container.repo | \
+      tee /etc/yum.repos.d/nvidia-container-toolkit.repo
+    dnf clean expire-cache --refresh
+    dnf install -y nvidia-docker2
+  else
+    DEBIAN_FRONTEND=noninteractive
+
+    NV_SOURCES_LIST=/etc/apt/sources.list.d/nvidia-container-toolkit.list
+    NV_KEYRING_PATH=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+    if [ ! -f ${NV_SOURCES_LIST} ]
+    then
+      # Fetch and install the repository key
+      curl -fsSL ${NV_CONTAINER_REPO}/gpgkey | \
+        gpg --dearmor -o ${NV_KEYRING_PATH}
+
+      # create a sources.list entry for nvidia-container packages
+      curl -s -L ${NV_CONTAINER_REPO}/$distribution/libnvidia-container.list | \
+        sed "s#deb https://#deb [signed-by=${NV_KEYRING_PATH}] https://#g" | \
+        tee ${NV_SOURCES_LIST}
+
+      # refresh package cache, including those referenced from libnvidia-container-toolkit.list
+      apt-get update
+      apt-get install -y dialog debconf-utils apt-utils jq
+      # Need to pass --force-confdef due to /etc/docker/daemon.json being previously changed.    Accept the previous version.
+      apt-get install -y -o Dpkg::Options::="--force-confold" nvidia-docker2
+    fi
+  fi
+
+  # Configure hadop to run docker with /usr/bin/nvidia-docker
+  # Replace existing docker.binary option with /usr/bin/nvidia-docker
+  sed -i -e 's:docker\.binary=.*$:docker.binary=/usr/bin/nvidia-docker:' ${CONTAINER_EX_CFG}
+
+  ## added additional mounts with hadoop ecosystem dirs
+  readonly HADOOP_LOG_DIRS='/var/log/hadoop-yarn,/var/log/hadoop-mapreduce,/var/log/hadoop-hdfs,/var/log/spark'
+  readonly HADOOP_ECO_DIRS='/usr/lib/hadoop,/usr/lib/hadoop-hdfs,/usr/lib/hadoop-mapreduce,/usr/lib/hadoop-yarn,/usr/lib/spark,/usr/lib/hive,/usr/lib/hive-hcatalog,/usr/lib/tez,/usr/lib/pig,/usr/lib/zookeeper'
+  readonly DATAPROC_AUX_DIRS='/usr/local/share/google/dataproc/lib,/opt/conda,/usr/lib/jvm'
+
+  sed -i -e "s:docker\.allowed\.ro-mounts=.*$:docker.allowed.ro-mounts=/sys/fs/cgroup,${HADOOP_CONF_DIR},/etc/passwd,/etc/group,${HADOOP_ECO_DIRS},${DATAPROC_AUX_DIRS}:" ${CONTAINER_EX_CFG}
+
+  # Add default docker settings to spark-defaults.conf
+  DEFAULT_YARN_DOCKER_IMAGE="nvidia/cuda:11.1.1-base-ubuntu20.04"
+  readonly DOCKER_IMAGE="$(get_metadata_attribute yarn-docker-image ${DEFAULT_YARN_DOCKER_IMAGE})"
+
+  readonly YARN_CONTAINER_RUNTIME_TYPE="$(get_metadata_attribute yarn-container-runtime-type default)"
+
+  DOCKER_MOUNTS=/usr/lib/hadoop:/usr/lib/hadoop:ro,/usr/lib/spark:/usr/lib/spark:ro,/etc/passwd:/etc/passwd:ro,/etc/group:/etc/group:ro,/usr/local/share/google/dataproc/lib:/usr/local/share/google/dataproc/lib:ro,/usr/lib/jvm:/usr/lib/jvm:ro
+  sed -i "s/spark\.submit\.deployMode\=.*$/spark.submit.deployMode=cluster/g" "${SPARK_CONF_DIR}/spark-defaults.conf"
+  cat <<EOF >>${SPARK_CONF_DIR}/spark-defaults.conf
+spark.yarn.appMasterEnv.YARN_CONTAINER_RUNTIME_TYPE=${YARN_CONTAINER_RUNTIME_TYPE}
+spark.yarn.appMasterEnv.YARN_CONTAINER_RUNTIME_DOCKER_IMAGE=${DOCKER_IMAGE}
+spark.yarn.appMasterEnv.YARN_CONTAINER_RUNTIME_DOCKER_MOUNTS=${DOCKER_MOUNTS}
+spark.executorEnv.YARN_CONTAINER_RUNTIME_TYPE=${YARN_CONTAINER_RUNTIME_TYPE}
+spark.executorEnv.YARN_CONTAINER_RUNTIME_DOCKER_IMAGE=${DOCKER_IMAGE}
+spark.executorEnv.YARN_CONTAINER_RUNTIME_DOCKER_MOUNTS=${DOCKER_MOUNTS}
+EOF
+
+  # The container-executor binary relies on POSIX sticky bits and is required to
+  # be owned by root:yarn.
+  chown root:yarn ${NV_DOCKER} ${CONTAINER_EX}
+  chmod 6050      ${NV_DOCKER} ${CONTAINER_EX}
+  chown yarn /hadoop/yarn/nm-local-dir
+
+  # Set user for spark jobs
+  echo "export HADOOP_USER_NAME='spark'" >> ${SPARK_CONF_DIR}/spark-env.sh
+
+  # Adjust spark user/group IDs to be greater than 1000
+  usermod -u 1099 -d /home/spark -s /bin/bash spark
+  groupmod -g 1099 spark
+  mkdir -p /home/spark
+  chown -R spark:spark /var/log/spark /home/spark
+
+  # update daemon.json file to include log-driver, disable debug, and define nvidia runtime
+  JQ_STATEMENT='."log-driver" = "gcplogs" | \
+    ."debug" = false | \
+    ."runtimes" = { "nvidia": { "path": "nvidia-container-runtime", "runtimeArgs": [] } }'
+  cat /etc/docker/daemon.json | jq "${JQ_STATEMENT}" > /tmp/daemon.json \
+    && mv /tmp/daemon.json /etc/docker
+
+  # Restart docker service
+  systemctl restart docker
+
+  # Log if the GPU is visible in docker image
+  nvidia-docker run --rm ${DOCKER_IMAGE} nvidia-smi
+}
+
 function main() {
   if [[ ${OS_NAME} != debian ]] && [[ ${OS_NAME} != ubuntu ]] && [[ ${OS_NAME} != rocky ]]; then
     echo "Unsupported OS: '${OS_NAME}'"
