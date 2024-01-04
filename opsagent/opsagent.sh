@@ -20,6 +20,16 @@
 # See https://cloud.google.com/stackdriver/docs/solutions/agents/ops-agent/configuration#default
 # for built-in configuration of Ops Agent.
 
+# Detect dataproc image version from its various names
+if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
+  DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
+fi
+
+if [[ $(echo "${DATAPROC_IMAGE_VERSION} < 2.2" | bc -l) == 1  ]]; then
+  echo "This Dataproc cluster node runs image version ${DATAPROC_IMAGE_VERSION} with pre-installed legacy monitoring agent. Skipping Ops Agent installation."
+  exit 0
+fi
+
 curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
 bash add-google-cloud-ops-agent-repo.sh --also-install
 
@@ -31,4 +41,4 @@ logging:
         receivers: []
 EOF
 
-service google-cloud-ops-agent restart
+systemctl restart google-cloud-ops-agent
