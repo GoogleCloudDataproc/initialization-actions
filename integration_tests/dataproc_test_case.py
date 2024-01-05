@@ -51,7 +51,7 @@ class DataprocTestCase(parameterized.TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        os.environ["CLOUDSDK_PYTHON"] = "/usr/lib/python3"
+        os.environ["CLOUDSDK_PYTHON"] = "/usr/bin/python3"
 
         _, project, _ = cls.run_command("gcloud config get-value project")
         cls.PROJECT = project.strip()
