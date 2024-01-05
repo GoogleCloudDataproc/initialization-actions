@@ -19,6 +19,7 @@ You can use this initialization action to create a new Dataproc cluster with Kaf
         --region ${REGION} \
         --num-masters 3 \
         --metadata "run-on-master=true" \
+        --metadata "install-kafka-python=true" \
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/kafka/kafka.sh
     ```
 1. You can test your Kafka setup by creating a simple topic and publishing to it with Kafka's command-line tools, after SSH'ing into one of your nodes:
@@ -59,6 +60,7 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
     --num-masters 3 \
     --metadata "run-on-master=true" \
     --metadata "kafka-enable-jmx=true" \
+    --metadata "install-kafka-python=true" \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/kafka/kafka.sh,gs://goog-dataproc-initialization-actions-${REGION}/kafka/kafka-manager.sh
 ```
 
@@ -73,6 +75,7 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
     --region ${REGION} \
     --num-masters 3 \
     --metadata "run-on-master=true" \
+    --metadata "install-kafka-python=true" \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/kafka/kafka.sh,gs://goog-dataproc-initialization-actions-${REGION}/kafka/cruise-control.sh
 ```
 
@@ -88,6 +91,7 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
     --num-masters 3 \
     --metadata "run-on-master=true" \
     --metadata "prometheus-http-port=9096" \
+    --metadata "install-kafka-python=true" \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/kafka/kafka.sh,gs://goog-dataproc-initialization-actions-${REGION}/prometheus/prometheus.sh
 ```
 
