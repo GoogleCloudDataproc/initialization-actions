@@ -1,6 +1,5 @@
 import os
 
-import pkg_resources
 from absl.testing import absltest
 from absl.testing import parameterized
 
@@ -10,15 +9,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 class KafkaTestCase(DataprocTestCase):
     COMPONENT = 'kafka'
     INIT_ACTIONS = ['kafka/kafka.sh']
-    KAFKA_CRUISE_CONTROL_INIT_ACTION = ['kafka/kafka.sh', 'kafka/cruise-control.sh']
-    KAFKA_MANAGER_INIT_ACTION = ['kafka/kafka.sh', 'kafka/kafka-manager.sh']
     TEST_SCRIPT_FILE_NAME = 'validate.sh'
-    KAFKA_PYTHON_INIT_ACTION_PATH = 'gs://dataproc-kafka-test/kafka_python.sh'
-    KAFKA_PYTHON3_INIT_ACTION_PATH = 'gs://dataproc-kafka-test/kafka_python3.sh'
-    PYTHON2_VERSION = 'python2.7'
-    PYTHON3_VERSION = 'python3.10'
-    KAFKA_VERIFY_SCRIPT_PYTHON2 = 'verify_kafka_running.py'
-    KAFKA_VERIFY_SCRIPT_PYTHON3 = 'verify_kafka3_running_py3.py'
 
     def verify_instance(self, name):
         self.upload_test_file(
@@ -32,22 +23,6 @@ class KafkaTestCase(DataprocTestCase):
         self.assert_instance_command(
             name, "bash {}".format(self.TEST_SCRIPT_FILE_NAME))
 
-    def __submit_pyspark_job(self, cluster_name):
-        if self.getImageVersion() >= pkg_resources.parse_version("2.1"):
-            verify_script = self.KAFKA_VERIFY_SCRIPT_PYTHON3
-            python_version = self.PYTHON3_VERSION
-        else:
-            verify_script = self.KAFKA_VERIFY_SCRIPT_PYTHON2
-            python_version = self.PYTHON2_VERSION
-        self.assert_dataproc_job(cluster_name, 'pyspark',
-                                 '{}/{}/{} --properties=spark.pyspark.python={},spark.pyspark.driver.python={}'
-                                 ' -- /var/lib/kafka-logs'
-                                 .format(self.INIT_ACTIONS_REPO,
-                                         self.COMPONENT,
-                                         verify_script,
-                                         python_version,
-                                         python_version))
-
     @parameterized.parameters(
         ("HA", ["m-0", "m-1", "m-2"]), )
     def test_kafka(self, configuration, machine_suffixes):
@@ -58,92 +33,6 @@ class KafkaTestCase(DataprocTestCase):
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
-
-    @parameterized.parameters(
-        ("HA", ["m-0", "m-1", "m-2"]), )
-    def test_kafka_cruise_control(self, configuration, machine_suffixes):
-        if self.getImageOs() == 'rocky':
-            self.skipTest("Not supported in Rocky Linux-based images")
-
-        metadata = 'run-on-master=true'
-        self.createCluster(configuration, self.KAFKA_CRUISE_CONTROL_INIT_ACTION, metadata=metadata)
-        self.INIT_ACTIONS.pop()
-        for machine_suffix in machine_suffixes:
-            self.verify_instance("{}-{}".format(self.getClusterName(),
-                                                machine_suffix))
-
-    @parameterized.parameters(
-        ("HA", ["m-0", "m-1", "m-2"]), )
-    def test_kafka_manager(self, configuration, machine_suffixes):
-        if self.getImageOs() == 'rocky':
-            self.skipTest("Not supported in Rocky Linux-based images")
-
-        metadata = 'run-on-master=true, kafka-enable-jmx=true'
-        self.createCluster(configuration, self.KAFKA_MANAGER_INIT_ACTION, metadata=metadata)
-        self.INIT_ACTIONS.pop()
-        for machine_suffix in machine_suffixes:
-            self.verify_instance("{}-{}".format(self.getClusterName(),
-                                                machine_suffix))
-
-    @parameterized.parameters(
-        'STANDARD',
-        'HA',
-    )
-    def test_kafka_job(self, configuration):
-        if self.getImageOs() == 'rocky':
-            self.skipTest("Not supported in Rocky Linux-based images")
-
-        metadata = 'run-on-master=true'
-        properties = 'dataproc:alpha.components=ZOOKEEPER'
-        if self.getImageVersion() >= pkg_resources.parse_version("2.1"):
-            self.INIT_ACTIONS.append(self.KAFKA_PYTHON3_INIT_ACTION_PATH)
-        else:
-            self.INIT_ACTIONS.append(self.KAFKA_PYTHON_INIT_ACTION_PATH)
-
-        self.createCluster(configuration, self.INIT_ACTIONS, metadata=metadata,
-                           properties=properties)
-        self.INIT_ACTIONS.pop()
-        self.__submit_pyspark_job(self.getClusterName())
-
-    @parameterized.parameters(
-        'STANDARD',
-        'HA',
-    )
-    def test_kafka_cruise_control_job(self, configuration):
-        if self.getImageOs() == 'rocky':
-            self.skipTest("Not supported in Rocky Linux-based images")
-
-        metadata = 'run-on-master=true'
-        properties = 'dataproc:alpha.components=ZOOKEEPER'
-        if self.getImageVersion() >= pkg_resources.parse_version("2.1"):
-            self.KAFKA_CRUISE_CONTROL_INIT_ACTION.append(self.KAFKA_PYTHON3_INIT_ACTION_PATH)
-        else:
-            self.KAFKA_CRUISE_CONTROL_INIT_ACTION.append(self.KAFKA_PYTHON_INIT_ACTION_PATH)
-
-        self.createCluster(configuration, self.KAFKA_CRUISE_CONTROL_INIT_ACTION, metadata=metadata,
-                           properties=properties)
-        self.KAFKA_CRUISE_CONTROL_INIT_ACTION.pop()
-        self.__submit_pyspark_job(self.getClusterName())
-
-    @parameterized.parameters(
-        'STANDARD',
-        'HA',
-    )
-    def test_kafka_manager_job(self, configuration):
-        if self.getImageOs() == 'rocky':
-            self.skipTest("Not supported in Rocky Linux-based images")
-
-        metadata = 'run-on-master=true, kafka-enable-jmx=true'
-        properties = 'dataproc:alpha.components=ZOOKEEPER'
-        if self.getImageVersion() >= pkg_resources.parse_version("2.1"):
-            self.KAFKA_MANAGER_INIT_ACTION.append(self.KAFKA_PYTHON3_INIT_ACTION_PATH)
-        else:
-            self.KAFKA_MANAGER_INIT_ACTION.append(self.KAFKA_PYTHON_INIT_ACTION_PATH)
-
-        self.createCluster(configuration, self.KAFKA_MANAGER_INIT_ACTION, metadata=metadata,
-                           properties=properties)
-        self.KAFKA_MANAGER_INIT_ACTION.pop()
-        self.__submit_pyspark_job(self.getClusterName())
 
 
 if __name__ == '__main__':

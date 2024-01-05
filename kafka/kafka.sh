@@ -42,11 +42,6 @@ function retry_apt_command() {
   return 1
 }
 
-function recv_keys() {
-  retry_apt_command "apt-get install -y gnupg2 &&\
-                     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys B7B3B788A8D3785C"
-}
-
 function update_apt_get() {
   retry_apt_command "apt-get update"
 }
@@ -174,7 +169,6 @@ function install_and_configure_kafka_server() {
 }
 
 function main() {
-  recv_keys || err 'Unable to receive keys.'
   update_apt_get || err 'Unable to update packages lists.'
 
   # Only run the installation on workers; verify zookeeper on master(s).

@@ -105,7 +105,7 @@ class DataprocTestCase(parameterized.TestCase):
         self.cluster_zone = zone
 
         init_actions = [
-            "{}/{}".format(self.INIT_ACTIONS_REPO, i) if "gs://" not in i else i
+            "{}/{}".format(self.INIT_ACTIONS_REPO, i)
             for i in init_actions or []
         ]
 
