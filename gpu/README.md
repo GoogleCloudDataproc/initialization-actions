@@ -207,6 +207,26 @@ sometimes found in the "building from source" sections.
     [NVIDIA cuDNN](https://developer.nvidia.com/CUDNN) version `x.x.x.x`.
     Default is `8.3.3.40`.
 
+#### Loading built kernel module
+
+For platforms which do not have pre-built binary kernel drivers, the script will
+execute the .run file, building the kernel driver module from source.  In order
+to load a kernel module built from source, the `--no-shielded-secure-boot`
+argument must be passed to `gcloud dataproc clusters create`.  When you are
+experiencing this problem, you will see an error similar to the following:
+
+```
+ERROR: The kernel module failed to load. Secure boot is enabled on this system, so this is likely because it was not signed by a key that is trusted by the kernel. Please try installing the driver again, and sign the kernel module when prompted to do so.
+ERROR: Unable to load the kernel module 'nvidia.ko'.  This happens most frequently when this kernel module was built against the wrong or improperly configured kernel sources, with a version of gcc that differs from the one used to build the target kernel, or if another driver, such as nouveau, is present and prevents the NVIDIA kernel module from obtaining ownership of the NVIDIA device(s), or no NVIDIA device installed in this system is supported by this NVIDIA Linux graphics driver release.
+Please see the log entries 'Kernel module load error' and 'Kernel messages' at the end of the file '/var/log/nvidia-installer.log' for more information.
+ERROR: Installation has failed.  Please see the file '/var/log/nvidia-installer.log' for details.  You may find suggestions on fixing installation problems in the README available on the Linux driver download page at www.nvidia.com.
+```
+
+Again, the resolution to this problem for the time being is to pass the
+`--no-shielded-secure-boot` argument to `gcloud dataproc clusters create` so
+that the kernel module built from source and unsigned can be loaded into the
+running kernel.
+
 #### Verification
 
 1.  Once the cluster has been created, you can access the Dataproc cluster and
