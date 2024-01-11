@@ -15,8 +15,8 @@
 # This script installs the Google Cloud Ops Agent on each node in the cluster.
 # It also provides an override to the built-in logging config to set empty
 # receivers i.e. not collect any logs.
-# If you need to collect syslogs, you can use the other script provided in this
-# directory, opsagent.sh which uses the built-in configuration of Ops Agent.
+# If you need to collect syslogs, you can use the other script in this directory,
+# opsagent.sh which uses the built-in configuration of Ops Agent.
 # See https://cloud.google.com/stackdriver/docs/solutions/agents/ops-agent/configuration#default.
 
 # Detect dataproc image version from its various names
