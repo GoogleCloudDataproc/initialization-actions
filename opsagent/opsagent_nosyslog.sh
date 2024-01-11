@@ -13,8 +13,11 @@
 # limitations under the License.
 
 # This script installs the Google Cloud Ops Agent on each node in the cluster.
-# See https://cloud.google.com/stackdriver/docs/solutions/agents/ops-agent/configuration#default
-# for built-in configuration of Ops Agent.
+# It also provides an override to the built-in logging config to set empty
+# receivers i.e. not collect any logs.
+# If you need to collect syslogs, you can use the other script provided in this
+# directory, opsagent.sh which uses the built-in configuration of Ops Agent.
+# See https://cloud.google.com/stackdriver/docs/solutions/agents/ops-agent/configuration#default.
 
 # Detect dataproc image version from its various names
 if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
@@ -28,5 +31,13 @@ fi
 
 curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
 bash add-google-cloud-ops-agent-repo.sh --also-install
+
+cat <<EOF >> /etc/google-cloud-ops-agent/config.yaml
+logging:
+  service:
+    pipelines:
+      default_pipeline:
+        receivers: []
+EOF
 
 systemctl restart google-cloud-ops-agent
