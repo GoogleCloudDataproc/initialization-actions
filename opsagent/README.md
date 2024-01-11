@@ -7,7 +7,7 @@ This initialization action will install Ops Agent on a [Google Cloud Dataproc](h
 
 We provide two variants of this initialization action:
 - `opsagent.sh` installs Ops Agent. [By default](https://cloud.google.com/stackdriver/docs/solutions/agents/ops-agent/configuration#default), it collects syslogs and system (node) metrics.
-- `opsagent_nosyslog.sh` installs Ops Agent and also specifies a user configuration in order to skip syslogs collection from your cluster nodes. If this is not specified, Ops Agent will collect syslogs besides the system (node) metrics. You can further customize this configuration to collect logs and metrics from other third-party applications.
+- `opsagent_nosyslog.sh` installs Ops Agent and also specifies a user configuration in order to skip syslogs collection from your cluster nodes. If this user configuration is not specified, Ops Agent will collect syslogs besides the system (node) metrics. You can further customize this configuration to collect logs and metrics from other third-party applications.
 
 If you are looking for backward compatibility w.r.t. Dataproc image versions (2.1 and prior) that did not ingest syslogs from Dataproc clusters and want to retain the same behavior, please use `opsagent_nosyslog.sh`.
 
