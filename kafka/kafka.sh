@@ -31,7 +31,22 @@ ZOOKEEPER_ADDRESS=''
 # Integer broker ID of this node, e.g., 0
 BROKER_ID=''
 
-function retry_apt_command() {
+function is_centos() {
+  [[ "$(. /etc/os-release && echo "${ID}")" == 'centos' ]]
+  return $?
+}
+
+function is_debian() {
+  [[ "$(. /etc/os-release && echo "${ID}")" == 'debian' ]]
+  return $?
+}
+
+function is_ubuntu() {
+  [[ "$(. /etc/os-release && echo "${ID}")" == 'ubuntu' ]]
+  return $?
+}
+
+function retry_command() {
   cmd="$1"
   for ((i = 0; i < 10; i++)); do
     if eval "$cmd"; then
@@ -42,13 +57,40 @@ function retry_apt_command() {
   return 1
 }
 
-function update_apt_get() {
-  retry_apt_command "apt-get update"
+function install_yum() {
+  local pkgs="$*"
+  retry_command "yum install -y $pkgs"
 }
 
 function install_apt_get() {
-  pkgs="$@"
-  retry_apt_command "apt-get install -y $pkgs"
+  local pkgs="$*"
+  retry_command "apt-get install -y $pkgs"
+}
+
+function install_packages() {
+  local pkgs="$*"
+  if is_centos; then
+    install_yum "$pkgs"
+  else
+    install_apt_get "$pkgs"
+  fi
+}
+
+function update_repo() {
+  if is_centos; then
+    retry_command "yum -y update"
+  else
+    retry_command "apt-get update"
+  fi
+}
+
+function find_package() {
+  pkg=$1
+  if is_centos; then
+    yum list $pkg
+  else
+    dpkg -l $pkg
+  fi
 }
 
 function err() {
@@ -127,8 +169,8 @@ function install_and_configure_kafka_server() {
   ZOOKEEPER_ADDRESS="${zookeeper_list%%,*}"
 
   # Install Kafka from Dataproc distro.
-  install_apt_get kafka-server || dpkg -l kafka-server ||
-    err 'Unable to install and find kafka-server.'
+  install_packages kafka-server || find_package kafka-server ||
+    err 'Unable to install kafka-server.'
 
   mkdir -p /var/lib/kafka-logs
   chown kafka:kafka -R /var/lib/kafka-logs
@@ -169,7 +211,7 @@ function install_and_configure_kafka_server() {
 }
 
 function main() {
-  update_apt_get || err 'Unable to update packages lists.'
+  update_repo || err 'Unable to update packages lists.'
 
   # Only run the installation on workers; verify zookeeper on master(s).
   if [[ "${ROLE}" == 'Master' ]]; then
@@ -181,7 +223,7 @@ function main() {
     else
       # On master nodes, just install kafka command-line tools and libs but not
       # kafka-server.
-      install_apt_get kafka ||
+      install_packages kafka ||
         err 'Unable to install kafka libraries on master!'
     fi
   else
