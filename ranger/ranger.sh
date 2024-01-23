@@ -70,9 +70,9 @@ function configure_admin() {
     --configuration_file "${RANGER_INSTALL_DIR}/ranger-admin/ews/webapp/WEB-INF/classes/conf.dist/ranger-admin-site.xml" \
     --name 'ranger.service.http.port' --value "${RANGER_ADMIN_PORT}" \
     --clobber
-  sudo mysql -u root -proot-password -e "CREATE USER 'rangeradmin'@'localhost' IDENTIFIED BY 'rangerpass';"
-  sudo mysql -u root -proot-password -e "CREATE DATABASE ranger;"
-  sudo mysql -u root -proot-password -e "GRANT ALL PRIVILEGES ON ranger.* TO 'rangeradmin'@'localhost';"
+  mysql -u root -proot-password -e "CREATE USER 'rangeradmin'@'localhost' IDENTIFIED BY 'rangerpass';"
+  mysql -u root -proot-password -e "CREATE DATABASE ranger;"
+  mysql -u root -proot-password -e "GRANT ALL PRIVILEGES ON ranger.* TO 'rangeradmin'@'localhost';"
 
   if [[ "${MASTER_ADDITIONAL}" != "" ]]; then
     sed -i "s/^audit_solr_zookeepers=/audit_solr_zookeepers=${CLUSTER_NAME}-m-0:2181,${CLUSTER_NAME}-m-1:2181,${CLUSTER_NAME}-m-2:2181\/solr/" \
