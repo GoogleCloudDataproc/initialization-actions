@@ -10,7 +10,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 class CloudSqlProxyTestCase(DataprocTestCase):
   COMPONENT = 'cloud-sql-proxy'
   INIT_ACTIONS = ['cloud-sql-proxy/cloud-sql-proxy.sh']
-  TEST_SCRIPT_FILE_NAME = 'cloud-sql-proxy/pyspark_metastore_test.py'
+  TEST_SCRIPT_FILE_NAME = 'cloud-sql-proxy/hivetest.hive'
   DB_NAME = None
 
   @classmethod
@@ -43,7 +43,12 @@ class CloudSqlProxyTestCase(DataprocTestCase):
         'gcloud sql operations wait {} --timeout=600'.format(operation_id))
 
   def verify_cluster(self, name):
-    self.__submit_pyspark_job(name)
+    self.__submit_hive_job(name)
+
+  def __submit_hive_job(self, cluster_name):
+      self.assert_dataproc_job(
+          cluster_name, 'hive', '--file={}/{}'.format(self.INIT_ACTIONS_REPO,
+                                                      self.TEST_SCRIPT_FILE_NAME))
 
   def __submit_pyspark_job(self, cluster_name):
     self.assert_dataproc_job(

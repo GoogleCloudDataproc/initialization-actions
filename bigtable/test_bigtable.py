@@ -48,6 +48,7 @@ class BigTableTestCase(DataprocTestCase):
             self.db_name))
 
     def _validate_bigtable(self):
+        self.assert_command('gcloud components install cbt')
         _, stdout, _ = self.assert_command(
             'cbt -instance {} count test-bigtable '.format(self.db_name))
         self.assertEqual(

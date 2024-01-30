@@ -14,7 +14,7 @@ import subprocess
 
 SOLR_DIR = '/usr/lib/solr'
 SOLR_URL = 'http://localhost:8983/solr'
-SOLR_EXAMPLE_DOC = 'https://raw.githubusercontent.com/apache/lucene-solr/master/solr/example/films/films.json'
+SOLR_EXAMPLE_DOC = 'https://raw.githubusercontent.com/apache/solr/main/solr/example/films/films.json'
 SOLR_COLLECTION_NAME = 'films'
 
 

@@ -70,6 +70,10 @@ function configure_admin() {
     --configuration_file "${RANGER_INSTALL_DIR}/ranger-admin/ews/webapp/WEB-INF/classes/conf.dist/ranger-admin-site.xml" \
     --name 'ranger.service.http.port' --value "${RANGER_ADMIN_PORT}" \
     --clobber
+  sudo mysql <<EOF
+    ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'root-password';
+    quit
+EOF
   mysql -u root -proot-password -e "CREATE USER 'rangeradmin'@'localhost' IDENTIFIED BY 'rangerpass';"
   mysql -u root -proot-password -e "CREATE DATABASE ranger;"
   mysql -u root -proot-password -e "GRANT ALL PRIVILEGES ON ranger.* TO 'rangeradmin'@'localhost';"
