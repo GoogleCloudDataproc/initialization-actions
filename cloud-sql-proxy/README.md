@@ -61,15 +61,18 @@ shared hive metastore.
     --metadata "additional-cloud-sql-instances=<PROJECT_ID>:<REGION>:<ANOTHER_INSTANCE_NAME>=tcp<PORT_#>[,...]"
     ```
 
-1.  Submit pyspark_metastore_test.py to the cluster to validate the metatstore
+1.  Submit hivetest.hive to the cluster to validate the metatstore
     and SQL proxies.
 
     ```bash
-    gcloud dataproc jobs submit pyspark --cluster <CLUSTER_NAME> pyspark_metastore_test.py
+    gcloud dataproc jobs submit hive --cluster <CLUSTER_NAME> --file hivetest.hive 
     ```
 
-    a. You can test connections to your other instance(s) using the url
+    a. You can test connections to your other mysql instance(s) using the url
     `"jdbc:mysql//localhost:<PORT_#>?user=root"`
+
+    b. You can test connections to your other postgresql instance(s) using the url
+    `"jdbc:postgresql//localhost:<PORT_#>?user=root"`
 
 1.  Create another dataproc cluster with the same Cloud SQL metastore.
 
