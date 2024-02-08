@@ -45,7 +45,7 @@ class HorovodTestCase(DataprocTestCase):
     if self.getImageOs() == 'rocky':
       self.skipTest("Not supported in Rocky Linux-based images")
 
-    metadata = "cuda-version=11.0,cudnn-version=8.0.5.39,gpu-driver-provider=NVIDIA"
+    metadata = "cuda-version=11.1,cudnn-version=8.0.5.39,gpu-driver-provider=NVIDIA"
 
     self.createCluster(
         configuration,

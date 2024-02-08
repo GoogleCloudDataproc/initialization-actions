@@ -53,7 +53,7 @@ if [[ "${DASK_RUNTIME}" == 'yarn' ]]; then
 fi
 # Downgrade `google-cloud-bigquery` on Dataproc 2.0
 # to fix compatibility with old Arrow version
-if [[ "${DATAPROC_VERSION}" == '2.0' ]]; then
+if [[ "${DATAPROC_IMAGE_VERSION}" == '2.0' ]]; then
   CONDA_PACKAGES+=('google-cloud-bigquery=2')
 fi
 readonly CONDA_PACKAGES

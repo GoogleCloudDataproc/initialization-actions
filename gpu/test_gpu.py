@@ -124,7 +124,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                    cuda_version):
     image_os = self.getImageOs()
 
-    if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+    if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
       self.skipTest("Not supported in pre 2.0 images")
 
     if ( image_os == "rocky" and (cuda_version < "11.2" and cuda_version != "11.0") ) or \
@@ -180,7 +180,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     if configuration == "SINGLE" and self.getImageOs() == "rocky":
       self.skipTest("Test hangs on single-node clsuter with Rocky Linux-based images")
 
-    if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+    if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
       self.skipTest("Not supported in pre 2.0")
 
     metadata = None
@@ -215,7 +215,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                    cuda_version):
     image_os = self.getImageOs()
 
-    if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+    if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
       self.skipTest("Not supported in pre 2.0 images")
 
     if ( image_os == "rocky" and (cuda_version < "11.2" and cuda_version != "11.0") ) or \

@@ -1,3 +1,5 @@
+import pkg_resources
+
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 from absl.testing import absltest
@@ -34,6 +36,10 @@ class AlluxioTestCase(DataprocTestCase):
   def test_alluxio_with_presto(self, configuration, machine_suffixes):
     if self.getImageOs() == 'rocky':
       self.skipTest("Not supported in Rocky Linux-based images")
+
+    # Skip on 2.0+ version of Dataproc because it's not supported
+    if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
+      self.skipTest("Not supported in 2.0+ images")
 
     self.createCluster(
         configuration,

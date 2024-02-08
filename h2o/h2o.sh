@@ -2,11 +2,11 @@
 
 set -euxo pipefail
 
-readonly NOT_SUPPORTED_MESSAGE="Dataproc ${DATAPROC_VERSION} not supported."
-[[ $DATAPROC_VERSION == "1.5" ]] && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
+readonly NOT_SUPPORTED_MESSAGE="Dataproc ${DATAPROC_IMAGE_VERSION} not supported."
+[[ DATAPROC_IMAGE_VERSION == "1.5" ]] && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
 
 ## Set Spark and Sparkling water versions
-readonly DEFAULT_H2O_SPARKLING_WATER_VERSION="3.30.1.2-1"
+readonly DEFAULT_H2O_SPARKLING_WATER_VERSION="3.44.0.3-1"
 H2O_SPARKLING_WATER_VERSION="$(/usr/share/google/get_metadata_value attributes/H2O_SPARKLING_WATER_VERSION ||
   echo ${DEFAULT_H2O_SPARKLING_WATER_VERSION})"
 readonly H2O_SPARKLING_WATER_VERSION
@@ -14,15 +14,22 @@ readonly H2O_SPARKLING_WATER_VERSION
 readonly SPARK_VERSION=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
 
 readonly SPARKLING_WATER_NAME="sparkling-water-${H2O_SPARKLING_WATER_VERSION}-${SPARK_VERSION}"
-readonly SPARKLING_WATER_URL="http://h2o-release.s3.amazonaws.com/sparkling-water/spark-${SPARK_VERSION}/${H2O_SPARKLING_WATER_VERSION}-${SPARK_VERSION}/${SPARKLING_WATER_NAME}.zip"
+readonly SPARKLING_WATER_URL="http://s3.amazonaws.com/h2o-release/sparkling-water/spark-${SPARK_VERSION}/${H2O_SPARKLING_WATER_VERSION}-${SPARK_VERSION}/${SPARKLING_WATER_NAME}.zip"
 
 # Install Scala packages for H2O Sparkling Water
 function install_sparkling_water() {
+  local OS_NAME
+  OS_NAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
   local tmp_dir
   tmp_dir=$(mktemp -d -t init-action-h2o-XXXX)
 
   ## Download and unzip Sparking water Scala libraries
   wget -nv --timeout=30 --tries=5 --retry-connrefused "$SPARKLING_WATER_URL" -P "$tmp_dir"
+  if [[ "${OS_NAME}" == "rocky" ]]; then
+      sudo yum -y install zip unzip
+  else
+    sudo apt-get -y install zip unzip
+  fi
   unzip -q "${tmp_dir}/${SPARKLING_WATER_NAME}.zip" -d /usr/lib/
   ln -s "/usr/lib/${SPARKLING_WATER_NAME}" /usr/lib/sparkling-water
 
@@ -36,6 +43,8 @@ function install_sparkling_water() {
 
 # Install Python packages for H2O Sparkling Water
 function install_pysparkling_water() {
+  # Pinning setuptools to 65.0.0 as latest version gives invalid version error message while installing "h2o_pysparkling"
+  pip install setuptools==65.0.0
   pip install --upgrade-strategy only-if-needed \
     "h2o==${H2O_SPARKLING_WATER_VERSION%-*}" \
     "h2o_pysparkling_${SPARK_VERSION}==${H2O_SPARKLING_WATER_VERSION}"

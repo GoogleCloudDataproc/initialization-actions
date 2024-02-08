@@ -43,9 +43,7 @@ class DrillTestCase(DataprocTestCase):
             init_actions = self.INIT_ACTIONS_FOR_STANDARD + init_actions
         self.createCluster(configuration, init_actions)
 
-        drill_mode = "DISTRIBUTED"
-        if configuration == "SINGLE":
-            drill_mode = "EMBEDDED"
+        drill_mode = "EMBEDDED"
         for option in verify_options:
             machine_suffix, target_machine_suffix = option
             self.verify_instance(

@@ -61,7 +61,7 @@ py_test(
     name = "test_cloud_sql_proxy",
     size = "enormous",
     srcs = ["cloud-sql-proxy/test_cloud_sql_proxy.py"],
-    data = ["cloud-sql-proxy/cloud-sql-proxy.sh"],
+    data = ["cloud-sql-proxy/cloud-sql-proxy.sh", "cloud-sql-proxy/hivetest.hive"],
     local = True,
     shard_count = 3,
     deps = [

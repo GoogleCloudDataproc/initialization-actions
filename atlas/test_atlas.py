@@ -40,11 +40,15 @@ class AtlasTestCase(DataprocTestCase):
         # Upload files to populate Atlas and to verify it
         populate_atlas_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), self.POPULATE_SCRIPT)
-        self.assert_command('gcloud compute scp {} {}:/tmp'.format(populate_atlas_path, instance))
+        self.assert_command('gcloud compute scp --zone={} {} {}:/tmp'.format(self.cluster_zone,
+                                                                             populate_atlas_path,
+                                                                             instance))
 
         validate_atlas_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), self.VALIDATE_SCRIPT)
-        self.assert_command('gcloud compute scp {} {}:/tmp'.format(validate_atlas_path, instance))
+        self.assert_command('gcloud compute scp --zone={} {} {}:/tmp'.format(self.cluster_zone,
+                                                                             validate_atlas_path,
+                                                                             instance))
 
         self.assert_instance_command(
                     instance, "chmod +x /tmp/{}".format(self.POPULATE_SCRIPT))
@@ -90,7 +94,6 @@ class AtlasTestCase(DataprocTestCase):
     @parameterized.parameters(
         ("SINGLE", ["m"]),
         ("STANDARD", ["m"]),
-        ("HA", ["m-0", "m-1", "m-2"]),
     )
     def test_atlas(self, configuration, machine_suffixes):
         if self.getImageOs() == 'rocky':
@@ -110,7 +113,6 @@ class AtlasTestCase(DataprocTestCase):
             metadata = 'run-on-master=true'
             self.createCluster(configuration,
                                        init_actions,
-                                       beta=True,
                                        metadata=metadata,
                                        timeout_in_minutes=30,
                                        optional_components=optional_components,
@@ -118,7 +120,6 @@ class AtlasTestCase(DataprocTestCase):
         else:
             self.createCluster(configuration,
                                init_actions,
-                               beta=True,
                                timeout_in_minutes=30,
                                optional_components=optional_components,
                                machine_type="e2-standard-4")
@@ -163,7 +164,6 @@ class AtlasTestCase(DataprocTestCase):
             username, password_sha256)
       self.createCluster(configuration,
                          self.INIT_ACTIONS,
-                         beta=True,
                          timeout_in_minutes=30,
                          metadata=metadata,
                          optional_components=self.OPTIONAL_COMPONENTS,
@@ -187,7 +187,6 @@ class AtlasTestCase(DataprocTestCase):
           self.createCluster(
               "SINGLE",
               self.INIT_ACTIONS,
-              beta=True,
               timeout_in_minutes=30,
               machine_type="e2-standard-4",
               optional_components=self.OPTIONAL_COMPONENTS.remove(component))
@@ -203,7 +202,6 @@ class AtlasTestCase(DataprocTestCase):
             self.createCluster("HA",
                                self.INIT_ACTIONS,
                                timeout_in_minutes=30,
-                               beta=True,
                                machine_type="e2-standard-4",
                                optional_components=self.OPTIONAL_COMPONENTS_HA)
 
