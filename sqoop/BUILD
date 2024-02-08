@@ -4,7 +4,7 @@ py_test(
     name = "test_sqoop",
     size = "enormous",
     srcs = ["test_sqoop.py"],
-    data = ["sqoop.sh", "test_sql_db_dump.gz"],
+    data = ["sqoop.sh", "test_sql_db_dump.gz", "sqoop_sql.sh"],
     local = True,
     shard_count = 4,
     deps = [

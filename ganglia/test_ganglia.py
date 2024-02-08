@@ -1,5 +1,6 @@
 import os
 
+import pkg_resources
 from absl.testing import absltest
 from absl.testing import parameterized
 
@@ -17,7 +18,8 @@ class GangliaTestCase(DataprocTestCase):
             self.TEST_SCRIPT_FILE_NAME)
         self.upload_test_file(test_script_path, name)
         self.assert_instance_command(name,
-                                     "yes | sudo apt-get install python3-pip")
+                                     "yes | sudo apt-get install python3-pip libxml2-dev libxslt-dev")
+        self.assert_instance_command(name, "sudo -H pip3 install --upgrade pip")
         self.assert_instance_command(name, "sudo pip3 install requests-html")
         self.assert_instance_command(
             name, "python3 {}".format(self.TEST_SCRIPT_FILE_NAME))
@@ -31,6 +33,9 @@ class GangliaTestCase(DataprocTestCase):
     def test_ganglia(self, configuration, machine_suffixes):
         if self.getImageOs() == 'rocky':
             self.skipTest("Not supported in Rocky Linux-based images")
+
+        if self.getImageVersion() > pkg_resources.parse_version("2.0"):
+            self.skipTest("Ganglia UI is not supported for 2.0+ versions")
 
         self.createCluster(configuration, self.INIT_ACTIONS)
         for machine_suffix in machine_suffixes:

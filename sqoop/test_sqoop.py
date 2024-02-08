@@ -10,6 +10,7 @@ class SqoopTestCase(DataprocTestCase):
   COMPONENT = "sqoop"
   INIT_ACTIONS = ["sqoop/sqoop.sh"]
   TEST_DB_PATH = "test_sql_db_dump.gz"
+  TEST_SQOOP_SQL = "sqoop_sql.sh"
 
   def verify_instance(self, name):
     self.assert_instance_command(name, "sqoop version")
@@ -29,7 +30,17 @@ class SqoopTestCase(DataprocTestCase):
         "Unexpected number of imported DB records: wanted 300024, got {}"
         .format(imported_records))
 
-  def import_mysql_db(self, instance):
+  def verify_mysql_auth(self, instance):
+    self.upload_test_file(
+        os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), self.TEST_SQOOP_SQL),
+        instance)
+    self.assert_instance_command(
+        instance, "bash {}".format(self.TEST_SQOOP_SQL)
+    )
+    self.remove_test_script(self.TEST_SQOOP_SQL, instance)
+
+  def verify_import(self, instance):
     self.upload_test_file(
         os.path.join(
             os.path.dirname(os.path.abspath(__file__)), self.TEST_DB_PATH),
@@ -37,6 +48,11 @@ class SqoopTestCase(DataprocTestCase):
     self.assert_instance_command(
         instance,
         "zcat {} | mysql -u root -proot-password".format(self.TEST_DB_PATH))
+    self.remove_test_script(self.TEST_DB_PATH, instance)
+
+  def import_mysql_db(self, instance):
+    self.verify_mysql_auth(instance)
+    self.verify_import(instance)
 
   @parameterized.parameters(
       ("SINGLE", ["m"]),
