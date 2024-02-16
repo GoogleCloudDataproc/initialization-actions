@@ -107,6 +107,14 @@ function main() {
 
   wget -nv --timeout=30 --tries=5 --retry-connrefused "${LIVY_URL}" -P "${temp}"
 
+  local OS
+  OS=$(. /etc/os-release && echo "${ID}")
+  if [[ "${OS}" == "rocky" ]]; then
+    yum install -y unzip
+  else
+    apt-get install -y unzip
+  fi
+
   unzip -q "${temp}/${LIVY_PKG_NAME}.zip" -d /usr/local/lib/
   ln -s "/usr/local/lib/${LIVY_PKG_NAME}" "${LIVY_DIR}"
 
