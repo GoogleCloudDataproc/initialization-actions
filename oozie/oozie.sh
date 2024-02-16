@@ -217,7 +217,8 @@ function install_oozie() {
            /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-core.jar      \
            /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-shuffle.jar   /usr/lib/oozie/lib/
   elif [[ ${OS_NAME} == ubuntu ]] || [[ ${OS_NAME} == debian ]]; then
-    retry_command "apt-get update"
+    retry_command "apt-get install -y gnupg2 && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys B7B3B788A8D3785C"
+    retry_command "apt-get update --allow-releaseinfo-change"
     retry_command "apt-get install -q -y oozie oozie-client"
   else
     echo "Unsupported OS: '${OS_NAME}'"
