@@ -66,7 +66,7 @@ function get_connector_url() {
           exit 1
         fi
         ;;
-      "1.5" | "2.0" | "2.1")
+      "1.5" | "2.0" | "2.1" | "2.2")
         scala_version="2.12"
         ;;
       *)

@@ -64,6 +64,9 @@ class SparkRapidsTestCase(DataprocTestCase):
     if self.getImageVersion() == pkg_resources.parse_version("2.1") or self.getImageOs() == "rocky":
       self.skipTest("Not supported in image2.1 or rocky images")
 
+    if self.getImageVersion() == pkg_resources.parse_version("2.2") and self.getImageOs() == "debian":
+        self.skipTest("The Debian version (12) for Dataproc 2.2 is not supported")
+
     optional_components = None
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
 
@@ -94,6 +97,9 @@ class SparkRapidsTestCase(DataprocTestCase):
     if self.getImageVersion() == pkg_resources.parse_version("2.1") or self.getImageOs() == "rocky":
       self.skipTest("Not supported in image2.1 or rocky images")
 
+    if self.getImageVersion() == pkg_resources.parse_version("2.2") and self.getImageOs() == "debian":
+        self.skipTest("The Debian version (12) for Dataproc 2.2 is not supported")
+
     optional_components = None
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
 
@@ -123,6 +129,9 @@ class SparkRapidsTestCase(DataprocTestCase):
 
     if self.getImageVersion() == pkg_resources.parse_version("2.1") or self.getImageOs() == "rocky":
       self.skipTest("Not supported in image2.1 or rocky images")
+
+    if self.getImageVersion() == pkg_resources.parse_version("2.2") and self.getImageOs() == "debian":
+        self.skipTest("The Debian version (12) for Dataproc 2.2 is not supported")
 
     metadata = ("gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
                 ",cuda-version={0},driver-version={1}".format(cuda_version, driver_version))

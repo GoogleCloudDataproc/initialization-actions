@@ -60,6 +60,8 @@ class HueTestCase(DataprocTestCase):
         'STANDARD',
     )
     def test_hue_job(self, configuration):
+        if self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+            self.skipTest("Not supported in 2.2 image")
         self.createCluster(configuration, self.INIT_ACTIONS)
         self.__submit_pyspark_job(self.getClusterName())
 
