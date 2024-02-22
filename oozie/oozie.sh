@@ -145,7 +145,7 @@ function configure_ssl() {
   local certificate_path="${oozie_home}/certificate.cert"
   local certificate_secret_name=
 
-  if [[ "${HOSTNAME}" == "$master_node" ]]; then
+  if [[ "$(hostname -s)" == "${master_node}" ]]; then
     test -f ${keystore_file} ||\
       sudo -u oozie keytool -genkeypair -alias jetty -file ${keystore_file} \
         -keyalg RSA -dname "CN=*.${domain}" \
@@ -254,7 +254,7 @@ function install_oozie() {
     find /usr/lib/oozie/ -name "jetty*-7.*.jar" -delete
   fi
 
-  if [[ "${HOSTNAME}" == "${master_node}" ]]; then
+  if [[ "$(hostname -s)" == "${master_node}" ]]; then
     local tmp_dir
     tmp_dir=$(mktemp -d -t oozie-install-XXXX)
 
@@ -312,7 +312,7 @@ function install_oozie() {
   set_oozie_property 'oozie.email.from.address' "${METADATA_EMAIL_FROM_ADDRESS}"
   set_oozie_property 'oozie.action.max.output.data' "20000"
   # Set hostname to allow connection from other hosts (not only localhost)
-  set_oozie_property 'oozie.http.hostname' "${HOSTNAME}"
+  set_oozie_property 'oozie.http.hostname' "$(hostname -s)"
   # Following property was requested in customer case
   set_oozie_property 'oozie.service.WorkflowAppService.WorkflowDefinitionMaxLength' "1500000"
   # Following 2 properties added for customer case
@@ -348,7 +348,7 @@ function install_oozie() {
   set_oozie_property 'oozie.service.ProxyUserService.proxyuser.oozie.hosts' '*'
   set_oozie_property 'oozie.service.ProxyUserService.proxyuser.oozie.groups' '*'
 
-  if [[ "${HOSTNAME}" == "${master_node}" ]]; then
+  if [[ "$(hostname -s)" == "${master_node}" ]]; then
     # Create the Oozie user in MySQL. Do this before the copies, since other
     # masters may start up and attempt to connect before the HDFS copies
     # below complete. The other masters need to be able to connect to MySQL.
@@ -361,7 +361,7 @@ FLUSH PRIVILEGES;
 EOM
   fi
 
-  if [[ "${HOSTNAME}" == "${master_node}" ]]; then
+  if [[ "$(hostname -s)" == "${master_node}" ]]; then
     local tmp_dir
     tmp_dir=$(mktemp -d -t oozie-install-XXXX)
 
@@ -517,7 +517,7 @@ EOM
     fi
   fi
 
-  if [[ "${HOSTNAME}" == "${master_node}" ]]; then
+  if [[ "$(hostname -s)" == "${master_node}" ]]; then
     # Create the Oozie database. Since we are using MySQL,
     # only do this on the master node.
     retry_command "sudo -u oozie /usr/lib/oozie/bin/ooziedb.sh create -run"
@@ -592,7 +592,7 @@ EOM
   done
 
   # Leave safe mode - HDFS will enter safe mode because of Name Node restart
-  if [[ "${HOSTNAME}" == "${master_node}" ]]; then
+  if [[ "$(hostname -s)" == "${master_node}" ]]; then
     case "${DATAPROC_IMAGE_VERSION}" in
       "1.3" | "1.4")
         hadoop dfsadmin -safemode leave
