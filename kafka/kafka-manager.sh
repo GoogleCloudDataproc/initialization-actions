@@ -82,7 +82,7 @@ function configure_and_start_cmak(){
    cd /opt/"${KAFKA_MANAGER_VERSION}"
    sed -i 's/cmak.zkhosts="kafka-manager-zookeeper:2181"/cmak.zkhosts=\"'"${zkhosts}"'\"/g' conf/application.conf
 
-   echo "Starting Kafka Manager server on ${HOSTNAME}:${KAFKA_MANAGER_HTTP_PORT}."
+   echo "Starting Kafka Manager server on $(hostname -s):${KAFKA_MANAGER_HTTP_PORT}."
    ./bin/cmak -Dconfig.file=conf/application.conf -Dhttp.port="${KAFKA_MANAGER_HTTP_PORT}" &
 }
 
@@ -94,7 +94,7 @@ function main(){
       exit 1
    else
       # Run Kafka Manager on the first master node.
-      if [[ "${HOSTNAME}" == *-m || "${HOSTNAME}" == *-m-0 ]]; then
+      if [[ "$(hostname -s)" == *-m || "$(hostname -s)" == *-m-0 ]]; then
          install_packages
          add_sources
          install_sbt
