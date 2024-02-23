@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#    Copyright 2021 Google, Inc.
+#    Copyright 2021,2022,2024 Google, LLC
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ readonly NOT_SUPPORTED_MESSAGE="LLAP initialization action is not supported on D
 
 # Variables for running this script
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-readonly LLAP_MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
+readonly LLAP_MASTER="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 readonly WORKER_NODE_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
 readonly NODE_MANAGER_vCPU=$(bdconfig get_property_value --configuration_file='/etc/hadoop/conf/yarn-site.xml' --name yarn.nodemanager.resource.cpu-vcores)
 readonly NODE_MANAGER_MEMORY=$(bdconfig get_property_value --configuration_file='/etc/hadoop/conf/yarn-site.xml' --name yarn.nodemanager.resource.memory-mb)
@@ -131,7 +131,7 @@ function configure_hive_site(){
     if [[ -z "$ADDITIONAL_MASTER" ]]; then
         bdconfig set_property \
             --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
-            --name 'hive.zookeeper.quorum' --value "${LLAP_MASTER_FQDN}:2181" \
+            --name 'hive.zookeeper.quorum' --value "${LLAP_MASTER}:2181" \
             --clobber
         bdconfig set_property \
             --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
@@ -152,7 +152,7 @@ function configure_core_site(){
     else
         bdconfig set_property \
             --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
-            --name 'hadoop.registry.zk.quorum' --value "${LLAP_MASTER_FQDN}:2181" \
+            --name 'hadoop.registry.zk.quorum' --value "${LLAP_MASTER}:2181" \
             --clobber
     fi
 
@@ -275,7 +275,7 @@ function configure_SSD_caching_master(){
 
 # start LLAP - Master Node
 function start_llap(){
-    if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
+    if [[ "$(hostname -s)" == "${LLAP_MASTER}" ]]; then
         echo "starting llap on master node 0..."
         bash "${INIT_ACTIONS_DIR}"/start_llap.sh
     fi
@@ -284,7 +284,7 @@ function start_llap(){
 # main driver function for the script
 function configure_llap(){
 
-    if [[ "${HOSTNAME}" == "${LLAP_MASTER_FQDN}" ]]; then
+    if [[ "$(hostname -s)" == "${LLAP_MASTER}" ]]; then
         echo "running primary master config...."
         pre_flight_checks
         download_init_actions
@@ -309,7 +309,7 @@ function configure_llap(){
         configure_tez_site_xml
         replace_core_llap_files
 
-    elif [[ "${ROLE}" == "Master" && "${HOSTNAME}" != "${LLAP_MASTER_FQDN}"  ]]; then
+    elif [[ "${ROLE}" == "Master" && "$(hostname -s)" != "${LLAP_MASTER}"  ]]; then
         echo "running master config...."
         pre_flight_checks
         configure_yarn_site
