@@ -250,7 +250,7 @@ function configure_and_start_presto() {
   configure_connectors
   configure_jvm
 
-  if [[ "${HOSTNAME}" == "${PRESTO_MASTER_FQDN}" ]]; then
+  if [[ "$(hostname -s)" == "${PRESTO_MASTER_FQDN}" ]]; then
     configure_master
     start_presto
     wait_for_presto_cluster_ready
