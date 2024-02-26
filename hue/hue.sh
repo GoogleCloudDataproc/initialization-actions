@@ -235,7 +235,7 @@ EOF
 }
 
 # Only run on the master node ("0"-master in HA mode) of the cluster
-if [[ "${HOSTNAME}" == "${MASTER_HOSTNAME}" ]]; then
+if [[ "$(hostname -s)" == "${MASTER_HOSTNAME}" ]]; then
   update_repo || echo "Ignored errors when updating OS repo index"
   # DATAPROC_IMAGE_VERSION is the preferred variable, but it doesn't exist in
   # old images.
