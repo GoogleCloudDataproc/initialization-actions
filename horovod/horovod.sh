@@ -106,6 +106,8 @@ function install_frameworks() {
     )
   fi
 
+  update_framework_list framework_packages
+
   pip install "${framework_packages[@]}"
 }
 
@@ -121,7 +123,24 @@ function install_horovod() {
     horovod_build_frameworks+=",mxnet"
   fi
 
+  IFS=',' read -r -a horovod_build_frameworks <<< "${horovod_build_frameworks}"
+  update_framework_list horovod_build_frameworks
+  horovod_build_frameworks=$( IFS=','; echo "${horovod_build_frameworks[*]}" )
+
   eval "${HOROVOD_ENV_VARS} pip install --no-cache-dir horovod[${horovod_build_frameworks}]==${HOROVOD_VERSION}"
+}
+
+function update_framework_list() {
+  local -n arr=$1
+  if [[ ${HOROVOD_ENV_VARS} == *"HOROVOD_WITHOUT_TENSORFLOW=1"* ]]; then
+    arr=(${arr[@]//tensorflow*})
+  fi
+  if [[ ${HOROVOD_ENV_VARS} == *"HOROVOD_WITHOUT_PYTORCH=1"* ]]; then
+    arr=(${arr[@]//*torch*})
+  fi
+  if [[ ${HOROVOD_ENV_VARS} == *"HOROVOD_WITHOUT_MXNET=1"* ]]; then
+    arr=(${arr[@]//mxnet*})
+  fi
 }
 
 function main() {
