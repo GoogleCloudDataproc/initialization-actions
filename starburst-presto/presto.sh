@@ -1,4 +1,5 @@
 #!/bin/bash
+#    Copyright 2019,2020,2021,2022,2024 Google, LLC.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -19,7 +20,7 @@ export PATH=/usr/bin:$PATH
 
 # Variables for running this script
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-readonly PRESTO_MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
+readonly PRESTO_MASTER="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 readonly WORKER_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
 readonly PRESTO_BASE_URL=https://storage.googleapis.com/starburstdata/presto
 readonly PRESTO_MAJOR_VERSION="332"
@@ -181,7 +182,7 @@ query.max-memory-per-node=${PRESTO_QUERY_NODE_MB}MB
 query.max-total-memory-per-node=${PRESTO_QUERY_NODE_MB}MB
 memory.heap-headroom-per-node=${PRESTO_HEADROOM_NODE_MB}MB
 discovery-server.enabled=true
-discovery.uri=http://${PRESTO_MASTER_FQDN}:${HTTP_PORT}
+discovery.uri=http://${PRESTO_MASTER}:${HTTP_PORT}
 EOF
 
   # Install CLI
@@ -198,7 +199,7 @@ query.max-memory=999TB
 query.max-memory-per-node=${PRESTO_QUERY_NODE_MB}MB
 query.max-total-memory-per-node=${PRESTO_QUERY_NODE_MB}MB
 memory.heap-headroom-per-node=${PRESTO_HEADROOM_NODE_MB}MB
-discovery.uri=http://${PRESTO_MASTER_FQDN}:${HTTP_PORT}
+discovery.uri=http://${PRESTO_MASTER}:${HTTP_PORT}
 EOF
 }
 
@@ -235,7 +236,7 @@ function configure_and_start_presto() {
   configure_connectors
   configure_jvm
 
-  if [[ "${HOSTNAME}" == "${PRESTO_MASTER_FQDN}" ]]; then
+  if [[ "$(hostname -s)" == "${PRESTO_MASTER}" ]]; then
     configure_master
     start_presto
     wait_for_presto_cluster_ready
