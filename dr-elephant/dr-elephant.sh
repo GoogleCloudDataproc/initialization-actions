@@ -150,7 +150,7 @@ function run_dr() {
 }
 
 # Install on master node
-if [[ "${HOSTNAME}" == "${MASTER_HOSTNAME}" ]]; then
+if [[ "$(hostname -s)" == "${MASTER_HOSTNAME}" ]]; then
   build || err 'Build step failed'
   configure || err 'Configuration failed'
   prepare_mysql || err 'Could not proceed with mysql'
