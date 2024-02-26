@@ -139,6 +139,7 @@ tensorflow=2.4.0
 torch==1.7.1
 torchvision==0.8.2
 mxnet==1.7.0.post0 # CPUs only
+mpi==4.1.0
 ```
 
 This initialization action can also be configured with GPUs and the appropriate
@@ -157,6 +158,7 @@ carefully selected to be compatible with each other.
 *   torchvision-version=VERSION
 *   mxnet-version=VERSION
 *   cuda-version=VERSION
+*   mpi-version=VERSION
 
 You may also change the controller from the default of `gloo` to `mpi` via the
 following flag. Please note this will increase setup time by about 20 minutes:
