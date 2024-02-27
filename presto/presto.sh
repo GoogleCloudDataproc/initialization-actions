@@ -25,7 +25,7 @@ export PATH=/usr/bin:$PATH
 
 # Variables for running this script
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-readonly PRESTO_MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
+readonly PRESTO_MASTER="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 readonly WORKER_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
 if [[ -d /usr/local/share/google/dataproc/lib ]]; then
   readonly CONNECTOR_JAR="$(find /usr/local/share/google/dataproc/lib -name 'gcs-connector-*.jar')"
@@ -192,7 +192,7 @@ query.max-total-memory-per-node=${PRESTO_QUERY_NODE_MB}MB
 memory.heap-headroom-per-node=${PRESTO_HEADROOM_NODE_MB}MB
 resources.reserved-system-memory=${PRESTO_RESERVED_SYSTEM_MB}MB
 discovery-server.enabled=true
-discovery.uri=http://${PRESTO_MASTER_FQDN}:${HTTP_PORT}
+discovery.uri=http://${PRESTO_MASTER}:${HTTP_PORT}
 EOF
 
   # Install CLI
@@ -210,7 +210,7 @@ query.max-memory-per-node=${PRESTO_QUERY_NODE_MB}MB
 query.max-total-memory-per-node=${PRESTO_QUERY_NODE_MB}MB
 memory.heap-headroom-per-node=${PRESTO_HEADROOM_NODE_MB}MB
 resources.reserved-system-memory=${PRESTO_RESERVED_SYSTEM_MB}MB
-discovery.uri=http://${PRESTO_MASTER_FQDN}:${HTTP_PORT}
+discovery.uri=http://${PRESTO_MASTER}:${HTTP_PORT}
 EOF
 }
 
@@ -250,7 +250,7 @@ function configure_and_start_presto() {
   configure_connectors
   configure_jvm
 
-  if [[ "$(hostname -s)" == "${PRESTO_MASTER_FQDN}" ]]; then
+  if [[ "$(hostname -s)" == "${PRESTO_MASTER}" ]]; then
     configure_master
     start_presto
     wait_for_presto_cluster_ready
