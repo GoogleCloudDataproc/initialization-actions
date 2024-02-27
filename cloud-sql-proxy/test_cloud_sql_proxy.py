@@ -54,7 +54,7 @@ class CloudSqlProxyTestCase(DataprocTestCase):
     self.INSTANCE_POSTGRESQL = 'postgresql'
     create_cmd_fmt = 'gcloud sql instances create {}' \
                      ' --region {} --async --format=json --database-version={} --tier=db-perf-optimized-N-4' \
-                     '--edition=ENTERPRISE_PLUS'
+                     ' --edition=ENTERPRISE_PLUS'
     _, stdout, _ = self.assert_command(
       create_cmd_fmt.format(self.DB_NAME_POSTGRESQL, self.REGION, self.DATABASE_VERSION_POSTGRESQL))
     operation_id = json.loads(stdout.strip())['name']
@@ -81,8 +81,9 @@ class CloudSqlProxyTestCase(DataprocTestCase):
       configuration, self.INIT_ACTIONS, metadata=metadata, scopes='sql-admin')
 
     self.verify_cluster(self.getClusterName())
+    self.assert_command('gcloud dataproc clusters delete {} --region={} --quiet --async'
+                        .format(self.getClusterName(), self.REGION))
     self.name = None
-    self.assert_command('gcloud dataproc clusters delete {} --region={}'.format(self.getClusterName(), self.REGION))
 
   def verify_postgresql(self, configuration):
     # metadata = 'hive-metastore-instance={}:{},hive-metastore-db=metastore'.format(self.PROJECT_METADATA,
