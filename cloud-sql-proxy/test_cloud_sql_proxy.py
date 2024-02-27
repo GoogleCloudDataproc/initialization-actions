@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -52,7 +53,7 @@ class CloudSqlProxyTestCase(DataprocTestCase):
     self.DATABASE_VERSION_POSTGRESQL = 'POSTGRES_14'
     self.INSTANCE_POSTGRESQL = 'postgresql'
     create_cmd_fmt = 'gcloud sql instances create {}' \
-                     ' --region {} --async --format=json --database-version={}'
+                     ' --region {} --async --format=json --database-version={} --tier=db-f1-micro'
     _, stdout, _ = self.assert_command(
       create_cmd_fmt.format(self.DB_NAME_POSTGRESQL, self.REGION, self.DATABASE_VERSION_POSTGRESQL))
     operation_id = json.loads(stdout.strip())['name']
@@ -79,6 +80,7 @@ class CloudSqlProxyTestCase(DataprocTestCase):
       configuration, self.INIT_ACTIONS, metadata=metadata, scopes='sql-admin')
 
     self.verify_cluster(self.getClusterName())
+    self.name = None
 
   def verify_postgresql(self, configuration):
     metadata = 'hive-metastore-instance={}:{},hive-metastore-db=metastore'.format(self.PROJECT_METADATA,
@@ -108,6 +110,7 @@ class CloudSqlProxyTestCase(DataprocTestCase):
   )
   def test_cloud_sql_proxy(self, configuration):
     self.verify_mysql(configuration)
+    time.sleep(2)
     self.verify_postgresql(configuration)
 
 
