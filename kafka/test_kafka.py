@@ -104,7 +104,7 @@ class KafkaTestCase(DataprocTestCase):
         if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
             self.skipTest("Java 11 or higher is required for CMAK")
 
-        metadata = 'run-on-master=true, kafka-enable-jmx=true'
+        metadata = 'run-on-master=true,kafka-enable-jmx=true'
         self.createCluster(configuration, self.KAFKA_MANAGER_INIT_ACTION, metadata=metadata)
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
@@ -121,7 +121,7 @@ class KafkaTestCase(DataprocTestCase):
         if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
             self.skipTest("Java 11 or higher is required for CMAK")
 
-        metadata = 'run-on-master=true, kafka-enable-jmx=true, install-kafka-python=true'
+        metadata = 'run-on-master=true,kafka-enable-jmx=true,install-kafka-python=true'
         properties = 'dataproc:alpha.components=ZOOKEEPER'
         self.createCluster(configuration, self.KAFKA_MANAGER_INIT_ACTION, metadata=metadata,
                            properties=properties)

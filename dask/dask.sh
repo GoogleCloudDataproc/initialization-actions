@@ -43,7 +43,7 @@ readonly KNOX_HOME=/usr/lib/knox
 readonly KNOX_DASK_DIR=${KNOX_HOME}/data/services/dask/0.1.0
 readonly KNOX_DASKWS_DIR=${KNOX_HOME}/data/services/daskws/0.1.0
 
-CONDA_PACKAGES=("dask=${DASK_VERSION}" 'dask-bigquery' 'dask-ml' 'dask-sql')
+CONDA_PACKAGES=('dask-bigquery' 'dask-ml' 'dask-sql')
 
 if [[ "${DASK_RUNTIME}" == 'yarn' ]]; then
   # Pin `distributed` package version because `dask-yarn` 0.9
@@ -343,6 +343,8 @@ EOF
 
 
 function main() {
+  #Install dask with the help of conda as installing with mamba causes version conflicts
+  execute_with_retries "conda install -y dask=${DASK_VERSION}"
   # Install conda packages
   execute_with_retries "mamba install -y ${CONDA_PACKAGES[*]}"
 

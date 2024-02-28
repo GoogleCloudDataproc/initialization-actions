@@ -27,10 +27,16 @@ class LivyTestCase(DataprocTestCase):
         self.remove_test_script(self.TEST_SCRIPT_FILE_NAME, name)
 
     def _run_python_test_file(self, name):
-        self.assert_instance_command(
-            name,
-            "sudo apt-get install -y python3-pip && sudo pip3 install requests"
-        )
+        if self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+            self.assert_instance_command(
+                name,
+                "sudo apt install python3-requests"
+            )
+        else:
+            self.assert_instance_command(
+                name,
+                "sudo apt-get install -y python3-pip && sudo pip3 install requests"
+            )
         self.assert_instance_command(
             name, "sudo python3 {}".format(self.TEST_SCRIPT_FILE_NAME))
 
