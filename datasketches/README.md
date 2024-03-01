@@ -81,7 +81,7 @@ Note: Starting Apache Spark version 3.5.0, Datasketches libraries are already in
    1. Verify if jar is created under `target/`
 
       ```
-      root@cluster-21-phs-testing-m:/home/kuldeepkk/spark-example/spark-java-thetasketches# ls -lrt target/
+      root@cluster-$hostname-m:$local_path/spark-java-thetasketches# ls -lrt target/
       total 48
       drwxr-xr-x 3 root root  4096 Feb 29 18:36 maven-status
       drwxr-xr-x 3 root root  4096 Feb 29 18:36 generated-sources
