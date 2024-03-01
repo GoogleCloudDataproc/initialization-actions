@@ -1,0 +1,46 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.apache.datasketches</groupId>
+  <artifactId>spark-java-thetasketches</artifactId>
+  <packaging>jar</packaging>
+  <version>1.0-SNAPSHOT</version>
+  <name>spark-java-thetasketches</name>
+  <url>http://maven.apache.org</url>
+  <properties>
+     <maven.compiler.source>11</maven.compiler.source>
+     <maven.compiler.target>11</maven.compiler.target>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>3.8.1</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.datasketches</groupId>
+      <artifactId>datasketches-memory</artifactId>
+      <version>2.0.0</version>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/org.apache.spark/spark-core -->
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-core_2.13</artifactId>
+      <version>3.3.0</version>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/org.apache.datasketches/datasketches-java -->
+    <dependency>
+      <groupId>org.apache.datasketches</groupId>
+      <artifactId>datasketches-java</artifactId>
+      <version>3.1.0</version>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/org.apache.spark/spark-sql -->
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-sql_2.13</artifactId>
+      <version>3.3.0</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+</project>
