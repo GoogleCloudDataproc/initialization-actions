@@ -1,5 +1,4 @@
 #!/bin/bash
-#set -x
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,8 +18,9 @@
 # datasketches-hive - https://github.com/apache/datasketches-hive
 # datasketches-pig - https://github.com/apache/datasketches-pig
 # Official documentation link - https://datasketches.apache.org/
+set -euxo pipefail
 
-# Detect dataproc image version from its various names
+# Detect dataproc image version
 if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
   DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
 fi
@@ -35,32 +35,32 @@ readonly DS_LIBPATH="/usr/lib/datasketches"
 readonly SPARK_VERSION=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
 readonly SPARK_JAVA_EXAMPLE_JAR="gs://spark-lib/datasketches/spark-java-thetasketches-1.0-SNAPSHOT.jar"
 
-function configure_libraries()
+function init()
 {
-  local component=$1
-  local version=$2
-  wget -P "${DS_LIBPATH}" "${MAVEN_CENTRAL_URI}"/org/apache/datasketches/datasketches-"${component}"/"${version}"/datasketches-"${component}"-"${version}".jar
-  if [ $? -eq 0 ]; then
-    echo "Downloaded datasketches-"${component}"-"${version}".jar successfully"
-  else
-    echo "Problem downloading datasketches-"${component}"-"${version}".jar from ${MAVEN_CENTRAL_URI}, exiting!"
-    exit 1
-  fi
+  mkdir ${DS_LIBPATH}
 }
 
-#Create datasketches lib directory
-mkdir ${DS_LIBPATH}
+function configure_libraries()
+{
+  declare -A all_components=( [java]="3.1.0" [hive]="1.2.0" [memory]="2.0.0" [pig]="1.1.0" )
 
-declare -A all_components=( [java]="3.1.0" [hive]="1.2.0" [memory]="2.0.0" [pig]="1.1.0" )
+  for lib in "${!all_components[@]}" 
+  do
+    local component=${lib}
+    local version=${all_components[$lib]}
+    wget -P "${DS_LIBPATH}" "${MAVEN_CENTRAL_URI}"/org/apache/datasketches/datasketches-"${component}"/"${version}"/datasketches-"${component}"-"${version}".jar
+    if [ $? -eq 0 ]; then
+      echo "Downloaded datasketches-"${component}"-"${version}".jar successfully"
+    else
+      echo "Problem downloading datasketches-"${component}"-"${version}".jar from ${MAVEN_CENTRAL_URI}, exiting!"
+      exit 1
+    fi
+  done
+}
 
-#Download and configure datasketches libraries
-for lib in "${!all_components[@]}" 
-do
-	configure_libraries $lib ${all_components[$lib]}
-done
-
-#Deploy spark java thetasketches example jar
-if [[ "${SPARK_VERSION}" < "3.5" ]]; then
+function download_example_jar()
+{
+  if [[ "${SPARK_VERSION}" < "3.5" ]]; then
   gsutil cp "${SPARK_JAVA_EXAMPLE_JAR}" "${DS_LIBPATH}"
   if [ $? -eq 0 ]; then
     echo "Downloaded "${SPARK_JAVA_EXAMPLE_JAR}" successfully"
@@ -71,3 +71,14 @@ if [[ "${SPARK_VERSION}" < "3.5" ]]; then
 else
   echo "Datasketches libraries are already included in Spark version 3.5.0 and onwards! Follow README for examples"
 fi
+}
+
+
+function main()
+{
+  init
+  configure_libraries
+  download_example_jar
+}
+
+main
