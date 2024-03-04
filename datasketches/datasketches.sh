@@ -35,13 +35,9 @@ readonly DS_LIBPATH="/usr/lib/datasketches"
 readonly SPARK_VERSION=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
 readonly SPARK_JAVA_EXAMPLE_JAR="gs://spark-lib/datasketches/spark-java-thetasketches-1.0-SNAPSHOT.jar"
 
-function init()
+function download_libraries()
 {
-  mkdir ${DS_LIBPATH}
-}
-
-function configure_libraries()
-{
+  mkdir -p ${DS_LIBPATH}
   declare -A all_components=( [java]="3.1.0" [hive]="1.2.0" [memory]="2.0.0" [pig]="1.1.0" )
 
   for lib in "${!all_components[@]}" 
@@ -73,11 +69,9 @@ else
 fi
 }
 
-
 function main()
 {
-  init
-  configure_libraries
+  download_libraries
   download_example_jar
 }
 
