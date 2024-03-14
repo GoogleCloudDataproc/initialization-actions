@@ -143,3 +143,20 @@ Subscribe to [cloud-dataproc-discuss@google.com](https://groups.google.com/forum
 
 * See [LICENSE](LICENSE)
 
+## FAQ
+1. You might see an error message similar to the following when upgrading the agent, installing the agent, or running apt-get update on Debian/Ubuntu Linux:
+```
+E: Repository 'https://packages.cloud.google.com/apt google-cloud-monitoring-buster-all InRelease' changed its 'Origin' value from 'google-cloud-monitoring-buster' to 'namespaces/cloud-ops-agents-artifacts/repositories/google-cloud-monitoring-buster-all'
+E: Repository 'https://packages.cloud.google.com/apt google-cloud-monitoring-buster-all InRelease' changed its 'Label' value from 'google-cloud-monitoring-buster' to 'namespaces/cloud-ops-agents-artifacts/repositories/google-cloud-monitoring-buster-all'
+```
+This message indicates that the package repository cache may have diverged from its source. To resolve this, run the following command:
+
+```
+apt-get --allow-releaseinfo-change update
+```
+
+Then, run the upgrade or install again.
+
+
+
+
