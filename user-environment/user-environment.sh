@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2015 Google, Inc.
+# Copyright 2015,2016,2018,2019,2020,2024 Google, LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,9 +27,9 @@ function update_apt_get() {
   return 1
 }
 
-## Only install customize master node by default.
+## Only install customize master node(s) by default.
 ## Delete to customize all nodes.
-[[ "${HOSTNAME}" =~ -m$ ]] || exit 0
+[[ "$(hostname -s)" =~ "-m$" ]] || [[ "$(hostname -s)" =~ "-m-[0-9]+$" ]] || exit 0
 
 ## Make global changes here
 update_apt_get
