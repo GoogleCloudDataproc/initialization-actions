@@ -43,19 +43,19 @@ readonly ROLE
 readonly -A DRIVER_FOR_CUDA=([10.1]="418.88"    [10.2]="440.64.00"
           [11.0]="450.51.06" [11.1]="455.45.01" [11.2]="460.73.01"
           [11.5]="495.29.05" [11.6]="510.47.03" [11.7]="515.65.01"
-          [11.8]="520.56.06")
+          [11.8]="520.56.06" [12.1]="530.30.02")
 readonly -A CUDNN_FOR_CUDA=( [10.1]="7.6.4.38"  [10.2]="7.6.5.32"
           [11.0]="8.0.4.30"  [11.1]="8.0.5.39"  [11.2]="8.1.1.33"
           [11.5]="8.3.3.40"  [11.6]="8.4.1.50"  [11.7]="8.5.0.96"
-          [11.8]="8.6.0.163")
+          [11.8]="8.6.0.163" [12.1]="8.9.0.131")
 readonly -A NCCL_FOR_CUDA=(  [10.1]="2.4.8"     [10.2]="2.5.6"
           [11.0]="2.7.8"     [11.1]="2.8.3"     [11.2]="2.8.3"
           [11.5]="2.11.4"    [11.6]="2.11.4"    [11.7]="2.12.12"
-          [11.8]="2.15.5")
+          [11.8]="2.15.5"    [12.1]="2.18.3")
 readonly -A CUDA_SUBVER=(    [10.1]="10.1.243"  [10.2]="10.2.89"
           [11.0]="11.0.3"    [11.1]="11.1.0"    [11.2]="11.2.2"
           [11.5]="11.5.2"    [11.6]="11.6.2"    [11.7]="11.7.1"
-          [11.8]="11.8.0")
+          [11.8]="11.8.0"    [12.1]="12.1.0")
 
 RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 DEFAULT_CUDA_VERSION='11.2'
@@ -127,7 +127,8 @@ readonly -A DEFAULT_NVIDIA_DEBIAN_CUDA_URLS=(
   [11.5]="${NVIDIA_BASE_DL_URL}/cuda/11.5.2/local_installers/cuda_11.5.2_495.29.05_linux.run"
   [11.6]="${NVIDIA_BASE_DL_URL}/cuda/11.6.2/local_installers/cuda_11.6.2_510.47.03_linux.run"
   [11.7]="${NVIDIA_BASE_DL_URL}/cuda/11.7.1/local_installers/cuda_11.7.1_515.65.01_linux.run"
-  [11.8]="${NVIDIA_BASE_DL_URL}/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run")
+  [11.8]="${NVIDIA_BASE_DL_URL}/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run"
+  [12.1]="${NVIDIA_BASE_DL_URL}/cuda/12.1.0/local_installers/cuda_12.1.0_530.30.02_linux.run")
 readonly DEFAULT_NVIDIA_DEBIAN_CUDA_URL=${DEFAULT_NVIDIA_DEBIAN_CUDA_URLS["${CUDA_VERSION}"]}
 NVIDIA_DEBIAN_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_DEBIAN_CUDA_URL}")
 readonly NVIDIA_DEBIAN_CUDA_URL
@@ -205,10 +206,43 @@ function install_nvidia_nccl() {
       "${NCCL_REPO_URL}" -o "${tmp_dir}/nvidia-ml-repo.deb"
     dpkg -i "${tmp_dir}/nvidia-ml-repo.deb"
 
-    execute_with_retries "apt-get update"
+    if [[ "${nccl_version}" == "2.18.3-1+cuda12.1" ]]; then
 
-    execute_with_retries \
-      "apt-get install -y --allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
+      if ( compare_versions_lt "${DATAPROC_IMAGE_VERSION}" "2.1" ); then
+        # pre-built deb packages libnccl2_2.18.3-1+cuda12.1_amd64.deb and
+        # libnccl-dev_2.18.3-1+cuda12.1_amd64.deb are not available for ubuntu18
+        # and debian10. These have been built manually and stored in a public
+        # gcs bucket.
+        local -r cuda_dist_gcs_path="gs://cuda-dist"
+        local libnccl_gcs_path
+        if [[ ${OS_NAME} == debian ]]; then
+          libnccl_gcs_path="${cuda_dist_gcs_path}/debian10"
+        else
+          libnccl_gcs_path="${cuda_dist_gcs_path}/ubuntu18"
+        fi
+
+        gsutil cp "${libnccl_gcs_path}/libnccl2_${nccl_version}_amd64.deb" "${tmp_dir}/libnccl2.deb"
+        gsutil cp "${libnccl_gcs_path}/libnccl-dev_${nccl_version}_amd64.deb" "${tmp_dir}/libnccl-dev.deb"
+
+      else
+        local -r libnccl_url="${NVIDIA_BASE_DL_URL}/cuda/repos/ubuntu2004/x86_64"
+
+        curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+          "${libnccl_url}/libnccl2_${nccl_version}_amd64.deb" -o "${tmp_dir}/libnccl2.deb"
+
+        curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+          "${libnccl_url}/libnccl-dev_${nccl_version}_amd64.deb" -o "${tmp_dir}/libnccl-dev.deb"
+      fi
+
+      dpkg -i "${tmp_dir}/libnccl2.deb"
+      dpkg -i "${tmp_dir}/libnccl-dev.deb"
+
+    else
+      execute_with_retries "apt-get update"
+
+      execute_with_retries \
+        "apt-get install -y --allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
+    fi
   else
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
@@ -228,7 +262,7 @@ function install_nvidia_cudnn() {
       echo "Unsupported CUDNN version: '${CUDNN_VERSION}'"
       exit 1
     fi
-  elif [[ ${OS_NAME} == ubuntu ]]; then
+  elif [[ ${OS_NAME} == ubuntu ]] || ( [[ ${OS_NAME} == debian ]] && compare_versions_lte "8.9.0.131" "${CUDNN_VERSION}" ); then
     local -a packages
     packages=(
       "libcudnn${major_version}=${cudnn_pkg_version}"
