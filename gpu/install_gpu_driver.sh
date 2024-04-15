@@ -16,6 +16,24 @@
 
 set -euxo pipefail
 
+function remove_old_backports {
+  # This script uses 'apt-get update' and is therefore potentially dependent on
+  # backports repositories which have been archived.  In order to mitigate this
+  # problem, we will remove any reference to backports repos older than oldstable
+
+  # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
+  oldstable=$(curl -s https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
+  stable=$(curl -s https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
+
+  matched_files="$(grep -rsil '\-backports' /etc/apt/sources.list*)"
+  if [[ -n "$matched_files" ]]; then
+    for filename in "$matched_files"; do
+      grep -e "$oldstable-backports" -e "$stable-backports" "$filename" || \
+        sed -i -e 's/^.*-backports.*$//' "$filename"
+    done
+  fi
+}
+
 function compare_versions_lte {
   [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]
 }
@@ -491,6 +509,8 @@ function main() {
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
   fi
+
+  remove_old_backports
 
   if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
     export DEBIAN_FRONTEND=noninteractive
