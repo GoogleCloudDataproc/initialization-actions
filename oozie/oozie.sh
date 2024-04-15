@@ -216,9 +216,10 @@ function install_oozie() {
            /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-common.jar    \
            /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-core.jar      \
            /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-shuffle.jar   /usr/lib/oozie/lib/
-  elif [[ ${OS_NAME} == debian ]] && [[ ${DATAPROC_IMAGE_VERSION} == 2.0 || ${DATAPROC_IMAGE_VERSION} == 1.5 ]]; then
-    sudo sed -i 's/^.*debian buster-backports main.*$//g' /etc/apt/sources.list
   elif [[ ${OS_NAME} == ubuntu ]] || [[ ${OS_NAME} == debian ]]; then
+    if [[ ${OS_NAME} == debian ]] && [[ ${DATAPROC_IMAGE_VERSION} == 2.0 || ${DATAPROC_IMAGE_VERSION} == 1.5 ]]; then
+      sudo sed -i 's/^.*debian buster-backports main.*$//g' /etc/apt/sources.list
+    fi
     retry_command "apt-get install -y gnupg2 && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys B7B3B788A8D3785C"
     retry_command "apt-get update --allow-releaseinfo-change"
     retry_command "apt-get install -q -y oozie oozie-client"
