@@ -27,7 +27,7 @@
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-core_2.13</artifactId>
-      <version>3.3.0</version>
+      <version>3.3.3</version>
     </dependency>
     <!-- https://mvnrepository.com/artifact/org.apache.datasketches/datasketches-java -->
     <dependency>
