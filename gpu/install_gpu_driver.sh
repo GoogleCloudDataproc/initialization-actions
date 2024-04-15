@@ -491,8 +491,10 @@ function main() {
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
   fi
-  sudo sed -i 's/^.*debian buster-backports main.*$//g' /etc/apt/sources.list
-  apt-get update
+  if [[ ${OS_NAME} == debian ]] && [[ ${DATAPROC_IMAGE_VERSION} == 2.0 || ${DATAPROC_IMAGE_VERSION} == 1.5 ]]; then
+    sudo sed -i 's/^.*debian buster-backports main.*$//g' /etc/apt/sources.list
+    apt-get update
+  fi
 
   if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
     export DEBIAN_FRONTEND=noninteractive
