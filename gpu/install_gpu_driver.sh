@@ -530,7 +530,7 @@ function main() {
     exit 1
   fi
 
-  remove_old_backports
+  if [[ ${OS_NAME} == debian ]]; then remove_old_backports ; fi
 
   if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
     export DEBIAN_FRONTEND=noninteractive
