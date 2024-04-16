@@ -254,23 +254,27 @@ function install_nvidia_cudnn() {
     execute_with_retries \
       "apt-get install -y --no-install-recommends ${packages[*]}"
   elif [[ ${OS_NAME} == debian ]]; then
-    local tmp_dir
-    tmp_dir=$(mktemp -d -t gpu-init-action-cudnn-XXXX)
+    if ( compare_versions_lte "${DATAPROC_IMAGE_VERSION}" "2.1" ); then
+      local tmp_dir
+      tmp_dir=$(mktemp -d -t gpu-init-action-cudnn-XXXX)
 
-    curl -fSsL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${CUDNN_TARBALL_URL}" -o "${tmp_dir}/${CUDNN_TARBALL}"
+      curl -fSsL --retry-connrefused --retry 10 --retry-max-time 30 \
+        "${CUDNN_TARBALL_URL}" -o "${tmp_dir}/${CUDNN_TARBALL}"
 
-    if ( compare_versions_lte "${CUDNN_VERSION}" "8.3.0.98" ); then
-      tar -xzf "${tmp_dir}/${CUDNN_TARBALL}" -C /usr/local
-    else
-      ln -sf /usr/local/cuda/targets/x86_64-linux/lib /usr/local/cuda/lib
-      tar -h --no-same-owner --strip-components=1 \
-        -xJf "${tmp_dir}/${CUDNN_TARBALL}" -C /usr/local/cuda
-    fi
+      if ( compare_versions_lte "${CUDNN_VERSION}" "8.3.0.98" ); then
+        tar -xzf "${tmp_dir}/${CUDNN_TARBALL}" -C /usr/local
+      else
+        ln -sf /usr/local/cuda/targets/x86_64-linux/lib /usr/local/cuda/lib
+        tar -h --no-same-owner --strip-components=1 \
+          -xJf "${tmp_dir}/${CUDNN_TARBALL}" -C /usr/local/cuda
+      fi
 
-    cat <<'EOF' >>/etc/profile.d/cudnn.sh
+      cat <<'EOF' >>/etc/profile.d/cudnn.sh
 export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 EOF
+    else
+      execute_with_retries "apt-get install -y nvidia-cudnn libcudnn8 libcudnn8-dev"
+    fi
   else
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
@@ -288,13 +292,29 @@ function install_nvidia_gpu_driver() {
       "${NVIDIA_UBUNTU_REPO_KEY_PACKAGE}" -o /tmp/cuda-keyring.deb
     dpkg -i "/tmp/cuda-keyring.deb"
 
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${NVIDIA_DEBIAN_GPU_DRIVER_URL}" -o driver.run
-    bash "./driver.run" --silent --install-libglvnd
+    if ( compare_versions_lte "${DATAPROC_IMAGE_VERSION}" "2.1" ); then
+      curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+        "${NVIDIA_DEBIAN_GPU_DRIVER_URL}" -o driver.run
+      bash "./driver.run" --silent --install-libglvnd
 
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${NVIDIA_DEBIAN_CUDA_URL}" -o cuda.run
-    bash "./cuda.run" --silent --toolkit --no-opengl-libs
+      curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+        "${NVIDIA_DEBIAN_CUDA_URL}" -o cuda.run
+      bash "./cuda.run" --silent --toolkit --no-opengl-libs
+    else
+      local -r debian_sources="/etc/apt/sources.list.d/debian.sources"
+      local components="main contrib non-free non-free-firmware"
+      sed -i -e "s/Components: .*$/Components: ${components}/" "${debian_sources}"
+      execute_with_retries "apt-get update"
+      execute_with_retries \
+        "apt-get install -y dkms linux-headers-$(uname -r)"
+      execute_with_retries \
+        "apt-get install -y --no-install-recommends \
+                 nvidia-open-kernel-dkms \
+                 nvidia-open-kernel-support \
+                 nvidia-smi \
+                 libglvnd0 \
+                 libcuda1"
+    fi
   elif [[ ${OS_NAME} == ubuntu ]]; then
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${NVIDIA_UBUNTU_REPO_KEY_PACKAGE}" -o /tmp/cuda-keyring.deb
