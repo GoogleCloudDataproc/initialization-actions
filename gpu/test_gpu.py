@@ -12,6 +12,23 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   GPU_T4   = "type=nvidia-tesla-t4"
   GPU_V100 = "type=nvidia-tesla-v100"
   GPU_A100 = "type=nvidia-tesla-a100"
+  DEFAULT_ARGS = {
+      "SINGLE": [
+          "--single-node",
+          "--no-shielded-secure-boot",
+      ],
+      "STANDARD": [
+          "--num-masters=1",
+          "--num-workers=2",
+          "--no-shielded-secure-boot",
+      ],
+      "HA": [
+          "--num-masters=3",
+          "--num-workers=2",
+          "--no-shielded-secure-boot",
+      ]
+  }
+
 
   def verify_instance(self, name):
     self.assert_instance_command(name, "nvidia-smi")
