@@ -261,7 +261,7 @@ function install_hbase() {
 }
 
 function main() {
-  if [[ ${OS_NAME} == debian ]]; then
+  if [[ ${OS_NAME} == debian ]] && [[ ${DATAPROC_IMAGE_VERSION} == 2.0 || ${DATAPROC_IMAGE_VERSION} == 1.5 ]]; then
     remove_old_backports
   fi
   install_hbase             || err 'Failed to install HBase.'
