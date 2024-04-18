@@ -698,7 +698,7 @@ EOF
 
 function main() {
   #Remove debian backports
-  if [[ ${OS_NAME} == debian ]]; then 
+  if [[ ${OS_NAME} == debian ]] && [[ ${DATAPROC_IMAGE_VERSION} == 2.0 || ${DATAPROC_IMAGE_VERSION} == 1.5 ]]; then
     remove_old_backports
   fi
   # Only run on the master node of the cluster
