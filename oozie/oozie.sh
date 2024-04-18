@@ -84,6 +84,24 @@ export MYSQL_ROOT_PASSWORD=$(gcloud secrets versions access --secret ${MYSQL_ROO
 
 NUM_LIVE_DATANODES=0
 
+function remove_old_backports {
+  # This script uses 'apt-get update' and is therefore potentially dependent on
+  # backports repositories which have been archived.  In order to mitigate this
+  # problem, we will remove any reference to backports repos older than oldstable
+
+  # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
+  oldstable=$(curl -s https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
+  stable=$(curl -s https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
+
+  matched_files="$(grep -rsil '\-backports' /etc/apt/sources.list*)"
+  if [[ -n "$matched_files" ]]; then
+    for filename in "$matched_files"; do
+      grep -e "$oldstable-backports" -e "$stable-backports" "$filename" || \
+        sed -i -e 's/^.*-backports.*$//' "$filename"
+    done
+  fi
+}
+
 function await_hdfs_datanodes() {
   # Wait for HDFS to come online
   tryno=0
@@ -217,9 +235,6 @@ function install_oozie() {
            /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-core.jar      \
            /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-shuffle.jar   /usr/lib/oozie/lib/
   elif [[ ${OS_NAME} == ubuntu ]] || [[ ${OS_NAME} == debian ]]; then
-    if [[ ${OS_NAME} == debian ]] && [[ ${DATAPROC_IMAGE_VERSION} == 2.0 || ${DATAPROC_IMAGE_VERSION} == 1.5 ]]; then
-      sudo sed -i 's/^.*debian buster-backports main.*$//g' /etc/apt/sources.list
-    fi
     retry_command "apt-get install -y gnupg2 && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys B7B3B788A8D3785C"
     retry_command "apt-get update --allow-releaseinfo-change"
     retry_command "apt-get install -q -y oozie oozie-client"
@@ -682,6 +697,10 @@ EOF
 
 
 function main() {
+  #Remove debian backports
+  if [[ ${OS_NAME} == debian ]]; then 
+    remove_old_backports
+  fi
   # Only run on the master node of the cluster
   if [[ "${ROLE}" == 'Master' ]]; then
     install_oozie
