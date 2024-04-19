@@ -21,6 +21,14 @@
 # Do not use "set -x" to avoid printing passwords in clear in the logs
 set -euo pipefail
 
+# Detect dataproc image version from its various names
+if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
+  DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
+fi
+
+readonly OS_NAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
+distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+
 declare -A DEFAULT_DB_PORT=(['MYSQL']='3306' ['POSTGRES']='5432' ['SQLSERVER']='1433')
 declare -A DEFAULT_DB_ADMIN_USER=(['MYSQL']='root' ['POSTGRES']='postgres' ['SQLSERVER']='sqlserver')
 declare -A DEFAULT_DB_PROTO=(['MYSQL']='mysql' ['POSTGRES']='postgresql' ['SQLSERVER']='sqlserver')
