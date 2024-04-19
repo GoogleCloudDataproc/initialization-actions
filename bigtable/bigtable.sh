@@ -21,6 +21,7 @@ set -euxo pipefail
 # Use Python from /usr/bin instead of /opt/conda.
 export PATH=/usr/bin:$PATH
 
+readonly OS_NAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
 distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
 
 # Detect dataproc image version from its various names
