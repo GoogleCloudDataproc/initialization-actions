@@ -21,6 +21,8 @@ class GangliaTestCase(DataprocTestCase):
                                      "yes | sudo apt-get install python3-pip libxml2-dev libxslt-dev")
         self.assert_instance_command(name, "sudo -H pip3 install --upgrade pip")
         self.assert_instance_command(name, "sudo pip3 install requests-html")
+        self.assert_instance_command(name, "sudo pip install -U urllib3 requests")
+        self.assert_instance_command(name, "pip install lxml[html_clean]")
         self.assert_instance_command(
             name, "python3 {}".format(self.TEST_SCRIPT_FILE_NAME))
         self.remove_test_script(self.TEST_SCRIPT_FILE_NAME, name)
