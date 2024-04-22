@@ -17,6 +17,32 @@ set -o errexit
 set -o nounset
 set -o xtrace
 
+readonly OS_NAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
+distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+
+# Detect dataproc image version from its various names
+if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
+  DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
+fi
+
+function remove_old_backports {
+  # This script uses 'apt-get update' and is therefore potentially dependent on
+  # backports repositories which have been archived.  In order to mitigate this
+  # problem, we will remove any reference to backports repos older than oldstable
+
+  # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
+  oldstable=$(curl -s https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
+  stable=$(curl -s https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
+
+  matched_files="$(grep -rsil '\-backports' /etc/apt/sources.list*)"
+  if [[ -n "$matched_files" ]]; then
+    for filename in "$matched_files"; do
+      grep -e "$oldstable-backports" -e "$stable-backports" "$filename" || \
+        sed -i -e 's/^.*-backports.*$//' "$filename"
+    done
+  fi
+}
+
 function update_apt_get() {
   for ((i = 0; i < 10; i++)); do
     if apt-get update; then
@@ -30,6 +56,10 @@ function update_apt_get() {
 ## Only install customize master node by default.
 ## Delete to customize all nodes.
 [[ "${HOSTNAME}" =~ -m$ ]] || exit 0
+
+if [[ ${OS_NAME} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
+  remove_old_backports
+fi
 
 ## Make global changes here
 update_apt_get
