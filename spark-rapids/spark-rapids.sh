@@ -591,8 +591,34 @@ function check_os_and_secure_boot() {
   fi
 }
 
+# Detect dataproc image version from its various names
+if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
+  DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
+fi
+
+function remove_old_backports {
+  # This script uses 'apt-get update' and is therefore potentially dependent on
+  # backports repositories which have been archived.  In order to mitigate this
+  # problem, we will remove any reference to backports repos older than oldstable
+
+  # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
+  oldstable=$(curl -s https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
+  stable=$(curl -s https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
+
+  matched_files="$(grep -rsil '\-backports' /etc/apt/sources.list*)"
+  if [[ -n "$matched_files" ]]; then
+    for filename in "$matched_files"; do
+      grep -e "$oldstable-backports" -e "$stable-backports" "$filename" || \
+        sed -i -e 's/^.*-backports.*$//' "$filename"
+    done
+  fi
+}
+
 
 function main() {
+  if [[ ${OS_NAME} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
+    remove_old_backports
+  fi
   check_os_and_secure_boot
   if [[ "${OS_NAME}" == "rocky" ]]; then
     if dnf list kernel-devel-$(uname -r) && dnf list kernel-headers-$(uname -r); then
