@@ -11,6 +11,12 @@ class LivyTestCase(DataprocTestCase):
     COMPONENT = 'livy'
     INIT_ACTIONS = ['livy/livy.sh']
     TEST_SCRIPT_FILE_NAME = 'verify_livy_running.py'
+    DEFAULT_LIVY_VERSION = '0.7.1'
+    DEFAULT_SCALA_VERSION = '2.11'
+    LIVY_VERSION = '0.8.0'
+    SCALA_VERSION = '2.12'
+    PYTHON2_VERSION = 'python2.7'
+    PYTHON3_VERSION = 'python3'
 
     def _verify_instance(self, name):
         self.upload_test_file(
@@ -21,12 +27,31 @@ class LivyTestCase(DataprocTestCase):
         self.remove_test_script(self.TEST_SCRIPT_FILE_NAME, name)
 
     def _run_python_test_file(self, name):
-        self.assert_instance_command(
-            name,
-            "sudo apt-get install -y python3-pip && sudo pip3 install requests"
-        )
+        if self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+            self.assert_instance_command(
+                name,
+                "sudo apt install python3-requests"
+            )
+        else:
+            self.assert_instance_command(
+                name,
+                "sudo apt-get install -y python3-pip && sudo pip3 install requests"
+            )
         self.assert_instance_command(
             name, "sudo python3 {}".format(self.TEST_SCRIPT_FILE_NAME))
+
+    def __submit_pyspark_job(self, cluster_name):
+        if self.getImageVersion() >= pkg_resources.parse_version("2.1"):
+            python_version = self.PYTHON3_VERSION
+        else:
+            python_version = self.PYTHON2_VERSION
+        self.assert_dataproc_job(cluster_name, 'pyspark',
+                                 '{}/{}/{} --properties=spark.pyspark.python={},spark.pyspark.driver.python={}'
+                                 .format(self.INIT_ACTIONS_REPO,
+                                         self.COMPONENT,
+                                         self.TEST_SCRIPT_FILE_NAME,
+                                         python_version,
+                                         python_version))
 
     @parameterized.parameters(
         ("SINGLE", ["m"]),
@@ -41,6 +66,22 @@ class LivyTestCase(DataprocTestCase):
         for machine_suffix in machine_suffixes:
             self._verify_instance("{}-{}".format(self.getClusterName(),
                                                  machine_suffix))
+
+    @parameterized.parameters(
+        "SINGLE",
+        "STANDARD",
+        "HA",
+    )
+    def test_livy_job(self, configuration):
+        if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+            self.skipTest("Not supported in 1.5 images")
+
+        if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
+            metadata = 'livy-version={},scala-version={}'.format(self.LIVY_VERSION, self.SCALA_VERSION)
+        else:
+            metadata = 'livy-version={},scala-version={}'.format(self.DEFAULT_LIVY_VERSION, self.DEFAULT_SCALA_VERSION)
+        self.createCluster(configuration, self.INIT_ACTIONS, metadata=metadata)
+        self.__submit_pyspark_job(self.getClusterName())
 
 
 if __name__ == '__main__':

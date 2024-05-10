@@ -41,7 +41,7 @@ else
 fi
 
 # Update SPARK RAPIDS config
-readonly DEFAULT_SPARK_RAPIDS_VERSION="23.10.0"
+readonly DEFAULT_SPARK_RAPIDS_VERSION="24.02.0"
 readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
 readonly XGBOOST_VERSION=$(get_metadata_attribute 'xgboost-version' ${DEFAULT_XGBOOST_VERSION})
 
@@ -55,6 +55,7 @@ CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '12.2.2')  #12.2.2
 NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '535.104.05') #535.104.05
 CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.2
 
+# EXCEPTIONS
 # Change CUDA version for Ubuntu 18 (Cuda 12.1.1 - Driver v530.30.02 is the latest version supported by Ubuntu 18)
 if [[ "${OS_NAME}" == "ubuntu" ]]; then
     UBUNTU_VERSION=$(lsb_release -r | awk '{print $2}') # 20.04
@@ -63,6 +64,15 @@ if [[ "${OS_NAME}" == "ubuntu" ]]; then
       CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '12.1.1')  #12.1.1
       NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '530.30.02') #530.30.02
       CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.1
+    fi
+fi
+# Change CUDA version for Debian 12 (Cuda 12.3.2 - Driver v545.23.08 is the latest version supported by Debian 12)
+if [[ "${OS_NAME}" == "debian" ]]; then
+    DEBIAN_VERSION=$(lsb_release -r | awk '{print $2}') # 12
+    if [[ "${DEBIAN_VERSION}" == "12" ]]; then
+      CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '12.3.2')  #12.3.2
+      NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '545.23.08') #545.23.08
+      CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.3
     fi
 fi
 
@@ -184,13 +194,24 @@ function install_nvidia_gpu_driver() {
 
     dpkg -i /tmp/local-installer.deb
     cp /var/cuda-repo-debian${DEBIAN_VERSION}-${CUDA_VERSION_MAJOR//./-}-local/cuda-*-keyring.gpg /usr/share/keyrings/
+
+    ## EXCEPTION
+    if [[ ${DEBIAN_VERSION} == 12 ]]; then
+      sed -i '0,/Components: main/s//& contrib/' /etc/apt/sources.list.d/debian.sources
+    fi
+
     add-apt-repository contrib
     execute_with_retries "apt-get update"
 
+    ## EXCEPTION
     if [[ ${DEBIAN_VERSION} == 10 ]]; then
       apt remove -y libglvnd0
       apt install -y ca-certificates-java
+    fi
 
+    ## EXCEPTION
+    if [[ ${DEBIAN_VERSION} == 12 ]]; then
+      execute_with_retries "apt-get install -y -q nvidia-kernel-open-dkms"
     fi
 
     execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${NVIDIA_DRIVER_VERSION_PREFIX}"
@@ -544,7 +565,7 @@ function upgrade_kernel() {
 function check_os_and_secure_boot() {
   if [[ "${OS_NAME}" == "debian" ]]; then
     DEBIAN_VERSION=$(lsb_release -r | awk '{print $2}') # 10 or 11
-    if [[ "${DEBIAN_VERSION}" != "10" && "${DEBIAN_VERSION}" != "11" ]]; then
+    if [[ "${DEBIAN_VERSION}" != "10" && "${DEBIAN_VERSION}" != "11" && "${DEBIAN_VERSION}" != "12" ]]; then
       echo "Error: The Debian version (${DEBIAN_VERSION}) is not supported. Please use a compatible Debian version."
       exit 1
     fi
@@ -570,8 +591,34 @@ function check_os_and_secure_boot() {
   fi
 }
 
+# Detect dataproc image version from its various names
+if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
+  DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
+fi
+
+function remove_old_backports {
+  # This script uses 'apt-get update' and is therefore potentially dependent on
+  # backports repositories which have been archived.  In order to mitigate this
+  # problem, we will remove any reference to backports repos older than oldstable
+
+  # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
+  oldstable=$(curl -s https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
+  stable=$(curl -s https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
+
+  matched_files="$(grep -rsil '\-backports' /etc/apt/sources.list*)"
+  if [[ -n "$matched_files" ]]; then
+    for filename in "$matched_files"; do
+      grep -e "$oldstable-backports" -e "$stable-backports" "$filename" || \
+        sed -i -e 's/^.*-backports.*$//' "$filename"
+    done
+  fi
+}
+
 
 function main() {
+  if [[ ${OS_NAME} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
+    remove_old_backports
+  fi
   check_os_and_secure_boot
   if [[ "${OS_NAME}" == "rocky" ]]; then
     if dnf list kernel-devel-$(uname -r) && dnf list kernel-headers-$(uname -r); then

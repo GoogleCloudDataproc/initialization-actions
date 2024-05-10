@@ -217,7 +217,7 @@ EOF
   fi
   
   if [ "${ENABLE_KERBEROS}" = true ]; then
-    if [[ "${HOSTNAME}" == "${DATAPROC_MASTER}" ]]; then
+    if [[ "$(hostname -s)" == "${DATAPROC_MASTER}" ]]; then
       # Master
       for m in "${MASTER_HOSTNAMES[@]}"; do
         kadmin.local -q "addprinc -randkey hbase/${m}.${DOMAIN}@${REALM}"
@@ -255,7 +255,7 @@ EOF
     fi
 
     # Copy keytab to machine
-    gsutil cp "${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/hbase-${HOSTNAME}.keytab" $hbase_keytab_path
+    gsutil cp "${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/hbase-$(hostname -s).keytab" $hbase_keytab_path
 
     # Change owner of keytab to hbase with read only permissions
     if [ -f $hbase_keytab_path ]; then

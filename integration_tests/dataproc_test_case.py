@@ -51,6 +51,7 @@ class DataprocTestCase(parameterized.TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        os.environ["CLOUDSDK_PYTHON"] = "/usr/bin/python3"
 
         _, project, _ = cls.run_command("gcloud config get-value project")
         cls.PROJECT = project.strip()
@@ -104,7 +105,7 @@ class DataprocTestCase(parameterized.TestCase):
         self.cluster_zone = zone
 
         init_actions = [
-            "{}/{}".format(self.INIT_ACTIONS_REPO, i)
+            "{}/{}".format(self.INIT_ACTIONS_REPO, i) if "gs://" not in i else i
             for i in init_actions or []
         ]
 

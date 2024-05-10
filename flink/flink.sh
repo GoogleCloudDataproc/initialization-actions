@@ -221,7 +221,8 @@ function start_flink_master() {
     echo "${START_FLINK_YARN_SESSION_DEFAULT}")"
 
   # Start Flink master only on the master node ("0"-master in HA mode)
-  if [[ "${start_yarn_session}" == "true" && "${HOSTNAME}" == "${MASTER_HOSTNAME}" ]]; then
+  if [[ "${start_yarn_session}" == "true"
+	&& "$(hostname -s)" == "${MASTER_HOSTNAME}" ]]; then
     "${FLINK_YARN_SCRIPT}"
   else
     echo "Skipping Flink master startup - non primary master node"
@@ -237,7 +238,7 @@ function main() {
     install_apt_get flink || err "Unable to install flink"
   fi
   configure_flink || err "Flink configuration failed"
-  if [[ "${HOSTNAME}" == "${MASTER_HOSTNAME}" ]]; then
+  if [[ "$(hostname -s)" == "${MASTER_HOSTNAME}" ]]; then
     start_flink_master || err "Unable to start Flink master"
   fi
 }

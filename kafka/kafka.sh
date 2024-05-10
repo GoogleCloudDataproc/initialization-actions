@@ -25,6 +25,7 @@ readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly RUN_ON_MASTER="$(/usr/share/google/get_metadata_value attributes/run-on-master || echo false)"
 readonly KAFKA_ENABLE_JMX="$(/usr/share/google/get_metadata_value attributes/kafka-enable-jmx || echo false)"
 readonly KAFKA_JMX_PORT="$(/usr/share/google/get_metadata_value attributes/kafka-jmx-port || echo 9999)"
+readonly INSTALL_KAFKA_PYTHON="$(/usr/share/google/get_metadata_value attributes/install-kafka-python || echo false)"
 
 # The first ZooKeeper server address, e.g., "cluster1-m-0:2181".
 ZOOKEEPER_ADDRESS=''
@@ -40,6 +41,11 @@ function retry_apt_command() {
     sleep 5
   done
   return 1
+}
+
+function recv_keys() {
+  retry_apt_command "apt-get install -y gnupg2 &&\
+                     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys B7B3B788A8D3785C"
 }
 
 function update_apt_get() {
@@ -168,8 +174,51 @@ function install_and_configure_kafka_server() {
   wait_for_kafka
 }
 
+function install_kafka_python_package() {
+  KAFKA_PYTHON_PACKAGE="kafka-python==2.0.2"
+  if [[ "${INSTALL_KAFKA_PYTHON}" != "true" ]]; then
+    return
+  fi
+
+  if [[ "$(echo "${DATAPROC_IMAGE_VERSION} > 2.0" | bc)" -eq 1 ]]; then
+    /opt/conda/default/bin/pip install "${KAFKA_PYTHON_PACKAGE}" || { sleep 10; /opt/conda/default/bin/pip install "${KAFKA_PYTHON_PACKAGE}"; }
+  else
+    OS=$(. /etc/os-release && echo "${ID}")
+    if [[ "${OS}" == "rocky" ]]; then
+      yum install -y python2-pip
+    else
+      apt-get install -y python-pip
+    fi
+    pip2 install "${KAFKA_PYTHON_PACKAGE}" || { sleep 10; pip2 install "${KAFKA_PYTHON_PACKAGE}"; } || { sleep 10; pip install "${KAFKA_PYTHON_PACKAGE}"; }
+  fi
+}
+
+function remove_old_backports {
+  # This script uses 'apt-get update' and is therefore potentially dependent on
+  # backports repositories which have been archived.  In order to mitigate this
+  # problem, we will remove any reference to backports repos older than oldstable
+
+  # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
+  oldstable=$(curl -s https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
+  stable=$(curl -s https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
+
+  matched_files="$(grep -rsil '\-backports' /etc/apt/sources.list*)"
+  if [[ -n "$matched_files" ]]; then
+    for filename in "$matched_files"; do
+      grep -e "$oldstable-backports" -e "$stable-backports" "$filename" || \
+        sed -i -e 's/^.*-backports.*$//' "$filename"
+    done
+  fi
+}
+
 function main() {
+  OS=$(. /etc/os-release && echo "${ID}")
+  if [[ ${OS} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
+    remove_old_backports
+  fi
+  recv_keys || err 'Unable to receive keys.'
   update_apt_get || err 'Unable to update packages lists.'
+  install_kafka_python_package
 
   # Only run the installation on workers; verify zookeeper on master(s).
   if [[ "${ROLE}" == 'Master' ]]; then

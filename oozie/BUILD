@@ -7,6 +7,7 @@ py_test(
     data = [
         "oozie.sh",
         "validate.sh",
+        "verify_oozie_running.py",
     ],
     local = True,
     shard_count = 3,

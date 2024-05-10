@@ -1,5 +1,6 @@
 import random
 
+import pkg_resources
 from absl.testing import absltest
 from absl.testing import parameterized
 
@@ -88,6 +89,10 @@ class StarburstPrestoTestCase(DataprocTestCase):
         if self.getImageOs() == 'rocky':
             self.skipTest("Not supported in Rocky Linux-based images")
 
+        # Skip on 2.0+ version of Dataproc because it's not supported
+        if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
+            self.skipTest("Not supported in 2.0+ images")
+
         self.createCluster(configuration, self.INIT_ACTIONS)
         for machine_suffix in machine_suffixes:
             self.verify_instance(
@@ -100,6 +105,10 @@ class StarburstPrestoTestCase(DataprocTestCase):
             self, configuration, machine_suffixes, coordinators, workers):
         if self.getImageOs() == 'rocky':
             self.skipTest("Not supported in Rocky Linux-based images")
+
+        # Skip on 2.0+ version of Dataproc because it's not supported
+        if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
+            self.skipTest("Not supported in 2.0+ images")
 
         self.createCluster(
             configuration,

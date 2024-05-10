@@ -84,6 +84,24 @@ export MYSQL_ROOT_PASSWORD=$(gcloud secrets versions access --secret ${MYSQL_ROO
 
 NUM_LIVE_DATANODES=0
 
+function remove_old_backports {
+  # This script uses 'apt-get update' and is therefore potentially dependent on
+  # backports repositories which have been archived.  In order to mitigate this
+  # problem, we will remove any reference to backports repos older than oldstable
+
+  # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
+  oldstable=$(curl -s https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
+  stable=$(curl -s https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
+
+  matched_files="$(grep -rsil '\-backports' /etc/apt/sources.list*)"
+  if [[ -n "$matched_files" ]]; then
+    for filename in "$matched_files"; do
+      grep -e "$oldstable-backports" -e "$stable-backports" "$filename" || \
+        sed -i -e 's/^.*-backports.*$//' "$filename"
+    done
+  fi
+}
+
 function await_hdfs_datanodes() {
   # Wait for HDFS to come online
   tryno=0
@@ -145,7 +163,7 @@ function configure_ssl() {
   local certificate_path="${oozie_home}/certificate.cert"
   local certificate_secret_name=
 
-  if [[ "${HOSTNAME}" == "$master_node" ]]; then
+  if [[ "$(hostname -s)" == "${master_node}" ]]; then
     test -f ${keystore_file} ||\
       sudo -u oozie keytool -genkeypair -alias jetty -file ${keystore_file} \
         -keyalg RSA -dname "CN=*.${domain}" \
@@ -217,7 +235,8 @@ function install_oozie() {
            /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-core.jar      \
            /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-shuffle.jar   /usr/lib/oozie/lib/
   elif [[ ${OS_NAME} == ubuntu ]] || [[ ${OS_NAME} == debian ]]; then
-    retry_command "apt-get update"
+    retry_command "apt-get install -y gnupg2 && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys B7B3B788A8D3785C"
+    retry_command "apt-get update --allow-releaseinfo-change"
     retry_command "apt-get install -q -y oozie oozie-client"
   else
     echo "Unsupported OS: '${OS_NAME}'"
@@ -253,7 +272,7 @@ function install_oozie() {
     find /usr/lib/oozie/ -name "jetty*-7.*.jar" -delete
   fi
 
-  if [[ "${HOSTNAME}" == "${master_node}" ]]; then
+  if [[ "$(hostname -s)" == "${master_node}" ]]; then
     local tmp_dir
     tmp_dir=$(mktemp -d -t oozie-install-XXXX)
 
@@ -311,7 +330,7 @@ function install_oozie() {
   set_oozie_property 'oozie.email.from.address' "${METADATA_EMAIL_FROM_ADDRESS}"
   set_oozie_property 'oozie.action.max.output.data' "20000"
   # Set hostname to allow connection from other hosts (not only localhost)
-  set_oozie_property 'oozie.http.hostname' "${HOSTNAME}"
+  set_oozie_property 'oozie.http.hostname' "$(hostname -s)"
   # Following property was requested in customer case
   set_oozie_property 'oozie.service.WorkflowAppService.WorkflowDefinitionMaxLength' "1500000"
   # Following 2 properties added for customer case
@@ -347,7 +366,7 @@ function install_oozie() {
   set_oozie_property 'oozie.service.ProxyUserService.proxyuser.oozie.hosts' '*'
   set_oozie_property 'oozie.service.ProxyUserService.proxyuser.oozie.groups' '*'
 
-  if [[ "${HOSTNAME}" == "${master_node}" ]]; then
+  if [[ "$(hostname -s)" == "${master_node}" ]]; then
     # Create the Oozie user in MySQL. Do this before the copies, since other
     # masters may start up and attempt to connect before the HDFS copies
     # below complete. The other masters need to be able to connect to MySQL.
@@ -360,7 +379,7 @@ FLUSH PRIVILEGES;
 EOM
   fi
 
-  if [[ "${HOSTNAME}" == "${master_node}" ]]; then
+  if [[ "$(hostname -s)" == "${master_node}" ]]; then
     local tmp_dir
     tmp_dir=$(mktemp -d -t oozie-install-XXXX)
 
@@ -516,7 +535,7 @@ EOM
     fi
   fi
 
-  if [[ "${HOSTNAME}" == "${master_node}" ]]; then
+  if [[ "$(hostname -s)" == "${master_node}" ]]; then
     # Create the Oozie database. Since we are using MySQL,
     # only do this on the master node.
     retry_command "sudo -u oozie /usr/lib/oozie/bin/ooziedb.sh create -run"
@@ -591,7 +610,7 @@ EOM
   done
 
   # Leave safe mode - HDFS will enter safe mode because of Name Node restart
-  if [[ "${HOSTNAME}" == "${master_node}" ]]; then
+  if [[ "$(hostname -s)" == "${master_node}" ]]; then
     case "${DATAPROC_IMAGE_VERSION}" in
       "1.3" | "1.4")
         hadoop dfsadmin -safemode leave
@@ -678,6 +697,10 @@ EOF
 
 
 function main() {
+  #Remove debian backports
+  if [[ ${OS_NAME} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
+    remove_old_backports
+  fi
   # Only run on the master node of the cluster
   if [[ "${ROLE}" == 'Master' ]]; then
     install_oozie

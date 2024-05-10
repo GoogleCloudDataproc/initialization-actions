@@ -65,6 +65,24 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
   --enable-component-gateway
 ```
 
+### Creating Dataproc Cluster with Dask in standalone mode
+
+The following command will create a
+[Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster with
+[Dask](https://dask.org/) in standalone mode and Cloud Logging enabled.
+
+```bash
+CLUSTER_NAME=<cluster-name>
+REGION=<region>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+  --region ${REGION} \
+  --master-machine-type e2-standard-16 \
+  --worker-machine-type e2-highmem-32 \
+  --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/dask/dask.sh \
+  --initialization-action-timeout 20m \
+  --metadata dask-runtime=standalone \
+  --metadata dask-cloud-logging=true
+
 ### Dask examples
 
 #### Dask standalone
@@ -126,7 +144,17 @@ python file.py`
 You can monitor your Dask applications using Web UIs, depending on which
 runtime you are using.
 
-For `standalone` mode, you can access the native Dask UI. Create an [SSH tunnel](https://cloud.google.com/dataproc/docs/concepts/accessing/cluster-web-interfaces#connecting_to_web_interfaces)
+For `standalone` mode, you can access the native Dask UI in one of the following ways:
+
+1) If [Component Gateway](https://cloud.google.com/dataproc/docs/concepts/accessing/dataproc-gateways)
+is enabled, the Dask UI can be accessible through `https://<id>-dot-<region>.dataproc.googleusercontent.com/gateway/default/dask`.
+
+2) Create an [SSH port forwarding](https://cloud.google.com/dataproc/docs/concepts/accessing/cluster-web-interfaces#can_i_use_local_port_forwarding_instead_of_a_socks_proxy)
+by running `gcloud compute ssh ${vm} --zone="${zone}" -- -L ":8787:${vm}:8787" -N`
+on the local machine, then access the Dask UI through `http://localhost:8787` in
+the browser.
+
+3) Create an [SSH tunnel](https://cloud.google.com/dataproc/docs/concepts/accessing/cluster-web-interfaces#connecting_to_web_interfaces)
 to access the Dask UI on port 8787.
 
 For `yarn` mode, you can access the Skein Web UI via the YARN ResourceManager.
@@ -141,3 +169,5 @@ This initialization action supports the following `metadata` fields:
 *   `dask-runtime=yarn|standalone`: Dask runtime. Default is `yarn`.
 *   `dask-worker-on-master`: Treat Dask master node as an additional worker.
     Default is `true`.
+*   `dask-cloud-logging`: Whether to enable Cloud Logging for Dask logs, only applies
+    to standalone mode. Possible values are `true` and `false`, the default is `false`.

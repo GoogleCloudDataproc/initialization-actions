@@ -42,8 +42,6 @@ CONDA_PACKAGES=(
   "r-essentials=${R_VERSION}"
   "r-sparklyr=1.7"
   "scikit-learn=0.24"
-  "pytorch=1.9"
-  "torchvision=0.9"
   "xgboost=1.4"
 )
 
@@ -120,6 +118,8 @@ function install_conda_packages() {
 
   conda config --add channels pytorch
   conda config --add channels conda-forge
+
+  conda install pytorch==1.9.0 torchvision==0.10.0 torchaudio==0.9.0 -c pytorch -c conda-forge
 
   # Create a separate environment with mamba.
   # Mamba provides significant decreases in installation times.

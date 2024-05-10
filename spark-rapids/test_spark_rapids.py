@@ -15,6 +15,7 @@ class SparkRapidsTestCase(DataprocTestCase):
 
   # Tests for RAPIDS init action
   XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME = "verify_xgboost_spark_rapids.scala"
+  XGBOOST_SPARK_SQL_TEST_SCRIPT_FILE_NAME = "verify_xgboost_spark_rapids_sql.scala"
 
   def verify_spark_instance(self, name):
     self.assert_instance_command(name, "nvidia-smi")
@@ -38,6 +39,21 @@ class SparkRapidsTestCase(DataprocTestCase):
     self.remove_test_script(self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME,
                             instance_name)
 
+  def verify_spark_job_sql(self):
+    instance_name = "{}-m".format(self.getClusterName())
+    self.upload_test_file(
+      os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        self.XGBOOST_SPARK_SQL_TEST_SCRIPT_FILE_NAME), instance_name)
+    self.assert_instance_command(
+      instance_name, """echo :quit | spark-shell \
+         --conf spark.executor.resource.gpu.amount=1 \
+         --conf spark.task.resource.gpu.amount=1 \
+         --conf spark.dynamicAllocation.enabled=false -i {}""".format(
+        self.XGBOOST_SPARK_SQL_TEST_SCRIPT_FILE_NAME))
+    self.remove_test_script(self.XGBOOST_SPARK_SQL_TEST_SCRIPT_FILE_NAME,
+                            instance_name)
+
   @parameterized.parameters(("SINGLE", ["m"], GPU_T4),
                             ("STANDARD", ["w-0"], GPU_T4))
   def test_spark_rapids(self, configuration, machine_suffixes, accelerator):
@@ -47,6 +63,9 @@ class SparkRapidsTestCase(DataprocTestCase):
 
     if self.getImageVersion() == pkg_resources.parse_version("2.1") or self.getImageOs() == "rocky":
       self.skipTest("Not supported in image2.1 or rocky images")
+
+    if self.getImageVersion() == pkg_resources.parse_version("2.2") and self.getImageOs() == "debian":
+        self.skipTest("The Debian version (12) for Dataproc 2.2 is not supported")
 
     optional_components = None
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
@@ -68,6 +87,39 @@ class SparkRapidsTestCase(DataprocTestCase):
     # Only need to do this once
     self.verify_spark_job()
 
+  @parameterized.parameters(("SINGLE", ["m"], GPU_T4),
+                            ("STANDARD", ["w-0"], GPU_T4))
+  def test_spark_rapids_sql(self, configuration, machine_suffixes, accelerator):
+
+    if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+      self.skipTest("Not supported in pre 2.0 images")
+
+    if self.getImageVersion() == pkg_resources.parse_version("2.1") or self.getImageOs() == "rocky":
+      self.skipTest("Not supported in image2.1 or rocky images")
+
+    if self.getImageVersion() == pkg_resources.parse_version("2.2") and self.getImageOs() == "debian":
+        self.skipTest("The Debian version (12) for Dataproc 2.2 is not supported")
+
+    optional_components = None
+    metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
+
+    self.createCluster(
+      configuration,
+      self.INIT_ACTIONS,
+      optional_components=optional_components,
+      metadata=metadata,
+      machine_type="n1-standard-4",
+      master_accelerator=accelerator if configuration == "SINGLE" else None,
+      worker_accelerator=accelerator,
+      boot_disk_size="1024GB",
+      timeout_in_minutes=30)
+
+    for machine_suffix in machine_suffixes:
+      self.verify_spark_instance("{}-{}".format(self.getClusterName(),
+                                                machine_suffix))
+    # Only need to do this once
+    self.verify_spark_job_sql()
+
   @parameterized.parameters(("STANDARD", ["w-0"], GPU_T4, "12.1.1", "530.30.02"))
   def test_non_default_cuda_versions(self, configuration, machine_suffixes,
                                      accelerator, cuda_version, driver_version):
@@ -77,6 +129,9 @@ class SparkRapidsTestCase(DataprocTestCase):
 
     if self.getImageVersion() == pkg_resources.parse_version("2.1") or self.getImageOs() == "rocky":
       self.skipTest("Not supported in image2.1 or rocky images")
+
+    if self.getImageVersion() == pkg_resources.parse_version("2.2") and self.getImageOs() == "debian":
+        self.skipTest("The Debian version (12) for Dataproc 2.2 is not supported")
 
     metadata = ("gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
                 ",cuda-version={0},driver-version={1}".format(cuda_version, driver_version))

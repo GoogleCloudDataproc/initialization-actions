@@ -9,11 +9,20 @@ py_test(
     data = [
         "kafka.sh",
         "validate.sh",
+        "cruise-control.sh",
+        "kafka-manager.sh",
     ],
     local = True,
     shard_count = 1,
     deps = [
+        ":verify_kafka_running",
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",
     ],
+)
+
+py_library(
+    name = "verify_kafka_running",
+    testonly = True,
+    srcs = ["verify_kafka_running.py"],
 )

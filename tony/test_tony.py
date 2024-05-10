@@ -20,6 +20,9 @@ class TonYTestCase(DataprocTestCase):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             self.skipTest("Not supported in pre 1.5 images")
 
+        if self.getImageOs() == 'rocky':
+            self.skipTest("Not supported in Rocky Linux-based images")
+
         self.createCluster(
             configuration,
             self.INIT_ACTIONS,
@@ -50,7 +53,10 @@ class TonYTestCase(DataprocTestCase):
         if self.getImageVersion() < pkg_resources.parse_version("2.0"):
             self.skipTest("TonY with GPUs not supported in pre 2.0 images")
 
-        metadata ="tf_gpu=true,cuda-version=11.0,cudnn-version=8.0.5.39"
+        if self.getImageOs() == 'rocky':
+            self.skipTest("Not supported in Rocky Linux-based images")
+
+        metadata ="tf_gpu=true,cuda-version=11.1,cudnn-version=8.0.5.39"
         self.createCluster(
             configuration,
             self.GPU_INIT_ACTIONS,
