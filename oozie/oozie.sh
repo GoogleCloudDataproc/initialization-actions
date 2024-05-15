@@ -69,7 +69,9 @@ export OOZIE_DB_NAME=$(/usr/share/google/get_metadata_value attributes/oozie-db-
 export OOZIE_DB_USERNAME=$(/usr/share/google/get_metadata_value attributes/oozie-db-username || echo "oozie")
 export OOZIE_PASSWORD_SECRET_NAME=$(/usr/share/google/get_metadata_value attributes/oozie-password-secret-name || echo "secret-name")
 export OOZIE_PASSWORD_SECRET_VERSION=$(/usr/share/google/get_metadata_value attributes/oozie-password-secret-version || echo 1)
-export OOZIE_PASSWORD=$(gcloud secrets versions access --secret ${OOZIE_PASSWORD_SECRET_NAME} ${OOZIE_PASSWORD_SECRET_VERSION} || echo oozie-password)
+export OOZIE_PASSWORD=$(gcloud secrets versions access --quiet  --secret ${OOZIE_PASSWORD_SECRET_NAME} ${OOZIE_PASSWORD_SECRET_VERSION} || echo oozie-password)
+# If specified, defines a bucket/folder where RPM/DPKG packages and JARs are stored for airgapped installtion.
+export OOZIE_REPO_URL=$(/usr/share/google/get_metadata_value attributes/oozie-repo-url)
 
 export http_proxy="${METADATA_HTTP_PROXY}"
 export https_proxy="${METADATA_HTTP_PROXY}"
@@ -203,6 +205,39 @@ function configure_ssl() {
   set_oozie_property 'oozie.https.truststore.file' "${truststore_file}"
 }
 
+function get_file() {
+  url=$1
+  file=$2
+  dst=$3
+  if [ -n "${OOZIE_REPO_URL}" ]; then
+    gsutil cp ${OOZIE_REPO_URL}/$file "$dst"
+  else
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+      $url/$file -P "$dst"
+  fi
+}
+
+function dnf_install() {
+  pkg=$1
+  if [ -n "${OOZIE_REPO_URL}" ]; then
+    gsutil cp "${OOZIE_REPO_URL}/$pkg*" "/tmp/fname.rpm"
+    dnf -y -v install /tmp/fname.rpm
+  else
+    dnf -y -v install $pkg
+  fi
+}
+
+function apt_install() {
+  if [ -n "${OOZIE_REPO_URL}" ]; then
+    gsutil cp "${OOZIE_REPO_URL}/oozie*" "/tmp/"
+    dpkg -i /tmp/oozie*
+  else
+    apt-get install -y gnupg2 && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys B7B3B788A8D3785C
+    apt-get update --allow-releaseinfo-change
+    apt-get install -q -y oozie oozie-client
+  fi
+}
+
 function install_oozie() {
   local enable_ssl
   enable_ssl=$(/usr/share/google/get_metadata_value attributes/oozie-enable-ssl || echo "false")
@@ -211,11 +246,11 @@ function install_oozie() {
   if [[ ${OS_NAME} == rocky ]]; then
     # unzip does not come pre-installed on the 2.1-rocky8 image
     if [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 2.1" | bc -l) == 1  ]]; then
-      retry_command "dnf -y install unzip"
+      retry_command "dnf_install unzip"
     fi
 
     # update dnf proxy
-    retry_command "dnf -y -v install oozie"
+    retry_command "dnf_install oozie"
 
     # add mysql service dependency on oozie service
     sed -i '/^# Required-Start:/ s/$/ mysqld.service/' /etc/init.d/oozie
@@ -235,9 +270,7 @@ function install_oozie() {
            /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-core.jar      \
            /usr/lib/hadoop-mapreduce/hadoop-mapreduce-client-shuffle.jar   /usr/lib/oozie/lib/
   elif [[ ${OS_NAME} == ubuntu ]] || [[ ${OS_NAME} == debian ]]; then
-    retry_command "apt-get install -y gnupg2 && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys B7B3B788A8D3785C"
-    retry_command "apt-get update --allow-releaseinfo-change"
-    retry_command "apt-get install -q -y oozie oozie-client"
+    retry_command "apt_install"
   else
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
@@ -259,7 +292,7 @@ function install_oozie() {
   if [[ -n ${log4j2_version} ]]; then
     local log4j2_to_slf4j=log4j-to-slf4j-${log4j2_version}.jar
     local log4j2_to_slf4j_url=${MAVEN_CENTRAL_URI}/org/apache/logging/log4j/log4j-to-slf4j/${log4j2_version}/${log4j2_to_slf4j}
-    wget -nv --timeout=30 --tries=5 --retry-connrefused "${log4j2_to_slf4j_url}" -P /usr/lib/oozie/lib
+    get_file ${MAVEN_CENTRAL_URI}/org/apache/logging/log4j/log4j-to-slf4j/${log4j2_version} ${log4j2_to_slf4j} /usr/lib/oozie/lib
   fi
 
   # Delete old versions of Jetty jars brought in by dependencies
@@ -277,8 +310,7 @@ function install_oozie() {
     tmp_dir=$(mktemp -d -t oozie-install-XXXX)
 
     # The ext library is needed to enable the Oozie web console
-    wget -nv --timeout=30 --tries=5 --retry-connrefused \
-      http://archive.cloudera.com/gplextras/misc/ext-2.2.zip -P "${tmp_dir}"
+    get_file http://archive.cloudera.com/gplextras/misc ext-2.2.zip ${tmp_dir}
     unzip -o -q "${tmp_dir}/ext-2.2.zip" -d /var/lib/oozie
 
     # Install share lib
@@ -384,8 +416,7 @@ EOM
     tmp_dir=$(mktemp -d -t oozie-install-XXXX)
 
     # The ext library is needed to enable the Oozie web console
-    wget -nv --timeout=30 --tries=5 --retry-connrefused \
-      http://archive.cloudera.com/gplextras/misc/ext-2.2.zip -P "${tmp_dir}"
+    get_file http://archive.cloudera.com/gplextras/misc ext-2.2.zip "${tmp_dir}"
     unzip -o -q "${tmp_dir}/ext-2.2.zip" -d /var/lib/oozie
 
     # Install share lib
@@ -438,7 +469,7 @@ EOM
           ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/*spark-metrics-listener*.jar "
         fi
         find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
-        wget -P /usr/lib/oozie/lib ${MAVEN_CENTRAL_URI}/com/google/guava/guava/11.0.2/guava-11.0.2.jar
+	get_file ${MAVEN_CENTRAL_URI}/com/google/guava/guava/11.0.2 guava-11.0.2.jar /usr/lib/oozie/lib
       elif [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 1.3" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar "
@@ -449,11 +480,11 @@ EOM
         fi
         ADDITIONAL_JARS=""
         find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
-        wget -P /usr/lib/oozie/lib ${MAVEN_CENTRAL_URI}/com/google/guava/guava/11.0.2/guava-11.0.2.jar
+	get_file ${MAVEN_CENTRAL_URI}/com/google/guava/guava/11.0.2 guava-11.0.2.jar /usr/lib/oozie/lib
       elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.2" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS=""
         find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
-        wget -P /usr/lib/oozie/lib ${MAVEN_CENTRAL_URI}/com/google/guava/guava/11.0.2/guava-11.0.2.jar
+	get_file ${MAVEN_CENTRAL_URI}/com/google/guava/guava/11.0.2 guava-11.0.2.jar /usr/lib/oozie/lib
       else
         echo "unsupported DATAPROC_IMAGE_VERSION: ${DATAPROC_IMAGE_VERSION}" >&2
         exit 1
@@ -494,7 +525,7 @@ EOM
           ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/*spark-metrics-listener*.jar "
         fi
         find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
-        wget -P /usr/lib/oozie/lib ${MAVEN_CENTRAL_URI}/com/google/guava/guava/11.0.2/guava-11.0.2.jar
+	get_file ${MAVEN_CENTRAL_URI}/com/google/guava/guava/11.0.2 guava-11.0.2.jar /usr/lib/oozie/lib
       elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.3" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/hadoop*.jar /usr/lib/spark/jars/hadoop*.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/local/share/google/dataproc/lib/gcs-connector.jar "
@@ -698,7 +729,7 @@ EOF
 
 function main() {
   #Remove debian backports
-  if [[ ${OS_NAME} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
+  if [ -z ${OOZIE_REPO_URL} ] && [[ ${OS_NAME} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
     remove_old_backports
   fi
   # Only run on the master node of the cluster
