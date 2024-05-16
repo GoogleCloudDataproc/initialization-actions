@@ -223,7 +223,7 @@ function install_nvidia_nccl() {
       "${NCCL_REPO_URL}" -o "${tmp_dir}/nvidia-ml-repo.deb"
     dpkg -i "${tmp_dir}/nvidia-ml-repo.deb"
 
-    execute_with_retries "apt-get update"
+    execute_with_retries "apt-get --allow-releaseinfo-change update"
 
     execute_with_retries \
       "apt-get install -y --allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
@@ -303,7 +303,7 @@ function install_nvidia_gpu_driver() {
       "${NVIDIA_UBUNTU_REPO_CUDA_PIN}" -o /etc/apt/preferences.d/cuda-repository-pin-600
 
     add-apt-repository "deb ${NVIDIA_UBUNTU_REPO_URL} /"
-    execute_with_retries "apt-get update"
+    execute_with_retries "apt-get --allow-releaseinfo-change update"
 
     if [[ -n "${CUDA_VERSION}" ]]; then
       local -r cuda_package=cuda-toolkit-${CUDA_VERSION//./-}
@@ -514,7 +514,7 @@ function main() {
 
   if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
     export DEBIAN_FRONTEND=noninteractive
-    execute_with_retries "apt-get update"
+    execute_with_retries "apt-get --allow-releaseinfo-change update"
     execute_with_retries "apt-get install -y -q pciutils"
   elif [[ ${OS_NAME} == rocky ]] ; then
     execute_with_retries "dnf -y -q update"

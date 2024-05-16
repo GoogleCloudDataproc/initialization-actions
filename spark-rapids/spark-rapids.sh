@@ -201,7 +201,7 @@ function install_nvidia_gpu_driver() {
     fi
 
     add-apt-repository contrib
-    execute_with_retries "apt-get update"
+    execute_with_retries "apt-get --allow-releaseinfo-change update"
 
     ## EXCEPTION
     if [[ ${DEBIAN_VERSION} == 10 ]]; then
@@ -237,7 +237,7 @@ function install_nvidia_gpu_driver() {
 
     dpkg -i /tmp/local-installer.deb
     cp /var/cuda-repo-ubuntu${UBUNTU_VERSION}04-${CUDA_VERSION_MAJOR//./-}-local/cuda-*-keyring.gpg /usr/share/keyrings/
-    execute_with_retries "apt-get update"    
+    execute_with_retries "apt-get --allow-releaseinfo-change update"
     
     execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${NVIDIA_DRIVER_VERSION_PREFIX}"
     execute_with_retries "apt-get install -y -q --no-install-recommends cuda-toolkit-${CUDA_VERSION_MAJOR//./-}"
@@ -428,7 +428,7 @@ function setup_gpu_yarn() {
 
   if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
     export DEBIAN_FRONTEND=noninteractive
-    execute_with_retries "apt-get update"
+    execute_with_retries "apt-get --allow-releaseinfo-change update"
     execute_with_retries "apt-get install -y -q pciutils"
   elif [[ ${OS_NAME} == rocky ]] ; then
     execute_with_retries "dnf -y -q install pciutils"
