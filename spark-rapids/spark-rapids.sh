@@ -416,7 +416,7 @@ EOF
 
 function setup_gpu_yarn() {
 
-  if [[ ${OS_NAME} == debian || ${OS_NAME} == ubuntu ]] ; then
+  if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
     export DEBIAN_FRONTEND=noninteractive
     execute_with_retries "apt-get --allow-releaseinfo-change update"
     execute_with_retries "apt-get install -y -q pciutils"
