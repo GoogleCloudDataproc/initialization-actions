@@ -58,14 +58,20 @@ class SparkRapidsTestCase(DataprocTestCase):
                             ("STANDARD", ["w-0"], GPU_T4))
   def test_spark_rapids(self, configuration, machine_suffixes, accelerator):
 
+    if self.getImageOs() == "rocky":
+      self.skipTest("Not supported for Rocky OS")
+
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0 images")
 
-    if self.getImageVersion() == pkg_resources.parse_version("2.1") or self.getImageOs() == "rocky":
-      self.skipTest("Not supported in image2.1 or rocky images")
+    if self.getImageVersion() == pkg_resources.parse_version("2.0") and self.getImageOs() == "ubuntu":
+      self.skipTest("Not supported in image 2.0 for ubuntu")
 
-    if self.getImageVersion() == pkg_resources.parse_version("2.2") and self.getImageOs() == "debian":
-        self.skipTest("The Debian version (12) for Dataproc 2.2 is not supported")
+    if self.getImageVersion() == pkg_resources.parse_version("2.1"):
+      self.skipTest("Not supported in image 2.1 because of secure boot")
+
+    if self.getImageVersion() == pkg_resources.parse_version("2.2"):
+      self.skipTest("Not supported in image 2.2 because of secure boot")
 
     optional_components = None
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
@@ -91,14 +97,20 @@ class SparkRapidsTestCase(DataprocTestCase):
                             ("STANDARD", ["w-0"], GPU_T4))
   def test_spark_rapids_sql(self, configuration, machine_suffixes, accelerator):
 
+    if self.getImageOs() == "rocky":
+      self.skipTest("Not supported for Rocky OS")
+
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0 images")
 
-    if self.getImageVersion() == pkg_resources.parse_version("2.1") or self.getImageOs() == "rocky":
-      self.skipTest("Not supported in image2.1 or rocky images")
+    if self.getImageVersion() == pkg_resources.parse_version("2.0") and self.getImageOs() == "ubuntu":
+      self.skipTest("Not supported in image 2.0 for ubuntu")
 
-    if self.getImageVersion() == pkg_resources.parse_version("2.2") and self.getImageOs() == "debian":
-        self.skipTest("The Debian version (12) for Dataproc 2.2 is not supported")
+    if self.getImageVersion() == pkg_resources.parse_version("2.1"):
+      self.skipTest("Not supported in image 2.1 because of secure boot")
+
+    if self.getImageVersion() == pkg_resources.parse_version("2.2"):
+      self.skipTest("Not supported in image 2.2 because of secure boot")
 
     optional_components = None
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
@@ -120,18 +132,24 @@ class SparkRapidsTestCase(DataprocTestCase):
     # Only need to do this once
     self.verify_spark_job_sql()
 
-  @parameterized.parameters(("STANDARD", ["w-0"], GPU_T4, "12.1.1", "530.30.02"))
+  @parameterized.parameters(("STANDARD", ["w-0"], GPU_T4, "12.4.0", "550.54.14"))
   def test_non_default_cuda_versions(self, configuration, machine_suffixes,
                                      accelerator, cuda_version, driver_version):
+
+    if self.getImageOs() == "rocky":
+      self.skipTest("Not supported for Rocky OS")
 
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0 images")
 
-    if self.getImageVersion() == pkg_resources.parse_version("2.1") or self.getImageOs() == "rocky":
-      self.skipTest("Not supported in image2.1 or rocky images")
+    if self.getImageVersion() == pkg_resources.parse_version("2.0") and self.getImageOs() == "ubuntu":
+      self.skipTest("Not supported in image 2.0 for ubuntu")
 
-    if self.getImageVersion() == pkg_resources.parse_version("2.2") and self.getImageOs() == "debian":
-        self.skipTest("The Debian version (12) for Dataproc 2.2 is not supported")
+    if self.getImageVersion() == pkg_resources.parse_version("2.1"):
+      self.skipTest("Not supported in image 2.1 because of secure boot")
+
+    if self.getImageVersion() == pkg_resources.parse_version("2.2"):
+      self.skipTest("Not supported in image 2.2 because of secure boot")
 
     metadata = ("gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
                 ",cuda-version={0},driver-version={1}".format(cuda_version, driver_version))
