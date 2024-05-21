@@ -220,8 +220,9 @@ function get_file() {
 function dnf_install() {
   pkg=$1
   if [ -n "${OOZIE_REPO_URL}" ]; then
-    gsutil cp "${OOZIE_REPO_URL}/$pkg*" "/tmp/fname.rpm"
-    dnf -y -v install /tmp/fname.rpm
+    tmp_rpm=$( mktemp /tmp/rpmXXXXXX.rpm )
+    gsutil cp "${OOZIE_REPO_URL}/$pkg*" "${tmp_rpm}"
+    dnf -y -v install "$tmp_rpm"
   else
     dnf -y -v install $pkg
   fi
