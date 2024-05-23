@@ -9,8 +9,26 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 class NvidiaGpuDriverTestCase(DataprocTestCase):
   COMPONENT = "gpu"
   INIT_ACTIONS = ["gpu/install_gpu_driver.sh"]
+  GPU_T4   = "type=nvidia-tesla-t4"
   GPU_V100 = "type=nvidia-tesla-v100"
   GPU_A100 = "type=nvidia-tesla-a100"
+  DEFAULT_ARGS = {
+      "SINGLE": [
+          "--single-node",
+          "--no-shielded-secure-boot",
+      ],
+      "STANDARD": [
+          "--num-masters=1",
+          "--num-workers=2",
+          "--no-shielded-secure-boot",
+      ],
+      "HA": [
+          "--num-masters=3",
+          "--num-workers=2",
+          "--no-shielded-secure-boot",
+      ]
+  }
+
 
   def verify_instance(self, name):
     self.assert_instance_command(name, "nvidia-smi")
@@ -28,10 +46,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         name, "sudo ldconfig -p | grep -q libcudnn" )
 
   @parameterized.parameters(
-      ("SINGLE", ["m"], GPU_V100, None, None),
-      ("STANDARD", ["m"], GPU_V100, None, None),
-      ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "NVIDIA"),
-      ("STANDARD", ["w-0", "w-1"], None, GPU_V100, "NVIDIA"),
+      ("SINGLE", ["m"], GPU_T4, None, None),
+      ("STANDARD", ["m"], GPU_T4, None, None),
+      ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "NVIDIA"),
+      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "NVIDIA"),
   )
   def test_install_gpu_default_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
@@ -50,15 +68,15 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         worker_accelerator=worker_accelerator,
         metadata=metadata,
         timeout_in_minutes=30,
-        boot_disk_size="200GB")
+        boot_disk_size="500GB")
     for machine_suffix in machine_suffixes:
       self.verify_instance("{}-{}".format(self.getClusterName(),
                                           machine_suffix))
 
   @parameterized.parameters(
-      ("STANDARD", ["w-0", "w-1"], None, GPU_V100, None),
-      ("STANDARD", ["m"], GPU_V100, None, "NVIDIA"),
-      ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "NVIDIA"),
+      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, None),
+      ("STANDARD", ["m"], GPU_T4, None, "NVIDIA"),
+      ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "NVIDIA"),
   )
   def test_install_gpu_without_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
@@ -77,15 +95,15 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         worker_accelerator=worker_accelerator,
         metadata=metadata,
         timeout_in_minutes=30,
-        boot_disk_size="200GB")
+        boot_disk_size="500GB")
     for machine_suffix in machine_suffixes:
       self.verify_instance("{}-{}".format(self.getClusterName(),
                                           machine_suffix))
 
   @parameterized.parameters(
-      ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, None),
-      ("STANDARD", ["w-0", "w-1"], None, GPU_V100, "NVIDIA"),
-      ("STANDARD", ["m"], GPU_V100, None, "NVIDIA"),
+      ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, None),
+      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "NVIDIA"),
+      ("STANDARD", ["m"], GPU_T4, None, "NVIDIA"),
   )
   def test_install_gpu_with_agent(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
@@ -104,7 +122,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         worker_accelerator=worker_accelerator,
         metadata=metadata,
         timeout_in_minutes=30,
-        boot_disk_size="200GB",
+        boot_disk_size="500GB",
         scopes="https://www.googleapis.com/auth/monitoring.write")
     for machine_suffix in machine_suffixes:
       self.verify_instance("{}-{}".format(self.getClusterName(),
@@ -113,11 +131,11 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                                     machine_suffix))
 
   @parameterized.parameters(
-      ("SINGLE", ["m"], GPU_V100, None, "10.1"),
-      ("STANDARD", ["m"], GPU_V100, None, "10.2"),
-      ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "11.0"),
-      ("STANDARD", ["w-0", "w-1"], None, GPU_V100, "11.1"),
-      ("STANDARD", ["w-0", "w-1"], None, GPU_V100, "11.2"),
+      ("SINGLE", ["m"], GPU_T4, None, "10.1"),
+      ("STANDARD", ["m"], GPU_T4, None, "10.2"),
+      ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "11.0"),
+      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.1"),
+      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.2"),
   )
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
@@ -140,13 +158,13 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         worker_accelerator=worker_accelerator,
         metadata=metadata,
         timeout_in_minutes=30,
-        boot_disk_size="200GB")
+        boot_disk_size="500GB")
     for machine_suffix in machine_suffixes:
       self.verify_instance("{}-{}".format(self.getClusterName(),
                                           machine_suffix))
 
   @parameterized.parameters(
-      ("STANDARD", ["m", "w-0", "w-1"], None, GPU_A100, "NVIDIA", "us-central1-b"),
+      ("STANDARD", ["m", "w-0", "w-1"], None, GPU_T4, "NVIDIA", "us-central1-b"),
   )
   def test_install_gpu_with_mig(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
@@ -164,7 +182,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         worker_accelerator=worker_accelerator,
         metadata=None,
         timeout_in_minutes=30,
-        boot_disk_size="200GB",
+        boot_disk_size="500GB",
         startup_script="gpu/mig.sh")
 
     for machine_suffix in ["w-0", "w-1"]:
@@ -172,8 +190,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                           machine_suffix))
 
   @parameterized.parameters(
-      ("SINGLE", GPU_V100, None, None),
-      ("STANDARD", GPU_V100, GPU_V100, "NVIDIA")
+      ("SINGLE", GPU_T4, None, None),
+      ("STANDARD", GPU_T4, GPU_T4, "NVIDIA")
   )
   def test_gpu_allocation(self, configuration, master_accelerator,
                           worker_accelerator, driver_provider):
@@ -194,7 +212,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         machine_type="n1-standard-2",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
-        boot_disk_size="200GB",
+        boot_disk_size="500GB",
         timeout_in_minutes=30)
 
     self.assert_dataproc_job(
@@ -204,11 +222,11 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     )
 
   @parameterized.parameters(
-    ("SINGLE", ["m"], GPU_V100, None, "10.1"),
-    ("STANDARD", ["m"], GPU_V100, None, "10.2"),
-    ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "11.0"),
-    ("STANDARD", ["w-0", "w-1"], None, GPU_V100, "11.1"),
-    ("STANDARD", ["w-0", "w-1"], None, GPU_V100, "11.2"),
+    ("SINGLE", ["m"], GPU_T4, None, "10.1"),
+    ("STANDARD", ["m"], GPU_T4, None, "10.2"),
+    ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "11.0"),
+    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.1"),
+    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.2"),
   )
   def test_install_gpu_cuda_nvidia_with_spark_job(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
@@ -231,7 +249,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       worker_accelerator=worker_accelerator,
       metadata=metadata,
       timeout_in_minutes=30,
-      boot_disk_size="200GB",
+      boot_disk_size="500GB",
       scopes="https://www.googleapis.com/auth/monitoring.write")
     for machine_suffix in machine_suffixes:
       self.verify_instance("{}-{}".format(self.getClusterName(),
