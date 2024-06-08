@@ -54,9 +54,9 @@ function remove_old_backports {
   oldstable=$(curl -s https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
   stable=$(curl -s https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
 
-  matched_files="$(grep -rsil '\-backports' /etc/apt/sources.list*)"
+  matched_files=( $(grep -rsil '\-backports' /etc/apt/sources.list*||:) )
   if [[ -n "$matched_files" ]]; then
-    for filename in "$matched_files"; do
+    for filename in "${matched_files[@]}"; do
       grep -e "$oldstable-backports" -e "$stable-backports" "$filename" || \
         sed -i -e 's/^.*-backports.*$//' "$filename"
     done
