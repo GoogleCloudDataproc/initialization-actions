@@ -292,7 +292,7 @@ function install_nvidia_cudnn() {
       "apt-get install -y --no-install-recommends ${packages[*]}"
   elif [[ ${OS_NAME} == debian ]]; then
     if is_debian12; then
-	echo ""
+	apt-get -y install nvidia-cudnn
     elif is_debian11; then
 	apt-get -y install cudnn9-cuda-12
     else
@@ -436,7 +436,8 @@ function add_repo_nvidia_container_toolkit() {
 function install_nvidia_gpu_driver() {
 
   # Non-free kernel drivers provided on debian11 can no longer be
-  # built.  Debian 12 is the only way to use NVIDIA drivers on Debian
+  # built on images later than 2.1.46-debian11.  Debian 12 is the only
+  # way to use NVIDIA drivers on modern Debian images
 
   if is_debian12 ; then
     add_nonfree_components
