@@ -161,7 +161,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         self.INIT_ACTIONS,
         zone=zone,
         master_machine_type="n1-standard-4",
-        worker_machine_type="a2-highgpu-1g",
+        worker_machine_type="n1-standard-4",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=None,
