@@ -45,6 +45,10 @@ function remove_old_backports {
   # backports repositories which have been archived.  In order to mitigate this
   # problem, we will remove any reference to backports repos older than oldstable
 
+  if is_debian12 ; then
+    return
+  fi
+
   # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
   oldstable=$(curl -s https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
   stable=$(curl -s https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
@@ -52,7 +56,7 @@ function remove_old_backports {
   matched_files="$(grep -rsil '\-backports' /etc/apt/sources.list*)"
   if [[ -n "$matched_files" ]]; then
     for filename in "$matched_files"; do
-      grep -e "$oldstable-backports" -e "$stable-backports" "$filename" || \
+      grep -e "$oldstable-backports" "$filename" || \
         sed -i -e 's/^.*-backports.*$//' "$filename"
     done
   fi
@@ -209,6 +213,10 @@ if ( compare_versions_lte "8.3.1.22" "${CUDNN_VERSION}" ); then
     CUDNN_TARBALL="cudnn-linux-x86_64-${CUDNN_VERSION}_cuda${CUDA_VERSION}-archive.tar.xz"
   fi
   CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN_VERSION%.*}/local_installers/${CUDA_VERSION}/${CUDNN_TARBALL}"
+fi
+if ( compare_versions_lte "12.0" "${CUDA_VERSION}" ); then
+    # When cuda version is greater than or equal to 12.0
+    CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/cudnn/redist/cudnn/linux-x86_64/cudnn-linux-x86_64-9.2.0.82_cuda12-archive.tar.xz"
 fi
 readonly CUDNN_TARBALL
 readonly CUDNN_TARBALL_URL
