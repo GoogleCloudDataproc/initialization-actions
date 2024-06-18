@@ -41,7 +41,7 @@ else
 fi
 
 # Update SPARK RAPIDS config
-readonly DEFAULT_SPARK_RAPIDS_VERSION="24.04.0"
+readonly DEFAULT_SPARK_RAPIDS_VERSION="24.06.0"
 readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
 readonly XGBOOST_VERSION=$(get_metadata_attribute 'xgboost-version' ${DEFAULT_XGBOOST_VERSION})
 
@@ -246,8 +246,8 @@ function install_nvidia_gpu_driver() {
     readonly NVIDIA_ROCKY_REPO_URL="https://developer.download.nvidia.com/compute/cuda/repos/rhel${ROCKY_VERSION}/x86_64/cuda-rhel${ROCKY_VERSION}.repo"
     execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPO_URL}"
     execute_with_retries "dnf clean all"
-    execute_with_retries "dnf -y -q module install nvidia-driver:${NVIDIA_DRIVER_VERSION_PREFIX}"
-    execute_with_retries "dnf -y -q install cuda-toolkit-${CUDA_VERSION_MAJOR//./-}"
+    execute_with_retries "dnf -y -q module install nvidia-driver:latest-dkms"
+    execute_with_retries "dnf -y -q install cuda-toolkit"
     modprobe nvidia
 
   else
