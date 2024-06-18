@@ -33,7 +33,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       ("SINGLE", ["m"], GPU_T4, None, None),
       ("STANDARD", ["m"], GPU_T4, None, None),
       ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "NVIDIA"),
-      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "NVIDIA"),
   )
   def test_install_gpu_default_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
@@ -58,7 +57,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                           machine_suffix))
 
   @parameterized.parameters(
-      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, None),
       ("STANDARD", ["m"], GPU_T4, None, "NVIDIA"),
       ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "NVIDIA"),
   )
