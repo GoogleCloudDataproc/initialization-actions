@@ -162,6 +162,10 @@ readonly NVIDIA_DEBIAN_GPU_DRIVER_URL
 
 readonly NVIDIA_BASE_DL_URL='https://developer.download.nvidia.com/compute'
 
+# Parameters for NVIDIA-provided Debian package repository
+readonly NVIDIA_DEBIAN_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/$(os_id)$(os_version)/x86_64"
+readonly NVIDIA_DEBIAN_REPO_KEY_PACKAGE="${NVIDIA_DEBIAN_REPO_URL}/cuda-keyring_1.1-1_all.deb"
+
 # Parameters for NVIDIA-provided NCCL library
 readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb"
 NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
@@ -183,11 +187,6 @@ readonly -A DEFAULT_NVIDIA_DEBIAN_CUDA_URLS=(
 readonly DEFAULT_NVIDIA_DEBIAN_CUDA_URL=${DEFAULT_NVIDIA_DEBIAN_CUDA_URLS["${CUDA_VERSION}"]}
 NVIDIA_DEBIAN_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_DEBIAN_CUDA_URL}")
 readonly NVIDIA_DEBIAN_CUDA_URL
-
-# Parameters for NVIDIA-provided Debian GPU driver
-readonly NVIDIA_DEBIAN_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/$(os_id)$(os_version)/x86_64"
-readonly NVIDIA_DEBIAN_REPO_KEY_PACKAGE="${NVIDIA_DEBIAN_REPO_URL}/cuda-keyring_1.1-1_all.deb"
-#readonly NVIDIA_DEBIAN_REPO_CUDA_PIN="${NVIDIA_DEBIAN_REPO_URL}/cuda-$(os_id)$(os_version).pin"
 
 # Parameters for NVIDIA-provided Ubuntu GPU driver
 readonly NVIDIA_UBUNTU_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/ubuntu1804/x86_64"
@@ -215,8 +214,8 @@ if ( compare_versions_lte "8.3.1.22" "${CUDNN_VERSION}" ); then
   CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN_VERSION%.*}/local_installers/${CUDA_VERSION}/${CUDNN_TARBALL}"
 fi
 if ( compare_versions_lte "12.0" "${CUDA_VERSION}" ); then
-    # When cuda version is greater than or equal to 12.0
-    CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/cudnn/redist/cudnn/linux-x86_64/cudnn-linux-x86_64-9.2.0.82_cuda12-archive.tar.xz"
+  # When cuda version is greater than 12.0
+  CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/cudnn/redist/cudnn/linux-x86_64/cudnn-linux-x86_64-9.2.0.82_cuda12-archive.tar.xz"
 fi
 readonly CUDNN_TARBALL
 readonly CUDNN_TARBALL_URL
@@ -334,7 +333,7 @@ EOF
 
 CA_TMPDIR="$(mktemp -u -d -p /run/tmp -t ca_dir-XXXX)"
 function configure_dkms_certs() {
-  if [[ -z "$(/usr/share/google/get_metadata_value attributes/driver_private_secret_name)" ]]; then
+  if [[ -z "$(/usr/share/google/get_metadata_value attributes/private_secret_name)" ]]; then
       echo "No signing secret provided.  skipping";
       return 0
   fi
@@ -370,13 +369,13 @@ function configure_dkms_certs() {
 
   # Retrieve cloud secrets keys
   local sig_priv_secret_name
-  sig_priv_secret_name=$(/usr/share/google/get_metadata_value attributes/driver_private_secret_name)
+  sig_priv_secret_name=$(/usr/share/google/get_metadata_value attributes/private_secret_name)
   local sig_pub_secret_name
-  sig_pub_secret_name=$(/usr/share/google/get_metadata_value attributes/driver_public_secret_name)
+  sig_pub_secret_name=$(/usr/share/google/get_metadata_value attributes/public_secret_name)
   local sig_secret_project
-  sig_secret_project=$(/usr/share/google/get_metadata_value attributes/driver_secret_project)
+  sig_secret_project=$(/usr/share/google/get_metadata_value attributes/secret_project)
   local sig_secret_version
-  sig_secret_version=$(/usr/share/google/get_metadata_value attributes/driver_secret_version)
+  sig_secret_version=$(/usr/share/google/get_metadata_value attributes/secret_version)
 
   # If metadata values are not set, do not write mok keys
   if [[ -z "${sig_priv_secret_name}" ]]; then return 0 ; fi
@@ -401,7 +400,7 @@ function configure_dkms_certs() {
 }
 
 function clear_dkms_key {
-  if [[ -z "$(/usr/share/google/get_metadata_value attributes/driver_private_secret_name)" ]]; then
+  if [[ -z "$(/usr/share/google/get_metadata_value attributes/private_secret_name)" ]]; then
       echo "No signing secret provided.  skipping";
       return 0
   fi
@@ -443,10 +442,6 @@ function add_repo_nvidia_container_toolkit() {
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
 
-  # Non-free kernel drivers provided on debian11 can no longer be
-  # built on images later than 2.1.46-debian11.  Debian 12 is the only
-  # way to use NVIDIA drivers on modern Debian images
-
   if is_debian12 ; then
     add_nonfree_components
     add_repo_nvidia_container_toolkit
@@ -469,16 +464,20 @@ function install_nvidia_gpu_driver() {
     dpkg -i "/tmp/cuda-keyring.deb"
     apt-get update
 
-    KEYPAIR_ARGS=""
-    if [[ -n "$(/usr/share/google/get_metadata_value attributes/driver_private_secret_name)" ]]; then
-	KEYPAIR_ARGS="--module-signing-secret-key=/var/lib/dkms/mok.key --module-signing-public-key=/var/lib/dkms/mok.pub"
-    fi
-
-    configure_dkms_certs
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${NVIDIA_DEBIAN_GPU_DRIVER_URL}" -o driver.run
-    bash "./driver.run" "${KEYPAIR_ARGS}" --silent --install-libglvnd
+    bash "./driver.run" --no-kernel-modules --silent --install-libglvnd
+    git clone https://github.com/NVIDIA/open-gpu-kernel-modules.git --branch "${NVIDIA_DEBIAN_GPU_DRIVER_VERSION}" --single-branch
+    pushd open-gpu-kernel-modules
+    make -j$(nproc) modules
+    configure_dkms_certs
+    for module in $(find kernel-open -name '*.ko'); do
+	/lib/modules/$(uname -r)/build/scripts/sign-file sha256 /var/lib/dkms/mok.key /var/lib/dkms/mok.pub "${module}"
+    done
     clear_dkms_key
+    make modules_install
+    depmod -a
+    popd
 
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${NVIDIA_DEBIAN_CUDA_URL}" -o cuda.run

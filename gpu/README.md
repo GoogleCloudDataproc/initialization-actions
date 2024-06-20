@@ -206,14 +206,31 @@ sometimes found in the "building from source" sections.
 -   `cudnn-version: <VERSION>` - this is an optional parameter for installing
     [NVIDIA cuDNN](https://developer.nvidia.com/CUDNN) version `x.x.x.x`.
     Default is `8.3.3.40`.
+	
+-   `private_secret_name: <STRING>` -
+-   `public_secret_name: <STRING>` -
+-   `secret_version: <INTEGER>` -
+-   `secret_project: <STRING>` -
+-   `cert_modulus_md5sum: <STRING>` -These arguments can be used to
+    specify the driver signing parameters.  The certificate named by
+    `public_secret_name` must be included in the boot sector of the
+    disk from which the cluster is booted.  The key named by
+    `private_secret_name` must correspond to the certificate named by
+    `public_secret_name`, and the `cert_modulus_md5sum` must match the
+    modulus md5sum of the files referenced by both the private and
+    public secret names.
 
 #### Loading built kernel module
 
-For platforms which do not have pre-built binary kernel drivers, the script will
-execute the .run file, building the kernel driver module from source.  In order
-to load a kernel module built from source, the `--no-shielded-secure-boot`
-argument must be passed to `gcloud dataproc clusters create`.  When you are
-experiencing this problem, you will see an error similar to the following:
+For platforms which do not have pre-built binary kernel drivers, the
+script will execute the .run file, building the kernel driver module
+from source.  In order to load a kernel module built from source,
+either the `--no-shielded-secure-boot` argument must be passed to
+`gcloud dataproc clusters create`, or a trusted certificate must be
+included using a custom image, and signing material supplied using
+metadata arguments.  Attempts to build from source with misconfigured
+or missing certificates will result in an error similar to the
+following:
 
 ```
 ERROR: The kernel module failed to load. Secure boot is enabled on this system, so this is likely because it was not signed by a key that is trusted by the kernel. Please try installing the driver again, and sign the kernel module when prompted to do so.
