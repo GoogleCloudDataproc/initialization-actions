@@ -467,6 +467,7 @@ function install_nvidia_gpu_driver() {
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${NVIDIA_DEBIAN_GPU_DRIVER_URL}" -o driver.run
     bash "./driver.run" --no-kernel-modules --silent --install-libglvnd
+    rm -rf driver.run
     git clone https://github.com/NVIDIA/open-gpu-kernel-modules.git --branch "${NVIDIA_DEBIAN_GPU_DRIVER_VERSION}" --single-branch
     pushd open-gpu-kernel-modules
     make -j$(nproc) modules
@@ -482,6 +483,7 @@ function install_nvidia_gpu_driver() {
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${NVIDIA_DEBIAN_CUDA_URL}" -o cuda.run
     bash "./cuda.run" --silent --toolkit --no-opengl-libs
+    rm -rf cuda.run
   elif [[ ${OS_NAME} == ubuntu ]]; then
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${NVIDIA_UBUNTU_REPO_KEY_PACKAGE}" -o /tmp/cuda-keyring.deb
