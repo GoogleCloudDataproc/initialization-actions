@@ -207,13 +207,45 @@ sometimes found in the "building from source" sections.
     [NVIDIA cuDNN](https://developer.nvidia.com/CUDNN) version `x.x.x.x`.
     Default is `8.3.3.40`.
 
+-   `private_secret_name: <STRING>` -
+-   `public_secret_name: <STRING>` -
+-   `secret_version: <INTEGER>` -
+-   `secret_project: <STRING>` -
+-   `cert_modulus_md5sum: <STRING>` -These arguments can be used to
+    specify the driver signing parameters.  The certificate named by
+    `public_secret_name` must be included in the boot sector of the
+    disk from which the cluster is booted.  The key named by
+    `private_secret_name` must correspond to the certificate named by
+    `public_secret_name`, and the `cert_modulus_md5sum` must match the
+    modulus md5sum of the files referenced by both the private and
+    public secret names.
+
 #### Loading built kernel module
 
-For platforms which do not have pre-built binary kernel drivers, the script will
-execute the .run file, building the kernel driver module from source.  In order
-to load a kernel module built from source, the `--no-shielded-secure-boot`
-argument must be passed to `gcloud dataproc clusters create`.  When you are
-experiencing this problem, you will see an error similar to the following:
+For platforms which do not have pre-built binary kernel drivers, the
+script will execute the .run file, installing the kernel driver
+support libraries.
+
+In addition to installing the support libraries, the open kernel
+module is fetched from github and built locally.  There are metadata
+attributes which can be used to specify the MOK key used to sign
+kernel modules for use with secure boot.
+
+-   `private_secret_name: <STRING>` -
+-   `public_secret_name: <STRING>` -
+-   `secret_version: <INTEGER>` -
+-   `secret_project: <STRING>` -
+
+Please see custom-images/examples/secure-boot/create-key-pair.sh for
+details on what these attributes are and how they are used.
+
+In order to load a kernel module built from source, either the
+`--no-shielded-secure-boot` argument must be passed to `gcloud
+dataproc clusters create`, or a trusted certificate must be included
+in the cluster's base image using the custom-image script, and secret
+names storing signing material must be supplied using metadata
+arguments.  Attempts to build from source with misconfigured or
+missing certificates will result in an error similar to the following:
 
 ```
 ERROR: The kernel module failed to load. Secure boot is enabled on this system, so this is likely because it was not signed by a key that is trusted by the kernel. Please try installing the driver again, and sign the kernel module when prompted to do so.
@@ -222,10 +254,31 @@ Please see the log entries 'Kernel module load error' and 'Kernel messages' at t
 ERROR: Installation has failed.  Please see the file '/var/log/nvidia-installer.log' for details.  You may find suggestions on fixing installation problems in the README available on the Linux driver download page at www.nvidia.com.
 ```
 
-Again, the resolution to this problem for the time being is to pass the
-`--no-shielded-secure-boot` argument to `gcloud dataproc clusters create` so
-that the kernel module built from source and unsigned can be loaded into the
-running kernel.
+The simple but unsecured resolution to this problem is to pass the
+`--no-shielded-secure-boot` argument to `gcloud dataproc clusters
+create` so that the unsigned kernel module built from source can be
+loaded into the running kernel.
+
+The complex but secure resolution is to run the
+custom-images/examples/secure-boot/create-key-pair.sh so that the tls/
+directory is populated with the certificates, and on first run, cloud
+secrets are populated with the signing material.
+
+The `custom-images/examples/secure-boot/create-key-pair.sh` script
+emits bash code which can be evaluated in order to populate
+appropriate environment variables.  You will need to run `gcloud
+config set project ${PROJECT_ID}` before running `create-key-pair.sh`
+to specify the project of the secret manager service.
+
+```bash
+$ bash custom-images/examples/secure-boot/create-key-pair.sh
+modulus_md5sum=ffffffffffffffffffffffffffffffff
+private_secret_name=efi-db-priv-key-042
+public_secret_name=efi-db-pub-key-042
+secret_project=your-project-id
+secret_version=1
+```
+
 
 #### Verification
 
