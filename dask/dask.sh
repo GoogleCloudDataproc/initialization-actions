@@ -21,7 +21,36 @@
 
 set -euxo pipefail
 
-readonly DASK_VERSION='2022.1'
+function os_id() {
+  grep '^ID=' /etc/os-release | cut -d= -f2 | xargs
+}
+
+function os_version() {
+  grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs
+}
+
+function os_codename() {
+  grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs
+}
+
+function is_debian() {
+  [[ "$(os_id)" == 'debian' ]]
+}
+
+function is_debian11() {
+  is_debian && [[ "$(os_version)" == '11'* ]]
+}
+
+function is_debian12() {
+  is_debian && [[ "$(os_version)" == '12'* ]]
+}
+
+if is_debian12 ; then
+    DASK_VERSION='2024.6'
+else
+    DASK_VERSION='2022.3'
+fi
+readonly DASK_VERSION
 
 readonly DEFAULT_CONDA_ENV=$(conda info --base)
 readonly DASK_YARN_CONFIG_DIR=/etc/dask/
@@ -343,10 +372,8 @@ EOF
 
 
 function main() {
-  #Install dask with the help of conda as installing with mamba causes version conflicts
-  execute_with_retries "conda install -y dask=${DASK_VERSION}"
-  # Install conda packages
-  execute_with_retries "mamba install -y ${CONDA_PACKAGES[*]}"
+  # Install dask + conda packages using mamba
+  execute_with_retries "mamba install -y dask=${DASK_VERSION} ${CONDA_PACKAGES[*]}"
 
   if [[ "${DASK_RUNTIME}" == "yarn" ]]; then
     # Create Dask YARN config file
