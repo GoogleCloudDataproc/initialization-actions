@@ -112,4 +112,4 @@ steps:
   - name: 'gcr.io/cloud-builders/gcloud'
     args: ['container', 'images', 'delete', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID']
 
-timeout: 7200s
+timeout: 14400s

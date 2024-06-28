@@ -41,7 +41,7 @@ class OozieTestCase(DataprocTestCase):
             configuration,
             self.INIT_ACTIONS,
             machine_type="e2-standard-4",
-            boot_disk_size="200GB")
+            boot_disk_size="50GB")
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
@@ -59,7 +59,7 @@ class OozieTestCase(DataprocTestCase):
             configuration,
             self.INIT_ACTIONS,
             machine_type="e2-standard-4",
-            boot_disk_size="200GB"
+            boot_disk_size="50GB"
         )
         self.assert_dataproc_job(self.getClusterName(), 'pyspark',
                                  '{}/{}/{} --properties=spark.pyspark.python={},spark.pyspark.driver.python={}'

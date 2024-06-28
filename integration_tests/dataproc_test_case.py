@@ -118,6 +118,10 @@ class DataprocTestCase(parameterized.TestCase):
             if FLAGS.image_version in self.IMAGE_VERSION_2_2:
                 args.append("--public-ip-address")
 
+        for i in init_actions:
+            if "install_gpu_driver.sh" in i or "mlvm.sh" in i:
+                args.append("--no-shielded-secure-boot")
+
         if optional_components:
             args.append("--optional-components={}".format(
                 ','.join(optional_components)))
@@ -158,6 +162,9 @@ class DataprocTestCase(parameterized.TestCase):
 
         args.append("--master-boot-disk-size={}".format(boot_disk_size))
         args.append("--worker-boot-disk-size={}".format(boot_disk_size))
+
+        args.append("--master-boot-disk-type=pd-ssd")
+        args.append("--worker-boot-disk-type=pd-ssd")
 
         args.append("--format=json")
 

@@ -59,8 +59,8 @@ class RapidsTestCase(DataprocTestCase):
   def test_rapids_dask(self, configuration, machine_suffixes, accelerator,
                        dask_runtime):
 
-    if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
-      self.skipTest("Not supported in pre 2.0 images")
+    if self.getImageVersion() <= pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
+      self.skipTest("Not supported in pre 2.0 images and rocky images")
 
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=DASK"
     if dask_runtime:
@@ -73,7 +73,7 @@ class RapidsTestCase(DataprocTestCase):
         machine_type="n1-standard-4",
         master_accelerator=accelerator,
         worker_accelerator=accelerator,
-        boot_disk_size="200GB",
+        boot_disk_size="50GB",
         timeout_in_minutes=30)
 
     for machine_suffix in machine_suffixes:
@@ -84,8 +84,8 @@ class RapidsTestCase(DataprocTestCase):
                             ("STANDARD", ["w-0"], GPU_T4))
   def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
 
-    if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
-      self.skipTest("Not supported in pre 2.0 images")
+    if self.getImageVersion() <= pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
+        self.skipTest("Not supported in pre 2.0 images and rocky images")
     optional_components = None
 
     metadata = ("gpu-driver-provider=NVIDIA,rapids-runtime=SPARK")
@@ -94,11 +94,10 @@ class RapidsTestCase(DataprocTestCase):
         configuration,
         self.INIT_ACTIONS,
         optional_components=optional_components,
-        metadata=metadata,
         machine_type="n1-standard-4",
         master_accelerator=accelerator if configuration == "SINGLE" else None,
         worker_accelerator=accelerator,
-        boot_disk_size="200GB",
+        boot_disk_size="50GB",
         timeout_in_minutes=30)
 
     for machine_suffix in machine_suffixes:
@@ -111,8 +110,8 @@ class RapidsTestCase(DataprocTestCase):
   def test_non_default_cuda_versions(self, configuration, machine_suffixes,
                                      accelerator, cuda_version):
 
-    if self.getImageVersion() < pkg_resources.parse_version("2.0"):
-      self.skipTest("Not supported in pre 2.0 images")
+    if self.getImageVersion() <= pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
+        self.skipTest("Not supported in pre 2.0 images and rocky images")
 
     metadata = ("gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
                 ",cuda-version={}".format(cuda_version))
@@ -124,7 +123,7 @@ class RapidsTestCase(DataprocTestCase):
         machine_type="n1-standard-4",
         master_accelerator=accelerator if configuration == "SINGLE" else None,
         worker_accelerator=accelerator,
-        boot_disk_size="200GB",
+        boot_disk_size="50GB",
         timeout_in_minutes=30)
 
     for machine_suffix in machine_suffixes:

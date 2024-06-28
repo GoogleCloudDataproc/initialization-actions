@@ -67,7 +67,7 @@ readonly DEFAULT_DASK_RAPIDS_VERSION="23.12"
 readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' ${DEFAULT_DASK_RAPIDS_VERSION})
 
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
-readonly DEFAULT_SPARK_RAPIDS_VERSION="22.10.0"
+readonly DEFAULT_SPARK_RAPIDS_VERSION="24.06.0"
 
 if [[ "${SPARK_VERSION_ENV%%.*}" == "3" ]]; then
   readonly DEFAULT_CUDA_VERSION="11.8"
@@ -265,7 +265,7 @@ function main() {
 
   if [[ "${ROLE}" == "Master" ]]; then
     systemctl restart hadoop-yarn-resourcemanager.service
-    # Restart NodeManager on Master as well if this is a single-node-cluster.
+#     Restart NodeManager on Master as well if this is a single-node-cluster.
     if systemctl status hadoop-yarn-nodemanager; then
       systemctl restart hadoop-yarn-nodemanager.service
     fi

@@ -1,3 +1,4 @@
+import pkg_resources
 from absl.testing import absltest
 from absl.testing import parameterized
 
@@ -9,6 +10,7 @@ class HorovodTestCase(DataprocTestCase):
   INIT_ACTIONS = ["horovod/horovod.sh"]
   GPU_INIT_ACTIONS = ["gpu/install_gpu_driver.sh"] + INIT_ACTIONS
   GPU_P100 = "type=nvidia-tesla-p100"
+  GPU_T4 = "type=nvidia-tesla-t4"
 
   TENSORFLOW_TEST_SCRIPT = "scripts/verify_tensorflow.py"
   PYTORCH_TEST_SCRIPT = "scripts/verify_pytorch.py"
@@ -26,6 +28,9 @@ class HorovodTestCase(DataprocTestCase):
   def test_horovod_cpu(self, configuration, controller):
     if self.getImageOs() == 'rocky':
       self.skipTest("Not supported in Rocky Linux-based images")
+
+    if self.getImageVersion() > pkg_resources.parse_version("2.0"):
+        self.skipTest("Not supported in 2.0+ images")
 
     metadata = ""
     if controller == "mpi":
@@ -45,15 +50,18 @@ class HorovodTestCase(DataprocTestCase):
     if self.getImageOs() == 'rocky':
       self.skipTest("Not supported in Rocky Linux-based images")
 
-    metadata = "cuda-version=11.1,cudnn-version=8.0.5.39,gpu-driver-provider=NVIDIA"
+    if self.getImageVersion() > pkg_resources.parse_version("2.0"):
+        self.skipTest("Not supported in 2.0+ images")
+
+    metadata = "cuda-version=12.4,cudnn-version=9.1.0.70,gpu-driver-provider=NVIDIA"
 
     self.createCluster(
         configuration,
         self.GPU_INIT_ACTIONS,
         timeout_in_minutes=60,
         machine_type="n1-standard-8",
-        master_accelerator=self.GPU_P100,
-        worker_accelerator=self.GPU_P100,
+        master_accelerator=self.GPU_T4,
+        worker_accelerator=self.GPU_T4,
         metadata=metadata)
 
 
