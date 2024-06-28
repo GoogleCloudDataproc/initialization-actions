@@ -72,7 +72,7 @@ function compare_versions_lt() {
 
 function get_metadata_attribute() {
   local -r attribute_name=$1
-  local -r default_value=$2
+  local -r default_value="${2:-}"
   /usr/share/google/get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
 }
 
@@ -81,7 +81,7 @@ distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
 readonly OS_NAME
 
 # node role
-ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+ROLE="$(get_metadata_attribute dataproc-role)"
 readonly ROLE
 
 # CUDA version and Driver version
@@ -104,7 +104,7 @@ readonly -A NCCL_FOR_CUDA=(  [10.1]="2.4.8"     [10.2]="2.5.6"
 readonly -A CUDA_SUBVER=(    [10.1]="10.1.243"  [10.2]="10.2.89"
           [11.0]="11.0.3"    [11.1]="11.1.0"    [11.2]="11.2.2"
           [11.5]="11.5.2"    [11.6]="11.6.2"    [11.7]="11.7.1"
-          [11.8]="11.8.0"    [12.4]="12.4.0"
+          [11.8]="11.8.0"    [12.4]="12.4.1"
 )
 
 RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
@@ -268,7 +268,7 @@ function install_nvidia_nccl() {
     execute_with_retries "apt-get update"
 
     execute_with_retries \
-	"apt-get install -y --allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
+      "apt-get install -y --allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
   elif [[ ${OS_NAME} == debian ]]; then
     echo "nccl not packaged for debian"
   else
@@ -299,25 +299,25 @@ function install_nvidia_cudnn() {
       "apt-get install -y --no-install-recommends ${packages[*]}"
   elif [[ ${OS_NAME} == debian ]]; then
     if is_debian12; then
-	apt-get -y install nvidia-cudnn
+      apt-get -y install nvidia-cudnn
     elif is_debian11; then
-	apt-get -y install cudnn9-cuda-12
+      apt-get -y install cudnn9-cuda-12
     else
-	local tmp_dir
-	tmp_dir=$(mktemp -d -t gpu-init-action-cudnn-XXXX)
+      local tmp_dir
+      tmp_dir=$(mktemp -d -t gpu-init-action-cudnn-XXXX)
 
-	curl -fSsL --retry-connrefused --retry 10 --retry-max-time 30 \
-	     "${CUDNN_TARBALL_URL}" -o "${tmp_dir}/${CUDNN_TARBALL}"
+      curl -fSsL --retry-connrefused --retry 10 --retry-max-time 30 \
+        "${CUDNN_TARBALL_URL}" -o "${tmp_dir}/${CUDNN_TARBALL}"
 
-	if ( compare_versions_lte "${CUDNN_VERSION}" "8.3.0.98" ); then
-	    tar -xzf "${tmp_dir}/${CUDNN_TARBALL}" -C /usr/local
-	else
-	    ln -sf /usr/local/cuda/targets/x86_64-linux/lib /usr/local/cuda/lib
-	    tar -h --no-same-owner --strip-components=1 \
-		-xJf "${tmp_dir}/${CUDNN_TARBALL}" -C /usr/local/cuda
-	fi
+      if ( compare_versions_lte "${CUDNN_VERSION}" "8.3.0.98" ); then
+        tar -xzf "${tmp_dir}/${CUDNN_TARBALL}" -C /usr/local
+      else
+        ln -sf /usr/local/cuda/targets/x86_64-linux/lib /usr/local/cuda/lib
+        tar -h --no-same-owner --strip-components=1 \
+          -xJf "${tmp_dir}/${CUDNN_TARBALL}" -C /usr/local/cuda
+      fi
 
-	cat <<'EOF' >>/etc/profile.d/cudnn.sh
+      cat <<'EOF' >>/etc/profile.d/cudnn.sh
 export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 EOF
     fi
@@ -333,7 +333,7 @@ EOF
 
 CA_TMPDIR="$(mktemp -u -d -p /run/tmp -t ca_dir-XXXX)"
 function configure_dkms_certs() {
-  if [[ -z "$(/usr/share/google/get_metadata_value attributes/private_secret_name)" ]]; then
+  if [[ -z "$(get_metadata_attribute private_secret_name)" ]]; then
       echo "No signing secret provided.  skipping";
       return 0
   fi
@@ -345,11 +345,11 @@ function configure_dkms_certs() {
     echo "Private key material exists"
 
     local expected_modulus_md5sum
-    expected_modulus_md5sum=$(/usr/share/google/get_metadata_value attributes/cert_modulus_md5sum)
+    expected_modulus_md5sum=$(get_metadata_attribute cert_modulus_md5sum)
     if [[ -n "${expected_modulus_md5sum}" ]]; then
-	modulus_md5sum="${expected_modulus_md5sum}"
+      modulus_md5sum="${expected_modulus_md5sum}"
     else
-	modulus_md5sum="bd40cf5905c7bba4225d330136fdbfd3"
+      modulus_md5sum="bd40cf5905c7bba4225d330136fdbfd3"
     fi
 
     # Verify that cert md5sum matches expected md5sum
@@ -369,13 +369,13 @@ function configure_dkms_certs() {
 
   # Retrieve cloud secrets keys
   local sig_priv_secret_name
-  sig_priv_secret_name=$(/usr/share/google/get_metadata_value attributes/private_secret_name)
+  sig_priv_secret_name=$(get_metadata_attribute private_secret_name)
   local sig_pub_secret_name
-  sig_pub_secret_name=$(/usr/share/google/get_metadata_value attributes/public_secret_name)
+  sig_pub_secret_name=$(get_metadata_attribute public_secret_name)
   local sig_secret_project
-  sig_secret_project=$(/usr/share/google/get_metadata_value attributes/secret_project)
+  sig_secret_project=$(get_metadata_attribute secret_project)
   local sig_secret_version
-  sig_secret_version=$(/usr/share/google/get_metadata_value attributes/secret_version)
+  sig_secret_version=$(get_metadata_attribute secret_version)
 
   # If metadata values are not set, do not write mok keys
   if [[ -z "${sig_priv_secret_name}" ]]; then return 0 ; fi
@@ -400,7 +400,7 @@ function configure_dkms_certs() {
 }
 
 function clear_dkms_key {
-  if [[ -z "$(/usr/share/google/get_metadata_value attributes/private_secret_name)" ]]; then
+  if [[ -z "$(get_metadata_attribute private_secret_name)" ]]; then
       echo "No signing secret provided.  skipping";
       return 0
   fi
@@ -428,11 +428,11 @@ function add_repo_nvidia_container_toolkit() {
   if is_debian ; then
       # https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
       curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \
-	  | gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+        | gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
 
       curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list \
-	  | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' \
-	  | tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+        | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' \
+        | tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
 
       apt-get update
   fi
@@ -441,19 +441,22 @@ function add_repo_nvidia_container_toolkit() {
 
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
+  workdir=/opt/install-nvidia-driver
+  mkdir -p "${workdir}"
+  pushd "${workdir}"
 
   if is_debian12 ; then
     add_nonfree_components
     add_repo_nvidia_container_toolkit
     configure_dkms_certs
     apt-get -yq install \
-	    nvidia-container-toolkit \
-	    dkms \
-	    nvidia-open-kernel-dkms \
-	    nvidia-open-kernel-support \
-	    nvidia-smi \
-	    libglvnd0 \
-	    libcuda1
+          nvidia-container-toolkit \
+          dkms \
+          nvidia-open-kernel-dkms \
+          nvidia-open-kernel-support \
+          nvidia-smi \
+          libglvnd0 \
+          libcuda1
     clear_dkms_key
 
   elif is_debian ; then
@@ -467,15 +470,20 @@ function install_nvidia_gpu_driver() {
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${NVIDIA_DEBIAN_GPU_DRIVER_URL}" -o driver.run
     bash "./driver.run" --no-kernel-modules --silent --install-libglvnd
-    rm -rf driver.run
+    rm -f driver.run
     git clone https://github.com/NVIDIA/open-gpu-kernel-modules.git --branch "${NVIDIA_DEBIAN_GPU_DRIVER_VERSION}" --single-branch
     pushd open-gpu-kernel-modules
     make -j$(nproc) modules
-    configure_dkms_certs
-    for module in $(find kernel-open -name '*.ko'); do
-	/lib/modules/$(uname -r)/build/scripts/sign-file sha256 /var/lib/dkms/mok.key /var/lib/dkms/mok.pub "${module}"
-    done
-    clear_dkms_key
+    if [[ -n "$(get_metadata_attribute private_secret_name)" ]]; then
+      configure_dkms_certs
+      for module in $(find kernel-open -name '*.ko'); do
+        /lib/modules/$(uname -r)/build/scripts/sign-file sha256 \
+        /var/lib/dkms/mok.key \
+        /var/lib/dkms/mok.pub \
+        "${module}"
+      done
+      clear_dkms_key
+    fi
     make modules_install
     depmod -a
     popd
@@ -483,7 +491,7 @@ function install_nvidia_gpu_driver() {
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${NVIDIA_DEBIAN_CUDA_URL}" -o cuda.run
     bash "./cuda.run" --silent --toolkit --no-opengl-libs
-    rm -rf cuda.run
+    rm -f cuda.run
   elif [[ ${OS_NAME} == ubuntu ]]; then
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${NVIDIA_UBUNTU_REPO_KEY_PACKAGE}" -o /tmp/cuda-keyring.deb
@@ -522,6 +530,7 @@ function install_nvidia_gpu_driver() {
   fi
   ldconfig
   echo "NVIDIA GPU driver provided by NVIDIA was installed successfully"
+  popd
 }
 
 # Collects 'gpu_utilization' and 'gpu_memory_utilization' metrics
