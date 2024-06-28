@@ -21,7 +21,7 @@
 
 set -euxo pipefail
 
-readonly DASK_VERSION='2022.1'
+readonly DASK_VERSION='2022.3'
 
 readonly DEFAULT_CONDA_ENV=$(conda info --base)
 readonly DASK_YARN_CONFIG_DIR=/etc/dask/
@@ -343,10 +343,8 @@ EOF
 
 
 function main() {
-  #Install dask with the help of conda as installing with mamba causes version conflicts
-  execute_with_retries "conda install -y dask=${DASK_VERSION}"
-  # Install conda packages
-  execute_with_retries "mamba install -y ${CONDA_PACKAGES[*]}"
+  # Install dask + conda packages using mamba
+  execute_with_retries "mamba install -y dask=${DASK_VERSION} ${CONDA_PACKAGES[*]}"
 
   if [[ "${DASK_RUNTIME}" == "yarn" ]]; then
     # Create Dask YARN config file
