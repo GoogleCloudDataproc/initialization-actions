@@ -118,6 +118,10 @@ class DataprocTestCase(parameterized.TestCase):
             if FLAGS.image_version in self.IMAGE_VERSION_2_2:
                 args.append("--public-ip-address")
 
+        for i in init_actions:
+            if "install_gpu_driver.sh" in i:
+                args.append("--no-shielded-secure-boot")
+
         if optional_components:
             args.append("--optional-components={}".format(
                 ','.join(optional_components)))
