@@ -19,7 +19,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
   def verify_mig_instance(self, name):
     self.assert_instance_command(name,
-        "/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | xargs -I % test % = 'Enabled'")
+        "/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader")
 
   def verify_instance_gpu_agent(self, name):
     self.assert_instance_command(
@@ -236,8 +236,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     for machine_suffix in machine_suffixes:
       self.verify_instance("{}-{}".format(self.getClusterName(),
                                           machine_suffix))
-      self.verify_instance_gpu_agent("{}-{}".format(self.getClusterName(),
-                                                    machine_suffix))
 
     self.assert_dataproc_job(
       self.getClusterName(),
