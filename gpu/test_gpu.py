@@ -23,7 +23,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
   def verify_instance_gpu_agent(self, name):
     self.assert_instance_command(
-        name, "systemctl status gpu-utilization-agent.service")
+        name, "sudo systemctl status gpu-utilization-agent.service")
 
   def verify_instance_cudnn(self, name):
     self.assert_instance_command(
@@ -115,9 +115,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   @parameterized.parameters(
       ("SINGLE", ["m"], GPU_T4, None, "10.1"),
       ("STANDARD", ["m"], GPU_T4, None, "10.2"),
-      ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "11.0"),
-      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.1"),
-      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.2"),
+      ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4"),
+      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "12.4"),
+      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "12.4"),
   )
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
@@ -206,9 +206,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   @parameterized.parameters(
     ("SINGLE", ["m"], GPU_T4, None, "10.1"),
     ("STANDARD", ["m"], GPU_T4, None, "10.2"),
-    ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "11.0"),
-    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.1"),
-    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.2"),
+    ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4"),
+    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "12.4"),
+    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "12.4"),
   )
   def test_install_gpu_cuda_nvidia_with_spark_job(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
