@@ -37,6 +37,7 @@ You can use this initialization action to create a new Dataproc cluster with Ooz
     1. mysql-root-password-secret-name - Name of [Secret Manager](https://cloud.google.com/secret-manager/) secret used to store MySQL root password
     1. mysql-root-password-secret-version - Version of Secret Manager secret used to store MySQL root password - default: 1
     1. oozie-enable-ssl - Whether to enable SSL for oozie service - default: "false"
+    1. oozie-repo-url - When specified, download packages from this URL instead of Internet - default: ""
 
 1. Once the cluster has been created Oozie should be running on the master node.
 
