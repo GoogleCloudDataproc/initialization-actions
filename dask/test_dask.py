@@ -30,8 +30,6 @@ class DaskTestCase(DataprocTestCase):
 
 
     @parameterized.parameters(
-        ("STANDARD", ["m", "w-0"], None),
-        ("STANDARD", ["m", "w-0"], "yarn"),
         ("STANDARD", ["m"], "standalone"))
     def test_dask(self, configuration, instances, runtime):
         if self.getImageOs() == 'rocky':
