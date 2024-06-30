@@ -119,9 +119,11 @@ readonly NVIDIA_DEBIAN_GPU_DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-v
 readonly NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX=${NVIDIA_DEBIAN_GPU_DRIVER_VERSION%%.*}
 readonly DRIVER=${NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}
 # As of Rocky 8.7, kernel 4.18.0-425 is unable to build older nvidia kernel drivers
+ROCKY_BINARY_INSTALL="false"
 if [[ "${OS_NAME}" == "rocky" &&  "${DRIVER}" < "510" ]]; then
-  readonly ROCKY_BINARY_INSTALL="true"
+  ROCKY_BINARY_INSTALL="true"
 fi
+readonly ROCKY_BINARY_INSTALL
 
 # Fail early for configurations known to be unsupported
 function unsupported_error {
@@ -715,7 +717,7 @@ function main() {
     execute_with_retries "apt-get update"
     execute_with_retries "apt-get install -y -q pciutils"
   elif [[ ${OS_NAME} == rocky ]] ; then
-    execute_with_retries "dnf -y -q update"
+    execute_with_retries "dnf -y -q update --exclude=systemd*,kernel*"
     execute_with_retries "dnf -y -q install pciutils"
     execute_with_retries "dnf -y -q install kernel-devel-$(uname -r)"
     execute_with_retries "dnf -y -q install gcc"
