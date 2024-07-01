@@ -65,7 +65,6 @@ py_test(
     local = True,
     shard_count = 3,
     deps = [
-        ":pyspark_metastore_test",
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",
     ],
@@ -126,10 +125,4 @@ py_test(
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",
     ],
-)
-
-py_library(
-    name = "pyspark_metastore_test",
-    testonly = True,
-    srcs = ["cloud-sql-proxy/pyspark_metastore_test.py"],
 )
