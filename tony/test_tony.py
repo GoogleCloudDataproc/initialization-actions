@@ -56,7 +56,7 @@ class TonYTestCase(DataprocTestCase):
         if self.getImageOs() == 'rocky':
             self.skipTest("Not supported in Rocky Linux-based images")
 
-        metadata ="tf_gpu=true,cuda-version=11.1,cudnn-version=8.0.5.39"
+        metadata ="tf_gpu=true,cuda-version=12.4,cudnn-version=9.1.0.70"
         self.createCluster(
             configuration,
             self.GPU_INIT_ACTIONS,
