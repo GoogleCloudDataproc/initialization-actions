@@ -126,8 +126,8 @@ class MLVMTestCase(DataprocTestCase):
     metadata = ("init-actions-repo={},include-gpus=true"
                 ",gpu-driver-provider=NVIDIA").format(self.INIT_ACTIONS_REPO)
 
-    cudnn_version = "8.1.1.33"
-    cuda_version = "11.2"
+    cudnn_version = "9.1.0.70"
+    cuda_version = "12.4"
 
     metadata = ("init-actions-repo={},include-gpus=true"
                 ",gpu-driver-provider=NVIDIA,"
