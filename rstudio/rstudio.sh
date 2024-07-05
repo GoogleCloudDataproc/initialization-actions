@@ -103,6 +103,17 @@ function run_with_retries() {
   "${cmd[@]}"
 }
 
+function install_package() {
+  local LIBDEFLATE0_URL="http://archive.ubuntu.com/ubuntu/pool/universe/libd/libdeflate/libdeflate0_1.5-3_amd64.deb"
+  local LIBDEFLATE_DEV_URL="http://archive.ubuntu.com/ubuntu/pool/universe/libd/libdeflate/libdeflate-dev_1.5-3_amd64.deb"
+  TMP_DIR=$(mktemp -d)
+  wget -q -P "${TMP_DIR}" "${LIBDEFLATE0_URL}"
+  dpkg -i "${TMP_DIR}/$(basename "${LIBDEFLATE0_URL}")"
+  wget -q -P "${TMP_DIR}" "${LIBDEFLATE_DEV_URL}"
+  dpkg -i "${TMP_DIR}/$(basename "${LIBDEFLATE_DEV_URL}")"
+  rm -rf "${TMP_DIR}"
+}
+
 if [[ "${ROLE}" == 'Master' ]]; then
   if [[ ${OS_ID} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
     remove_old_backports
@@ -122,13 +133,16 @@ if [[ "${ROLE}" == 'Master' ]]; then
 
   # Install RStudio Server
   REPOSITORY_KEY=95C0FAF38DB3CCAD0C080A7BDC78B2DDEABC47B7
-  run_with_retries apt-key adv --keyserver hkp://pool.sks-keyservers.net:80 --recv-keys ${REPOSITORY_KEY}
+  run_with_retries apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys ${REPOSITORY_KEY}
   # https://cran.r-project.org/bin/linux/ubuntu/
   if [[ "${OS_ID}" == "ubuntu" ]]; then
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc | tee -a /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc
   fi
   apt-get install -y software-properties-common
   add-apt-repository "deb http://cran.r-project.org/bin/linux/${OS_ID} ${OS_CODE}-cran40/"
+  if [[ ${OS_ID} == ubuntu ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} == 2.0" | bc -l) == 1 ]]; then
+    install_package
+  fi
   update_apt_get
   apt-get install -y r-base r-base-dev gdebi-core
 
@@ -147,7 +161,7 @@ if [[ "${ROLE}" == 'Master' ]]; then
   fi
   if [[ -z "${USER_PASSWORD}" ]]; then
     service_file=/etc/systemd/system/rstudio-server.service
-    if [[ "${OS_CODE}" == "bookworm" ]];then
+    if [[ "${OS_CODE}" == "bookworm" ]] || [[ "${OS_CODE}" == "jammy" ]];then
       service_file=/lib/systemd/system/rstudio-server.service
     fi
     sed -i 's:ExecStart=\(.*\):Environment=USER=rstudio\nExecStart=\1 --auth-none 1:1' "$service_file"

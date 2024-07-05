@@ -41,7 +41,7 @@ else
 fi
 
 # Update SPARK RAPIDS config
-readonly DEFAULT_SPARK_RAPIDS_VERSION="24.02.0"
+readonly DEFAULT_SPARK_RAPIDS_VERSION="24.06.0"
 readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
 readonly XGBOOST_VERSION=$(get_metadata_attribute 'xgboost-version' ${DEFAULT_XGBOOST_VERSION})
 
@@ -51,8 +51,8 @@ readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-maste
 readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 
 # CUDA version and Driver version config
-CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '12.2.2')  #12.2.2
-NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '535.104.05') #535.104.05
+CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '12.4.1')  #12.2.2
+NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '550.54.15') #535.104.05
 CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.2
 
 # EXCEPTIONS
@@ -64,15 +64,6 @@ if [[ "${OS_NAME}" == "ubuntu" ]]; then
       CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '12.1.1')  #12.1.1
       NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '530.30.02') #530.30.02
       CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.1
-    fi
-fi
-# Change CUDA version for Debian 12 (Cuda 12.3.2 - Driver v545.23.08 is the latest version supported by Debian 12)
-if [[ "${OS_NAME}" == "debian" ]]; then
-    DEBIAN_VERSION=$(lsb_release -r | awk '{print $2}') # 12
-    if [[ "${DEBIAN_VERSION}" == "12" ]]; then
-      CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '12.3.2')  #12.3.2
-      NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '545.23.08') #545.23.08
-      CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.3
     fi
 fi
 
@@ -209,11 +200,7 @@ function install_nvidia_gpu_driver() {
       apt install -y ca-certificates-java
     fi
 
-    ## EXCEPTION
-    if [[ ${DEBIAN_VERSION} == 12 ]]; then
-      execute_with_retries "apt-get install -y -q nvidia-kernel-open-dkms"
-    fi
-
+    execute_with_retries "apt-get install -y -q nvidia-kernel-open-dkms"
     execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${NVIDIA_DRIVER_VERSION_PREFIX}"
     execute_with_retries "apt-get install -y -q --no-install-recommends cuda-toolkit-${CUDA_VERSION_MAJOR//./-}"
 
@@ -239,13 +226,19 @@ function install_nvidia_gpu_driver() {
     cp /var/cuda-repo-ubuntu${UBUNTU_VERSION}04-${CUDA_VERSION_MAJOR//./-}-local/cuda-*-keyring.gpg /usr/share/keyrings/
     execute_with_retries "apt-get update"    
     
+    execute_with_retries "apt-get install -y -q --no-install-recommends nvidia-driver-${NVIDIA_DRIVER_VERSION_PREFIX}-open"
     execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${NVIDIA_DRIVER_VERSION_PREFIX}"
     execute_with_retries "apt-get install -y -q --no-install-recommends cuda-toolkit-${CUDA_VERSION_MAJOR//./-}"
+
+    modprobe nvidia
 
     # enable a systemd service that updates kernel headers after reboot
     setup_systemd_update_headers
 
   elif [[ ${OS_NAME} == "rocky" ]]; then
+
+    # Ensure the Correct Kernel Development Packages are Installed
+    execute_with_retries "yum install -y kernel-devel-$(uname -r) kernel-headers-$(uname -r)"
 
     ROCKY_VERSION=$(lsb_release -r | awk '{print $2}') # 8.8 or 9.1
     ROCKY_VERSION=${ROCKY_VERSION%.*} # 8 or 9
@@ -253,8 +246,8 @@ function install_nvidia_gpu_driver() {
     readonly NVIDIA_ROCKY_REPO_URL="https://developer.download.nvidia.com/compute/cuda/repos/rhel${ROCKY_VERSION}/x86_64/cuda-rhel${ROCKY_VERSION}.repo"
     execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPO_URL}"
     execute_with_retries "dnf clean all"
-    execute_with_retries "dnf -y -q module install nvidia-driver:${NVIDIA_DRIVER_VERSION_PREFIX}"
-    execute_with_retries "dnf -y -q install cuda-toolkit-${CUDA_VERSION_MAJOR//./-}"
+    execute_with_retries "dnf -y -q module install nvidia-driver:latest-dkms"
+    execute_with_retries "dnf -y -q install cuda-toolkit"
     modprobe nvidia
 
   else
@@ -428,7 +421,7 @@ function setup_gpu_yarn() {
 
   if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
     export DEBIAN_FRONTEND=noninteractive
-    execute_with_retries "apt-get update"
+    execute_with_retries "apt-get --allow-releaseinfo-change update"
     execute_with_retries "apt-get install -y -q pciutils"
   elif [[ ${OS_NAME} == rocky ]] ; then
     execute_with_retries "dnf -y -q install pciutils"
