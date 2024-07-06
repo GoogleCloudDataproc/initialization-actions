@@ -209,13 +209,16 @@ function install_oozie() {
 
   # Upgrade the repository and install Oozie
   if [[ ${OS_NAME} == rocky ]]; then
-    # unzip does not come pre-installed on the 2.1-rocky8 image
-    if [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 2.1" | bc -l) == 1  ]]; then
-      retry_command "dnf -y install unzip"
-    fi
 
     # update dnf proxy
     retry_command "dnf -y -v install oozie"
+
+    # unzip does not come pre-installed on the 2.1-rocky8 image
+    if [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 2.1" | bc -l) == 1  ]]; then
+      retry_command "dnf -y install unzip"
+      find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
+      cp /usr/lib/hadoop/lib/hadoop-shaded-guava-1.1.1.jar /usr/lib/oozie/lib
+    fi
 
     # add mysql service dependency on oozie service
     sed -i '/^# Required-Start:/ s/$/ mysqld.service/' /etc/init.d/oozie
@@ -412,8 +415,6 @@ EOM
         else
           ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/*spark-metrics-listener*.jar "
         fi
-        find /usr/lib/oozie/lib/ -name 'guava*.jar' -delete
-        cp /usr/lib/hive/lib/guava-*.jar /usr/lib/oozie/lib
       elif [[ $(echo "${DATAPROC_IMAGE_VERSION} > 1.5" | bc -l) == 1  ]]; then
         ADDITIONAL_JARS="${ADDITIONAL_JARS} /usr/lib/spark/jars/spark-hadoop-cloud*.jar  /usr/lib/spark/jars/hadoop-cloud-storage-*.jar /usr/lib/spark/jars/re2j-1.1.jar "
         ADDITIONAL_JARS="${ADDITIONAL_JARS} ${tmp_dir}/share/lib/hive/htrace-core4-*-incubating.jar "
