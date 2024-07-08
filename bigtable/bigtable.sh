@@ -42,7 +42,7 @@ readonly BIGTABLE_HBASE_CLIENT_2X_VERSION='2.12.0'
 readonly BIGTABLE_HBASE_CLIENT_2X_JAR="bigtable-hbase-2.x-hadoop-${BIGTABLE_HBASE_CLIENT_2X_VERSION}.jar"
 readonly BIGTABLE_HBASE_CLIENT_2X_URL="${BIGTABLE_HBASE_CLIENT_2X_REPO}/${BIGTABLE_HBASE_CLIENT_2X_VERSION}/${BIGTABLE_HBASE_CLIENT_2X_JAR}"
 
-readonly SCH_REPO="https://repo.hortonworks.com/content/groups/public/com/hortonworks"
+readonly SCH_REPO="https://repo.hortonworks.com/content/repositories/releases/com/hortonworks"
 readonly SHC_VERSION='1.1.1-2.1-s_2.11'
 readonly SHC_JAR="shc-core-${SHC_VERSION}.jar"
 readonly SHC_EXAMPLES_JAR="shc-examples-${SHC_VERSION}.jar"
