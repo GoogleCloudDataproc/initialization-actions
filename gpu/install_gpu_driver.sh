@@ -28,6 +28,10 @@ function os_codename() {
   grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs
 }
 
+function is_ubuntu() {
+  [[ "$(os_id)" == 'ubuntu' ]]
+}
+
 function is_debian() {
   [[ "$(os_id)" == 'debian' ]]
 }
@@ -91,6 +95,7 @@ readonly -A DRIVER_FOR_CUDA=([10.1]="418.88"    [10.2]="440.64.00"
           [11.5]="495.29.05" [11.6]="510.47.03" [11.7]="515.65.01"
           [11.8]="520.56.06" [12.4]="550.54.14"
 )
+
 readonly -A CUDNN_FOR_CUDA=( [10.1]="7.6.4.38"  [10.2]="7.6.5.32"
           [11.0]="8.0.4.30"  [11.1]="8.0.5.39"  [11.2]="8.1.1.33"
           [11.5]="8.3.3.40"  [11.6]="8.4.1.50"  [11.7]="8.5.0.96"
@@ -189,7 +194,8 @@ NVIDIA_DEBIAN_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_DEB
 readonly NVIDIA_DEBIAN_CUDA_URL
 
 # Parameters for NVIDIA-provided Ubuntu GPU driver
-readonly NVIDIA_UBUNTU_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/ubuntu1804/x86_64"
+#readonly NVIDIA_UBUNTU_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/ubuntu1804/x86_64"
+readonly NVIDIA_UBUNTU_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/wsl-ubuntu/x86_64"
 readonly NVIDIA_UBUNTU_REPO_KEY_PACKAGE="${NVIDIA_UBUNTU_REPO_URL}/cuda-keyring_1.0-1_all.deb"
 readonly NVIDIA_UBUNTU_REPO_CUDA_PIN="${NVIDIA_UBUNTU_REPO_URL}/cuda-ubuntu1804.pin"
 
@@ -251,6 +257,12 @@ function execute_with_retries() {
 }
 
 function install_nvidia_nccl() {
+  if ( compare_versions_lte "12.0" "${CUDA_VERSION}" ); then
+    # When cuda version is greater than 12.0
+    echo "no nccl packaged for cuda 12"
+    return
+  fi
+
   local -r nccl_version="${NCCL_VERSION}-1+cuda${CUDA_VERSION}"
 
   if [[ ${OS_NAME} == rocky ]]; then
@@ -290,14 +302,7 @@ function install_nvidia_cudnn() {
       echo "Unsupported CUDNN version: '${CUDNN_VERSION}'"
       exit 1
     fi
-  elif [[ ${OS_NAME} == ubuntu ]]; then
-    local -a packages
-    packages=(
-      "libcudnn${major_version}=${cudnn_pkg_version}"
-      "libcudnn${major_version}-dev=${cudnn_pkg_version}")
-    execute_with_retries \
-      "apt-get install -y --no-install-recommends ${packages[*]}"
-  elif [[ ${OS_NAME} == debian ]]; then
+  elif is_debian || is_ubuntu; then
     if is_debian12; then
       apt-get -y install nvidia-cudnn
     elif is_debian11; then
@@ -321,6 +326,13 @@ function install_nvidia_cudnn() {
 export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 EOF
     fi
+  elif [[ ${OS_NAME} == ubuntu ]]; then
+    local -a packages
+    packages=(
+      "libcudnn${major_version}=${cudnn_pkg_version}"
+      "libcudnn${major_version}-dev=${cudnn_pkg_version}")
+    execute_with_retries \
+      "apt-get install -y --no-install-recommends ${packages[*]}"
   else
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
@@ -459,11 +471,16 @@ function install_nvidia_gpu_driver() {
           libcuda1
     clear_dkms_key
 
-  elif is_debian ; then
+  elif is_debian || is_ubuntu ; then
     # Install CUDA keyring and sources.list
     # https://docs.nvidia.com/cuda/cuda-installation-guide-linux/#network-repo-installation-for-debian
+    if is_debian ; then
+      PKG_URL="${NVIDIA_DEBIAN_REPO_KEY_PACKAGE}"
+    elif is_ubuntu; then
+      PKG_URL="${NVIDIA_UBUNTU_REPO_KEY_PACKAGE}"
+    fi
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${NVIDIA_DEBIAN_REPO_KEY_PACKAGE}" -o /tmp/cuda-keyring.deb
+      "${PKG_URL}" -o /tmp/cuda-keyring.deb
     dpkg -i "/tmp/cuda-keyring.deb"
     apt-get update
 
@@ -492,7 +509,7 @@ function install_nvidia_gpu_driver() {
       "${NVIDIA_DEBIAN_CUDA_URL}" -o cuda.run
     bash "./cuda.run" --silent --toolkit --no-opengl-libs
     rm -f cuda.run
-  elif [[ ${OS_NAME} == ubuntu ]]; then
+  elif [[ ${OS_NAME} == ubuntu ]]; then # this condition will be met in the previous check ; this code is now skipped
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${NVIDIA_UBUNTU_REPO_KEY_PACKAGE}" -o /tmp/cuda-keyring.deb
     dpkg -i "/tmp/cuda-keyring.deb"
