@@ -24,8 +24,16 @@ function os_version() {
   grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs
 }
 
+function os_vercat() {
+  os_version | sed -e 's/[^0-9]//'
+}
+
 function os_codename() {
   grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs
+}
+
+function is_rocky() {
+  [[ "$(os_id)" == 'rocky' ]]
 }
 
 function is_ubuntu() {
@@ -167,15 +175,18 @@ readonly NVIDIA_DEBIAN_GPU_DRIVER_URL
 
 readonly NVIDIA_BASE_DL_URL='https://developer.download.nvidia.com/compute'
 
+# Short name for urls
+readonly shortname="$(os_id)$(os_vercat)"
+
 # Parameters for NVIDIA-provided Debian package repository
-readonly NVIDIA_DEBIAN_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/$(os_id)$(os_version)/x86_64"
+readonly NVIDIA_DEBIAN_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64"
 readonly NVIDIA_DEBIAN_REPO_KEY_PACKAGE="${NVIDIA_DEBIAN_REPO_URL}/cuda-keyring_1.1-1_all.deb"
 
 # Parameters for NVIDIA-provided NCCL library
-readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb"
+readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/${shortname}/x86_64/nvidia-machine-learning-repo-${shortname}_1.0.0-1_amd64.deb"
 NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
 readonly NCCL_REPO_URL
-readonly NCCL_REPO_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/7fa2af80.pub"
+readonly NCCL_REPO_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/${shortname}/x86_64/7fa2af80.pub"
 
 readonly -A DEFAULT_NVIDIA_DEBIAN_CUDA_URLS=(
   [10.1]="${NVIDIA_BASE_DL_URL}/cuda/10.1/Prod/local_installers/cuda_10.1.243_418.87.00_linux.run"
@@ -194,13 +205,12 @@ NVIDIA_DEBIAN_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_DEB
 readonly NVIDIA_DEBIAN_CUDA_URL
 
 # Parameters for NVIDIA-provided Ubuntu GPU driver
-#readonly NVIDIA_UBUNTU_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/ubuntu1804/x86_64"
-readonly NVIDIA_UBUNTU_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/wsl-ubuntu/x86_64"
+readonly NVIDIA_UBUNTU_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64"
 readonly NVIDIA_UBUNTU_REPO_KEY_PACKAGE="${NVIDIA_UBUNTU_REPO_URL}/cuda-keyring_1.0-1_all.deb"
-readonly NVIDIA_UBUNTU_REPO_CUDA_PIN="${NVIDIA_UBUNTU_REPO_URL}/cuda-ubuntu1804.pin"
+readonly NVIDIA_UBUNTU_REPO_CUDA_PIN="${NVIDIA_UBUNTU_REPO_URL}/cuda-${shortname}.pin"
 
 # Parameter for NVIDIA-provided Rocky Linux GPU driver
-readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/rhel8/x86_64/cuda-rhel8.repo"
+readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64/cuda-${shortname}.repo"
 
 # Parameters for NVIDIA-provided CUDNN library
 DEFAULT_CUDNN_VERSION=${CUDNN_FOR_CUDA["${CUDA_VERSION}"]}
@@ -300,7 +310,6 @@ function install_nvidia_cudnn() {
       execute_with_retries "dnf -y -q install libcudnn8-${cudnn_pkg_version} libcudnn8-devel-${cudnn_pkg_version}"
     else
       echo "Unsupported CUDNN version: '${CUDNN_VERSION}'"
-      exit 1
     fi
   elif is_debian || is_ubuntu; then
     if is_debian12; then
@@ -725,7 +734,9 @@ function main() {
     exit 1
   fi
 
-  remove_old_backports
+  if is_debian ; then
+      remove_old_backports
+  fi
 
   if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
     export DEBIAN_FRONTEND=noninteractive
