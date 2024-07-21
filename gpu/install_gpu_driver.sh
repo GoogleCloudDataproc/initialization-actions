@@ -16,6 +16,71 @@
 
 set -euxo pipefail
 
+function os_id() {
+  grep '^ID=' /etc/os-release | cut -d= -f2 | xargs
+}
+
+function os_version() {
+  grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs
+}
+
+function os_codename() {
+  grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs
+}
+
+function is_rocky() {
+  [[ "$(os_id)" == 'rocky' ]]
+}
+
+function is_ubuntu() {
+  [[ "$(os_id)" == 'ubuntu' ]]
+}
+
+function is_debian() {
+  [[ "$(os_id)" == 'debian' ]]
+}
+
+function is_debian11() {
+  is_debian && [[ "$(os_version)" == '11'* ]]
+}
+
+function is_debian12() {
+  is_debian && [[ "$(os_version)" == '12'* ]]
+}
+
+function os_vercat() {
+  if is_ubuntu ; then
+      os_version | sed -e 's/[^0-9]//g'
+  elif is_rocky ; then
+      os_version | sed -e 's/[^0-9].*$//g'
+  else
+      os_version
+  fi
+}
+
+
+function remove_old_backports {
+  # This script uses 'apt-get update' and is therefore potentially dependent on
+  # backports repositories which have been archived.  In order to mitigate this
+  # problem, we will remove any reference to backports repos older than oldstable
+
+  if is_debian12 ; then
+    return
+  fi
+
+  # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
+  oldstable=$(curl -s https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
+  stable=$(curl -s https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
+
+  matched_files="$(grep -rsil '\-backports' /etc/apt/sources.list*)"
+  if [[ -n "$matched_files" ]]; then
+    for filename in "$matched_files"; do
+      grep -e "$oldstable-backports" "$filename" || \
+        sed -i -e 's/^.*-backports.*$//' "$filename"
+    done
+  fi
+}
+
 function compare_versions_lte {
   [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]
 }
@@ -43,19 +108,24 @@ readonly ROLE
 readonly -A DRIVER_FOR_CUDA=([10.1]="418.88"    [10.2]="440.64.00"
           [11.0]="450.51.06" [11.1]="455.45.01" [11.2]="460.73.01"
           [11.5]="495.29.05" [11.6]="510.47.03" [11.7]="515.65.01"
-          [11.8]="520.56.06")
+          [11.8]="520.56.06" [12.1]="530.30.02" [12.4]="550.54.14"
+)
+
 readonly -A CUDNN_FOR_CUDA=( [10.1]="7.6.4.38"  [10.2]="7.6.5.32"
           [11.0]="8.0.4.30"  [11.1]="8.0.5.39"  [11.2]="8.1.1.33"
           [11.5]="8.3.3.40"  [11.6]="8.4.1.50"  [11.7]="8.5.0.96"
-          [11.8]="8.6.0.163")
+          [11.8]="8.6.0.163" [12.1]="8.9.0"     [12.4]="9.1.0.70"
+)
 readonly -A NCCL_FOR_CUDA=(  [10.1]="2.4.8"     [10.2]="2.5.6"
           [11.0]="2.7.8"     [11.1]="2.8.3"     [11.2]="2.8.3"
           [11.5]="2.11.4"    [11.6]="2.11.4"    [11.7]="2.12.12"
-          [11.8]="2.15.5")
+          [11.8]="2.15.5"    [12.1]="2.17.1"    [12.4]="2.21.5"
+)
 readonly -A CUDA_SUBVER=(    [10.1]="10.1.243"  [10.2]="10.2.89"
           [11.0]="11.0.3"    [11.1]="11.1.0"    [11.2]="11.2.2"
           [11.5]="11.5.2"    [11.6]="11.6.2"    [11.7]="11.7.1"
-          [11.8]="11.8.0")
+          [11.8]="11.8.0"    [12.1]="12.1.0"    [12.4]="12.4.1"
+)
 
 RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 DEFAULT_CUDA_VERSION='11.2'
@@ -113,6 +183,13 @@ NVIDIA_DEBIAN_GPU_DRIVER_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAUL
 readonly NVIDIA_DEBIAN_GPU_DRIVER_URL
 
 readonly NVIDIA_BASE_DL_URL='https://developer.download.nvidia.com/compute'
+
+# Short name for urls
+readonly shortname="$(os_id | sed -e 's/rocky/rhel/')$(os_vercat)"
+
+# Parameters for NVIDIA-provided Debian package repository
+readonly NVIDIA_DEBIAN_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64"
+readonly NVIDIA_DEBIAN_REPO_KEY_PACKAGE="${NVIDIA_DEBIAN_REPO_URL}/cuda-keyring_1.1-1_all.deb"
 
 # Parameters for NVIDIA-provided NCCL library
 readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb"
