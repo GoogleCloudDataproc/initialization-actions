@@ -61,7 +61,7 @@ py_test(
     name = "test_cloud_sql_proxy",
     size = "enormous",
     srcs = ["cloud-sql-proxy/test_cloud_sql_proxy.py"],
-    data = ["cloud-sql-proxy/cloud-sql-proxy.sh"],
+    data = ["cloud-sql-proxy/cloud-sql-proxy.sh", "cloud-sql-proxy/hivetest.hive"],
     local = True,
     shard_count = 3,
     deps = [
@@ -117,6 +117,7 @@ py_test(
     data = [
         "spark-rapids/spark-rapids.sh",
         "spark-rapids/verify_xgboost_spark_rapids.scala",
+        "spark-rapids/verify_xgboost_spark_rapids_sql.scala",
         "spark-rapids/mig.sh",
     ],
     local = True,

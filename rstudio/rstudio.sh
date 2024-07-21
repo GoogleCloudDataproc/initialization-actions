@@ -47,6 +47,28 @@ fi
 RSTUDIO_SERVER_PACKAGE=rstudio-server-${RSTUDIO_SERVER_VERSION}-amd64.deb
 RSTUDIO_SERVER_PACKAGE_URI=${RSTUDIO_SERVER_URL}/${RSTUDIO_SERVER_PACKAGE}
 
+# Detect dataproc image version from its various names
+if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
+  DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
+fi
+
+function remove_old_backports {
+  # This script uses 'apt-get update' and is therefore potentially dependent on
+  # backports repositories which have been archived.  In order to mitigate this
+  # problem, we will remove any reference to backports repos older than oldstable
+
+  # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
+  oldstable=$(curl -s https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
+  stable=$(curl -s https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
+
+  matched_files="$(grep -rsil '\-backports' /etc/apt/sources.list*)"
+  if [[ -n "$matched_files" ]]; then
+    for filename in "$matched_files"; do
+      grep -e "$oldstable-backports" -e "$stable-backports" "$filename" || \
+        sed -i -e 's/^.*-backports.*$//' "$filename"
+    done
+  fi
+}
 
 function update_apt_get() {
   for ((i = 0; i < 10; i++)); do
@@ -81,7 +103,21 @@ function run_with_retries() {
   "${cmd[@]}"
 }
 
+function install_package() {
+  local LIBDEFLATE0_URL="http://archive.ubuntu.com/ubuntu/pool/universe/libd/libdeflate/libdeflate0_1.5-3_amd64.deb"
+  local LIBDEFLATE_DEV_URL="http://archive.ubuntu.com/ubuntu/pool/universe/libd/libdeflate/libdeflate-dev_1.5-3_amd64.deb"
+  TMP_DIR=$(mktemp -d)
+  wget -q -P "${TMP_DIR}" "${LIBDEFLATE0_URL}"
+  dpkg -i "${TMP_DIR}/$(basename "${LIBDEFLATE0_URL}")"
+  wget -q -P "${TMP_DIR}" "${LIBDEFLATE_DEV_URL}"
+  dpkg -i "${TMP_DIR}/$(basename "${LIBDEFLATE_DEV_URL}")"
+  rm -rf "${TMP_DIR}"
+}
+
 if [[ "${ROLE}" == 'Master' ]]; then
+  if [[ ${OS_ID} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
+    remove_old_backports
+  fi
   if [[ -n ${USER_PASSWORD} ]] && ((${#USER_PASSWORD} < 7)); then
     echo "You must specify a password of at least 7 characters for user '$USER_NAME' through metadata 'rstudio-password'."
     exit 1
@@ -104,6 +140,9 @@ if [[ "${ROLE}" == 'Master' ]]; then
   fi
   apt-get install -y software-properties-common
   add-apt-repository "deb http://cran.r-project.org/bin/linux/${OS_ID} ${OS_CODE}-cran40/"
+  if [[ ${OS_ID} == ubuntu ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} == 2.0" | bc -l) == 1 ]]; then
+    install_package
+  fi
   update_apt_get
   apt-get install -y r-base r-base-dev gdebi-core
 
@@ -122,7 +161,7 @@ if [[ "${ROLE}" == 'Master' ]]; then
   fi
   if [[ -z "${USER_PASSWORD}" ]]; then
     service_file=/etc/systemd/system/rstudio-server.service
-    if [[ "${OS_CODE}" == "bookworm" ]];then
+    if [[ "${OS_CODE}" == "bookworm" ]] || [[ "${OS_CODE}" == "jammy" ]];then
       service_file=/lib/systemd/system/rstudio-server.service
     fi
     sed -i 's:ExecStart=\(.*\):Environment=USER=rstudio\nExecStart=\1 --auth-none 1:1' "$service_file"

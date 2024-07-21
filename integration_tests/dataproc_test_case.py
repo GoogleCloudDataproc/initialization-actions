@@ -47,10 +47,12 @@ class DataprocTestCase(parameterized.TestCase):
     COMPONENT = None
     INIT_ACTIONS = None
     INIT_ACTIONS_REPO = None
+    IMAGE_VERSION_2_2 = ['2.2-debian12', '2.2-ubuntu22', '2.2-rocky9']
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        os.environ["CLOUDSDK_PYTHON"] = "/usr/bin/python3"
 
         _, project, _ = cls.run_command("gcloud config get-value project")
         cls.PROJECT = project.strip()
@@ -104,7 +106,7 @@ class DataprocTestCase(parameterized.TestCase):
         self.cluster_zone = zone
 
         init_actions = [
-            "{}/{}".format(self.INIT_ACTIONS_REPO, i)
+            "{}/{}".format(self.INIT_ACTIONS_REPO, i) if "gs://" not in i else i
             for i in init_actions or []
         ]
 
@@ -113,6 +115,8 @@ class DataprocTestCase(parameterized.TestCase):
             args.append("--image={}".format(FLAGS.image))
         elif FLAGS.image_version:
             args.append("--image-version={}".format(FLAGS.image_version))
+            if FLAGS.image_version in self.IMAGE_VERSION_2_2:
+                args.append("--public-ip-address")
 
         if optional_components:
             args.append("--optional-components={}".format(

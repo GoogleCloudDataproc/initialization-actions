@@ -38,8 +38,8 @@ class SolrTestCase(DataprocTestCase):
             self.skipTest("Not supported in Rocky Linux-based images")
 
         # Skip on 2.0+ version of Dataproc because it's not supported
-        if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
-            self.skipTest("Not supported in 2.0+ images")
+        if self.getImageVersion() >= pkg_resources.parse_version("1.5"):
+            self.skipTest("Solr can be added to the cluster as an optional component after Dataproc 1.3")
 
         self.createCluster(configuration, self.INIT_ACTIONS)
         for machine_suffix in machine_suffixes:

@@ -21,6 +21,7 @@ set -euxo pipefail
 # Use Python from /usr/bin instead of /opt/conda.
 export PATH=/usr/bin:$PATH
 
+readonly OS_NAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
 distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
 
 # Detect dataproc image version from its various names
@@ -41,7 +42,7 @@ readonly BIGTABLE_HBASE_CLIENT_2X_VERSION='2.12.0'
 readonly BIGTABLE_HBASE_CLIENT_2X_JAR="bigtable-hbase-2.x-hadoop-${BIGTABLE_HBASE_CLIENT_2X_VERSION}.jar"
 readonly BIGTABLE_HBASE_CLIENT_2X_URL="${BIGTABLE_HBASE_CLIENT_2X_REPO}/${BIGTABLE_HBASE_CLIENT_2X_VERSION}/${BIGTABLE_HBASE_CLIENT_2X_JAR}"
 
-readonly SCH_REPO="https://repo.hortonworks.com/content/groups/public/com/hortonworks"
+readonly SCH_REPO="https://repo.hortonworks.com/content/repositories/releases/com/hortonworks"
 readonly SHC_VERSION='1.1.1-2.1-s_2.11'
 readonly SHC_JAR="shc-core-${SHC_VERSION}.jar"
 readonly SHC_EXAMPLES_JAR="shc-examples-${SHC_VERSION}.jar"
@@ -55,6 +56,24 @@ if [[ -z "${BIGTABLE_INSTANCE}" ]]; then
 fi
 readonly BIGTABLE_PROJECT="$(/usr/share/google/get_metadata_value attributes/bigtable-project ||
     /usr/share/google/get_metadata_value ../project/project-id)"
+
+function remove_old_backports {
+  # This script uses 'apt-get update' and is therefore potentially dependent on
+  # backports repositories which have been archived.  In order to mitigate this
+  # problem, we will remove any reference to backports repos older than oldstable
+
+  # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
+  oldstable=$(curl -s https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
+  stable=$(curl -s https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
+
+  matched_files="$(grep -rsil '\-backports' /etc/apt/sources.list*)"
+  if [[ -n "$matched_files" ]]; then
+    for filename in "$matched_files"; do
+      grep -e "$oldstable-backports" -e "$stable-backports" "$filename" || \
+        sed -i -e 's/^.*-backports.*$//' "$filename"
+    done
+  fi
+}
 
 function retry_command() {
   local -r cmd="${1}"
@@ -243,6 +262,9 @@ function install_hbase() {
 }
 
 function main() {
+  if [[ ${OS_NAME} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
+    remove_old_backports
+  fi
   install_hbase             || err 'Failed to install HBase.'
   install_bigtable_client   || err 'Unable to install big table client.'
   install_shc               || err 'Failed to install Spark-HBase connector.'

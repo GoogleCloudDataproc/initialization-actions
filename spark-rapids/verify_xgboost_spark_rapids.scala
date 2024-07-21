@@ -1,6 +1,6 @@
 import ml.dmlc.xgboost4j.scala.spark.{XGBoostClassifier, XGBoostClassificationModel}
 import org.apache.spark.sql.{SparkSession, Row}
-import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
+import org.apache.spark.ml.evaluation.{MulticlassClassificationEvaluator, BinaryClassificationEvaluator}
 import org.apache.spark.sql.types.{DoubleType, IntegerType, StructField, StructType}
 
 val label = "1"
@@ -30,3 +30,10 @@ xgbClassifier.fit(df)
 
 classifier = XGBoostClassifier(**params).setLabelCol(label).setFeaturesCols(features)
 model = classifier.fit(df)
+
+val predictions = model.transform(df)
+
+val evaluator = new BinaryClassificationEvaluator().setLabelCol(label).setRawPredictionCol("rawPrediction")
+val accuracy = evaluator.evaluate(predictions)
+
+println(s"Accuracy: ${accuracy * 100}%")

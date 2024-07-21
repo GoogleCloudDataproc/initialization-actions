@@ -24,6 +24,10 @@ function os_version() {
   grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs
 }
 
+function os_vercat() {
+  os_version | sed -e 's/[^0-9]//'
+}
+
 function os_codename() {
   grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs
 }
@@ -58,7 +62,6 @@ function os_vercat() {
   fi
 }
 
-
 function remove_old_backports {
   # This script uses 'apt-get update' and is therefore potentially dependent on
   # backports repositories which have been archived.  In order to mitigate this
@@ -91,7 +94,7 @@ function compare_versions_lt() {
 
 function get_metadata_attribute() {
   local -r attribute_name=$1
-  local -r default_value=$2
+  local -r default_value="${2:-}"
   /usr/share/google/get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
 }
 
@@ -100,7 +103,7 @@ distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
 readonly OS_NAME
 
 # node role
-ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+ROLE="$(get_metadata_attribute dataproc-role)"
 readonly ROLE
 
 # CUDA version and Driver version
@@ -128,9 +131,9 @@ readonly -A CUDA_SUBVER=(    [10.1]="10.1.243"  [10.2]="10.2.89"
 )
 
 RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
-DEFAULT_CUDA_VERSION='11.2'
+DEFAULT_CUDA_VERSION='12.4'
 if [[ ${DATAPROC_IMAGE_VERSION} == 2.* ]] && [[ "${RUNTIME}" == "SPARK" ]]; then
-  DEFAULT_CUDA_VERSION='11.5'
+  DEFAULT_CUDA_VERSION='12.4'
 fi
 readonly DEFAULT_CUDA_VERSION
 readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
@@ -192,10 +195,10 @@ readonly NVIDIA_DEBIAN_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x
 readonly NVIDIA_DEBIAN_REPO_KEY_PACKAGE="${NVIDIA_DEBIAN_REPO_URL}/cuda-keyring_1.1-1_all.deb"
 
 # Parameters for NVIDIA-provided NCCL library
-readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb"
+readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/${shortname}/x86_64/nvidia-machine-learning-repo-${shortname}_1.0.0-1_amd64.deb"
 NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
 readonly NCCL_REPO_URL
-readonly NCCL_REPO_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/ubuntu1804/x86_64/7fa2af80.pub"
+readonly NCCL_REPO_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/${shortname}/x86_64/7fa2af80.pub"
 
 readonly -A DEFAULT_NVIDIA_DEBIAN_CUDA_URLS=(
   [10.1]="${NVIDIA_BASE_DL_URL}/cuda/10.1/Prod/local_installers/cuda_10.1.243_418.87.00_linux.run"
@@ -215,12 +218,12 @@ NVIDIA_DEBIAN_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_DEB
 readonly NVIDIA_DEBIAN_CUDA_URL
 
 # Parameters for NVIDIA-provided Ubuntu GPU driver
-readonly NVIDIA_UBUNTU_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/ubuntu1804/x86_64"
+readonly NVIDIA_UBUNTU_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64"
 readonly NVIDIA_UBUNTU_REPO_KEY_PACKAGE="${NVIDIA_UBUNTU_REPO_URL}/cuda-keyring_1.0-1_all.deb"
-readonly NVIDIA_UBUNTU_REPO_CUDA_PIN="${NVIDIA_UBUNTU_REPO_URL}/cuda-ubuntu1804.pin"
+readonly NVIDIA_UBUNTU_REPO_CUDA_PIN="${NVIDIA_UBUNTU_REPO_URL}/cuda-${shortname}.pin"
 
 # Parameter for NVIDIA-provided Rocky Linux GPU driver
-readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/rhel8/x86_64/cuda-rhel8.repo"
+readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64/cuda-${shortname}.repo"
 
 # Parameters for NVIDIA-provided CUDNN library
 DEFAULT_CUDNN_VERSION=${CUDNN_FOR_CUDA["${CUDA_VERSION}"]}
@@ -238,6 +241,10 @@ if ( compare_versions_lte "8.3.1.22" "${CUDNN_VERSION}" ); then
     CUDNN_TARBALL="cudnn-linux-x86_64-${CUDNN_VERSION}_cuda${CUDA_VERSION}-archive.tar.xz"
   fi
   CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN_VERSION%.*}/local_installers/${CUDA_VERSION}/${CUDNN_TARBALL}"
+fi
+if ( compare_versions_lte "12.0" "${CUDA_VERSION}" ); then
+  # When cuda version is greater than 12.0
+  CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/cudnn/redist/cudnn/linux-x86_64/cudnn-linux-x86_64-9.2.0.82_cuda12-archive.tar.xz"
 fi
 readonly CUDNN_TARBALL
 readonly CUDNN_TARBALL_URL
@@ -273,11 +280,17 @@ function execute_with_retries() {
 }
 
 function install_nvidia_nccl() {
+  if ( compare_versions_lte "12.0" "${CUDA_VERSION}" ); then
+    # When cuda version is greater than 12.0
+    echo "no nccl packaged for cuda 12"
+    return
+  fi
+
   local -r nccl_version="${NCCL_VERSION}-1+cuda${CUDA_VERSION}"
 
   if [[ ${OS_NAME} == rocky ]]; then
     execute_with_retries "dnf -y -q install libnccl-${nccl_version} libnccl-devel-${nccl_version} libnccl-static-${nccl_version}"
-  elif [[ ${OS_NAME} == ubuntu ]] || [[ ${OS_NAME} == debian ]]; then
+  elif [[ ${OS_NAME} == ubuntu ]]; then
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 "${NCCL_REPO_KEY}" | apt-key add -
 
     local tmp_dir
@@ -291,6 +304,8 @@ function install_nvidia_nccl() {
 
     execute_with_retries \
       "apt-get install -y --allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
+  elif [[ ${OS_NAME} == debian ]]; then
+    echo "nccl not packaged for debian"
   else
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
@@ -308,7 +323,30 @@ function install_nvidia_cudnn() {
       execute_with_retries "dnf -y -q install libcudnn8-${cudnn_pkg_version} libcudnn8-devel-${cudnn_pkg_version}"
     else
       echo "Unsupported CUDNN version: '${CUDNN_VERSION}'"
-      exit 1
+    fi
+  elif is_debian || is_ubuntu; then
+    if is_debian12; then
+      apt-get -y install nvidia-cudnn
+    elif is_debian11; then
+      apt-get -y install cudnn9-cuda-12
+    else
+      local tmp_dir
+      tmp_dir=$(mktemp -d -t gpu-init-action-cudnn-XXXX)
+
+      curl -fSsL --retry-connrefused --retry 10 --retry-max-time 30 \
+        "${CUDNN_TARBALL_URL}" -o "${tmp_dir}/${CUDNN_TARBALL}"
+
+      if ( compare_versions_lte "${CUDNN_VERSION}" "8.3.0.98" ); then
+        tar -xzf "${tmp_dir}/${CUDNN_TARBALL}" -C /usr/local
+      else
+        ln -sf /usr/local/cuda/targets/x86_64-linux/lib /usr/local/cuda/lib
+        tar -h --no-same-owner --strip-components=1 \
+          -xJf "${tmp_dir}/${CUDNN_TARBALL}" -C /usr/local/cuda
+      fi
+
+      cat <<'EOF' >>/etc/profile.d/cudnn.sh
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
+EOF
     fi
   elif [[ ${OS_NAME} == ubuntu ]]; then
     local -a packages
@@ -317,24 +355,6 @@ function install_nvidia_cudnn() {
       "libcudnn${major_version}-dev=${cudnn_pkg_version}")
     execute_with_retries \
       "apt-get install -y --no-install-recommends ${packages[*]}"
-  elif [[ ${OS_NAME} == debian ]]; then
-    local tmp_dir
-    tmp_dir=$(mktemp -d -t gpu-init-action-cudnn-XXXX)
-
-    curl -fSsL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${CUDNN_TARBALL_URL}" -o "${tmp_dir}/${CUDNN_TARBALL}"
-
-    if ( compare_versions_lte "${CUDNN_VERSION}" "8.3.0.98" ); then
-      tar -xzf "${tmp_dir}/${CUDNN_TARBALL}" -C /usr/local
-    else
-      ln -sf /usr/local/cuda/targets/x86_64-linux/lib /usr/local/cuda/lib
-      tar -h --no-same-owner --strip-components=1 \
-        -xJf "${tmp_dir}/${CUDNN_TARBALL}" -C /usr/local/cuda
-    fi
-
-    cat <<'EOF' >>/etc/profile.d/cudnn.sh
-export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
-EOF
   else
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
@@ -345,21 +365,173 @@ EOF
   echo "NVIDIA cuDNN successfully installed for ${OS_NAME}."
 }
 
+CA_TMPDIR="$(mktemp -u -d -p /run/tmp -t ca_dir-XXXX)"
+function configure_dkms_certs() {
+  if [[ -z "$(get_metadata_attribute private_secret_name)" ]]; then
+      echo "No signing secret provided.  skipping";
+      return 0
+  fi
+
+  mkdir -p "${CA_TMPDIR}"
+
+  # If the private key exists, verify it
+  if [[ -f "${CA_TMPDIR}/db.rsa" ]]; then
+    echo "Private key material exists"
+
+    local expected_modulus_md5sum
+    expected_modulus_md5sum=$(get_metadata_attribute cert_modulus_md5sum)
+    if [[ -n "${expected_modulus_md5sum}" ]]; then
+      modulus_md5sum="${expected_modulus_md5sum}"
+    else
+      modulus_md5sum="bd40cf5905c7bba4225d330136fdbfd3"
+    fi
+
+    # Verify that cert md5sum matches expected md5sum
+    if [[ "${modulus_md5sum}" != "$(openssl rsa -noout -modulus -in \"${CA_TMPDIR}/db.rsa\" | openssl md5 | awk '{print $2}')" ]]; then
+        echo "unmatched rsa key modulus"
+    fi
+    ln -sf "${CA_TMPDIR}/db.rsa" /var/lib/dkms/mok.key
+
+    # Verify that key md5sum matches expected md5sum
+    if [[ "${modulus_md5sum}" != "$(openssl x509 -noout -modulus -in /var/lib/dkms/mok.pub | openssl md5 | awk '{print $2}')" ]]; then
+        echo "unmatched x509 cert modulus"
+    fi
+
+    return
+  fi
+
+
+  # Retrieve cloud secrets keys
+  local sig_priv_secret_name
+  sig_priv_secret_name=$(get_metadata_attribute private_secret_name)
+  local sig_pub_secret_name
+  sig_pub_secret_name=$(get_metadata_attribute public_secret_name)
+  local sig_secret_project
+  sig_secret_project=$(get_metadata_attribute secret_project)
+  local sig_secret_version
+  sig_secret_version=$(get_metadata_attribute secret_version)
+
+  # If metadata values are not set, do not write mok keys
+  if [[ -z "${sig_priv_secret_name}" ]]; then return 0 ; fi
+
+  # Write private material to volatile storage
+  gcloud secrets versions access "${sig_secret_version}" \
+         --project="${sig_secret_project}" \
+         --secret="${sig_priv_secret_name}" \
+      | dd of="${CA_TMPDIR}/db.rsa"
+
+  # Write public material to volatile storage
+  gcloud secrets versions access "${sig_secret_version}" \
+         --project="${sig_secret_project}" \
+         --secret="${sig_pub_secret_name}" \
+      | base64 --decode \
+      | dd of="${CA_TMPDIR}/db.der"
+
+  # symlink private key and copy public cert from volatile storage for DKMS
+  mkdir -p /var/lib/dkms/
+  ln -sf "${CA_TMPDIR}/db.rsa" /var/lib/dkms/mok.key
+  cp -f "${CA_TMPDIR}/db.der" /var/lib/dkms/mok.pub
+}
+
+function clear_dkms_key {
+  if [[ -z "$(get_metadata_attribute private_secret_name)" ]]; then
+      echo "No signing secret provided.  skipping";
+      return 0
+  fi
+  echo "WARN -- PURGING SIGNING MATERIAL -- WARN"
+  echo "future dkms runs will not use correct signing key"
+  rm -rf "${CA_TMPDIR}" /var/lib/dkms/mok.key
+}
+
+function add_nonfree_components() {
+  if is_debian12 ; then
+      # Include in sources file components on which nvidia-open-kernel-dkms depends
+      local -r debian_sources="/etc/apt/sources.list.d/debian.sources"
+      local components="main contrib non-free non-free-firmware"
+
+      sed -i -e "s/Components: .*$/Components: ${components}/" "${debian_sources}"
+
+      # Refresh package index for new components
+      apt-get update
+  elif is_debian ; then
+      sed -i -e 's/ main$/ main contrib non-free/' /etc/apt/sources.list
+  fi
+}
+
+function add_repo_nvidia_container_toolkit() {
+  if is_debian ; then
+      # https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
+      curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \
+        | gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+
+      curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list \
+        | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' \
+        | tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+      apt-get update
+  fi
+}
+
+
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
-  if [[ ${OS_NAME} == debian ]]; then
+  workdir=/opt/install-nvidia-driver
+  mkdir -p "${workdir}"
+  pushd "${workdir}"
+
+  if is_debian12 ; then
+    add_nonfree_components
+    add_repo_nvidia_container_toolkit
+    configure_dkms_certs
+    apt-get -yq install \
+          nvidia-container-toolkit \
+          dkms \
+          nvidia-open-kernel-dkms \
+          nvidia-open-kernel-support \
+          nvidia-smi \
+          libglvnd0 \
+          libcuda1
+    clear_dkms_key
+
+  elif is_debian || is_ubuntu ; then
+    # Install CUDA keyring and sources.list
+    # https://docs.nvidia.com/cuda/cuda-installation-guide-linux/#network-repo-installation-for-debian
+    if is_debian ; then
+      PKG_URL="${NVIDIA_DEBIAN_REPO_KEY_PACKAGE}"
+    elif is_ubuntu; then
+      PKG_URL="${NVIDIA_UBUNTU_REPO_KEY_PACKAGE}"
+    fi
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${NVIDIA_UBUNTU_REPO_KEY_PACKAGE}" -o /tmp/cuda-keyring.deb
+      "${PKG_URL}" -o /tmp/cuda-keyring.deb
     dpkg -i "/tmp/cuda-keyring.deb"
+    apt-get update
 
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${NVIDIA_DEBIAN_GPU_DRIVER_URL}" -o driver.run
-    bash "./driver.run" --silent --install-libglvnd
+    bash "./driver.run" --no-kernel-modules --silent --install-libglvnd
+    rm -f driver.run
+    git clone https://github.com/NVIDIA/open-gpu-kernel-modules.git --branch "${NVIDIA_DEBIAN_GPU_DRIVER_VERSION}" --single-branch
+    pushd open-gpu-kernel-modules
+    make -j$(nproc) modules
+    if [[ -n "$(get_metadata_attribute private_secret_name)" ]]; then
+      configure_dkms_certs
+      for module in $(find kernel-open -name '*.ko'); do
+        /lib/modules/$(uname -r)/build/scripts/sign-file sha256 \
+        /var/lib/dkms/mok.key \
+        /var/lib/dkms/mok.pub \
+        "${module}"
+      done
+      clear_dkms_key
+    fi
+    make modules_install
+    depmod -a
+    popd
 
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${NVIDIA_DEBIAN_CUDA_URL}" -o cuda.run
     bash "./cuda.run" --silent --toolkit --no-opengl-libs
-  elif [[ ${OS_NAME} == ubuntu ]]; then
+    rm -f cuda.run
+  elif [[ ${OS_NAME} == ubuntu ]]; then # this condition will be met in the previous check ; this code is now skipped
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${NVIDIA_UBUNTU_REPO_KEY_PACKAGE}" -o /tmp/cuda-keyring.deb
     dpkg -i "/tmp/cuda-keyring.deb"
@@ -397,6 +569,7 @@ function install_nvidia_gpu_driver() {
   fi
   ldconfig
   echo "NVIDIA GPU driver provided by NVIDIA was installed successfully"
+  popd
 }
 
 # Collects 'gpu_utilization' and 'gpu_memory_utilization' metrics
@@ -572,6 +745,10 @@ function main() {
   if [[ ${OS_NAME} != debian ]] && [[ ${OS_NAME} != ubuntu ]] && [[ ${OS_NAME} != rocky ]]; then
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
+  fi
+
+  if is_debian ; then
+      remove_old_backports
   fi
 
   if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
