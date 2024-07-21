@@ -52,6 +52,16 @@ function is_debian12() {
   is_debian && [[ "$(os_version)" == '12'* ]]
 }
 
+function os_vercat() {
+  if is_ubuntu ; then
+      os_version | sed -e 's/[^0-9]//g'
+  elif is_rocky ; then
+      os_version | sed -e 's/[^0-9].*$//g'
+  else
+      os_version
+  fi
+}
+
 function remove_old_backports {
   # This script uses 'apt-get update' and is therefore potentially dependent on
   # backports repositories which have been archived.  In order to mitigate this
@@ -101,23 +111,23 @@ readonly ROLE
 readonly -A DRIVER_FOR_CUDA=([10.1]="418.88"    [10.2]="440.64.00"
           [11.0]="450.51.06" [11.1]="455.45.01" [11.2]="460.73.01"
           [11.5]="495.29.05" [11.6]="510.47.03" [11.7]="515.65.01"
-          [11.8]="520.56.06" [12.4]="550.54.14"
+          [11.8]="520.56.06" [12.1]="530.30.02" [12.4]="550.54.14"
 )
 
 readonly -A CUDNN_FOR_CUDA=( [10.1]="7.6.4.38"  [10.2]="7.6.5.32"
           [11.0]="8.0.4.30"  [11.1]="8.0.5.39"  [11.2]="8.1.1.33"
           [11.5]="8.3.3.40"  [11.6]="8.4.1.50"  [11.7]="8.5.0.96"
-          [11.8]="8.6.0.163" [12.4]="9.1.0.70"
+          [11.8]="8.6.0.163" [12.1]="8.9.0"     [12.4]="9.1.0.70"
 )
 readonly -A NCCL_FOR_CUDA=(  [10.1]="2.4.8"     [10.2]="2.5.6"
           [11.0]="2.7.8"     [11.1]="2.8.3"     [11.2]="2.8.3"
           [11.5]="2.11.4"    [11.6]="2.11.4"    [11.7]="2.12.12"
-          [11.8]="2.15.5"    [12.4]="2.21.5"
+          [11.8]="2.15.5"    [12.1]="2.17.1"    [12.4]="2.21.5"
 )
 readonly -A CUDA_SUBVER=(    [10.1]="10.1.243"  [10.2]="10.2.89"
           [11.0]="11.0.3"    [11.1]="11.1.0"    [11.2]="11.2.2"
           [11.5]="11.5.2"    [11.6]="11.6.2"    [11.7]="11.7.1"
-          [11.8]="11.8.0"    [12.4]="12.4.1"
+          [11.8]="11.8.0"    [12.1]="12.1.0"    [12.4]="12.4.1"
 )
 
 RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
@@ -132,9 +142,11 @@ readonly NVIDIA_DEBIAN_GPU_DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-v
 readonly NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX=${NVIDIA_DEBIAN_GPU_DRIVER_VERSION%%.*}
 readonly DRIVER=${NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}
 # As of Rocky 8.7, kernel 4.18.0-425 is unable to build older nvidia kernel drivers
+ROCKY_BINARY_INSTALL="false"
 if [[ "${OS_NAME}" == "rocky" &&  "${DRIVER}" < "510" ]]; then
-  readonly ROCKY_BINARY_INSTALL="true"
+  ROCKY_BINARY_INSTALL="true"
 fi
+readonly ROCKY_BINARY_INSTALL
 
 # Fail early for configurations known to be unsupported
 function unsupported_error {
@@ -176,7 +188,7 @@ readonly NVIDIA_DEBIAN_GPU_DRIVER_URL
 readonly NVIDIA_BASE_DL_URL='https://developer.download.nvidia.com/compute'
 
 # Short name for urls
-readonly shortname="$(os_id)$(os_vercat)"
+readonly shortname="$(os_id | sed -e 's/rocky/rhel/')$(os_vercat)"
 
 # Parameters for NVIDIA-provided Debian package repository
 readonly NVIDIA_DEBIAN_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64"
@@ -198,6 +210,7 @@ readonly -A DEFAULT_NVIDIA_DEBIAN_CUDA_URLS=(
   [11.6]="${NVIDIA_BASE_DL_URL}/cuda/11.6.2/local_installers/cuda_11.6.2_510.47.03_linux.run"
   [11.7]="${NVIDIA_BASE_DL_URL}/cuda/11.7.1/local_installers/cuda_11.7.1_515.65.01_linux.run"
   [11.8]="${NVIDIA_BASE_DL_URL}/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run"
+  [12.1]="${NVIDIA_BASE_DL_URL}/cuda/12.1.0/local_installers/cuda_12.1.0_530.30.02_linux.run"
   [12.4]="${NVIDIA_BASE_DL_URL}/cuda/12.4.0/local_installers/cuda_12.4.0_550.54.14_linux.run"
 )
 readonly DEFAULT_NVIDIA_DEBIAN_CUDA_URL=${DEFAULT_NVIDIA_DEBIAN_CUDA_URLS["${CUDA_VERSION}"]}
@@ -743,7 +756,7 @@ function main() {
     execute_with_retries "apt-get update"
     execute_with_retries "apt-get install -y -q pciutils"
   elif [[ ${OS_NAME} == rocky ]] ; then
-    execute_with_retries "dnf -y -q update"
+    execute_with_retries "dnf -y -q update --exclude=systemd*,kernel*"
     execute_with_retries "dnf -y -q install pciutils"
     execute_with_retries "dnf -y -q install kernel-devel-$(uname -r)"
     execute_with_retries "dnf -y -q install gcc"
