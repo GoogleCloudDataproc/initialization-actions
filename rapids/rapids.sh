@@ -27,6 +27,14 @@ function is_ubuntu() {
   [[ "$(os_id)" == 'ubuntu' ]]
 }
 
+function is_ubuntu20() {
+  is_ubuntu && [[ "$(os_version)" == '20.04'* ]]
+}
+
+function is_ubuntu22() {
+  is_ubuntu && [[ "$(os_version)" == '22.04'* ]]
+}
+
 function is_debian() {
   [[ "$(os_id)" == 'debian' ]]
 }
@@ -63,13 +71,10 @@ readonly DEFAULT_SPARK_RAPIDS_VERSION="22.10.0"
 
 if [[ "${SPARK_VERSION_ENV%%.*}" == "3" ]]; then
   readonly DEFAULT_CUDA_VERSION="11.8"
-  readonly DEFAULT_CUDF_VERSION="23.12.1"
   readonly DEFAULT_XGBOOST_VERSION="2.0.3"
-  readonly DEFAULT_XGBOOST_GPU_SUB_VERSION="0.3.0"
   readonly SPARK_VERSION="${SPARK_VERSION_ENV}"
 else
   readonly DEFAULT_CUDA_VERSION="10.1"
-  readonly DEFAULT_CUDF_VERSION="0.9.2"
   readonly DEFAULT_XGBOOST_VERSION="1.0.0"
   readonly DEFAULT_XGBOOST_GPU_SUB_VERSION="Beta5"
   readonly SPARK_VERSION="2.x"
@@ -82,8 +87,14 @@ readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-master' 'true')
 
 # RAPIDS config
-readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VERSION})
-readonly CUDF_VERSION=$(get_metadata_attribute 'cudf-version' ${DEFAULT_CUDF_VERSION})
+CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VERSION})
+if [[ "${CUDA_VERSION%%.*}" == 12 ]]; then
+    # at the time of writing 20240721 there is no support for the 12.x
+    # releases of cudatoolkit package in mamba.  For the time being,
+    # we will use a maximum of 11.8
+    CUDA_VERSION="11.8"
+fi
+readonly CUDA_VERSION
 
 # SPARK config
 readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
@@ -113,12 +124,8 @@ function execute_with_retries() {
 }
 
 function install_dask_rapids() {
-  if is_debian10; then
-      local python_ver="3.9"
-  elif is_debian11; then
+  if is_debian11 || is_debian12 || is_ubuntu20 || is_ubuntu22 ; then
       local python_ver="3.10"
-  elif is_debian12; then
-      local python_ver="3.11"
   else
       local python_ver="3.9"
   fi
@@ -131,15 +138,6 @@ function install_spark_rapids() {
   local -r rapids_repo_url='https://repo1.maven.org/maven2/ai/rapids'
   local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
   local -r dmlc_repo_url='https://repo.maven.apache.org/maven2/ml/dmlc'
-
-  # Convert . to - for URL formatting
-  local cudf_cuda_version="${CUDA_VERSION//\./-}"
-
-  # There's only one release for all CUDA 11 versions
-  # The version formatting does not have a '.'
-  if [[ ${cudf_cuda_version} == 11* ]]; then
-    cudf_cuda_version="11"
-  fi
 
   if [[ "${SPARK_VERSION}" == "3"* ]]; then
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
