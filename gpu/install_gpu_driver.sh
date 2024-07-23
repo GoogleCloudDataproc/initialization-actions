@@ -24,10 +24,6 @@ function os_version() {
   grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs
 }
 
-function os_vercat() {
-  os_version | sed -e 's/[^0-9]//'
-}
-
 function os_codename() {
   grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs
 }
@@ -38,6 +34,10 @@ function is_rocky() {
 
 function is_ubuntu() {
   [[ "$(os_id)" == 'ubuntu' ]]
+}
+
+function is_ubuntu22() {
+  is_ubuntu && [[ "$(os_version)" == '22.04'* ]]
 }
 
 function is_debian() {
@@ -61,6 +61,7 @@ function os_vercat() {
       os_version
   fi
 }
+
 
 function remove_old_backports {
   # This script uses 'apt-get update' and is therefore potentially dependent on
@@ -188,11 +189,27 @@ readonly NVIDIA_DEBIAN_GPU_DRIVER_URL
 readonly NVIDIA_BASE_DL_URL='https://developer.download.nvidia.com/compute'
 
 # Short name for urls
-readonly shortname="$(os_id | sed -e 's/rocky/rhel/')$(os_vercat)"
+if is_ubuntu22  ; then
+    # at the time of writing 20240721 there is no ubuntu2204 in the index of repos at
+    # https://developer.download.nvidia.com/compute/machine-learning/repos/
+    # use packages from previous release until such time as nvidia
+    # release ubuntu2204 builds
+
+    shortname=ubuntu2004
+elif is_rocky9 ; then
+    # use packages from previous release until such time as nvidia
+    # release rhel9 builds
+
+    shortname=rhel8
+elif is_rocky ; then
+    shortname="$(os_id | sed -e 's/rocky/rhel/')$(os_vercat)"
+else
+    shortname="$(os_id)$(os_vercat)"
+fi
 
 # Parameters for NVIDIA-provided Debian package repository
-readonly NVIDIA_DEBIAN_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64"
-readonly NVIDIA_DEBIAN_REPO_KEY_PACKAGE="${NVIDIA_DEBIAN_REPO_URL}/cuda-keyring_1.1-1_all.deb"
+readonly NVIDIA_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64"
+readonly NVIDIA_DEBIAN_REPO_KEY_PACKAGE="${NVIDIA_REPO_URL}/cuda-keyring_1.1-1_all.deb"
 
 # Parameters for NVIDIA-provided NCCL library
 readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/${shortname}/x86_64/nvidia-machine-learning-repo-${shortname}_1.0.0-1_amd64.deb"
@@ -200,7 +217,7 @@ NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}
 readonly NCCL_REPO_URL
 readonly NCCL_REPO_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/${shortname}/x86_64/7fa2af80.pub"
 
-readonly -A DEFAULT_NVIDIA_DEBIAN_CUDA_URLS=(
+readonly -A DEFAULT_NVIDIA_CUDA_URLS=(
   [10.1]="${NVIDIA_BASE_DL_URL}/cuda/10.1/Prod/local_installers/cuda_10.1.243_418.87.00_linux.run"
   [10.2]="${NVIDIA_BASE_DL_URL}/cuda/10.2/Prod/local_installers/cuda_10.2.89_440.33.01_linux.run"
   [11.0]="${NVIDIA_BASE_DL_URL}/cuda/11.0.3/local_installers/cuda_11.0.3_450.51.06_linux.run"
@@ -213,17 +230,16 @@ readonly -A DEFAULT_NVIDIA_DEBIAN_CUDA_URLS=(
   [12.1]="${NVIDIA_BASE_DL_URL}/cuda/12.1.0/local_installers/cuda_12.1.0_530.30.02_linux.run"
   [12.4]="${NVIDIA_BASE_DL_URL}/cuda/12.4.0/local_installers/cuda_12.4.0_550.54.14_linux.run"
 )
-readonly DEFAULT_NVIDIA_DEBIAN_CUDA_URL=${DEFAULT_NVIDIA_DEBIAN_CUDA_URLS["${CUDA_VERSION}"]}
-NVIDIA_DEBIAN_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_DEBIAN_CUDA_URL}")
-readonly NVIDIA_DEBIAN_CUDA_URL
+readonly DEFAULT_NVIDIA_CUDA_URL=${DEFAULT_NVIDIA_CUDA_URLS["${CUDA_VERSION}"]}
+NVIDIA_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_CUDA_URL}")
+readonly NVIDIA_CUDA_URL
 
 # Parameters for NVIDIA-provided Ubuntu GPU driver
-readonly NVIDIA_UBUNTU_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64"
-readonly NVIDIA_UBUNTU_REPO_KEY_PACKAGE="${NVIDIA_UBUNTU_REPO_URL}/cuda-keyring_1.0-1_all.deb"
-readonly NVIDIA_UBUNTU_REPO_CUDA_PIN="${NVIDIA_UBUNTU_REPO_URL}/cuda-${shortname}.pin"
+readonly NVIDIA_UBUNTU_REPO_KEY_PACKAGE="${NVIDIA_REPO_URL}/cuda-keyring_1.0-1_all.deb"
+readonly NVIDIA_UBUNTU_REPO_CUDA_PIN="${NVIDIA_REPO_URL}/cuda-${shortname}.pin"
 
 # Parameter for NVIDIA-provided Rocky Linux GPU driver
-readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64/cuda-${shortname}.repo"
+readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_REPO_URL}/cuda-${shortname}.repo"
 
 # Parameters for NVIDIA-provided CUDNN library
 DEFAULT_CUDNN_VERSION=${CUDNN_FOR_CUDA["${CUDA_VERSION}"]}
@@ -455,11 +471,12 @@ function add_nonfree_components() {
       apt-get update
   elif is_debian ; then
       sed -i -e 's/ main$/ main contrib non-free/' /etc/apt/sources.list
+      apt-get update
   fi
 }
 
 function add_repo_nvidia_container_toolkit() {
-  if is_debian ; then
+  if is_debian || is_ubuntu ; then
       # https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
       curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \
         | gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
@@ -528,7 +545,7 @@ function install_nvidia_gpu_driver() {
     popd
 
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${NVIDIA_DEBIAN_CUDA_URL}" -o cuda.run
+      "${NVIDIA_CUDA_URL}" -o cuda.run
     bash "./cuda.run" --silent --toolkit --no-opengl-libs
     rm -f cuda.run
   elif [[ ${OS_NAME} == ubuntu ]]; then # this condition will be met in the previous check ; this code is now skipped
@@ -538,7 +555,7 @@ function install_nvidia_gpu_driver() {
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${NVIDIA_UBUNTU_REPO_CUDA_PIN}" -o /etc/apt/preferences.d/cuda-repository-pin-600
 
-    add-apt-repository "deb ${NVIDIA_UBUNTU_REPO_URL} /"
+    add-apt-repository "deb ${NVIDIA_REPO_URL} /"
     execute_with_retries "apt-get update"
 
     if [[ -n "${CUDA_VERSION}" ]]; then
