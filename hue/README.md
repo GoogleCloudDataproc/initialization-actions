@@ -32,7 +32,8 @@ installed:
 
 ## Important notes
 
-*   If you wish to use Oozie in Hue, it must be installed before running this
-    initialization action e.g. put the
-    [Oozie initialization action](../oozie/README.md) before this one in the
-    list to cloud.
+*   If you wish to use Oozie in Hue, it must be installed before
+    running this initialization action e.g. put the [Oozie
+    initialization action](../oozie/README.md) before this one in the
+    --initialization-actions list argument to `gcloud dataproc
+    clusters create`.
