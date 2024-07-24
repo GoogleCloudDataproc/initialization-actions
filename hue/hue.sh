@@ -27,6 +27,10 @@ function os_id() {
   grep '^ID=' /etc/os-release | cut -d= -f2 | xargs
 }
 
+function os_version() {
+  grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs
+}
+
 function is_debian() {
   [[ "$(os_id)" == 'debian' ]]
 }
@@ -69,8 +73,8 @@ function replace_backports_repo() {
 
   sudo sed -i 's/^.*debian buster-backports main.*$//g' /etc/apt/sources.list
   if is_debian10 ; then
-    echo "deb https://archive.debian.org/debian buster-backports main" | sudo tee -a /etc/apt/sources.list > /dev/null
-    echo "deb-src https://archive.debian.org/debian buster-backports main" | sudo tee -a /etc/apt/sources.list > /dev/null
+    echo "deb https://archive.debian.org/debian buster-backports main" >> /etc/apt/sources.list
+    echo "deb-src https://archive.debian.org/debian buster-backports main" >> /etc/apt/sources.list
   fi
 }
 
