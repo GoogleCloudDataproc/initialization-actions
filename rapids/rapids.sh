@@ -2,27 +2,79 @@
 
 set -euxo pipefail
 
+# Detect dataproc image version from its various names
+if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
+  DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
+fi
+
+function os_id() {
+  grep '^ID=' /etc/os-release | cut -d= -f2 | xargs
+}
+
+function os_version() {
+  grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs
+}
+
+function os_codename() {
+  grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs
+}
+
+function is_rocky() {
+  [[ "$(os_id)" == 'rocky' ]]
+}
+
+function is_ubuntu() {
+  [[ "$(os_id)" == 'ubuntu' ]]
+}
+
+function is_ubuntu20() {
+  is_ubuntu && [[ "$(os_version)" == '20.04'* ]]
+}
+
+function is_ubuntu22() {
+  is_ubuntu && [[ "$(os_version)" == '22.04'* ]]
+}
+
+function is_debian() {
+  [[ "$(os_id)" == 'debian' ]]
+}
+
+function is_debian11() {
+  is_debian && [[ "$(os_version)" == '11'* ]]
+}
+
+function is_debian12() {
+  is_debian && [[ "$(os_version)" == '12'* ]]
+}
+
+function os_vercat() {
+  if is_ubuntu ; then
+      os_version | sed -e 's/[^0-9]//g'
+  elif is_rocky ; then
+      os_version | sed -e 's/[^0-9].*$//g'
+  else
+      os_version
+  fi
+}
+
 function get_metadata_attribute() {
   local -r attribute_name=$1
   local -r default_value=$2
   /usr/share/google/get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
 }
 
-readonly DEFAULT_DASK_RAPIDS_VERSION="22.10"
+readonly DEFAULT_DASK_RAPIDS_VERSION="23.12"
 readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' ${DEFAULT_DASK_RAPIDS_VERSION})
 
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
 readonly DEFAULT_SPARK_RAPIDS_VERSION="22.10.0"
 
 if [[ "${SPARK_VERSION_ENV%%.*}" == "3" ]]; then
-  readonly DEFAULT_CUDA_VERSION="11.5"
-  readonly DEFAULT_CUDF_VERSION="22.10.0"
-  readonly DEFAULT_XGBOOST_VERSION="1.6.2"
-  readonly DEFAULT_XGBOOST_GPU_SUB_VERSION="0.3.0"
+  readonly DEFAULT_CUDA_VERSION="11.8"
+  readonly DEFAULT_XGBOOST_VERSION="2.0.3"
   readonly SPARK_VERSION="${SPARK_VERSION_ENV}"
 else
   readonly DEFAULT_CUDA_VERSION="10.1"
-  readonly DEFAULT_CUDF_VERSION="0.9.2"
   readonly DEFAULT_XGBOOST_VERSION="1.0.0"
   readonly DEFAULT_XGBOOST_GPU_SUB_VERSION="Beta5"
   readonly SPARK_VERSION="2.x"
@@ -35,13 +87,22 @@ readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-master' 'true')
 
 # RAPIDS config
-readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VERSION})
-readonly CUDF_VERSION=$(get_metadata_attribute 'cudf-version' ${DEFAULT_CUDF_VERSION})
+CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VERSION})
+if [[ "${CUDA_VERSION%%.*}" == 12 ]]; then
+    # at the time of writing 20240721 there is no support for the 12.x
+    # releases of cudatoolkit package in mamba.  For the time being,
+    # we will use a maximum of 11.8
+    CUDA_VERSION="11.8"
+fi
+readonly CUDA_VERSION
 
 # SPARK config
 readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
 readonly XGBOOST_VERSION=$(get_metadata_attribute 'xgboost-version' ${DEFAULT_XGBOOST_VERSION})
 readonly XGBOOST_GPU_SUB_VERSION=$(get_metadata_attribute 'spark-gpu-sub-version' ${DEFAULT_XGBOOST_GPU_SUB_VERSION})
+
+# Scala config
+readonly SCALA_VER="2.12"
 
 # Dask config
 readonly DASK_LAUNCHER=/usr/local/bin/dask-launcher.sh
@@ -63,34 +124,30 @@ function execute_with_retries() {
 }
 
 function install_dask_rapids() {
+  if is_debian11 || is_debian12 || is_ubuntu20 || is_ubuntu22 ; then
+      local python_ver="3.10"
+  else
+      local python_ver="3.9"
+  fi
   # Install RAPIDS, cudatoolkit
   mamba install -m -n 'dask-rapids' -y --no-channel-priority -c 'conda-forge' -c 'nvidia' -c 'rapidsai' \
-    "cudatoolkit=${CUDA_VERSION}" "pandas<1.5" "rapids=${RAPIDS_VERSION}" "python=3.9"
+    "cudatoolkit=${CUDA_VERSION}" "pandas<1.5" "rapids=${RAPIDS_VERSION}" "python=${python_ver}"
 }
 
 function install_spark_rapids() {
   local -r rapids_repo_url='https://repo1.maven.org/maven2/ai/rapids'
   local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
   local -r dmlc_repo_url='https://repo.maven.apache.org/maven2/ml/dmlc'
-  
-  # Convert . to - for URL formatting
-  local cudf_cuda_version="${CUDA_VERSION//\./-}"
-
-  # There's only one release for all CUDA 11 versions
-  # The version formatting does not have a '.'
-  if [[ ${cudf_cuda_version} == 11* ]]; then
-    cudf_cuda_version="11"
-  fi
 
   if [[ "${SPARK_VERSION}" == "3"* ]]; then
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
-      "${dmlc_repo_url}/xgboost4j-spark-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-spark-gpu_2.12-${XGBOOST_VERSION}.jar" \
+      "${dmlc_repo_url}/xgboost4j-spark-gpu_${SCALA_VER}/${XGBOOST_VERSION}/xgboost4j-spark-gpu_${SCALA_VER}-${XGBOOST_VERSION}.jar" \
       -P /usr/lib/spark/jars/
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
-      "${dmlc_repo_url}/xgboost4j-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-gpu_2.12-${XGBOOST_VERSION}.jar" \
+      "${dmlc_repo_url}/xgboost4j-gpu_${SCALA_VER}/${XGBOOST_VERSION}/xgboost4j-gpu_${SCALA_VER}-${XGBOOST_VERSION}.jar" \
       -P /usr/lib/spark/jars/
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
-      "${nvidia_repo_url}/rapids-4-spark_2.12/${SPARK_RAPIDS_VERSION}/rapids-4-spark_2.12-${SPARK_RAPIDS_VERSION}.jar" \
+      "${nvidia_repo_url}/rapids-4-spark_${SCALA_VER}/${SPARK_RAPIDS_VERSION}/rapids-4-spark_${SCALA_VER}-${SPARK_RAPIDS_VERSION}.jar" \
       -P /usr/lib/spark/jars/
   else
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
@@ -107,7 +164,7 @@ function configure_spark() {
     cat >>${SPARK_CONF_DIR}/spark-defaults.conf <<EOF
 
 ###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
-# Rapids Accelerator for Spark can utilize AQE, but when the plan is not finalized, 
+# Rapids Accelerator for Spark can utilize AQE, but when the plan is not finalized,
 # query explain output won't show GPU operator, if user have doubt
 # they can uncomment the line before seeing the GPU plan explain, but AQE on gives user the best performance.
 # spark.sql.adaptive.enabled=false
