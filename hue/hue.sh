@@ -89,8 +89,6 @@ function install_packages() {
     update_repo
   fi
   if is_debian || is_ubuntu ; then
-    export DEBIAN_FRONTEND=noninteractive
-
     # The mysql-community-server package prompts the user to select
     # password encryption type.  we will accept the default by
     # indicating noninteractive as our frontend
@@ -111,7 +109,7 @@ function install_packages() {
     # After installation, the default can be changed by setting the
     # default_authentication_plugin server setting.
 
-    retry_command "apt-get install -t $(lsb_release -sc)-backports -y ${packages}"
+    retry_command "DEBIAN_FRONTEND=noninteractive apt-get install -t $(lsb_release -sc)-backports -y ${packages}"
   else
     retry_command "yum install -y ${packages}"
   fi
