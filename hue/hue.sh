@@ -23,6 +23,26 @@ readonly MASTER_HOSTNAME
 OS_NAME=$(grep '^ID=' /etc/os-release | cut -d= -f2 | xargs)
 readonly OS_NAME
 
+function os_id() {
+  grep '^ID=' /etc/os-release | cut -d= -f2 | xargs
+}
+
+function os_version() {
+  grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs
+}
+
+function is_debian() {
+  [[ "$(os_id)" == 'debian' ]]
+}
+
+function is_debian10() {
+  is_debian && [[ "$(os_version)" == '10'* ]]
+}
+
+function is_ubuntu() {
+  [[ "$(os_id)" == 'ubuntu' ]]
+}
+
 function random_string() {
   tr </dev/urandom -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1
 }
@@ -44,29 +64,58 @@ function retry_command() {
 }
 
 function replace_backports_repo() {
-  sudo sed -i 's/^.*debian buster-backports main.*$//g' /etc/apt/sources.list
-  echo "deb https://archive.debian.org/debian buster-backports main" | sudo tee -a /etc/apt/sources.list > /dev/null
-  echo "deb-src https://archive.debian.org/debian buster-backports main" | sudo tee -a /etc/apt/sources.list > /dev/null
-}
+  # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
 
-function install_packages() {
-  local -r packages="$*"
-  if [[ ${OS_NAME} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
-    replace_backports_repo
-    retry_command "apt-get update -y -qq"
-  fi
-  if command -v apt-get >/dev/null; then
-    retry_command "apt-get install -t $(lsb_release -sc)-backports -y ${packages}"
-  else
-    retry_command "yum install -y ${packages}"
+  # This script uses 'apt-get update' and is therefore potentially
+  # dependent on backports repositories which have been archived.  In
+  # order to mitigate this problem, we will replace any reference to
+  # backports repos older than oldstable with the correct link
+
+  sudo sed -i 's/^.*debian buster-backports main.*$//g' /etc/apt/sources.list
+  if is_debian10 ; then
+    echo "deb https://archive.debian.org/debian buster-backports main" >> /etc/apt/sources.list
+    echo "deb-src https://archive.debian.org/debian buster-backports main" >> /etc/apt/sources.list
   fi
 }
 
 function update_repo() {
-  if command -v apt-get >/dev/null; then
-    retry_command "apt-get update"
+  if is_debian || is_ubuntu ; then
+    retry_command "apt-get update -qq"
   else
     retry_command "yum check-update"
+  fi
+}
+
+function install_packages() {
+  local -r packages="$*"
+  if test -d /etc/apt && grep -rsi 'buster-backports' /etc/apt/sources.list* ; then
+    replace_backports_repo
+    update_repo
+  fi
+  if is_debian || is_ubuntu ; then
+    # The mysql-community-server package prompts the user to select
+    # password encryption type.  we will accept the default by
+    # indicating noninteractive as our frontend
+
+    # We should really specify the option with debconf, but I am not
+    # certain what the syntax for that is.  We may have some customers
+    # who want one type and others who want another.  Here are the
+    # docs:
+
+    # https://manpages.ubuntu.com/manpages/trusty/en/man1/debconf-set-selections.1.html
+
+    # Here is a prompt from the debian installer:
+
+    # To retain compatibility with older client software, the default
+    # authentication plugin can be set to the legacy value
+    # (mysql_native_password)
+
+    # After installation, the default can be changed by setting the
+    # default_authentication_plugin server setting.
+
+    retry_command "DEBIAN_FRONTEND=noninteractive apt-get install -t $(lsb_release -sc)-backports -y ${packages}"
+  else
+    retry_command "yum install -y ${packages}"
   fi
 }
 
@@ -244,28 +293,10 @@ EOF
   systemctl start hue
 }
 
-function remove_old_backports {
-  # This script uses 'apt-get update' and is therefore potentially dependent on
-  # backports repositories which have been archived.  In order to mitigate this
-  # problem, we will remove any reference to backports repos older than oldstable
-
-  # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
-  oldstable=$(curl -s https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
-  stable=$(curl -s https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
-
-  matched_files="$(grep -rsil '\-backports' /etc/apt/sources.list*)"
-  if [[ -n "$matched_files" ]]; then
-    for filename in "$matched_files"; do
-      grep -e "$oldstable-backports" -e "$stable-backports" "$filename" || \
-        sed -i -e 's/^.*-backports.*$//' "$filename"
-    done
-  fi
-}
-
 # Only run on the master node ("0"-master in HA mode) of the cluster
 if [[ "$(hostname -s)" == "${MASTER_HOSTNAME}" ]]; then
-  if [[ ${OS_NAME} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
-    remove_old_backports
+  if test -d /etc/apt && grep -rsi 'buster-backports' /etc/apt/sources.list* ; then
+    replace_backports_repo
   fi
   update_repo || echo "Ignored errors when updating OS repo index"
   # DATAPROC_IMAGE_VERSION is the preferred variable, but it doesn't exist in
