@@ -150,7 +150,7 @@ function install_and_configure_kafka_server() {
     fi
   else
     # For worker nodes, broker ID is the worker ID.
-    BROKER_ID=$(hostname | sed 's/.*-w-\([0-9]*\)$/\1/g')
+    BROKER_ID=$((RANDOM % 10000))
   fi
   sed -i 's|log.dirs=/tmp/kafka-logs|log.dirs=/var/lib/kafka-logs|' \
     "${KAFKA_PROP_FILE}"
