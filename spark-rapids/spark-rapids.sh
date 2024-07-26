@@ -143,14 +143,14 @@ function configure_dkms_certs() {
   gcloud secrets versions access "${sig_secret_version}" \
          --project="${sig_secret_project}" \
          --secret="${sig_priv_secret_name}" \
-      | dd of="${CA_TMPDIR}/db.rsa"
+      | dd status=none of="${CA_TMPDIR}/db.rsa"
 
   # Write public material to volatile storage
   gcloud secrets versions access "${sig_secret_version}" \
          --project="${sig_secret_project}" \
          --secret="${sig_pub_secret_name}" \
       | base64 --decode \
-      | dd of="${CA_TMPDIR}/db.der"
+      | dd status=none of="${CA_TMPDIR}/db.der"
 
   # symlink private key and copy public cert from volatile storage for DKMS
   if is_ubuntu ; then
@@ -171,7 +171,7 @@ function clear_dkms_key {
   fi
   echo "WARN -- PURGING SIGNING MATERIAL -- WARN" >2
   echo "future dkms runs will not use correct signing key" >2
-  rm -rf "${CA_TMPDIR}" /var/lib/dkms/mok.key
+  rm -rf "${CA_TMPDIR}" /var/lib/dkms/mok.key /var/lib/shim-signed/mok/MOK.priv
 }
 
 function add_contrib_components() {
@@ -392,29 +392,82 @@ function install_nvidia_gpu_driver() {
 
     execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
 
-    readonly UBUNTU_REPO_CUDA_PIN="${NVIDIA_REPO_URL}/cuda-${shortname}.pin"
+    # Ubuntu 18.04 is not supported by new style NV debs; install from .run files + github
+    if is_ubuntu18 ; then
 
-    curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
-      "${UBUNTU_REPO_CUDA_PIN}" -o /etc/apt/preferences.d/cuda-repository-pin-600
+      # fetch .run file
+      curl -o driver.run \
+        "https://download.nvidia.com/XFree86/Linux-x86_64/${NVIDIA_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${NVIDIA_DRIVER_VERSION}.run"
+      # Install all but kernel driver
+      bash driver.run --no-kernel-modules --silent --install-libglvnd
+      rm driver.run
 
-    curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
-      "${LOCAL_DEB_URL}" -o /tmp/local-installer.deb
+      WORKDIR=/opt/install-nvidia-driver
+      mkdir -p "${WORKDIR}"
+      pushd $_
+      # Fetch open souce kernel module with corresponding tag
+      git clone https://github.com/NVIDIA/open-gpu-kernel-modules.git \
+          --branch "${NVIDIA_DRIVER_VERSION}" --single-branch
+      cd ${WORKDIR}/open-gpu-kernel-modules
+      #
+      # build kernel modules
+      #
+      make -j$(nproc) modules \
+	   > /var/log/open-gpu-kernel-modules-build.log \
+	  2> /var/log/open-gpu-kernel-modules-build_error.log
+      configure_dkms_certs
+      # sign
+      for module in $(find kernel-open -name '*.ko'); do
+        /lib/modules/$(uname -r)/build/scripts/sign-file sha256 \
+          "${CA_TMPDIR}/db.rsa" \
+	  "${CA_TMPDIR}/db.der" \
+	  "${module}"
+      done
+      clear_dkms_key
+      # install
+      make modules_install \
+	   >> /var/log/open-gpu-kernel-modules-build.log \
+	  2>> /var/log/open-gpu-kernel-modules-build_error.log
+      depmod -a
+      modprobe nvidia
+      popd
 
-    dpkg -i /tmp/local-installer.deb
-    rm /tmp/local-installer.deb
-    cp ${DIST_KEYRING_DIR}/cuda-*-keyring.gpg /usr/share/keyrings/
-    execute_with_retries "apt-get update"
+      #
+      # Install CUDA
+      #
+      cuda_runfile="cuda_${CUDA_VERSION}_${NVIDIA_DRIVER_VERSION}_linux.run"
+      curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+       "https://developer.download.nvidia.com/compute/cuda/${CUDA_VERSION}/local_installers/${cuda_runfile}" \
+       -o cuda.run
+      bash cuda.run --silent --toolkit --no-opengl-libs
+      rm cuda.run
+    else
+      # Install from repo provided by NV
+      readonly UBUNTU_REPO_CUDA_PIN="${NVIDIA_REPO_URL}/cuda-${shortname}.pin"
 
-    execute_with_retries "apt-get install -y -q --no-install-recommends dkms"
-    configure_dkms_certs
-    for pkg in "nvidia-driver-${NVIDIA_DRIVER_VERSION_PREFIX}-open" \
-               "cuda-drivers-${NVIDIA_DRIVER_VERSION_PREFIX}" \
-               "cuda-toolkit-${CUDA_VERSION_MAJOR//./-}" ; do
-      execute_with_retries "apt-get install -y -q --no-install-recommends ${pkg}"
-    done
-    clear_dkms_key
+      curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
+        "${UBUNTU_REPO_CUDA_PIN}" -o /etc/apt/preferences.d/cuda-repository-pin-600
 
-    modprobe nvidia
+      curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
+        "${LOCAL_DEB_URL}" -o /tmp/local-installer.deb
+
+      dpkg -i /tmp/local-installer.deb
+      rm /tmp/local-installer.deb
+      cp ${DIST_KEYRING_DIR}/cuda-*-keyring.gpg /usr/share/keyrings/
+      execute_with_retries "apt-get update"
+
+      execute_with_retries "apt-get install -y -q --no-install-recommends dkms"
+      configure_dkms_certs
+      for pkg in "nvidia-driver-${NVIDIA_DRIVER_VERSION_PREFIX}-open" \
+                 "cuda-drivers-${NVIDIA_DRIVER_VERSION_PREFIX}" \
+                 "cuda-toolkit-${CUDA_VERSION_MAJOR//./-}" ; do
+        execute_with_retries "apt-get install -y -q --no-install-recommends ${pkg}"
+      done
+      clear_dkms_key
+
+      modprobe nvidia
+    fi
+
 
     # enable a systemd service that updates kernel headers after reboot
     setup_systemd_update_headers
