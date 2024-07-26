@@ -382,8 +382,10 @@ EOF
 }
 
 CA_TMPDIR="$(mktemp -u -d -p /run/tmp -t ca_dir-XXXX)"
+PSN="$(get_metadata_attribute private_secret_name)"
+readonly PSN
 function configure_dkms_certs() {
-  if [[ -z "$(get_metadata_attribute private_secret_name)" ]]; then
+  if [[ -z "${PSN}" ]]; then
       echo "No signing secret provided.  skipping";
       return 0
   fi
@@ -419,13 +421,13 @@ function configure_dkms_certs() {
 
   # Retrieve cloud secrets keys
   local sig_priv_secret_name
-  sig_priv_secret_name=$(get_metadata_attribute private_secret_name)
+  sig_priv_secret_name="${PSN}"
   local sig_pub_secret_name
-  sig_pub_secret_name=$(get_metadata_attribute public_secret_name)
+  sig_pub_secret_name="$(get_metadata_attribute public_secret_name)"
   local sig_secret_project
-  sig_secret_project=$(get_metadata_attribute secret_project)
+  sig_secret_project="$(get_metadata_attribute secret_project)"
   local sig_secret_version
-  sig_secret_version=$(get_metadata_attribute secret_version)
+  sig_secret_version="$(get_metadata_attribute secret_version)"
 
   # If metadata values are not set, do not write mok keys
   if [[ -z "${sig_priv_secret_name}" ]]; then return 0 ; fi
@@ -434,52 +436,62 @@ function configure_dkms_certs() {
   gcloud secrets versions access "${sig_secret_version}" \
          --project="${sig_secret_project}" \
          --secret="${sig_priv_secret_name}" \
-      | dd of="${CA_TMPDIR}/db.rsa"
+      | dd status=none of="${CA_TMPDIR}/db.rsa"
 
   # Write public material to volatile storage
   gcloud secrets versions access "${sig_secret_version}" \
          --project="${sig_secret_project}" \
          --secret="${sig_pub_secret_name}" \
       | base64 --decode \
-      | dd of="${CA_TMPDIR}/db.der"
+      | dd status=none of="${CA_TMPDIR}/db.der"
 
   # symlink private key and copy public cert from volatile storage for DKMS
-  mkdir -p /var/lib/dkms/
-  ln -sf "${CA_TMPDIR}/db.rsa" /var/lib/dkms/mok.key
-  cp -f "${CA_TMPDIR}/db.der" /var/lib/dkms/mok.pub
+  if is_ubuntu ; then
+    mkdir -p /var/lib/shim-signed/mok
+    ln -sf "${CA_TMPDIR}/db.rsa" /var/lib/shim-signed/mok/MOK.priv
+    cp -f "${CA_TMPDIR}/db.der" /var/lib/shim-signed/mok/MOK.der
+  else
+    mkdir -p /var/lib/dkms/
+    ln -sf "${CA_TMPDIR}/db.rsa" /var/lib/dkms/mok.key
+    cp -f "${CA_TMPDIR}/db.der" /var/lib/dkms/mok.pub
+  fi
 }
 
 function clear_dkms_key {
-  if [[ -z "$(get_metadata_attribute private_secret_name)" ]]; then
-      echo "No signing secret provided.  skipping";
+  if [[ -z "${PSN}" ]]; then
+      echo "No signing secret provided.  skipping" >2
       return 0
   fi
-  echo "WARN -- PURGING SIGNING MATERIAL -- WARN"
-  echo "future dkms runs will not use correct signing key"
-  rm -rf "${CA_TMPDIR}" /var/lib/dkms/mok.key
+  echo "WARN -- PURGING SIGNING MATERIAL -- WARN" >2
+  echo "future dkms runs will not use correct signing key" >2
+  rm -rf "${CA_TMPDIR}" /var/lib/dkms/mok.key /var/lib/shim-signed/mok/MOK.priv
 }
 
-function add_contrib_components() {
+function add_nonfree_components() {
   if is_debian12 ; then
       # Include in sources file components on which nvidia-open-kernel-dkms depends
       local -r debian_sources="/etc/apt/sources.list.d/debian.sources"
-      local components="main contrib"
+      local components="main contrib non-free non-free-firmware"
 
       sed -i -e "s/Components: .*$/Components: ${components}/" "${debian_sources}"
   elif is_debian ; then
-      sed -i -e 's/ main$/ main contrib/' /etc/apt/sources.list
+      sed -i -e 's/ main$/ main contrib non-free/' /etc/apt/sources.list
   fi
 }
 
 function add_repo_nvidia_container_toolkit() {
   if is_debian || is_ubuntu ; then
+      local kr_path=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+      local sources_list_path=/etc/apt/sources.list.d/nvidia-container-toolkit.list
       # https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
-      curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \
-        | gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+      test -f "${kr_path}" ||
+        curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \
+          | gpg --dearmor -o "${kr_path}"
 
-      curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list \
-        | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' \
-        | tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+      test -f "${sources_list_path}" ||
+	curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list \
+          | perl -pe "s#deb https://#deb [signed-by=${kr_path}] https://#g" \
+          | tee "${sources_list_path}"
   fi
 }
 
@@ -491,7 +503,7 @@ function install_nvidia_gpu_driver() {
   pushd "${workdir}"
 
   if is_debian12 ; then
-    add_contrib_components
+    add_nonfree_components
     add_repo_nvidia_container_toolkit
     apt-get update
     configure_dkms_certs
@@ -525,7 +537,7 @@ function install_nvidia_gpu_driver() {
     git clone https://github.com/NVIDIA/open-gpu-kernel-modules.git --branch "${NVIDIA_DEBIAN_GPU_DRIVER_VERSION}" --single-branch
     pushd open-gpu-kernel-modules
     make -j$(nproc) modules
-    if [[ -n "$(get_metadata_attribute private_secret_name)" ]]; then
+    if [[ -n "${PSN}" ]]; then
       configure_dkms_certs
       for module in $(find kernel-open -name '*.ko'); do
         /lib/modules/$(uname -r)/build/scripts/sign-file sha256 \
