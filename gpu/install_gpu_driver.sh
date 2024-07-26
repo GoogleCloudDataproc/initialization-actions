@@ -459,11 +459,11 @@ function configure_dkms_certs() {
 
 function clear_dkms_key {
   if [[ -z "${PSN}" ]]; then
-      echo "No signing secret provided.  skipping" >2
+      echo "No signing secret provided.  skipping" >&2
       return 0
   fi
-  echo "WARN -- PURGING SIGNING MATERIAL -- WARN" >2
-  echo "future dkms runs will not use correct signing key" >2
+  echo "WARN -- PURGING SIGNING MATERIAL -- WARN" >&2
+  echo "future dkms runs will not use correct signing key" >&2
   rm -rf "${CA_TMPDIR}" /var/lib/dkms/mok.key /var/lib/shim-signed/mok/MOK.priv
 }
 
@@ -516,8 +516,18 @@ function install_nvidia_gpu_driver() {
           libglvnd0 \
           libcuda1
     clear_dkms_key
+    modprobe -r nvidia || echo "no nvidia module loaded"
+    modprobe nvidia
 
   elif is_debian || is_ubuntu ; then
+    if is_ubuntu ; then
+      mok_key=/var/lib/shim-signed/mok/MOK.priv
+      mok_der=/var/lib/shim-signed/mok/MOK.der
+    else
+      mok_key=/var/lib/dkms/mok.key
+      mok_der=/var/lib/dkms/mok.pub
+    fi
+
     # Install CUDA keyring and sources.list
     # https://docs.nvidia.com/cuda/cuda-installation-guide-linux/#network-repo-installation-for-debian
     if is_debian ; then
@@ -541,14 +551,16 @@ function install_nvidia_gpu_driver() {
       configure_dkms_certs
       for module in $(find kernel-open -name '*.ko'); do
         /lib/modules/$(uname -r)/build/scripts/sign-file sha256 \
-        /var/lib/dkms/mok.key \
-        /var/lib/dkms/mok.pub \
+        "${mok_key}" \
+        "${mok_der}" \
         "${module}"
       done
       clear_dkms_key
     fi
     make modules_install
     depmod -a
+    modprobe -r nvidia || echo "no nvidia module loaded"
+    modprobe nvidia
     popd
 
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
@@ -585,6 +597,7 @@ function install_nvidia_gpu_driver() {
     NVIDIA_ROCKY_GPU_DRIVER_VERSION="$(ls -d /usr/src/nvidia-* | awk -F"nvidia-" '{print $2}')"
     execute_with_retries "dkms build nvidia/${NVIDIA_ROCKY_GPU_DRIVER_VERSION}"
     execute_with_retries "dkms install nvidia/${NVIDIA_ROCKY_GPU_DRIVER_VERSION}"
+    modprobe -r nvidia || echo "no nvidia module loaded"
     modprobe nvidia
     execute_with_retries "dnf -y -q install cuda-${CUDA_VERSION//./-}"
   else
@@ -782,7 +795,7 @@ function main() {
   elif is_rocky ; then
     execute_with_retries "dnf -y -q update --exclude=systemd*,kernel*"
     execute_with_retries "dnf -y -q install pciutils"
-    execute_with_retries "dnf -y -q install kernel-devel-$(uname -r)"
+    execute_with_retries "dnf -y -q install kernel-devel"
     execute_with_retries "dnf -y -q install gcc"
   fi
 
@@ -793,10 +806,11 @@ function main() {
   # Detect NVIDIA GPU
   if (lspci | grep -q NVIDIA); then
     # if this is called without the MIG script then the drivers are not installed
-    if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l); then
-      NUM_MIG_GPUS=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
+    nv_smi="/usr/bin/nvidia-smi"
+    if (test -f "${nv_smi}" && "${nv_smi}" --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l); then
+      NUM_MIG_GPUS=$(${nv_smi} --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l)
       if [[ $NUM_MIG_GPUS -eq 1 ]]; then
-        if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
+        if ("${nv_smi}" --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
           IS_MIG_ENABLED=1
           NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
           MIG_MAJOR_CAPS=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
