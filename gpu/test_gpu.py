@@ -113,11 +113,11 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                                     machine_suffix))
 
   @parameterized.parameters(
-      ("SINGLE", ["m"], GPU_T4, None, "10.1"),
-      ("STANDARD", ["m"], GPU_T4, None, "10.2"),
-      ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "11.0"),
-      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.1"),
-      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.2"),
+      ("SINGLE", ["m"], GPU_T4, None, "11.8"),
+      ("STANDARD", ["m"], GPU_T4, None, "11.8"),
+      ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4"),
+      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "12.4"),
+      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "12.4"),
   )
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
@@ -126,10 +126,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
     if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
       self.skipTest("Not supported in pre 2.0 images")
-
-    if ( image_os == "rocky" and (cuda_version < "11.2" and cuda_version != "11.0") ) or \
-       ( image_os == "debian" and cuda_version < "11.1" ):
-      self.skipTest(f'CUDA version {cuda_version} is not supported on os {image_os}')
 
     metadata = "gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
@@ -158,8 +154,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         configuration,
         self.INIT_ACTIONS,
         zone=zone,
-        master_machine_type="n1-standard-4",
-        worker_machine_type="n1-standard-4",
+        master_machine_type="g2-standard-4",
+        worker_machine_type="g2-standard-4",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=None,
@@ -204,11 +200,11 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     )
 
   @parameterized.parameters(
-    ("SINGLE", ["m"], GPU_T4, None, "10.1"),
-    ("STANDARD", ["m"], GPU_T4, None, "10.2"),
-    ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "11.0"),
-    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.1"),
-    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.2"),
+    ("SINGLE", ["m"], GPU_T4, None, "11.8"),
+    ("STANDARD", ["m"], GPU_T4, None, "11.8"),
+    ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "11.8"),
+    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.8"),
+    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.8"),
   )
   def test_install_gpu_cuda_nvidia_with_spark_job(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
@@ -217,10 +213,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
     if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
       self.skipTest("Not supported in pre 2.0 images")
-
-    if ( image_os == "rocky" and (cuda_version < "11.2" and cuda_version != "11.0") ) or \
-        ( image_os == "debian" and cuda_version < "11.1" ):
-      self.skipTest(f'CUDA version {cuda_version} is not supported on os {image_os}')
 
     metadata = "install-gpu-agent=true,gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(

@@ -459,19 +459,15 @@ function clear_dkms_key {
   rm -rf "${CA_TMPDIR}" /var/lib/dkms/mok.key
 }
 
-function add_nonfree_components() {
+function add_contrib_components() {
   if is_debian12 ; then
       # Include in sources file components on which nvidia-open-kernel-dkms depends
       local -r debian_sources="/etc/apt/sources.list.d/debian.sources"
-      local components="main contrib non-free non-free-firmware"
+      local components="main contrib"
 
       sed -i -e "s/Components: .*$/Components: ${components}/" "${debian_sources}"
-
-      # Refresh package index for new components
-      apt-get update
   elif is_debian ; then
-      sed -i -e 's/ main$/ main contrib non-free/' /etc/apt/sources.list
-      apt-get update
+      sed -i -e 's/ main$/ main contrib/' /etc/apt/sources.list
   fi
 }
 
@@ -484,8 +480,6 @@ function add_repo_nvidia_container_toolkit() {
       curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list \
         | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' \
         | tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
-
-      apt-get update
   fi
 }
 
@@ -497,8 +491,9 @@ function install_nvidia_gpu_driver() {
   pushd "${workdir}"
 
   if is_debian12 ; then
-    add_nonfree_components
+    add_contrib_components
     add_repo_nvidia_container_toolkit
+    apt-get update
     configure_dkms_certs
     apt-get -yq install \
           nvidia-container-toolkit \
@@ -759,8 +754,8 @@ EOF
 }
 
 function main() {
-  if [[ ${OS_NAME} != debian ]] && [[ ${OS_NAME} != ubuntu ]] && [[ ${OS_NAME} != rocky ]]; then
-    echo "Unsupported OS: '${OS_NAME}'"
+  if ! is_debian && ! is_ubuntu && ! is_rocky ; then
+    echo "Unsupported OS: '$(os_name)'"
     exit 1
   fi
 
@@ -768,18 +763,18 @@ function main() {
       remove_old_backports
   fi
 
-  if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
+  if is_debian || is_ubuntu ; then
     export DEBIAN_FRONTEND=noninteractive
     execute_with_retries "apt-get update"
     execute_with_retries "apt-get install -y -q pciutils"
-  elif [[ ${OS_NAME} == rocky ]] ; then
+  elif is_rocky ; then
     execute_with_retries "dnf -y -q update --exclude=systemd*,kernel*"
     execute_with_retries "dnf -y -q install pciutils"
     execute_with_retries "dnf -y -q install kernel-devel-$(uname -r)"
     execute_with_retries "dnf -y -q install gcc"
   fi
 
-  # This configuration should be ran on all nodes
+  # This configuration should be run on all nodes
   # regardless if they have attached GPUs
   configure_yarn
 
