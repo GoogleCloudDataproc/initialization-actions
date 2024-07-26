@@ -611,15 +611,16 @@ function setup_gpu_yarn() {
     exit 1
   fi
 
-  # This configuration should be ran on all nodes
+  # This configuration should be run on all nodes
   # regardless if they have attached GPUs
   configure_yarn
 
   # Detect NVIDIA GPU
   if (lspci | grep -q NVIDIA); then
     # if this is called without the MIG script then the drivers are not installed
-    if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l); then
-      NUM_MIG_GPUS=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
+    nv_smi="/usr/bin/nvidia-smi"
+    if (test -f "${nv_smi}" && "${nv_smi}" --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l); then
+      NUM_MIG_GPUS="$($nv_smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l)"
       if [[ $NUM_MIG_GPUS -eq 1 ]]; then
         if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
           IS_MIG_ENABLED=1
@@ -666,66 +667,6 @@ function setup_gpu_yarn() {
   done
 }
 
-function upgrade_kernel() {
-  # Determine which kernel is installed
-  if [[ "${OS_NAME}" == "debian" ]]; then
-    CURRENT_KERNEL_VERSION=`cat /proc/version  | perl -ne 'print( / Debian (\S+) / )'`
-  elif [[ "${OS_NAME}" == "ubuntu" ]]; then
-    CURRENT_KERNEL_VERSION=`cat /proc/version | perl -ne 'print( /^Linux version (\S+) / )'`
-  elif [[ ${OS_NAME} == rocky ]]; then
-    KERN_VER=$(yum info --installed kernel | awk '/^Version/ {print $3}')
-    KERN_REL=$(yum info --installed kernel | awk '/^Release/ {print $3}')
-    # something like 4.18.0-425.10.1.el8_7
-    CURRENT_KERNEL_VERSION="${KERN_VER}-${KERN_REL}"
-  else
-    echo "unsupported OS: ${OS_NAME}!"
-    exit -1
-  fi
-
-  # Get latest version available in repos
-  if [[ "${OS_NAME}" == "debian" ]]; then
-    apt-get -qq update
-    TARGET_VERSION=$(apt-cache show --no-all-versions linux-image-amd64 | awk '/^Version/ {print $2}')
-  elif [[ "${OS_NAME}" == "ubuntu" ]]; then
-    apt-get -qq update
-    LATEST_VERSION=$(apt-cache show --no-all-versions linux-image-gcp | awk '/^Version/ {print $2}')
-    TARGET_VERSION=`echo ${LATEST_VERSION} | perl -ne 'printf(q{%s-%s-gcp},/(\d+\.\d+\.\d+)\.(\d+)/)'`
-  elif [[ "${OS_NAME}" == "rocky" ]]; then
-    if yum info --available kernel ; then
-      KERN_VER=$(yum info --available kernel | awk '/^Version/ {print $3}')
-      KERN_REL=$(yum info --available kernel | awk '/^Release/ {print $3}')
-      TARGET_VERSION="${KERN_VER}-${KERN_REL}"
-    else
-      TARGET_VERSION="${CURRENT_KERNEL_VERSION}"
-    fi
-  fi
-
-  # Skip this script if we are already on the target version
-  if [[ "${CURRENT_KERNEL_VERSION}" == "${TARGET_VERSION}" ]]; then
-    echo "target kernel version [${TARGET_VERSION}] is installed"
-
-    # Reboot may have interrupted dpkg.  Bring package system to a good state
-    if [[ "${OS_NAME}" == "debian" || "${OS_NAME}" == "ubuntu" ]]; then
-      dpkg --configure -a
-    fi
-
-    return 0
-  fi
-
-  # Make it possible to reboot before init actions are complete - #1033
-  DP_ROOT=/usr/local/share/google/dataproc
-  STARTUP_SCRIPT="${DP_ROOT}/startup-script.sh"
-  POST_HDFS_STARTUP_SCRIPT="${DP_ROOT}/post-hdfs-startup-script.sh"
-  
-  for startup_script in ${STARTUP_SCRIPT} ${POST_HDFS_STARTUP_SCRIPT} ; do
-    sed -i -e 's:/usr/bin/env bash:/usr/bin/env bash\nexit 0:' ${startup_script}
-  done
-
-  cp /var/log/dataproc-initialization-script-0.log /var/log/dataproc-initialization-script-0.log.0
-
-#  systemctl reboot
-}
-
 # Verify if compatible linux distros and secure boot options are used
 function check_os_and_secure_boot() {
   if is_debian ; then
@@ -762,6 +703,7 @@ function remove_old_backports {
   # problem, we will remove any reference to backports repos older than oldstable
 
   # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
+  oldoldstable=$(curl -s https://deb.debian.org/debian/dists/oldoldstable/Release | awk '/^Codename/ {print $2}');
   oldstable=$(curl -s https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
   stable=$(curl -s https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
 
@@ -769,9 +711,9 @@ function remove_old_backports {
 
   if [[ -n "$matched_files" ]]; then
     for filename in "${matched_files[@]}"; do
-      # Fetch from archive.debian.org for ${oldstable}-backports
-      perl -pi -e "s{^deb[^\s]* https?://[^/]+/debian ${oldstable}-backports }
-                     {deb https://archive.debian.org/debian ${oldstable}-backports }g" "${filename}"
+      # Fetch from archive.debian.org for ${oldoldstable}-backports
+      perl -pi -e "s{^(deb[^\s]*) https?://[^/]+/debian ${oldoldstable}-backports }
+                     {\$1 https://archive.debian.org/debian ${oldoldstable}-backports }g" "${filename}"
     done
   fi
 }
