@@ -153,9 +153,15 @@ function configure_dkms_certs() {
       | dd of="${CA_TMPDIR}/db.der"
 
   # symlink private key and copy public cert from volatile storage for DKMS
-  mkdir -p /var/lib/dkms/
-  ln -sf "${CA_TMPDIR}/db.rsa" /var/lib/dkms/mok.key
-  cp -f "${CA_TMPDIR}/db.der" /var/lib/dkms/mok.pub
+  if is_ubuntu ; then
+    mkdir -p /var/lib/shim-signed/mok
+    ln -sf "${CA_TMPDIR}/db.rsa" /var/lib/shim-signed/mok/MOK.priv
+    cp -f "${CA_TMPDIR}/db.der" /var/lib/shim-signed/mok/MOK.der
+  else
+    mkdir -p /var/lib/dkms/
+    ln -sf "${CA_TMPDIR}/db.rsa" /var/lib/dkms/mok.key
+    cp -f "${CA_TMPDIR}/db.der" /var/lib/dkms/mok.pub
+  fi
 }
 
 function clear_dkms_key {
@@ -169,7 +175,7 @@ function clear_dkms_key {
 }
 
 function add_contrib_components() {
-  if ! is_debian && ! is_ubuntu ; then
+  if ! is_debian ; then
     return
   fi
   if is_debian12 ; then
@@ -178,12 +184,8 @@ function add_contrib_components() {
       local components="main contrib"
 
       sed -i -e "s/Components: .*$/Components: ${components}/" "${debian_sources}"
-
-      # Refresh package index for new components
-      apt-get update
   elif is_debian ; then
       sed -i -e 's/ main$/ main contrib/' /etc/apt/sources.list
-      apt-get update
   fi
 }
 
@@ -401,13 +403,14 @@ function install_nvidia_gpu_driver() {
     dpkg -i /tmp/local-installer.deb
     rm /tmp/local-installer.deb
     cp ${DIST_KEYRING_DIR}/cuda-*-keyring.gpg /usr/share/keyrings/
-    execute_with_retries "apt-get update"    
-    
+    execute_with_retries "apt-get update"
+
+    execute_with_retries "apt-get install -y -q --no-install-recommends dkms"
     configure_dkms_certs
     for pkg in "nvidia-driver-${NVIDIA_DRIVER_VERSION_PREFIX}-open" \
                "cuda-drivers-${NVIDIA_DRIVER_VERSION_PREFIX}" \
                "cuda-toolkit-${CUDA_VERSION_MAJOR//./-}" ; do
-	    execute_with_retries "apt-get install -y -q --no-install-recommends ${pkg}"
+      execute_with_retries "apt-get install -y -q --no-install-recommends ${pkg}"
     done
     clear_dkms_key
 
@@ -686,7 +689,7 @@ function check_os_and_secure_boot() {
     fi
   fi
 
-  if [[ "${SECURE_BOOT}" == "enabled" && $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then 
+  if [[ "${SECURE_BOOT}" == "enabled" && $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
     echo "Error: Secure Boot is not supported before image 2.2. Please disable Secure Boot while creating the cluster."
     exit 1
   elif [[ "${SECURE_BOOT}" == "enabled" ]] && [[ -z "${PSN}" ]]; then
