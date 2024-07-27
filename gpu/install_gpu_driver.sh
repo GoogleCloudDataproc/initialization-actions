@@ -586,20 +586,19 @@ function install_nvidia_gpu_driver() {
     execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}"
     execute_with_retries "apt-get install -y -q --no-install-recommends ${cuda_package}"
   elif [[ ${OS_NAME} == rocky ]]; then
+
+    # Ensure the Correct Kernel Development Packages are Installed
+    execute_with_retries "dnf -y -q update --exclude=systemd*,kernel*"
+    execute_with_retries "dnf -y -q install pciutils kernel-devel gcc"
+
     execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPO_URL}"
     execute_with_retries "dnf clean all"
-
-    if [[ "${ROCKY_BINARY_INSTALL}" == "true" ]]; then
-      execute_with_retries "dnf -y -q module install nvidia-driver"
-    else
-      execute_with_retries "dnf -y -q module install nvidia-driver:${NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}-dkms"
-    fi
-    NVIDIA_ROCKY_GPU_DRIVER_VERSION="$(ls -d /usr/src/nvidia-* | awk -F"nvidia-" '{print $2}')"
-    execute_with_retries "dkms build nvidia/${NVIDIA_ROCKY_GPU_DRIVER_VERSION}"
-    execute_with_retries "dkms install nvidia/${NVIDIA_ROCKY_GPU_DRIVER_VERSION}"
+    configure_dkms_certs
+    execute_with_retries "dnf -y -q module install nvidia-driver:latest-dkms"
+    clear_dkms_key
+    execute_with_retries "dnf -y -q install cuda-toolkit"
     modprobe -r nvidia || echo "no nvidia module loaded"
     modprobe nvidia
-    execute_with_retries "dnf -y -q install cuda-${CUDA_VERSION//./-}"
   else
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
