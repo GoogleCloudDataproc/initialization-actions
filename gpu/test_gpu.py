@@ -133,7 +133,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                           machine_suffix))
 
   @parameterized.parameters(
-      ("STANDARD", ["m", "w-0", "w-1"], None, GPU_L4, "NVIDIA", "us-central1-b"),
+      ("STANDARD", ["m", "w-0", "w-1"], None, GPU_A100, "NVIDIA", "us-central1-b"),
   )
   def test_install_gpu_with_mig(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
@@ -177,10 +177,18 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         boot_disk_size="50GB",
         timeout_in_minutes=30)
 
+    get_gpu_resources_script="/usr/lib/spark/scripts/gpu/getGpusResources.sh"
     self.assert_dataproc_job(
         self.getClusterName(),
         "spark",
-        "--jars=file:///usr/lib/spark/examples/jars/spark-examples.jar --class=org.apache.spark.examples.ml.JavaIndexToStringExample --properties=spark.driver.resource.gpu.amount=1,spark.driver.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh,spark.executor.resource.gpu.amount=1,spark.executor.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh"
+      "spark",
+      "--jars=file:///usr/lib/spark/examples/jars/spark-examples.jar " \
+      + "--class=org.apache.spark.examples.ml.JavaIndexToStringExample " \
+      + "--properties=" \
+      +   "spark.driver.resource.gpu.amount=1," \
+      +   "spark.driver.resource.gpu.discoveryScript=" + get_gpu_resources_script \
+      +   "spark.executor.resource.gpu.amount=1," \
+      +   "spark.executor.resource.gpu.discoveryScript=" + get_gpu_resources_script
     )
 
   @parameterized.parameters(
@@ -211,10 +219,17 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       self.verify_instance_gpu_agent("{}-{}".format(self.getClusterName(),
                                                     machine_suffix))
 
+    get_gpu_resources_script="/usr/lib/spark/scripts/gpu/getGpusResources.sh"
     self.assert_dataproc_job(
       self.getClusterName(),
       "spark",
-      "--jars=file:///usr/lib/spark/examples/jars/spark-examples.jar --class=org.apache.spark.examples.ml.JavaIndexToStringExample --properties=spark.driver.resource.gpu.amount=1,spark.driver.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh,spark.executor.resource.gpu.amount=1,spark.executor.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh"
+      "--jars=file:///usr/lib/spark/examples/jars/spark-examples.jar " \
+      + "--class=org.apache.spark.examples.ml.JavaIndexToStringExample " \
+      + "--properties=" \
+      +   "spark.driver.resource.gpu.amount=1," \
+      +   "spark.driver.resource.gpu.discoveryScript=" + get_gpu_resources_script \
+      +   "spark.executor.resource.gpu.amount=1," \
+      +   "spark.executor.resource.gpu.discoveryScript=" + get_gpu_resources_script
     )
 
 
