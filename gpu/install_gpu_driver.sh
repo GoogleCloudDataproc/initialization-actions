@@ -44,6 +44,10 @@ function is_debian() {
   [[ "$(os_id)" == 'debian' ]]
 }
 
+function is_debian10() {
+  is_debian && [[ "$(os_version)" == '10'* ]]
+}
+
 function is_debian11() {
   is_debian && [[ "$(os_version)" == '11'* ]]
 }
@@ -73,16 +77,17 @@ function remove_old_backports {
   fi
 
   # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
+  oldoldstable=$(curl -s https://deb.debian.org/debian/dists/oldoldstable/Release | awk '/^Codename/ {print $2}');
   oldstable=$(curl -s https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
   stable=$(curl -s https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
 
-  matched_files="$(grep -rsil '\-backports' /etc/apt/sources.list*)"
-  if [[ -n "$matched_files" ]]; then
-    for filename in "$matched_files"; do
-      grep -e "$oldstable-backports" "$filename" || \
-        sed -i -e 's/^.*-backports.*$//' "$filename"
-    done
-  fi
+  matched_files=( $(test -d /etc/apt && grep -rsil '\-backports' /etc/apt/sources.list*||:) )
+
+  for filename in "${matched_files[@]}"; do
+    # Fetch from archive.debian.org for ${oldoldstable}-backports
+    perl -pi -e "s{^(deb[^\s]*) https?://[^/]+/debian ${oldoldstable}-backports }
+                  {\$1 https://archive.debian.org/debian ${oldoldstable}-backports }g" "${filename}"
+  done
 }
 
 function compare_versions_lte {
@@ -137,14 +142,15 @@ if [[ ${DATAPROC_IMAGE_VERSION} == 2.* ]] && [[ "${RUNTIME}" == "SPARK" ]]; then
   DEFAULT_CUDA_VERSION='12.4'
 fi
 readonly DEFAULT_CUDA_VERSION
-readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
+CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
+readonly CUDA_VERSION
 readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION=${DRIVER_FOR_CUDA["${CUDA_VERSION}"]}
 readonly NVIDIA_DEBIAN_GPU_DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' ${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION})
 readonly NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX=${NVIDIA_DEBIAN_GPU_DRIVER_VERSION%%.*}
 readonly DRIVER=${NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}
 # As of Rocky 8.7, kernel 4.18.0-425 is unable to build older nvidia kernel drivers
 ROCKY_BINARY_INSTALL="false"
-if [[ "${OS_NAME}" == "rocky" &&  "${DRIVER}" < "510" ]]; then
+if is_rocky && [[ "${DRIVER}" < "510" ]]; then
   ROCKY_BINARY_INSTALL="true"
 fi
 readonly ROCKY_BINARY_INSTALL
@@ -154,13 +160,13 @@ function unsupported_error {
   echo "Unsupported kernel driver on ${distribution}: '${DRIVER}'"
   exit -1
 }
-if [[ "${OS_NAME}" == "rocky" ]]; then
+if is_rocky ; then
   KERNEL_SUBVERSION=$(uname -r | awk -F- '{print $2}')
   if [[ "${DRIVER}" < "460" && "${DRIVER}" != "450"
      && "${KERNEL_SUBVERSION%%.*}" > "305" ]]; then
     unsupported_error
   fi
-elif [[ "${OS_NAME}" == "debian" ]]; then
+elif is_debian ; then
   KERNEL_VERSION=$(uname -r | awk -F- '{print $1}')
   if [[ "${DRIVER}" < "455"
      && $(echo "${KERNEL_VERSION%.*} > 5.7" | bc -l) == 1  ]]; then
@@ -169,7 +175,7 @@ elif [[ "${OS_NAME}" == "debian" ]]; then
 fi
 
 DEFAULT_NCCL_VERSION=${NCCL_FOR_CUDA["${CUDA_VERSION}"]}
-if [[ "${OS_NAME}" == "rocky" ]] \
+if is_rocky \
    && (compare_versions_lte "${DEFAULT_NCCL_VERSION}" "2.8.4") ; then
   DEFAULT_NCCL_VERSION="2.8.4"
 fi
@@ -243,7 +249,7 @@ readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_REPO_URL}/cuda-${shortname}.repo"
 
 # Parameters for NVIDIA-provided CUDNN library
 DEFAULT_CUDNN_VERSION=${CUDNN_FOR_CUDA["${CUDA_VERSION}"]}
-if [[ "${OS_NAME}" == "rocky" ]] \
+if is_rocky \
    && (compare_versions_lte "${DEFAULT_CUDNN_VERSION}" "8.0.5.39") ; then
   DEFAULT_CUDNN_VERSION="8.0.5.39"
 fi
@@ -285,7 +291,7 @@ MIG_MAJOR_CAPS=0
 IS_MIG_ENABLED=0
 
 function execute_with_retries() {
-  local -r cmd=$1
+  local -r cmd="$*"
   for ((i = 0; i < 10; i++)); do
     if eval "$cmd"; then
       return 0
@@ -304,9 +310,9 @@ function install_nvidia_nccl() {
 
   local -r nccl_version="${NCCL_VERSION}-1+cuda${CUDA_VERSION}"
 
-  if [[ ${OS_NAME} == rocky ]]; then
+  if is_rocky ; then
     execute_with_retries "dnf -y -q install libnccl-${nccl_version} libnccl-devel-${nccl_version} libnccl-static-${nccl_version}"
-  elif [[ ${OS_NAME} == ubuntu ]]; then
+  elif is_ubuntu ; then
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 "${NCCL_REPO_KEY}" | apt-key add -
 
     local tmp_dir
@@ -319,8 +325,9 @@ function install_nvidia_nccl() {
     execute_with_retries "apt-get update"
 
     execute_with_retries \
-      "apt-get install -y --allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
-  elif [[ ${OS_NAME} == debian ]]; then
+      "apt-get install -y " \
+        "--allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
+  elif is_debian ; then
     echo "nccl not packaged for debian"
   else
     echo "Unsupported OS: '${OS_NAME}'"
@@ -334,11 +341,15 @@ function install_nvidia_cudnn() {
   local cudnn_pkg_version
   cudnn_pkg_version="${CUDNN_VERSION}-1+cuda${CUDA_VERSION}"
 
-  if [[ ${OS_NAME} == rocky ]]; then
-    if [[ ${major_version} == 8 ]]; then
+  if is_rocky ; then
+    if is_rocky8 ; then
       execute_with_retries "dnf -y -q install libcudnn8-${cudnn_pkg_version} libcudnn8-devel-${cudnn_pkg_version}"
+    elif is_rocky9 ; then
+      execute_with_retries "dnf -y -q install" \
+      "libcudnn9-static-cuda-${CUDA_VERSION%%.*}" \
+      "libcudnn9-devel-cuda-${CUDA_VERSION%%.*}"
     else
-      echo "Unsupported CUDNN version: '${CUDNN_VERSION}'"
+      echo "Unsupported OS: '$shortname'"
     fi
   elif is_debian || is_ubuntu; then
     if is_debian12; then
@@ -546,7 +557,10 @@ function install_nvidia_gpu_driver() {
     rm -f driver.run
     git clone https://github.com/NVIDIA/open-gpu-kernel-modules.git --branch "${NVIDIA_DEBIAN_GPU_DRIVER_VERSION}" --single-branch
     pushd open-gpu-kernel-modules
-    make -j$(nproc) modules
+    make -j$(nproc) modules \
+      > /var/log/open-gpu-kernel-modules-build.log \
+      2> /var/log/open-gpu-kernel-modules-build_error.log
+
     if [[ -n "${PSN}" ]]; then
       configure_dkms_certs
       for module in $(find kernel-open -name '*.ko'); do
@@ -557,7 +571,9 @@ function install_nvidia_gpu_driver() {
       done
       clear_dkms_key
     fi
-    make modules_install
+    make modules_install \
+      >> /var/log/open-gpu-kernel-modules-build.log \
+      2>> /var/log/open-gpu-kernel-modules-build_error.log
     depmod -a
     modprobe -r nvidia || echo "no nvidia module loaded"
     modprobe nvidia
@@ -644,11 +660,12 @@ EOF
   systemctl --no-reload --now enable gpu-utilization-agent.service
 }
 
+readonly bdcfg="/usr/local/bin/bdconfig"
 function set_hadoop_property() {
   local -r config_file=$1
   local -r property=$2
   local -r value=$3
-  bdconfig set_property \
+  "${bdcfg}" set_property \
     --configuration_file "${HADOOP_CONF_DIR}/${config_file}" \
     --name "${property}" --value "${value}" \
     --clobber
@@ -687,7 +704,7 @@ function configure_yarn_nodemanager() {
 
   # Fix local dirs access permissions
   local yarn_local_dirs=()
-  readarray -d ',' yarn_local_dirs < <(bdconfig get_property_value \
+  readarray -d ',' yarn_local_dirs < <("${bdcfg}" get_property_value \
     --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
     --name "yarn.nodemanager.local-dirs" 2>/dev/null | tr -d '\n')
   chown yarn:yarn -R "${yarn_local_dirs[@]/,/}"

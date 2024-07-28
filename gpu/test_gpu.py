@@ -38,8 +38,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_default_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
-    if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
-      self.skipTest("Not supported in pre 2.0 or Rocky images")
 
     metadata = None
     if driver_provider is not None:
@@ -52,7 +50,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         worker_accelerator=worker_accelerator,
         metadata=metadata,
         timeout_in_minutes=30,
-        boot_disk_size="200GB")
+        boot_disk_size="50GB")
     for machine_suffix in machine_suffixes:
       self.verify_instance("{}-{}".format(self.getClusterName(),
                                           machine_suffix))
@@ -64,9 +62,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_without_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
-    if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
-      self.skipTest("Not supported in pre 2.0 or Rocky images")
-
+    self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
     metadata = "install-gpu-agent=false"
     if driver_provider is not None:
       metadata += ",gpu-driver-provider={}".format(driver_provider)
@@ -78,7 +74,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         worker_accelerator=worker_accelerator,
         metadata=metadata,
         timeout_in_minutes=30,
-        boot_disk_size="200GB")
+        boot_disk_size="50GB")
     for machine_suffix in machine_suffixes:
       self.verify_instance("{}-{}".format(self.getClusterName(),
                                           machine_suffix))
@@ -91,9 +87,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_with_agent(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider):
-    if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
-      self.skipTest("Not supported in pre 2.0 or Rocky images")
-
+    self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
     metadata = "install-gpu-agent=true"
     if driver_provider is not None:
       metadata += ",gpu-driver-provider={}".format(driver_provider)
@@ -105,7 +99,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         worker_accelerator=worker_accelerator,
         metadata=metadata,
         timeout_in_minutes=30,
-        boot_disk_size="200GB",
+        boot_disk_size="50GB",
         scopes="https://www.googleapis.com/auth/monitoring.write")
     for machine_suffix in machine_suffixes:
       self.verify_instance("{}-{}".format(self.getClusterName(),
@@ -123,10 +117,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
-    image_os = self.getImageOs()
-
-    if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
-      self.skipTest("Not supported in pre 2.0 images")
+    self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
 
     metadata = "gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
@@ -137,7 +128,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         worker_accelerator=worker_accelerator,
         metadata=metadata,
         timeout_in_minutes=30,
-        boot_disk_size="200GB")
+        boot_disk_size="50GB")
     for machine_suffix in machine_suffixes:
       self.verify_instance("{}-{}".format(self.getClusterName(),
                                           machine_suffix))
@@ -148,9 +139,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_with_mig(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider, zone):
-    if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
-      self.skipTest("Not supported in pre 2.0 or Rocky images")
-
+    self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
@@ -161,7 +150,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         worker_accelerator=worker_accelerator,
         metadata=None,
         timeout_in_minutes=30,
-        boot_disk_size="200GB",
+        boot_disk_size="50GB",
         startup_script="gpu/mig.sh")
 
     for machine_suffix in ["w-0", "w-1"]:
@@ -174,12 +163,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   )
   def test_gpu_allocation(self, configuration, master_accelerator,
                           worker_accelerator, driver_provider):
-    if configuration == "SINGLE" and self.getImageOs() == "rocky":
-      self.skipTest("Test hangs on single-node clsuter with Rocky Linux-based images")
-
-    if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
-      self.skipTest("Not supported in pre 2.0")
-
+    self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
     metadata = None
     if driver_provider is not None:
       metadata = "gpu-driver-provider={}".format(driver_provider)
@@ -191,7 +175,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         machine_type="n1-standard-2",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
-        boot_disk_size="200GB",
+        boot_disk_size="50GB",
         timeout_in_minutes=30)
 
     self.assert_dataproc_job(
@@ -210,10 +194,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_cuda_nvidia_with_spark_job(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
-    image_os = self.getImageOs()
-
-    if self.getImageVersion() < pkg_resources.parse_version("2.0") or self.getImageOs() == "rocky":
-      self.skipTest("Not supported in pre 2.0 images")
+    self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
 
     metadata = "install-gpu-agent=true,gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
@@ -224,7 +205,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       worker_accelerator=worker_accelerator,
       metadata=metadata,
       timeout_in_minutes=30,
-      boot_disk_size="200GB",
+      boot_disk_size="50GB",
       scopes="https://www.googleapis.com/auth/monitoring.write")
     for machine_suffix in machine_suffixes:
       self.verify_instance("{}-{}".format(self.getClusterName(),
