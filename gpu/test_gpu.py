@@ -62,7 +62,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_without_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
-    self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
+
     metadata = "install-gpu-agent=false"
     if driver_provider is not None:
       metadata += ",gpu-driver-provider={}".format(driver_provider)
@@ -87,7 +87,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_with_agent(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider):
-    self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
+
     metadata = "install-gpu-agent=true"
     if driver_provider is not None:
       metadata += ",gpu-driver-provider={}".format(driver_provider)
@@ -117,7 +117,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
-    self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
 
     metadata = "gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
@@ -139,7 +138,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_with_mig(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider, zone):
-    self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
+
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
