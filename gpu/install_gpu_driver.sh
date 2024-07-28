@@ -352,9 +352,9 @@ function install_nvidia_cudnn() {
     fi
   elif is_debian || is_ubuntu; then
     if is_debian12; then
-      apt-get -y install nvidia-cudnn
+      apt-get -y install nvidia-cudnn 
     elif is_debian11; then
-      apt-get -y install cudnn9-cuda-12
+      apt-get -y install "cudnn9-cuda-${CUDA_VERSION%%.*}"
     else
       local tmp_dir
       tmp_dir=$(mktemp -d -t gpu-init-action-cudnn-XXXX)
@@ -552,7 +552,8 @@ function install_nvidia_gpu_driver() {
 
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${DRIVER_URL}" -o driver.run
-    bash "./driver.run" --no-kernel-modules --silent --install-libglvnd
+    bash "./driver.run" --no-kernel-modules --silent --install-libglvnd \
+      > /dev/null 2>&1
     rm -f driver.run
     git clone https://github.com/NVIDIA/open-gpu-kernel-modules.git --branch "${DRIVER_VERSION}" --single-branch
     pushd open-gpu-kernel-modules
