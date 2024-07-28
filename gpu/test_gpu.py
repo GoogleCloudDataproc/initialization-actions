@@ -9,10 +9,10 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 class NvidiaGpuDriverTestCase(DataprocTestCase):
   COMPONENT = "gpu"
   INIT_ACTIONS = ["gpu/install_gpu_driver.sh"]
-  GPU_L4="type=nvidia-l4"
+  GPU_L4   = "type=nvidia-l4"
   GPU_T4   = "type=nvidia-tesla-t4"
-  GPU_P100 = "type=nvidia-tesla-p100"
-  GPU_V100 = "type=nvidia-tesla-v100"
+  GPU_P100 = "type=nvidia-tesla-p100" # not available in us-central1-a
+  GPU_V100 = "type=nvidia-tesla-v100" # not available in us-central1-a
   GPU_A100 = "type=nvidia-tesla-a100"
 
   def verify_instance(self, name):
@@ -185,17 +185,16 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     )
 
   @parameterized.parameters(
-    ("SINGLE", ["m"], GPU_P100, None, "11.8"),
-    ("STANDARD", ["m"], GPU_P100, None, "11.8"),
-    ("STANDARD", ["m", "w-0", "w-1"], GPU_P100, GPU_P100, "11.8"),
-    ("STANDARD", ["w-0", "w-1"], None, GPU_P100, "11.8"),
-    ("STANDARD", ["w-0", "w-1"], None, GPU_P100, "12.4"),
+    ("SINGLE", ["m"], GPU_T4, None, "11.8"),
+    ("STANDARD", ["m"], GPU_T4, None, "11.8"),
+    ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "11.8"),
+    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.8"),
+    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "12.4"),
   )
   def test_install_gpu_cuda_nvidia_with_spark_job(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
     self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
-
     metadata = "install-gpu-agent=true,gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
       configuration,
