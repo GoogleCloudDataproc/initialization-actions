@@ -194,14 +194,13 @@ readonly DRIVER_URL
 readonly NVIDIA_BASE_DL_URL='https://developer.download.nvidia.com/compute'
 
 # Short name for urls
-nccl_shortname="$(os_id)$(os_vercat)"
 if is_ubuntu22  ; then
     # at the time of writing 20240721 there is no ubuntu2204 in the index of repos at
     # https://developer.download.nvidia.com/compute/machine-learning/repos/
     # use packages from previous release until such time as nvidia
     # release ubuntu2204 builds
 
-    nccl_shortname=ubuntu2004
+    nccl_shortname="ubuntu2004"
     shortname="$(os_id)$(os_vercat)"
 elif is_rocky9 ; then
     # use packages from previous release until such time as nvidia
@@ -211,8 +210,10 @@ elif is_rocky9 ; then
     shortname="rhel9"
 elif is_rocky ; then
     shortname="$(os_id | sed -e 's/rocky/rhel/')$(os_vercat)"
+    nccl_shortname="${shortname}"
 else
     shortname="$(os_id)$(os_vercat)"
+    nccl_shortname="${shortname}"
 fi
 
 # Parameters for NVIDIA-provided package repositories
