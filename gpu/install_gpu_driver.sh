@@ -144,10 +144,9 @@ fi
 readonly DEFAULT_CUDA_VERSION
 CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
 readonly CUDA_VERSION
-readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION=${DRIVER_FOR_CUDA["${CUDA_VERSION}"]}
-readonly NVIDIA_DEBIAN_GPU_DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' ${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_VERSION})
-readonly NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX=${NVIDIA_DEBIAN_GPU_DRIVER_VERSION%%.*}
-readonly DRIVER=${NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}
+readonly DEFAULT_DRIVER=${DRIVER_FOR_CUDA["${CUDA_VERSION}"]}
+readonly DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' ${DEFAULT_DRIVER})
+readonly DRIVER=${DRIVER_VERSION%%.*}
 # As of Rocky 8.7, kernel 4.18.0-425 is unable to build older nvidia kernel drivers
 ROCKY_BINARY_INSTALL="false"
 if is_rocky && [[ "${DRIVER}" < "510" ]]; then
@@ -183,45 +182,47 @@ readonly DEFAULT_NCCL_VERSION
 readonly NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION})
 
 # Parameters for NVIDIA-provided Debian GPU driver
-DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${NVIDIA_DEBIAN_GPU_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${NVIDIA_DEBIAN_GPU_DRIVER_VERSION}.run"
-if [[ "$(curl -s -I ${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL} | head -1 | awk '{print $2}')" != "200" ]]; then
-  DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${NVIDIA_DEBIAN_GPU_DRIVER_VERSION%.*}/NVIDIA-Linux-x86_64-${NVIDIA_DEBIAN_GPU_DRIVER_VERSION%.*}.run"
+DEFAULT_DRIVER_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
+if [[ "$(curl -s -I ${DEFAULT_DRIVER_URL} | head -1 | awk '{print $2}')" != "200" ]]; then
+  DEFAULT_DRIVER_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${DRIVER}/NVIDIA-Linux-x86_64-${DRIVER}.run"
 fi
-readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL
+readonly DEFAULT_DRIVER_URL
 
-NVIDIA_DEBIAN_GPU_DRIVER_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL}")
-readonly NVIDIA_DEBIAN_GPU_DRIVER_URL
+DRIVER_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_DRIVER_URL}")
+readonly DRIVER_URL
 
 readonly NVIDIA_BASE_DL_URL='https://developer.download.nvidia.com/compute'
 
 # Short name for urls
+nccl_shortname="$(os_id)$(os_vercat)"
 if is_ubuntu22  ; then
     # at the time of writing 20240721 there is no ubuntu2204 in the index of repos at
     # https://developer.download.nvidia.com/compute/machine-learning/repos/
     # use packages from previous release until such time as nvidia
     # release ubuntu2204 builds
 
-    shortname=ubuntu2004
+    nccl_shortname=ubuntu2004
+    shortname="$(os_id)$(os_vercat)"
 elif is_rocky9 ; then
     # use packages from previous release until such time as nvidia
     # release rhel9 builds
 
-    shortname=rhel8
+    nccl_shortname="rhel8"
+    shortname="rhel9"
 elif is_rocky ; then
     shortname="$(os_id | sed -e 's/rocky/rhel/')$(os_vercat)"
 else
     shortname="$(os_id)$(os_vercat)"
 fi
 
-# Parameters for NVIDIA-provided Debian package repository
+# Parameters for NVIDIA-provided package repositories
 readonly NVIDIA_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64"
-readonly NVIDIA_DEBIAN_REPO_KEY_PACKAGE="${NVIDIA_REPO_URL}/cuda-keyring_1.1-1_all.deb"
 
 # Parameters for NVIDIA-provided NCCL library
-readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/${shortname}/x86_64/nvidia-machine-learning-repo-${shortname}_1.0.0-1_amd64.deb"
+readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/${nccl_shortname}/x86_64/nvidia-machine-learning-repo-${nccl_shortname}_1.0.0-1_amd64.deb"
 NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
 readonly NCCL_REPO_URL
-readonly NCCL_REPO_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/${shortname}/x86_64/7fa2af80.pub"
+readonly NCCL_REPO_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/${nccl_shortname}/x86_64/7fa2af80.pub"
 
 readonly -A DEFAULT_NVIDIA_CUDA_URLS=(
   [10.1]="${NVIDIA_BASE_DL_URL}/cuda/10.1/Prod/local_installers/cuda_10.1.243_418.87.00_linux.run"
@@ -240,9 +241,6 @@ readonly DEFAULT_NVIDIA_CUDA_URL=${DEFAULT_NVIDIA_CUDA_URLS["${CUDA_VERSION}"]}
 NVIDIA_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_CUDA_URL}")
 readonly NVIDIA_CUDA_URL
 
-# Parameters for NVIDIA-provided Ubuntu GPU driver
-readonly NVIDIA_UBUNTU_REPO_KEY_PACKAGE="${NVIDIA_REPO_URL}/cuda-keyring_1.0-1_all.deb"
-readonly NVIDIA_UBUNTU_REPO_CUDA_PIN="${NVIDIA_REPO_URL}/cuda-${shortname}.pin"
 
 # Parameter for NVIDIA-provided Rocky Linux GPU driver
 readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_REPO_URL}/cuda-${shortname}.repo"
@@ -542,9 +540,9 @@ function install_nvidia_gpu_driver() {
     # Install CUDA keyring and sources.list
     # https://docs.nvidia.com/cuda/cuda-installation-guide-linux/#network-repo-installation-for-debian
     if is_debian ; then
-      PKG_URL="${NVIDIA_DEBIAN_REPO_KEY_PACKAGE}"
+      PKG_URL="${NVIDIA_REPO_URL}/cuda-keyring_1.1-1_all.deb"
     elif is_ubuntu; then
-      PKG_URL="${NVIDIA_UBUNTU_REPO_KEY_PACKAGE}"
+      PKG_URL="${NVIDIA_REPO_URL}/cuda-keyring_1.0-1_all.deb"
     fi
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${PKG_URL}" -o /tmp/cuda-keyring.deb
@@ -552,10 +550,10 @@ function install_nvidia_gpu_driver() {
     apt-get update
 
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${NVIDIA_DEBIAN_GPU_DRIVER_URL}" -o driver.run
+      "${DRIVER_URL}" -o driver.run
     bash "./driver.run" --no-kernel-modules --silent --install-libglvnd
     rm -f driver.run
-    git clone https://github.com/NVIDIA/open-gpu-kernel-modules.git --branch "${NVIDIA_DEBIAN_GPU_DRIVER_VERSION}" --single-branch
+    git clone https://github.com/NVIDIA/open-gpu-kernel-modules.git --branch "${DRIVER_VERSION}" --single-branch
     pushd open-gpu-kernel-modules
     make -j$(nproc) modules \
       > /var/log/open-gpu-kernel-modules-build.log \
@@ -585,10 +583,13 @@ function install_nvidia_gpu_driver() {
     rm -f cuda.run
   elif [[ ${OS_NAME} == ubuntu ]]; then # this condition will be met in the previous check ; this code is now skipped
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${NVIDIA_UBUNTU_REPO_KEY_PACKAGE}" -o /tmp/cuda-keyring.deb
+      "${NVIDIA_REPO_URL}/cuda-keyring_1.0-1_all.deb" \
+      -o /tmp/cuda-keyring.deb
     dpkg -i "/tmp/cuda-keyring.deb"
+
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${NVIDIA_UBUNTU_REPO_CUDA_PIN}" -o /etc/apt/preferences.d/cuda-repository-pin-600
+      "${NVIDIA_REPO_URL}/cuda-${shortname}.pin" \
+      -o /etc/apt/preferences.d/cuda-repository-pin-600
 
     add-apt-repository "deb ${NVIDIA_REPO_URL} /"
     execute_with_retries "apt-get update"
@@ -599,7 +600,7 @@ function install_nvidia_gpu_driver() {
       local -r cuda_package=cuda-toolkit
     fi
     # Without --no-install-recommends this takes a very long time.
-    execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${NVIDIA_DEBIAN_GPU_DRIVER_VERSION_PREFIX}"
+    execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${DRIVER}"
     execute_with_retries "apt-get install -y -q --no-install-recommends ${cuda_package}"
   elif [[ ${OS_NAME} == rocky ]]; then
 
@@ -609,10 +610,12 @@ function install_nvidia_gpu_driver() {
 
     execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPO_URL}"
     execute_with_retries "dnf clean all"
+
     configure_dkms_certs
-    execute_with_retries "dnf -y -q module install nvidia-driver:latest-dkms"
+    execute_with_retries "dnf -y -q module install nvidia-driver:${DRIVER}-dkms"
     clear_dkms_key
-    execute_with_retries "dnf -y -q install cuda-toolkit"
+
+    execute_with_retries "dnf -y -q install cuda-toolkit-${CUDA_VERSION//./-}"
     modprobe -r nvidia || echo "no nvidia module loaded"
     modprobe nvidia
   else
