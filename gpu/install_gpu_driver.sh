@@ -138,8 +138,8 @@ readonly -A CUDA_SUBVER=(     [10.1]="10.1.243"   [10.2]="10.2.89"
 
 RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 DEFAULT_CUDA_VERSION='12.4'
-if [[ ${DATAPROC_IMAGE_VERSION} == 2.* ]] && [[ "${RUNTIME}" == "SPARK" ]]; then
-  DEFAULT_CUDA_VERSION='12.4'
+if [[ "${RUNTIME}" != "SPARK" ]]; then
+  DEFAULT_CUDA_VERSION='11.8'
 fi
 readonly DEFAULT_CUDA_VERSION
 CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
@@ -317,9 +317,15 @@ function install_nvidia_nccl() {
 
     execute_with_retries "apt-get update"
 
-    execute_with_retries \
-      "apt-get install -y " \
-        "--allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
+    if is_ubuntu18 ; then
+      execute_with_retries \
+        "apt-get install -y " \
+          "--allow-unauthenticated libnccl2 libnccl-dev"
+    else
+      execute_with_retries \
+        "apt-get install -y " \
+          "--allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
+    fi
   elif is_debian ; then
     echo "nccl not packaged for debian"
   else
