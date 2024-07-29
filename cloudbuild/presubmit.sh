@@ -97,7 +97,7 @@ determine_tests_to_run() {
 }
 
 run_tests() {
-  local -r max_parallel_tests=18
+  local -r max_parallel_tests=10
   bazel test \
     --jobs="${max_parallel_tests}" \
     --local_test_jobs="${max_parallel_tests}" \
