@@ -56,13 +56,12 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                           machine_suffix))
 
   @parameterized.parameters(
-      ("STANDARD", ["m"], GPU_T4, None, "NVIDIA"),
-      ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "NVIDIA"),
+      ("SINGLE", ["m"], GPU_T4, None, None),
   )
   def test_install_gpu_without_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
-    self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
+
     metadata = "install-gpu-agent=false"
     if driver_provider is not None:
       metadata += ",gpu-driver-provider={}".format(driver_provider)
