@@ -301,12 +301,6 @@ function execute_with_retries() {
 }
 
 function install_nvidia_nccl() {
-  if ( compare_versions_lte "12.0" "${CUDA_VERSION}" ); then
-    # When cuda version is greater than 12.0
-    echo "no nccl packaged for cuda 12"
-    return
-  fi
-
   local -r nccl_version="${NCCL_VERSION}-1+cuda${CUDA_VERSION}"
 
   if is_rocky ; then
@@ -341,38 +335,32 @@ function install_nvidia_cudnn() {
   cudnn_pkg_version="${CUDNN_VERSION}-1+cuda${CUDA_VERSION}"
 
   if is_rocky ; then
-    if is_rocky8 ; then
-      execute_with_retries "dnf -y -q install libcudnn8-${cudnn_pkg_version} libcudnn8-devel-${cudnn_pkg_version}"
-    elif is_rocky9 ; then
+    if [[ "${major_version}" == "8" ]]; then
       execute_with_retries "dnf -y -q install" \
-      "libcudnn9-static-cuda-${CUDA_VERSION%%.*}" \
-      "libcudnn9-devel-cuda-${CUDA_VERSION%%.*}"
+        "libcudnn${major_version}" \
+        "libcudnn${major_version}-devel"
+    elif [[ "${major_version}" == "9" ]]; then
+      execute_with_retries "dnf -y -q install" \
+        "libcudnn9-static-cuda-${CUDA_VERSION%%.*}" \
+        "libcudnn9-devel-cuda-${CUDA_VERSION%%.*}"
     else
-      echo "Unsupported OS: '$shortname'"
+      echo "Unsupported cudnn version: '${major_version}'"
     fi
   elif is_debian || is_ubuntu; then
     if is_debian12; then
       apt-get -y install nvidia-cudnn 
-    elif is_debian11; then
-      apt-get -y install "cudnn9-cuda-${CUDA_VERSION%%.*}"
     else
-      local tmp_dir
-      tmp_dir=$(mktemp -d -t gpu-init-action-cudnn-XXXX)
-
-      curl -fSsL --retry-connrefused --retry 10 --retry-max-time 30 \
-        "${CUDNN_TARBALL_URL}" -o "${tmp_dir}/${CUDNN_TARBALL}"
-
-      if ( compare_versions_lte "${CUDNN_VERSION}" "8.3.0.98" ); then
-        tar -xzf "${tmp_dir}/${CUDNN_TARBALL}" -C /usr/local
+      if [[ "${major_version}" == "8" ]]; then
+        apt-get -y install "libcudnn8" "libcudnn8-dev"
+      elif [[ "${major_version}" == "9" ]]; then
+        apt-get -y install \
+          "cudnn9-cuda-${CUDA_VERSION//./-}" \
+	  "libcudnn9-cuda-${CUDA_VERSION%%.*}" \
+	  "libcudnn9-dev-cuda-${CUDA_VERSION%%.*}" \
+	  "libcudnn9-static-cuda-${CUDA_VERSION%%.*}"
       else
-        ln -sf /usr/local/cuda/targets/x86_64-linux/lib /usr/local/cuda/lib
-        tar -h --no-same-owner --strip-components=1 \
-          -xJf "${tmp_dir}/${CUDNN_TARBALL}" -C /usr/local/cuda
+        echo "Unsupported cudnn version: '${major_version}'"
       fi
-
-      cat <<'EOF' >>/etc/profile.d/cudnn.sh
-export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
-EOF
     fi
   elif [[ ${OS_NAME} == ubuntu ]]; then
     local -a packages
@@ -618,6 +606,8 @@ function install_nvidia_gpu_driver() {
     clear_dkms_key
 
     execute_with_retries "dnf -y -q install cuda-toolkit-${CUDA_VERSION//./-}"
+
+    depmod -a
     modprobe -r nvidia || echo "no nvidia module loaded"
     modprobe nvidia
   else

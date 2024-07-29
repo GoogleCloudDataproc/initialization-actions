@@ -28,7 +28,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
   def verify_instance_cudnn(self, name):
     self.assert_instance_command(
-        name, "sudo ldconfig -p | grep -q libcudnn" )
+        name, "sudo ldconfig -v 2>/dev/null | grep -q libcudnn" )
 
   @parameterized.parameters(
       ("SINGLE", ["m"], GPU_T4, None, None),
