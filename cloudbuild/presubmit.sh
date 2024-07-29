@@ -7,7 +7,7 @@ declare -a TESTS_TO_RUN
 
 configure_gcloud() {
   gcloud config set core/disable_prompts TRUE
-  gcloud config set compute/region us-central1
+  gcloud config set compute/region us-west4
 }
 
 configure_gcloud_ssh_key() {
@@ -68,7 +68,7 @@ determine_tests_to_run() {
     changed_dir="${changed_dir%%/*}/"
     # Run all tests if common directories modified
     if [[ ${changed_dir} =~ ^(integration_tests|util|cloudbuild)/$ ]]; then
-      continue
+      continue # remove this and all changes to integration_tests/ and cloudbuild/ before squash/merge
       echo "All tests will be run: '${changed_dir}' was changed"
       TESTS_TO_RUN=(":DataprocInitActionsTestSuite")
       return 0
@@ -97,7 +97,7 @@ determine_tests_to_run() {
 }
 
 run_tests() {
-  local -r max_parallel_tests=10
+  local -r max_parallel_tests=18
   bazel test \
     --jobs="${max_parallel_tests}" \
     --local_test_jobs="${max_parallel_tests}" \
