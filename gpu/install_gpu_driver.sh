@@ -354,7 +354,6 @@ function install_nvidia_cudnn() {
         apt-get -y install "libcudnn8" "libcudnn8-dev"
       elif [[ "${major_version}" == "9" ]]; then
         apt-get -y install \
-          "cudnn9-cuda-${CUDA_VERSION//./-}" \
 	  "libcudnn9-cuda-${CUDA_VERSION%%.*}" \
 	  "libcudnn9-dev-cuda-${CUDA_VERSION%%.*}" \
 	  "libcudnn9-static-cuda-${CUDA_VERSION%%.*}"

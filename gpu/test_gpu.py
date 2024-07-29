@@ -11,7 +11,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   INIT_ACTIONS = ["gpu/install_gpu_driver.sh"]
   GPU_L4   = "type=nvidia-l4"
   GPU_T4   = "type=nvidia-tesla-t4"
-  GPU_P100 = "type=nvidia-tesla-p100" # not available in us-central1-a
   GPU_V100 = "type=nvidia-tesla-v100" # not available in us-central1-a
   GPU_A100 = "type=nvidia-tesla-a100"
 
