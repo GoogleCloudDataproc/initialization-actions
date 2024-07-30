@@ -388,7 +388,7 @@ function install_nvidia_cudnn() {
 
         rm -f /tmp/local-installer.deb
 
-        cp /var/cudnn-local-repo-*-${CUDNN}/cudnn-local-*-keyring.gpg /usr/share/keyrings
+        cp /var/cudnn-local-repo-*-${CUDNN}*/cudnn-local-*-keyring.gpg /usr/share/keyrings
 
         apt-get update
 
@@ -417,7 +417,7 @@ function install_nvidia_cudnn() {
 
         rm -f /tmp/local-installer.deb
 
-        cp /var/cudnn-local-repo-*-${CUDNN}/cudnn-local-*-keyring.gpg /usr/share/keyrings
+        cp /var/cudnn-local-repo-*-${CUDNN}*/cudnn-local-*-keyring.gpg /usr/share/keyrings
 
         apt-get update
 
