@@ -273,8 +273,13 @@ CUDNN_VERSION=$(get_metadata_attribute 'cudnn-version' "${DEFAULT_CUDNN_VERSION}
 if is_rocky \
    && (compare_versions_lte "${CUDNN_VERSION}" "8.0.5.39") ; then
   CUDNN_VERSION="8.0.5.39"
+elif (is_ubuntu20 || is_ubuntu22) && [[ "${CUDNN_VERSION%%.*}" == "8" ]]; then
+  # cuDNN v8 is not distribution for ubuntu20+
+#  CUDNN_VERSION="9.2.1.18"
+  CUDNN_VERSION="9.1.0.70"
+
 elif (is_ubuntu18 || is_debian10 || is_debian11) && [[ "${CUDNN_VERSION%%.*}" == "9" ]]; then
-  # CUDNN v9 is not distributed for ubuntu18, debian10, debian11 ; fall back to 8
+  # cuDNN v9 is not distributed for ubuntu18, debian10, debian11 ; fall back to 8
   if is_cuda12 ; then
 #    CUDNN_VERSION="8.9.3.28"
     CUDNN_VERSION="8.8.0.121"
@@ -674,9 +679,6 @@ function install_nvidia_gpu_driver() {
     configure_dkms_certs
     execute_with_retries "dnf -y -q module install nvidia-driver:${DRIVER}-open"
     clear_dkms_key
-
-    depmod -a
-    modprobe nvidia
 
     execute_with_retries "dnf -y -q install cuda-toolkit-${CUDA_VERSION//./-}"
 
