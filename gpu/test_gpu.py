@@ -106,10 +106,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                                     machine_suffix))
 
   @parameterized.parameters(
-      ("SINGLE",   ["m"],               GPU_T4, None,   "11.8"),
+      ("SINGLE",   ["m"],               GPU_T4, None,   "12.4"),
       ("STANDARD", ["m"],               GPU_T4, None,   "11.8"),
       ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4"),
-      ("STANDARD", ["w-0", "w-1"],      None,   GPU_T4, "12.4"),
       ("STANDARD", ["w-0", "w-1"],      None,   GPU_T4, "11.8"),
   )
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
@@ -131,29 +130,29 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                           machine_suffix))
 
   @parameterized.parameters(
-      ("STANDARD", ["m", "w-0", "w-1"], None, GPU_T4, "NVIDIA", "us-central1-a"),
+      ("STANDARD", ["m", "w-0", "w-1"], None, GPU_T4, "NVIDIA", "us-central1-b"),
   )
   def test_install_gpu_with_mig(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider, zone):
     self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
     
-    # self.createCluster(
-    #     configuration,
-    #     self.INIT_ACTIONS,
-    #     zone=zone,
-    #     master_machine_type="n1-standard-4",
-    #     worker_machine_type="n1-standard-4",
-    #     master_accelerator=master_accelerator,
-    #     worker_accelerator=worker_accelerator,
-    #     metadata=None,
-    #     timeout_in_minutes=30,
-    #     boot_disk_size="50GB",
-    #     startup_script="gpu/mig.sh")
+    self.createCluster(
+        configuration,
+        self.INIT_ACTIONS,
+#        zone=zone,
+        master_machine_type="n1-standard-4",
+        worker_machine_type="n1-standard-4",
+        master_accelerator=master_accelerator,
+        worker_accelerator=worker_accelerator,
+        metadata=None,
+        timeout_in_minutes=30,
+        boot_disk_size="50GB",
+        startup_script="gpu/mig.sh")
 
-    # for machine_suffix in ["w-0", "w-1"]:
-    #   self.verify_mig_instance("{}-{}".format(self.getClusterName(),
-    #                                       machine_suffix))
+    for machine_suffix in ["w-0", "w-1"]:
+      self.verify_mig_instance("{}-{}".format(self.getClusterName(),
+                                          machine_suffix))
 
   @parameterized.parameters(
       ("SINGLE", GPU_T4, None, None),
