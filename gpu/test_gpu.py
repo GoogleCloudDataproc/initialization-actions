@@ -13,9 +13,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   GPU_T4   = "type=nvidia-tesla-t4"
   GPU_V100 = "type=nvidia-tesla-v100" # not available in us-central1-a
   GPU_A100 = "type=nvidia-tesla-a100"
+  GPU_H100 = "type=nvidia-h100-80gb"
 
   def verify_instance(self, name):
-    self.assert_instance_command(name, "nvidia-smi")
+    self.assert_instance_command(name, "nvidia-smi", 1)
 
   def verify_mig_instance(self, name):
     self.assert_instance_command(name,
@@ -130,22 +131,24 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                           machine_suffix))
 
   @parameterized.parameters(
-      ("STANDARD", ["m", "w-0", "w-1"], None, GPU_T4, "NVIDIA", "us-central1-b"),
+      ("STANDARD", ["m"], GPU_H100, None, "NVIDIA", "12.4"),
+      ("STANDARD", ["m"], GPU_A100, None, "NVIDIA", "11.8"),
   )
   def test_install_gpu_with_mig(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
-                                  driver_provider, zone):
+                                  driver_provider, cuda_version):
     self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
-    
+
+    metadata = "gpu-driver-provider={},cuda-version={}".format(driver_provider, cuda_version)
+
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
-#        zone=zone,
         master_machine_type="n1-standard-4",
         worker_machine_type="n1-standard-4",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
-        metadata=None,
+        metadata=metadata,
         timeout_in_minutes=30,
         boot_disk_size="50GB",
         startup_script="gpu/mig.sh")
