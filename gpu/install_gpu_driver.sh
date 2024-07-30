@@ -36,6 +36,10 @@ function is_ubuntu() {
   [[ "$(os_id)" == 'ubuntu' ]]
 }
 
+function is_ubuntu18() {
+  is_ubuntu && [[ "$(os_version)" == '18.04'* ]]
+}
+
 function is_ubuntu22() {
   is_ubuntu && [[ "$(os_version)" == '22.04'* ]]
 }
@@ -117,23 +121,27 @@ readonly ROLE
 readonly -A DRIVER_FOR_CUDA=( [10.1]="418.88"     [10.2]="440.64.00"
           [11.0]="450.248.02" [11.1]="455.45.01"  [11.2]="460.106.100"
           [11.5]="495.29.05"  [11.6]="510.108.03" [11.7]="515.105.01"
-          [11.8]="525.147.05" [12.1]="530.30.02"  [12.4]="550.90.07"
+          [11.8]="525.147.05" [12.1]="530.30.02"  [12.4]="550.54.14"
+          [12.5]="555.42.06"
 )
 
 readonly -A CUDNN_FOR_CUDA=(  [10.1]="7.6.4.38"   [10.2]="7.6.5.32"
           [11.0]="8.0.4.30"   [11.1]="8.0.5.39"   [11.2]="8.1.1.33"
           [11.5]="8.3.3.40"   [11.6]="8.4.1.50"   [11.7]="8.5.0.96"
           [11.8]="8.6.0.163"  [12.1]="8.9.0"      [12.4]="9.1.0.70"
+          [12.5]="9.2.1.18"
 )
 readonly -A NCCL_FOR_CUDA=(   [10.1]="2.4.8"      [10.2]="2.5.6"
           [11.0]="2.7.8"      [11.1]="2.8.3"      [11.2]="2.8.3"
           [11.5]="2.11.4"     [11.6]="2.11.4"     [11.7]="2.12.12"
           [11.8]="2.15.5"     [12.1]="2.17.1"     [12.4]="2.21.5"
+          [12.5]="2.22.3"
 )
 readonly -A CUDA_SUBVER=(     [10.1]="10.1.243"   [10.2]="10.2.89"
           [11.0]="11.0.3"     [11.1]="11.1.0"     [11.2]="11.2.2"
           [11.5]="11.5.2"     [11.6]="11.6.2"     [11.7]="11.7.1"
           [11.8]="11.8.0"     [12.1]="12.1.0"     [12.4]="12.4.1"
+          [12.5]="12.5.1"
 )
 
 RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
@@ -144,6 +152,13 @@ fi
 readonly DEFAULT_CUDA_VERSION
 CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
 readonly CUDA_VERSION
+
+function is_cuda12() {
+  [[ "${CUDA_VERSION%%.*}" == "12" ]]
+}
+function is_cuda11() {
+  [[ "${CUDA_VERSION%%.*}" == "11" ]]
+}
 readonly DEFAULT_DRIVER=${DRIVER_FOR_CUDA["${CUDA_VERSION}"]}
 readonly DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' ${DEFAULT_DRIVER})
 readonly DRIVER=${DRIVER_VERSION%%.*}
@@ -223,7 +238,7 @@ readonly NVIDIA_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64"
 readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/${nccl_shortname}/x86_64/nvidia-machine-learning-repo-${nccl_shortname}_1.0.0-1_amd64.deb"
 NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
 readonly NCCL_REPO_URL
-readonly NCCL_REPO_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/${nccl_shortname}/x86_64/7fa2af80.pub"
+readonly NCCL_REPO_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/${nccl_shortname}/x86_64/7fa2af80.pub" # 3bf863cc.pub
 
 readonly -A DEFAULT_NVIDIA_CUDA_URLS=(
   [10.1]="${NVIDIA_BASE_DL_URL}/cuda/10.1/Prod/local_installers/cuda_10.1.243_418.87.00_linux.run"
@@ -247,13 +262,22 @@ readonly NVIDIA_CUDA_URL
 readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_REPO_URL}/cuda-${shortname}.repo"
 
 # Parameters for NVIDIA-provided CUDNN library
-DEFAULT_CUDNN_VERSION=${CUDNN_FOR_CUDA["${CUDA_VERSION}"]}
+readonly DEFAULT_CUDNN_VERSION=${CUDNN_FOR_CUDA["${CUDA_VERSION}"]}
+CUDNN_VERSION=$(get_metadata_attribute 'cudnn-version' "${DEFAULT_CUDNN_VERSION}")
 if is_rocky \
-   && (compare_versions_lte "${DEFAULT_CUDNN_VERSION}" "8.0.5.39") ; then
-  DEFAULT_CUDNN_VERSION="8.0.5.39"
+   && (compare_versions_lte "${CUDNN_VERSION}" "8.0.5.39") ; then
+  CUDNN_VERSION="8.0.5.39"
+elif (is_ubuntu18 || is_debian10 || is_debian11) && [[ "${CUDNN_VERSION%%.*}" == "9" ]]; then
+  # CUDNN v9 is not distributed for ubuntu18, debian10, debian11 ; fall back to 8
+  if is_cuda12 ; then
+#    CUDNN_VERSION="8.9.3.28"
+    CUDNN_VERSION="8.8.0.121"
+  elif is_cuda11 ; then
+#    CUDNN_VERSION="8.9.7.29"
+    CUDNN_VERSION="8.8.0.121"
+  fi
 fi
-readonly DEFAULT_CUDNN_VERSION
-readonly CUDNN_VERSION=$(get_metadata_attribute 'cudnn-version' "${DEFAULT_CUDNN_VERSION}")
+readonly CUDNN_VERSION
 CUDNN_TARBALL="cudnn-${CUDA_VERSION}-linux-x64-v${CUDNN_VERSION}.tgz"
 CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN_VERSION%.*}/${CUDNN_TARBALL}"
 if ( compare_versions_lte "8.3.1.22" "${CUDNN_VERSION}" ); then
@@ -315,7 +339,7 @@ function install_nvidia_nccl() {
       "${NCCL_REPO_URL}" -o "${tmp_dir}/nvidia-ml-repo.deb"
     dpkg -i "${tmp_dir}/nvidia-ml-repo.deb"
 
-    execute_with_retries "apt-get update"
+    apt-get update
 
     if is_ubuntu18 ; then
       execute_with_retries \
@@ -356,13 +380,56 @@ function install_nvidia_cudnn() {
     if is_debian12; then
       apt-get -y install nvidia-cudnn 
     else
+      local CUDNN="${CUDNN_VERSION%.*}"
+      if is_ubuntu20 || is_ubuntu22 || is_debian12 ; then
+        local_deb_fn="cudnn-local-repo-${shortname}-${CUDNN}_1.0-1_amd64.deb"
+        local_deb_url="${NVIDIA_REPO_URL}/cudnn/${CUDNN}/local_installers/${local_deb_fn}"
+        curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
+          "${local_deb_url}" -o /tmp/local-installer.deb
+
+        dpkg -i /tmp/local-installer.deb
+      elif is_debian10 || is_debian11 || is_ubuntu18 ; then
+        if is_ubuntu ; then
+          cudnn_shortname="ubuntu2004"
+        elif is_debian ; then
+          cudnn_shortname="debian11"
+        fi
+        if is_cuda12 ; then
+          CUDNN_CUDA_VER=12.0
+        elif is_cuda11 ; then
+          CUDNN_CUDA_VER=11.8
+        else
+          CUDNN_CUDA_VER="${CUDA_VERSION}"
+        fi
+
+        cudnn_pkg_version="${CUDNN_VERSION}-1+cuda${CUDNN_CUDA_VER}"
+
+        # ${NVIDIA_REPO_URL}/redist/cudnn/v8.8.0/local_installers/11.8/cudnn-local-repo-debian11-8.8.0.121_1.0-1_amd64.deb
+        local_deb_fn="cudnn-local-repo-${cudnn_shortname}-${CUDNN_VERSION}_1.0-1_amd64.deb"
+        local_deb_url="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN}/local_installers/${CUDNN_CUDA_VER}/${local_deb_fn}"
+        curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
+            "${local_deb_url}" -o /tmp/local-installer.deb
+
+        dpkg -i /tmp/local-installer.deb
+      else
+        echo "unrecognized distribution $shortname"
+      fi
+      rm /tmp/local-installer.deb
+      cp /var/cudnn-local-repo-${cudnn_shortname}-${CUDNN_VERSION}/cudnn-local-*-keyring.gpg /usr/share/keyrings
+
+      apt-get update
+
       if [[ "${major_version}" == "8" ]]; then
-        apt-get -y install "libcudnn8" "libcudnn8-dev"
+        execute_with_retries \
+          apt-get -y install --no-install-recommends \
+            "libcudnn8=${cudnn_pkg_version}" \
+            "libcudnn8-dev=${cudnn_pkg_version}"
       elif [[ "${major_version}" == "9" ]]; then
-        apt-get -y install \
-	  "libcudnn9-cuda-${CUDA_VERSION%%.*}" \
-	  "libcudnn9-dev-cuda-${CUDA_VERSION%%.*}" \
-	  "libcudnn9-static-cuda-${CUDA_VERSION%%.*}"
+        execute_with_retries \
+          apt-get -y install --no-install-recommends \
+          "libcudnn9-cuda-${CUDA_VERSION%%.*}" \
+          "libcudnn9-dev-cuda-${CUDA_VERSION%%.*}" \
+          "libcudnn9-static-cuda-${CUDA_VERSION%%.*}"
       else
         echo "Unsupported cudnn version: '${major_version}'"
       fi
@@ -465,8 +532,6 @@ function clear_dkms_key {
       echo "No signing secret provided.  skipping" >&2
       return 0
   fi
-  echo "WARN -- PURGING SIGNING MATERIAL -- WARN" >&2
-  echo "future dkms runs will not use correct signing key" >&2
   rm -rf "${CA_TMPDIR}" /var/lib/dkms/mok.key /var/lib/shim-signed/mok/MOK.priv
 }
 
@@ -492,7 +557,7 @@ function add_repo_nvidia_container_toolkit() {
           | gpg --dearmor -o "${kr_path}"
 
       test -f "${sources_list_path}" ||
-	curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list \
+        curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list \
           | perl -pe "s#deb https://#deb [signed-by=${kr_path}] https://#g" \
           | tee "${sources_list_path}"
   fi
@@ -531,24 +596,13 @@ function install_nvidia_gpu_driver() {
       mok_der=/var/lib/dkms/mok.pub
     fi
 
-    # Install CUDA keyring and sources.list
-    # https://docs.nvidia.com/cuda/cuda-installation-guide-linux/#network-repo-installation-for-debian
-    if is_debian ; then
-      PKG_URL="${NVIDIA_REPO_URL}/cuda-keyring_1.1-1_all.deb"
-    elif is_ubuntu; then
-      PKG_URL="${NVIDIA_REPO_URL}/cuda-keyring_1.0-1_all.deb"
-    fi
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${PKG_URL}" -o /tmp/cuda-keyring.deb
-    dpkg -i "/tmp/cuda-keyring.deb"
-    apt-get update
-
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${DRIVER_URL}" -o driver.run
     bash "./driver.run" --no-kernel-modules --silent --install-libglvnd \
       > /dev/null 2>&1
     rm -f driver.run
-    git clone https://github.com/NVIDIA/open-gpu-kernel-modules.git --branch "${DRIVER_VERSION}" --single-branch
+    git clone https://github.com/NVIDIA/open-gpu-kernel-modules.git --branch "${DRIVER_VERSION}" --single-branch \
+      > /dev/null 2>&1
     pushd open-gpu-kernel-modules
     make -j$(nproc) modules \
       > /var/log/open-gpu-kernel-modules-build.log \
@@ -586,8 +640,7 @@ function install_nvidia_gpu_driver() {
       "${NVIDIA_REPO_URL}/cuda-${shortname}.pin" \
       -o /etc/apt/preferences.d/cuda-repository-pin-600
 
-    add-apt-repository "deb ${NVIDIA_REPO_URL} /"
-    execute_with_retries "apt-get update"
+    apt-get update
 
     if [[ -n "${CUDA_VERSION}" ]]; then
       local -r cuda_package=cuda-toolkit-${CUDA_VERSION//./-}
@@ -800,13 +853,12 @@ function main() {
     exit 1
   fi
 
-  if is_debian ; then
+  if is_debian10 || is_debian11 ; then
       remove_old_backports
   fi
 
   if is_debian || is_ubuntu ; then
     export DEBIAN_FRONTEND=noninteractive
-    execute_with_retries "apt-get update"
     execute_with_retries "apt-get install -y -q pciutils"
   elif is_rocky ; then
     execute_with_retries "dnf -y -q update --exclude=systemd*,kernel*"
@@ -835,7 +887,7 @@ function main() {
       fi
     fi
 
-    if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
+    if is_debian || is_ubuntu ; then
       execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
     fi
 
