@@ -40,6 +40,10 @@ function is_ubuntu18() {
   is_ubuntu && [[ "$(os_version)" == '18.04'* ]]
 }
 
+function is_ubuntu20() {
+  is_ubuntu && [[ "$(os_version)" == '20.04'* ]]
+}
+
 function is_ubuntu22() {
   is_ubuntu && [[ "$(os_version)" == '22.04'* ]]
 }
@@ -162,12 +166,6 @@ function is_cuda11() {
 readonly DEFAULT_DRIVER=${DRIVER_FOR_CUDA["${CUDA_VERSION}"]}
 readonly DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' ${DEFAULT_DRIVER})
 readonly DRIVER=${DRIVER_VERSION%%.*}
-# As of Rocky 8.7, kernel 4.18.0-425 is unable to build older nvidia kernel drivers
-ROCKY_BINARY_INSTALL="false"
-if is_rocky && [[ "${DRIVER}" < "510" ]]; then
-  ROCKY_BINARY_INSTALL="true"
-fi
-readonly ROCKY_BINARY_INSTALL
 
 # Fail early for configurations known to be unsupported
 function unsupported_error {
