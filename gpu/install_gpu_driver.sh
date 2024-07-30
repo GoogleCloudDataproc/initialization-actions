@@ -701,7 +701,9 @@ function install_gpu_agent() {
   curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
     "${GPU_AGENT_REPO_URL}/requirements.txt" -o "${install_dir}/requirements.txt"
   curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-    "${GPU_AGENT_REPO_URL}/report_gpu_metrics.py" -o "${install_dir}/report_gpu_metrics.py"
+    "${GPU_AGENT_REPO_URL}/report_gpu_metrics.py" \
+    | sed -e 's/-u --format=/--format=/' \
+    | dd status=none of="${install_dir}/report_gpu_metrics.py"
   pip install -r "${install_dir}/requirements.txt"
 
   # Generate GPU service.
