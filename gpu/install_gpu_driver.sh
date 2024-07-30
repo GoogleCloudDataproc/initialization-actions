@@ -330,14 +330,11 @@ function install_nvidia_nccl() {
   if is_rocky ; then
     execute_with_retries "dnf -y -q install libnccl-${nccl_version} libnccl-devel-${nccl_version} libnccl-static-${nccl_version}"
   elif is_ubuntu ; then
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 "${NCCL_REPO_KEY}" | apt-key add -
-
-    local tmp_dir
-    tmp_dir=$(mktemp -d -t gpu-init-action-nccl-XXXX)
 
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${NCCL_REPO_URL}" -o "${tmp_dir}/nvidia-ml-repo.deb"
-    dpkg -i "${tmp_dir}/nvidia-ml-repo.deb"
+      "${NVIDIA_REPO_URL}/cuda-keyring_1.0-1_all.deb" \
+      -o /tmp/cuda-keyring.deb
+    dpkg -i "/tmp/cuda-keyring.deb"
 
     apt-get update
 
@@ -383,7 +380,7 @@ function install_nvidia_cudnn() {
       local CUDNN="${CUDNN_VERSION%.*}"
       if is_ubuntu20 || is_ubuntu22 || is_debian12 ; then
         local_deb_fn="cudnn-local-repo-${shortname}-${CUDNN}_1.0-1_amd64.deb"
-        local_deb_url="${NVIDIA_REPO_URL}/cudnn/${CUDNN}/local_installers/${local_deb_fn}"
+        local_deb_url="${NVIDIA_BASE_DL_URL}/cudnn/${CUDNN}/local_installers/${local_deb_fn}"
         curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
           "${local_deb_url}" -o /tmp/local-installer.deb
 
@@ -415,7 +412,7 @@ function install_nvidia_cudnn() {
         echo "unrecognized distribution $shortname"
       fi
       rm /tmp/local-installer.deb
-      cp /var/cudnn-local-repo-${cudnn_shortname}-${CUDNN_VERSION}/cudnn-local-*-keyring.gpg /usr/share/keyrings
+      cp /var/cudnn-local-repo-*-${CUDNN}/cudnn-local-*-keyring.gpg /usr/share/keyrings
 
       apt-get update
 
