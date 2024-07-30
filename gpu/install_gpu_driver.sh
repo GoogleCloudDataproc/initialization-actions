@@ -676,7 +676,6 @@ function install_nvidia_gpu_driver() {
     clear_dkms_key
 
     depmod -a
-    modprobe -r nvidia || echo "no nvidia module loaded"
     modprobe nvidia
 
     execute_with_retries "dnf -y -q install cuda-toolkit-${CUDA_VERSION//./-}"
