@@ -672,14 +672,15 @@ function install_nvidia_gpu_driver() {
     execute_with_retries "dnf clean all"
 
     configure_dkms_certs
-    execute_with_retries "dnf -y -q module install nvidia-driver:${DRIVER}-dkms"
+    execute_with_retries "dnf -y -q module install nvidia-driver:${DRIVER}-open"
     clear_dkms_key
-
-    execute_with_retries "dnf -y -q install cuda-toolkit-${CUDA_VERSION//./-}"
 
     depmod -a
     modprobe -r nvidia || echo "no nvidia module loaded"
     modprobe nvidia
+
+    execute_with_retries "dnf -y -q install cuda-toolkit-${CUDA_VERSION//./-}"
+
   else
     echo "Unsupported OS: '${OS_NAME}'"
     exit 1
