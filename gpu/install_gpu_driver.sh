@@ -385,6 +385,13 @@ function install_nvidia_cudnn() {
           "${local_deb_url}" -o /tmp/local-installer.deb
 
         dpkg -i /tmp/local-installer.deb
+
+        rm -f /tmp/local-installer.deb
+
+        cp /var/cudnn-local-repo-*-${CUDNN}/cudnn-local-*-keyring.gpg /usr/share/keyrings
+
+        apt-get update
+
       elif is_debian10 || is_debian11 || is_ubuntu18 ; then
         if is_ubuntu ; then
           cudnn_shortname="ubuntu2004"
@@ -401,20 +408,22 @@ function install_nvidia_cudnn() {
 
         cudnn_pkg_version="${CUDNN_VERSION}-1+cuda${CUDNN_CUDA_VER}"
 
-        # ${NVIDIA_REPO_URL}/redist/cudnn/v8.8.0/local_installers/11.8/cudnn-local-repo-debian11-8.8.0.121_1.0-1_amd64.deb
         local_deb_fn="cudnn-local-repo-${cudnn_shortname}-${CUDNN_VERSION}_1.0-1_amd64.deb"
         local_deb_url="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN}/local_installers/${CUDNN_CUDA_VER}/${local_deb_fn}"
         curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
             "${local_deb_url}" -o /tmp/local-installer.deb
 
         dpkg -i /tmp/local-installer.deb
+
+        rm -f /tmp/local-installer.deb
+
+        cp /var/cudnn-local-repo-*-${CUDNN}/cudnn-local-*-keyring.gpg /usr/share/keyrings
+
+        apt-get update
+
       else
         echo "unrecognized distribution $shortname"
       fi
-      rm /tmp/local-installer.deb
-      cp /var/cudnn-local-repo-*-${CUDNN}/cudnn-local-*-keyring.gpg /usr/share/keyrings
-
-      apt-get update
 
       if [[ "${major_version}" == "8" ]]; then
         execute_with_retries \
