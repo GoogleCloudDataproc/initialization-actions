@@ -32,6 +32,14 @@ function is_rocky() {
   [[ "$(os_id)" == 'rocky' ]]
 }
 
+is_rocky8() {
+  is_rocky && [[ "$(os_version)" == '8'* ]]
+}
+
+is_rocky9() {
+  is_rocky && [[ "$(os_version)" == '9'* ]]
+}
+
 function is_ubuntu() {
   [[ "$(os_id)" == 'ubuntu' ]]
 }
