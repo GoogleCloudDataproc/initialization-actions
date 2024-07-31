@@ -137,7 +137,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_with_mig(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider, cuda_version):
-    self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
 
     metadata = "gpu-driver-provider={},cuda-version={}".format(driver_provider, cuda_version)
 
