@@ -804,7 +804,7 @@ function configure_gpu_script() {
   # need to update the getGpusResources.sh script to look for MIG devices since if multiple GPUs nvidia-smi still
   # lists those because we only disable the specific GIs via CGROUPs. Here we just create it based off of:
   # https://raw.githubusercontent.com/apache/spark/master/examples/src/main/scripts/getGpusResources.sh
-  echo '
+  cat > ${spark_gpu_script_dir}/getGpusResources.sh <<'EOF'
 #!/usr/bin/env bash
 
 #
@@ -823,14 +823,30 @@ function configure_gpu_script() {
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-NUM_MIG_DEVICES=$(nvidia-smi -L | grep MIG | wc -l)
-ADDRS=$(nvidia-smi --query-gpu=index --format=csv,noheader | sed -e '\'':a'\'' -e '\''N'\'' -e'\''$!ba'\'' -e '\''s/\n/","/g'\'')
-if [ $NUM_MIG_DEVICES -gt 0 ]; then
-  MIG_INDEX=$(( $NUM_MIG_DEVICES - 1 ))
-  ADDRS=$(seq -s '\''","'\'' 0 $MIG_INDEX)
+
+CACHE_FILE="/var/run/nvidia-gpu-index.txt"
+if [[ -f "${CACHE_FILE}" ]]; then
+  cat "${CACHE_FILE}"
+  exit 0
 fi
-echo {\"name\": \"gpu\", \"addresses\":[\"$ADDRS\"]}
-' > ${spark_gpu_script_dir}/getGpusResources.sh
+NV_SMI_L_CACHE_FILE="/var/run/nvidia-smi_-L.txt"
+if [[ -f "${NV_SMI_L_CACHE_FILE}" ]]; then
+  NVIDIA_SMI_L="$(cat "${NV_SMI_L_CACHE_FILE}")"
+else
+  NVIDIA_SMI_L="$(nvidia-smi -L | tee "${NV_SMI_L_CACHE_FILE})"
+fi
+
+NUM_MIG_DEVICES=$(echo "${NVIDIA_SMI_L}" | grep -e MIG -e H100 -e A100 | wc -l || echo '0')
+
+if [[ "${NUM_MIG_DEVICES}" -gt "0" ]] ; then
+  MIG_INDEX=$(( $NUM_MIG_DEVICES - 1 ))
+  ADDRS="$(perl -e 'print(join(q{,},map{qq{"$_"}}(0..$ARGV[0])),$/)' "${MIG_INDEX}")"
+else
+  ADDRS=$(nvidia-smi --query-gpu=index --format=csv,noheader | perl -e 'print(join(q{,},map{chomp; qq{"$_"}}<STDIN>))')
+fi
+
+echo {\"name\": \"gpu\", \"addresses\":[$ADDRS]} | tee "${CACHE_FILE}"
+EOF
 
   chmod a+rwx -R ${spark_gpu_script_dir}
 }
@@ -891,10 +907,15 @@ function main() {
   if (lspci | grep -q NVIDIA); then
     # if this is called without the MIG script then the drivers are not installed
     nv_smi="/usr/bin/nvidia-smi"
-    if (test -f "${nv_smi}" && "${nv_smi}" --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l); then
-      NUM_MIG_GPUS=$(${nv_smi} --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l)
-      if [[ $NUM_MIG_GPUS -eq 1 ]]; then
-        if ("${nv_smi}" --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
+    migquery_result="$(test -f "${nv_smi}" && "${nv_smi}" --query-gpu=mig.mode.current --format=csv,noheader||echo -n '')"
+    if [[ "${migquery_result}" == "[N/A]" ]] ; then
+      migquery_result=""
+    fi
+    NUM_MIG_GPUS="$(echo ${migquery_result} | uniq | wc -l)"
+
+    if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
+      if [[ "${NUM_MIG_GPUS}" -eq "1" ]]; then
+        if (echo "${migquery_result}" | grep Enabled); then
           IS_MIG_ENABLED=1
           NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
           MIG_MAJOR_CAPS=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
@@ -910,18 +931,39 @@ function main() {
     # if mig is enabled drivers would have already been installed
     if [[ $IS_MIG_ENABLED -eq 0 ]]; then
       install_nvidia_gpu_driver
+
       if [[ -n ${CUDNN_VERSION} ]]; then
         install_nvidia_nccl
         install_nvidia_cudnn
       fi
       #Install GPU metrics collection in Stackdriver if needed
-      if [[ ${INSTALL_GPU_AGENT} == true ]]; then
+      if [[ "${INSTALL_GPU_AGENT}" == "true" ]]; then
         install_gpu_agent
         echo 'GPU metrics agent successfully deployed.'
       else
         echo 'GPU metrics agent will not be installed.'
       fi
-      configure_gpu_exclusive_mode
+
+      NVIDIA_SMI_L="$(test -f "${nv_smi}" && nvidia-smi -L || echo -n '')"
+      MIG_GPU_LIST="$(echo "${NVIDIA_SMI_L}" | grep -e MIG -e H100 -e A100 || echo -n "")"
+      if test -n "${NVIDIA_SMI_L}"; then
+	# cache the result of the gpu query
+        ADDRS=$(nvidia-smi --query-gpu=index --format=csv,noheader | perl -e 'print(join(q{,},map{chomp; qq{"$_"}}<STDIN>))')
+        echo "{\"name\": \"gpu\", \"addresses\":[$ADDRS]}" | tee "/var/run/nvidia-gpu-index.txt"
+      fi
+      NUM_MIG_GPUS="$(test -n "${MIG_GPU_LIST}" && echo "${MIG_GPU_LIST}" | wc -l || echo "0")"
+      if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
+        # enable MIG on every GPU
+	for GPU_ID in $(echo ${MIG_GPU_LIST} | awk -F'[: ]' -e '{print $2}') ; do
+	  nvidia-smi -i ${GPU_ID} --multi-instance-gpu 1
+	done
+
+        NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
+        MIG_MAJOR_CAPS="$(grep nvidia-caps /proc/devices | cut -d ' ' -f 1)"
+        fetch_mig_scripts
+      else
+        configure_gpu_exclusive_mode
+      fi
     fi
 
     configure_yarn_nodemanager

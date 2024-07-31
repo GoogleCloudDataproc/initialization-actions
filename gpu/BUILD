@@ -8,7 +8,7 @@ py_test(
     srcs = ["test_gpu.py"],
     data = ["install_gpu_driver.sh", "mig.sh"],
     local = True,
-    shard_count = 36,
+    shard_count = 15,
     deps = [
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",
