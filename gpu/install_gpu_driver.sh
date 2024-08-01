@@ -153,8 +153,7 @@ if [[ "${RUNTIME}" != "SPARK" ]]; then
   DEFAULT_CUDA_VERSION='11.8'
 fi
 readonly DEFAULT_CUDA_VERSION
-CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
-readonly CUDA_VERSION
+readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
 
 function is_cuda12() {
   [[ "${CUDA_VERSION%%.*}" == "12" ]]
@@ -183,16 +182,9 @@ elif (is_ubuntu20 || is_ubuntu22 || is_debian12) && [[ "${CUDNN_VERSION%%.*}" ==
 
 elif (is_ubuntu18 || is_debian10 || is_debian11) && [[ "${CUDNN_VERSION%%.*}" == "9" ]]; then
   # cuDNN v9 is not distributed for ubuntu18, debian10, debian11 ; fall back to 8
-  if is_cuda12 ; then
-#    CUDNN_VERSION="8.9.3.28"
-    CUDNN_VERSION="8.8.0.121"
-  elif is_cuda11 ; then
-#    CUDNN_VERSION="8.9.7.29"
-    CUDNN_VERSION="8.8.0.121"
-  fi
+  CUDNN_VERSION="8.8.0.121"
 fi
 readonly CUDNN_VERSION
-major_version=
 
 function is_cudnn8() {
   [[ "${CUDNN_VERSION%%.*}" == "8" ]]
@@ -230,11 +222,9 @@ readonly DEFAULT_NCCL_VERSION
 readonly NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION})
 
 # Parameters for NVIDIA-provided Debian GPU driver
-DEFAULT_USERSPACE_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
-readonly DEFAULT_USERSPACE_URL
+readonly DEFAULT_USERSPACE_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
 
-USERSPACE_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_USERSPACE_URL}")
-readonly USERSPACE_URL
+readonly USERSPACE_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_USERSPACE_URL}")
 
 readonly NVIDIA_BASE_DL_URL='https://developer.download.nvidia.com/compute'
 
@@ -781,7 +771,7 @@ function install_nvidia_gpu_driver() {
 
     load_kernel_module
 
-    execute_with_retries "apt-get install -y -q --no-install-recommends cuda-driver-${DRIVER}"
+    execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${DRIVER}"
 
     install_cuda_toolkit
 
@@ -1063,7 +1053,7 @@ function main() {
 
       # for some use cases, the kernel module needs to be removed before first use of nvidia-smi
       for module in nvidia_uvm nvidia_drm nvidia_modeset nvidia ; do
-        rmmod ${module} || echo "unable to rmmod ${module}"
+        rmmod ${module} > /dev/null 2>&1 || echo "unable to rmmod ${module}"
       done
       NVIDIA_SMI_L="$(test -f "${nv_smi}" && nvidia-smi -L || echo -n '')"
       MIG_GPU_LIST="$(echo "${NVIDIA_SMI_L}" | grep -e MIG -e H100 -e A100 || echo -n "")"
