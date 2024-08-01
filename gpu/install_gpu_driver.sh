@@ -154,6 +154,7 @@ if [[ "${RUNTIME}" != "SPARK" ]]; then
 fi
 readonly DEFAULT_CUDA_VERSION
 readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
+readonly CUDA_FULL_VERSION="${CUDA_SUBVER["${CUDA_VERSION}"]}"
 
 function is_cuda12() {
   [[ "${CUDA_VERSION%%.*}" == "12" ]]
@@ -322,8 +323,9 @@ function execute_with_retries() {
 CUDA_KEYRING_PKG_INSTALLED="0"
 function install_cuda_keyring_pkg() {
   if [[ "${CUDA_KEYRING_PKG_INSTALLED}" == "1" ]]; then return ; fi
+  local kr_ver=1.1
   curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-    "${NVIDIA_REPO_URL}/cuda-keyring_1.0-1_all.deb" \
+    "${NVIDIA_REPO_URL}/cuda-keyring_${kr_ver}-1_all.deb" \
     -o /tmp/cuda-keyring.deb
   dpkg -i "/tmp/cuda-keyring.deb"
   rm -f "/tmp/cuda-keyring.deb"
@@ -339,7 +341,6 @@ CUDA_LOCAL_REPO_INSTALLED="0"
 function install_local_cuda_repo() {
   if [[ "${CUDA_LOCAL_REPO_INSTALLED}" == "1" ]]; then return ; fi
   CUDA_LOCAL_REPO_INSTALLED="1"
-  CUDA_FULL_VERSION="${CUDA_SUBVER["${CUDA_VERSION}"]}"
   pkgname="cuda-repo-${shortname}-${CUDA_VERSION//./-}-local"
   CUDA_LOCAL_REPO_PKG_NAME="${pkgname}"
   readonly LOCAL_INSTALLER_DEB="${pkgname}_${CUDA_FULL_VERSION}-${DRIVER_VERSION}-1_amd64.deb"
@@ -432,7 +433,7 @@ function install_nvidia_nccl() {
   elif is_ubuntu ; then
     install_cuda_keyring_pkg
 
-    apt-get update
+    apt-get update -qq
 
     if is_ubuntu18 ; then
       execute_with_retries \
@@ -451,6 +452,14 @@ function install_nvidia_nccl() {
     # nvhpc_2024_247_Linux_x86_64_cuda_multi/install
     return
   fi
+}
+
+function is_src_nvidia() {
+  [[ "${GPU_DRIVER_PROVIDER}" == "NVIDIA" ]]
+}
+
+function is_src_os() {
+  [[ "${GPU_DRIVER_PROVIDER}" == "OS" ]]
 }
 
 function install_nvidia_cudnn() {
@@ -472,14 +481,14 @@ function install_nvidia_cudnn() {
       echo "Unsupported cudnn version: '${major_version}'"
     fi
   elif is_debian || is_ubuntu; then
-    if is_debian12 && [[ "${GPU_DRIVER_PROVIDER}" == "OS" ]] ; then
+    if is_debian12 && is_src_os ; then
       apt-get -y install nvidia-cudnn 
     else
       local CUDNN="${CUDNN_VERSION%.*}"
       if is_cudnn8 ; then
         install_local_cudnn8_repo
 
-        apt-get update
+        apt-get update -qq
 
         execute_with_retries \
           apt-get -y install --no-install-recommends \
@@ -488,7 +497,7 @@ function install_nvidia_cudnn() {
       elif is_cudnn9 ; then
 	install_cuda_keyring_pkg
 
-        apt-get update
+        apt-get update -qq
 
         execute_with_retries \
           apt-get -y install --no-install-recommends \
@@ -498,7 +507,6 @@ function install_nvidia_cudnn() {
       else
         echo "Unsupported cudnn version: [${CUDNN_VERSION}]"
       fi
-
     fi
   elif is_ubuntu ; then
     local -a packages
@@ -601,10 +609,20 @@ function clear_dkms_key {
   rm -rf "${CA_TMPDIR}" /var/lib/dkms/mok.key /var/lib/shim-signed/mok/MOK.priv
 }
 
-function add_nonfree_components() {
-  if [[ "${GPU_DRIVER_PROVIDER}" == "NVIDIA" ]] ; then
-    return
+function add_contrib_component() {
+  if is_debian12 ; then
+      # Include in sources file components on which nvidia-kernel-open-dkms depends
+      local -r debian_sources="/etc/apt/sources.list.d/debian.sources"
+      local components="main contrib"
+
+      sed -i -e "s/Components: .*$/Components: ${components}/" "${debian_sources}"
+  elif is_debian ; then
+      sed -i -e 's/ main$/ main contrib/' /etc/apt/sources.list
   fi
+}
+
+function add_nonfree_components() {
+  if is_src_nvidia ; then return; fi
   if is_debian12 ; then
       # Include in sources file components on which nvidia-open-kernel-dkms depends
       local -r debian_sources="/etc/apt/sources.list.d/debian.sources"
@@ -680,17 +698,33 @@ function build_driver_from_github() {
   make modules_install \
     >> /var/log/open-gpu-kernel-modules-build.log \
     2>> /var/log/open-gpu-kernel-modules-build_error.log
-  depmod -a
   popd
 }
 
 function build_driver_from_packages() {
-  configure_dkms_certs
-  if is_ubuntu ; then
-    execute_with_retries "apt-get install -y -q --no-install-recommends nvidia-driver-${DRIVER}-server-open"
-  elif is_debian ; then
-    execute_with_retries "apt-get install -y -q --no-install-recommends nvidia-kernel-open-dkms=${DRIVER_VERSION}-1"
+  if is_ubuntu || is_debian ; then
+    local pkglist=("nvidia-driver-${DRIVER}-server-open")
+    if is_debian ; then
+      pkglist=(
+        "firmware-nvidia-gsp=${DRIVER_VERSION}-1"
+        "nvidia-legacy-check=${DRIVER_VERSION}-1"
+        "nvidia-smi=${DRIVER_VERSION}-1"
+        "nvidia-alternative=${DRIVER_VERSION}-1"
+        "libnvidia-ml1=${DRIVER_VERSION}-1"
+        "firmware-nvidia-gsp=${DRIVER_VERSION}-1"
+        "nvidia-kernel-open-dkms=${DRIVER_VERSION}-1"
+        "nvidia-kernel-support=${DRIVER_VERSION}-1"
+        "nvidia-modprobe=${DRIVER_VERSION}-1"
+      )
+    fi
+    add_contrib_component
+    apt-get update -qq
+    execute_with_retries "apt-get install -y -q --no-install-recommends dkms"
+    configure_dkms_certs
+    execute_with_retries "apt-get install -y -q --no-install-recommends ${pkglist[@]}"
+
   elif is_rocky ; then
+    configure_dkms_certs
     execute_with_retries "dnf -y -q module install nvidia-driver:${DRIVER}-open"
   fi
   clear_dkms_key
@@ -717,7 +751,9 @@ function install_cuda_runfile() {
 
 function install_cuda_toolkit() {
   local cuda_package=cuda-toolkit
-  if [[ -n "${CUDA_VERSION}" ]]; then
+  if is_debian12 ; then
+    cuda_package="${cuda_package}=${CUDA_FULL_VERSION}-1"
+  elif [[ -n "${CUDA_VERSION}" ]]; then
     cuda_package="${cuda_package}-${CUDA_VERSION//./-}"
   fi
   readonly cuda_package
@@ -728,8 +764,26 @@ function install_cuda_toolkit() {
   fi
 }
 
+function install_drivers_aliases() {
+  # Add a modprobe alias to prefer the open kernel modules
+  local conffile="/etc/modprobe.d/nvidia-aliases.conf"
+  echo -n "" > "${conffile}"
+  local prefix
+  if   is_src_os     ; then prefix="nvidia-current-open"
+  elif is_src_nvidia ; then prefix="nvidia-current" ; fi
+  local suffix
+  for suffix in uvm peermem modeset drm; do
+    echo "alias nvidia-${suffix} ${prefix}-${suffix}" >> "${conffile}"
+  done
+  echo "alias nvidia ${prefix}" >> "${conffile}"
+}
+
 function load_kernel_module() {
   modprobe -r nvidia || echo "unable to unload the nvidia module"
+  if is_debian12 ; then
+    install_drivers_aliases
+  fi
+  depmod -a
   modprobe nvidia
 }
 
@@ -738,7 +792,7 @@ function install_nvidia_gpu_driver() {
   if is_debian12 && [[ "${GPU_DRIVER_PROVIDER}" == "OS" ]] ; then
     add_nonfree_components
     add_repo_nvidia_container_toolkit
-    apt-get update
+    apt-get update -qq
     configure_dkms_certs
     apt-get -yq install \
           nvidia-container-toolkit \
@@ -763,15 +817,13 @@ function install_nvidia_gpu_driver() {
   elif is_debian || is_ubuntu ; then
     install_cuda_keyring_pkg
 
-    apt-get update
-
-    execute_with_retries "apt-get install -y -q --no-install-recommends dkms"
-
     build_driver_from_packages
 
     load_kernel_module
 
-    execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${DRIVER}"
+    if is_ubuntu; then
+      execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${DRIVER}=${DRIVER_VERSION}-1"
+    fi
 
     install_cuda_toolkit
 
