@@ -130,28 +130,19 @@ readonly ROLE
 
 # CUDA version and Driver version
 # https://docs.nvidia.com/deeplearning/frameworks/support-matrix/index.html
-readonly -A DRIVER_FOR_CUDA=( [10.1]="418.88"     [10.2]="440.64.00"
-          [11.0]="450.248.02" [11.1]="455.45.01"  [11.2]="460.106.100"
-          [11.5]="495.29.05"  [11.6]="510.108.03" [11.7]="515.105.01"
+readonly -A DRIVER_FOR_CUDA=(
           [11.8]="525.147.05" [12.1]="530.30.02"  [12.4]="550.54.14"
           [12.5]="555.42.06"
 )
-
-readonly -A CUDNN_FOR_CUDA=(  [10.1]="7.6.4.38"   [10.2]="7.6.5.32"
-          [11.0]="8.0.4.30"   [11.1]="8.0.5.39"   [11.2]="8.1.1.33"
-          [11.5]="8.3.3.40"   [11.6]="8.4.1.50"   [11.7]="8.5.0.96"
+readonly -A CUDNN_FOR_CUDA=(
           [11.8]="8.6.0.163"  [12.1]="8.9.0"      [12.4]="9.1.0.70"
           [12.5]="9.2.1.18"
 )
-readonly -A NCCL_FOR_CUDA=(   [10.1]="2.4.8"      [10.2]="2.5.6"
-          [11.0]="2.7.8"      [11.1]="2.8.3"      [11.2]="2.8.3"
-          [11.5]="2.11.4"     [11.6]="2.11.4"     [11.7]="2.12.12"
+readonly -A NCCL_FOR_CUDA=(
           [11.8]="2.15.5"     [12.1]="2.17.1"     [12.4]="2.21.5"
           [12.5]="2.22.3"
 )
-readonly -A CUDA_SUBVER=(     [10.1]="10.1.243"   [10.2]="10.2.89"
-          [11.0]="11.0.3"     [11.1]="11.1.0"     [11.2]="11.2.2"
-          [11.5]="11.5.2"     [11.6]="11.6.2"     [11.7]="11.7.1"
+readonly -A CUDA_SUBVER=(
           [11.8]="11.8.0"     [12.1]="12.1.0"     [12.4]="12.4.1"
           [12.5]="12.5.1"
 )
@@ -172,8 +163,40 @@ function is_cuda11() {
   [[ "${CUDA_VERSION%%.*}" == "11" ]]
 }
 readonly DEFAULT_DRIVER=${DRIVER_FOR_CUDA["${CUDA_VERSION}"]}
-readonly DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' ${DEFAULT_DRIVER})
+readonly DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' "${DEFAULT_DRIVER}")
 readonly DRIVER=${DRIVER_VERSION%%.*}
+
+# Parameters for NVIDIA-provided CUDNN library
+readonly DEFAULT_CUDNN_VERSION=${CUDNN_FOR_CUDA["${CUDA_VERSION}"]}
+CUDNN_VERSION=$(get_metadata_attribute 'cudnn-version' "${DEFAULT_CUDNN_VERSION}")
+if is_rocky \
+   && (compare_versions_lte "${CUDNN_VERSION}" "8.0.5.39") ; then
+  CUDNN_VERSION="8.0.5.39"
+elif (is_ubuntu20 || is_ubuntu22 || is_debian12) && [[ "${CUDNN_VERSION%%.*}" == "8" ]]; then
+  # cuDNN v8 is not distribution for ubuntu20+, debian12
+#  CUDNN_VERSION="9.2.1.18"
+  CUDNN_VERSION="9.1.0.70"
+
+elif (is_ubuntu18 || is_debian10 || is_debian11) && [[ "${CUDNN_VERSION%%.*}" == "9" ]]; then
+  # cuDNN v9 is not distributed for ubuntu18, debian10, debian11 ; fall back to 8
+  if is_cuda12 ; then
+#    CUDNN_VERSION="8.9.3.28"
+    CUDNN_VERSION="8.8.0.121"
+  elif is_cuda11 ; then
+#    CUDNN_VERSION="8.9.7.29"
+    CUDNN_VERSION="8.8.0.121"
+  fi
+fi
+readonly CUDNN_VERSION
+major_version=
+
+function is_cudnn8() {
+  [[ "${CUDNN_VERSION%%.*}" == "8" ]]
+}
+
+function is_cudnn9() {
+  [[ "${CUDNN_VERSION%%.*}" == "9" ]]
+}
 
 # Fail early for configurations known to be unsupported
 function unsupported_error {
@@ -203,14 +226,11 @@ readonly DEFAULT_NCCL_VERSION
 readonly NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION})
 
 # Parameters for NVIDIA-provided Debian GPU driver
-DEFAULT_DRIVER_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
-if [[ "$(curl -s -I ${DEFAULT_DRIVER_URL} | head -1 | awk '{print $2}')" != "200" ]]; then
-  DEFAULT_DRIVER_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${DRIVER}/NVIDIA-Linux-x86_64-${DRIVER}.run"
-fi
-readonly DEFAULT_DRIVER_URL
+DEFAULT_USERSPACE_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
+readonly DEFAULT_USERSPACE_URL
 
-DRIVER_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_DRIVER_URL}")
-readonly DRIVER_URL
+USERSPACE_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_USERSPACE_URL}")
+readonly USERSPACE_URL
 
 readonly NVIDIA_BASE_DL_URL='https://developer.download.nvidia.com/compute'
 
@@ -247,14 +267,6 @@ readonly NCCL_REPO_URL
 readonly NCCL_REPO_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/${nccl_shortname}/x86_64/7fa2af80.pub" # 3bf863cc.pub
 
 readonly -A DEFAULT_NVIDIA_CUDA_URLS=(
-  [10.1]="${NVIDIA_BASE_DL_URL}/cuda/10.1/Prod/local_installers/cuda_10.1.243_418.87.00_linux.run"
-  [10.2]="${NVIDIA_BASE_DL_URL}/cuda/10.2/Prod/local_installers/cuda_10.2.89_440.33.01_linux.run"
-  [11.0]="${NVIDIA_BASE_DL_URL}/cuda/11.0.3/local_installers/cuda_11.0.3_450.51.06_linux.run"
-  [11.1]="${NVIDIA_BASE_DL_URL}/cuda/11.1.0/local_installers/cuda_11.1.0_455.23.05_linux.run"
-  [11.2]="${NVIDIA_BASE_DL_URL}/cuda/11.2.2/local_installers/cuda_11.2.2_460.32.03_linux.run"
-  [11.5]="${NVIDIA_BASE_DL_URL}/cuda/11.5.2/local_installers/cuda_11.5.2_495.29.05_linux.run"
-  [11.6]="${NVIDIA_BASE_DL_URL}/cuda/11.6.2/local_installers/cuda_11.6.2_510.47.03_linux.run"
-  [11.7]="${NVIDIA_BASE_DL_URL}/cuda/11.7.1/local_installers/cuda_11.7.1_515.65.01_linux.run"
   [11.8]="${NVIDIA_BASE_DL_URL}/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run"
   [12.1]="${NVIDIA_BASE_DL_URL}/cuda/12.1.0/local_installers/cuda_12.1.0_530.30.02_linux.run"
   [12.4]="${NVIDIA_BASE_DL_URL}/cuda/12.4.0/local_installers/cuda_12.4.0_550.54.14_linux.run"
@@ -267,28 +279,6 @@ readonly NVIDIA_CUDA_URL
 # Parameter for NVIDIA-provided Rocky Linux GPU driver
 readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_REPO_URL}/cuda-${shortname}.repo"
 
-# Parameters for NVIDIA-provided CUDNN library
-readonly DEFAULT_CUDNN_VERSION=${CUDNN_FOR_CUDA["${CUDA_VERSION}"]}
-CUDNN_VERSION=$(get_metadata_attribute 'cudnn-version' "${DEFAULT_CUDNN_VERSION}")
-if is_rocky \
-   && (compare_versions_lte "${CUDNN_VERSION}" "8.0.5.39") ; then
-  CUDNN_VERSION="8.0.5.39"
-elif (is_ubuntu20 || is_ubuntu22) && [[ "${CUDNN_VERSION%%.*}" == "8" ]]; then
-  # cuDNN v8 is not distribution for ubuntu20+
-#  CUDNN_VERSION="9.2.1.18"
-  CUDNN_VERSION="9.1.0.70"
-
-elif (is_ubuntu18 || is_debian10 || is_debian11) && [[ "${CUDNN_VERSION%%.*}" == "9" ]]; then
-  # cuDNN v9 is not distributed for ubuntu18, debian10, debian11 ; fall back to 8
-  if is_cuda12 ; then
-#    CUDNN_VERSION="8.9.3.28"
-    CUDNN_VERSION="8.8.0.121"
-  elif is_cuda11 ; then
-#    CUDNN_VERSION="8.9.7.29"
-    CUDNN_VERSION="8.8.0.121"
-  fi
-fi
-readonly CUDNN_VERSION
 CUDNN_TARBALL="cudnn-${CUDA_VERSION}-linux-x64-v${CUDNN_VERSION}.tgz"
 CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN_VERSION%.*}/${CUDNN_TARBALL}"
 if ( compare_versions_lte "8.3.1.22" "${CUDNN_VERSION}" ); then
@@ -335,34 +325,138 @@ function execute_with_retries() {
   return 1
 }
 
+CUDA_KEYRING_PKG_INSTALLED="0"
+function install_cuda_keyring_pkg() {
+  if [[ "${CUDA_KEYRING_PKG_INSTALLED}" == "1" ]]; then return ; fi
+  curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    "${NVIDIA_REPO_URL}/cuda-keyring_1.0-1_all.deb" \
+    -o /tmp/cuda-keyring.deb
+  dpkg -i "/tmp/cuda-keyring.deb"
+  rm -f "/tmp/cuda-keyring.deb"
+  CUDA_KEYRING_PKG_INSTALLED="1"
+}
+
+function uninstall_cuda_keyring_pkg() {
+  apt-get purge -yq cuda-keyring
+  CUDA_KEYRING_PKG_INSTALLED="0"
+}
+
+CUDA_LOCAL_REPO_INSTALLED="0"
+function install_local_cuda_repo() {
+  if [[ "${CUDA_LOCAL_REPO_INSTALLED}" == "1" ]]; then return ; fi
+  CUDA_LOCAL_REPO_INSTALLED="1"
+  CUDA_FULL_VERSION="${CUDA_SUBVER["${CUDA_VERSION}"]}"
+  pkgname="cuda-repo-${shortname}-${CUDA_VERSION//./-}-local"
+  CUDA_LOCAL_REPO_PKG_NAME="${pkgname}"
+  readonly LOCAL_INSTALLER_DEB="${pkgname}_${CUDA_FULL_VERSION}-${DRIVER_VERSION}-1_amd64.deb"
+  readonly LOCAL_DEB_URL="${NVIDIA_BASE_DL_URL}/cuda/${CUDA_FULL_VERSION}/local_installers/${LOCAL_INSTALLER_DEB}"
+  readonly DIST_KEYRING_DIR="/var/${pkgname}"
+
+  curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
+    "${LOCAL_DEB_URL}" -o "/tmp/${LOCAL_INSTALLER_DEB}"
+
+  dpkg -i "/tmp/${LOCAL_INSTALLER_DEB}"
+  rm "/tmp/${LOCAL_INSTALLER_DEB}"
+  cp ${DIST_KEYRING_DIR}/cuda-*-keyring.gpg /usr/share/keyrings/
+
+  if is_ubuntu ; then
+    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+      "${NVIDIA_REPO_URL}/cuda-${shortname}.pin" \
+      -o /etc/apt/preferences.d/cuda-repository-pin-600
+  fi
+}
+function uninstall_local_cuda_repo(){
+  apt-get purge -yq "${CUDA_LOCAL_REPO_PKG_NAME}"
+  CUDA_LOCAL_REPO_INSTALLED="0"
+}
+
+CUDNN_LOCAL_REPO_INSTALLED="0"
+CUDNN_PKG_NAME=""
+function install_local_cudnn_repo() {
+  if [[ "${CUDNN_LOCAL_REPO_INSTALLED}" == "1" ]]; then return ; fi
+  pkgname="cudnn-local-repo-${shortname}-${CUDNN}"
+  CUDNN_PKG_NAME="${pkgname}"
+  local_deb_fn="${pkgname}_1.0-1_amd64.deb"
+  local_deb_url="${NVIDIA_BASE_DL_URL}/cudnn/${CUDNN}/local_installers/${local_deb_fn}"
+
+  # ${NVIDIA_BASE_DL_URL}/redist/cudnn/v8.6.0/local_installers/11.8/cudnn-linux-x86_64-8.6.0.163_cuda11-archive.tar.xz
+  curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
+    "${local_deb_url}" -o /tmp/local-installer.deb
+
+  dpkg -i /tmp/local-installer.deb
+
+  rm -f /tmp/local-installer.deb
+
+  cp /var/cudnn-local-repo-*-${CUDNN}*/cudnn-local-*-keyring.gpg /usr/share/keyrings
+
+  CUDNN_LOCAL_REPO_INSTALLED="1"
+}
+
+function uninstall_local_cudnn_repo() {
+  apt-get purge -yq "${CUDNN_PKG_NAME}"
+  CUDNN_LOCAL_REPO_INSTALLED="0"
+}
+
+CUDNN8_LOCAL_REPO_INSTALLED="0"
+CUDNN8_PKG_NAME=""
+function install_local_cudnn8_repo() {
+  if [[ "${CUDNN8_LOCAL_REPO_INSTALLED}" == "1" ]]; then return ; fi
+  if   is_ubuntu ; then cudnn8_shortname="ubuntu2004"
+  elif is_debian ; then cudnn8_shortname="debian11"
+  else return 0 ; fi
+  if   is_cuda12 ; then CUDNN8_CUDA_VER=12.0
+  elif is_cuda11 ; then CUDNN8_CUDA_VER=11.8
+  else CUDNN8_CUDA_VER="${CUDA_VERSION}" ; fi
+  cudnn_pkg_version="${CUDNN_VERSION}-1+cuda${CUDNN8_CUDA_VER}"
+
+# pkgname="cudnn-local-repo-${shortname}-${CUDA_VERSION//./-}"
+  pkgname="cudnn-local-repo-${cudnn8_shortname}-${CUDNN_VERSION}"
+  CUDNN8_PKG_NAME="${pkgname}"
+
+#  local_deb_fn="cudnn-local-repo-${cudnn8_shortname}-${CUDNN_VERSION}_1.0-1_amd64.deb"
+  local_deb_fn="${pkgname}_1.0-1_amd64.deb"
+  local_deb_url="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN}/local_installers/${CUDNN8_CUDA_VER}/${local_deb_fn}"
+  curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
+      "${local_deb_url}" -o "${local_deb_fn}"
+
+  dpkg -i "${local_deb_fn}"
+
+  rm -f "${local_deb_fn}"
+
+  cp /var/cudnn-local-repo-*-${CUDNN}*/cudnn-local-*-keyring.gpg /usr/share/keyrings
+  CUDNN8_LOCAL_REPO_INSTALLED="1"
+}
+
+function uninstall_local_cudnn8_repo() {
+  apt-get purge -yq "${CUDNN8_PKG_NAME}"
+  CUDNN8_LOCAL_REPO_INSTALLED="0"
+}
+
 function install_nvidia_nccl() {
   local -r nccl_version="${NCCL_VERSION}-1+cuda${CUDA_VERSION}"
 
   if is_rocky ; then
     execute_with_retries "dnf -y -q install libnccl-${nccl_version} libnccl-devel-${nccl_version} libnccl-static-${nccl_version}"
   elif is_ubuntu ; then
-
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${NVIDIA_REPO_URL}/cuda-keyring_1.0-1_all.deb" \
-      -o /tmp/cuda-keyring.deb
-    dpkg -i "/tmp/cuda-keyring.deb"
+    install_cuda_keyring_pkg
 
     apt-get update
 
     if is_ubuntu18 ; then
       execute_with_retries \
         "apt-get install -y " \
-          "--allow-unauthenticated libnccl2 libnccl-dev"
+          "libnccl2 libnccl-dev"
     else
       execute_with_retries \
         "apt-get install -y " \
-          "--allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
+          "libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
     fi
-  elif is_debian ; then
-    echo "nccl not packaged for debian"
   else
     echo "Unsupported OS: '${OS_NAME}'"
-    exit 1
+    # wget https://developer.download.nvidia.com/hpc-sdk/24.7/nvhpc_2024_247_Linux_x86_64_cuda_multi.tar.gz
+    # tar xpzf nvhpc_2024_247_Linux_x86_64_cuda_multi.tar.gz
+    # nvhpc_2024_247_Linux_x86_64_cuda_multi/install
+    return
   fi
 }
 
@@ -373,11 +467,11 @@ function install_nvidia_cudnn() {
   cudnn_pkg_version="${CUDNN_VERSION}-1+cuda${CUDA_VERSION}"
 
   if is_rocky ; then
-    if [[ "${major_version}" == "8" ]]; then
+    if is_cudnn8 ; then
       execute_with_retries "dnf -y -q install" \
         "libcudnn${major_version}" \
         "libcudnn${major_version}-devel"
-    elif [[ "${major_version}" == "9" ]]; then
+    elif is_cudnn9 ; then
       execute_with_retries "dnf -y -q install" \
         "libcudnn9-static-cuda-${CUDA_VERSION%%.*}" \
         "libcudnn9-devel-cuda-${CUDA_VERSION%%.*}"
@@ -385,73 +479,35 @@ function install_nvidia_cudnn() {
       echo "Unsupported cudnn version: '${major_version}'"
     fi
   elif is_debian || is_ubuntu; then
-    if is_debian12; then
+    if is_debian12 && [[ "${GPU_DRIVER_PROVIDER}" == "OS" ]] ; then
       apt-get -y install nvidia-cudnn 
     else
       local CUDNN="${CUDNN_VERSION%.*}"
-      if is_ubuntu20 || is_ubuntu22 || is_debian12 ; then
-        local_deb_fn="cudnn-local-repo-${shortname}-${CUDNN}_1.0-1_amd64.deb"
-        local_deb_url="${NVIDIA_BASE_DL_URL}/cudnn/${CUDNN}/local_installers/${local_deb_fn}"
-        curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
-          "${local_deb_url}" -o /tmp/local-installer.deb
-
-        dpkg -i /tmp/local-installer.deb
-
-        rm -f /tmp/local-installer.deb
-
-        cp /var/cudnn-local-repo-*-${CUDNN}*/cudnn-local-*-keyring.gpg /usr/share/keyrings
+      if is_cudnn8 ; then
+        install_local_cudnn8_repo
 
         apt-get update
 
-      elif is_debian10 || is_debian11 || is_ubuntu18 ; then
-        if is_ubuntu ; then
-          cudnn_shortname="ubuntu2004"
-        elif is_debian ; then
-          cudnn_shortname="debian11"
-        fi
-        if is_cuda12 ; then
-          CUDNN_CUDA_VER=12.0
-        elif is_cuda11 ; then
-          CUDNN_CUDA_VER=11.8
-        else
-          CUDNN_CUDA_VER="${CUDA_VERSION}"
-        fi
-
-        cudnn_pkg_version="${CUDNN_VERSION}-1+cuda${CUDNN_CUDA_VER}"
-
-        local_deb_fn="cudnn-local-repo-${cudnn_shortname}-${CUDNN_VERSION}_1.0-1_amd64.deb"
-        local_deb_url="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN}/local_installers/${CUDNN_CUDA_VER}/${local_deb_fn}"
-        curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
-            "${local_deb_url}" -o /tmp/local-installer.deb
-
-        dpkg -i /tmp/local-installer.deb
-
-        rm -f /tmp/local-installer.deb
-
-        cp /var/cudnn-local-repo-*-${CUDNN}*/cudnn-local-*-keyring.gpg /usr/share/keyrings
-
-        apt-get update
-
-      else
-        echo "unrecognized distribution $shortname"
-      fi
-
-      if [[ "${major_version}" == "8" ]]; then
         execute_with_retries \
           apt-get -y install --no-install-recommends \
             "libcudnn8=${cudnn_pkg_version}" \
             "libcudnn8-dev=${cudnn_pkg_version}"
-      elif [[ "${major_version}" == "9" ]]; then
+      elif is_cudnn9 ; then
+	install_local_cudnn_repo
+
+        apt-get update
+
         execute_with_retries \
           apt-get -y install --no-install-recommends \
           "libcudnn9-cuda-${CUDA_VERSION%%.*}" \
           "libcudnn9-dev-cuda-${CUDA_VERSION%%.*}" \
           "libcudnn9-static-cuda-${CUDA_VERSION%%.*}"
       else
-        echo "Unsupported cudnn version: '${major_version}'"
+        echo "Unsupported cudnn version: [${CUDNN_VERSION}]"
       fi
+
     fi
-  elif [[ ${OS_NAME} == ubuntu ]]; then
+  elif is_ubuntu ; then
     local -a packages
     packages=(
       "libcudnn${major_version}=${cudnn_pkg_version}"
@@ -553,6 +609,9 @@ function clear_dkms_key {
 }
 
 function add_nonfree_components() {
+  if [[ "${GPU_DRIVER_PROVIDER}" == "NVIDIA" ]] ; then
+    return
+  fi
   if is_debian12 ; then
       # Include in sources file components on which nvidia-open-kernel-dkms depends
       local -r debian_sources="/etc/apt/sources.list.d/debian.sources"
@@ -580,14 +639,97 @@ function add_repo_nvidia_container_toolkit() {
   fi
 }
 
-
-# Install NVIDIA GPU driver provided by NVIDIA
-function install_nvidia_gpu_driver() {
+function build_driver_from_github() {
+  if is_ubuntu ; then
+    mok_key=/var/lib/shim-signed/mok/MOK.priv
+    mok_der=/var/lib/shim-signed/mok/MOK.der
+  else
+    mok_key=/var/lib/dkms/mok.key
+    mok_der=/var/lib/dkms/mok.pub
+  fi
   workdir=/opt/install-nvidia-driver
   mkdir -p "${workdir}"
   pushd "${workdir}"
+  test -d /opt/install-nvidia-driver/open-gpu-kernel-modules ||
+    git clone https://github.com/NVIDIA/open-gpu-kernel-modules.git \
+      --branch "${DRIVER_VERSION}" \
+      --single-branch \
+      > /dev/null
+  cd open-gpu-kernel-modules
+  make -j$(nproc) modules \
+    > /var/log/open-gpu-kernel-modules-build.log \
+    2> /var/log/open-gpu-kernel-modules-build_error.log
 
-  if is_debian12 ; then
+  if [[ -n "${PSN}" ]]; then
+    configure_dkms_certs
+    for module in $(find kernel-open -name '*.ko'); do
+      /lib/modules/$(uname -r)/build/scripts/sign-file sha256 \
+      "${mok_key}" \
+      "${mok_der}" \
+      "${module}"
+    done
+    clear_dkms_key
+  fi
+
+  make modules_install \
+    >> /var/log/open-gpu-kernel-modules-build.log \
+    2>> /var/log/open-gpu-kernel-modules-build_error.log
+  depmod -a
+  popd
+}
+
+function build_driver_from_packages() {
+  configure_dkms_certs
+  if is_ubuntu ; then
+    execute_with_retries "apt-get install -y -q --no-install-recommends nvidia-driver-${DRIVER}-open"
+  elif is_debian ; then
+    execute_with_retries "apt-get install -y -q --no-install-recommends nvidia-kernel-open-dkms=${DRIVER_VERSION}-1"
+  elif is_rocky ; then
+    execute_with_retries "dnf -y -q module install nvidia-driver:${DRIVER}-open"
+  fi
+  clear_dkms_key
+}
+
+function install_nvidia_userspace_runfile() {
+  if test -d /run/nvidia-userspace ; then return ; fi
+  curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    "${USERSPACE_URL}" -o userspace.run
+  bash "./userspace.run" --no-kernel-modules --silent --install-libglvnd \
+    > /dev/null 2>&1
+  rm -f userspace.run
+  mkdir -p /run/nvidia-userspace
+}
+
+function install_cuda_runfile() {
+  if test -d /run/nvidia-cuda ; then return ; fi
+  curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    "${NVIDIA_CUDA_URL}" -o cuda.run
+  bash "./cuda.run" --silent --toolkit --no-opengl-libs
+  rm -f cuda.run
+  mkdir -p /run/nvidia-cuda
+}
+
+function install_cuda_toolkit() {
+  local cuda_package=cuda-toolkit
+  if [[ -n "${CUDA_VERSION}" ]]; then
+    cuda_package="${cuda_package}-${CUDA_VERSION//./-}"
+  fi
+  readonly cuda_package
+  if is_ubuntu || is_debian ; then
+    execute_with_retries "apt-get install -y -q --no-install-recommends ${cuda_package}"
+  elif is_rocky ; then
+    execute_with_retries "dnf -y -q install ${cuda_package}"
+  fi
+}
+
+function load_kernel_module() {
+  modprobe -r nvidia || echo "no nvidia module loaded"
+  modprobe nvidia
+}
+
+# Install NVIDIA GPU driver provided by NVIDIA
+function install_nvidia_gpu_driver() {
+  if is_debian12 && [[ "${GPU_DRIVER_PROVIDER}" == "OS" ]] ; then
     add_nonfree_components
     add_repo_nvidia_container_toolkit
     apt-get update
@@ -601,74 +743,37 @@ function install_nvidia_gpu_driver() {
           libglvnd0 \
           libcuda1
     clear_dkms_key
-    modprobe -r nvidia || echo "no nvidia module loaded"
-    modprobe nvidia
+    load_kernel_module
+  elif is_ubuntu18 || is_debian11 || is_debian10 ; then
+
+    install_nvidia_userspace_runfile
+
+    build_driver_from_github
+
+    load_kernel_module
+
+    install_cuda_runfile
 
   elif is_debian || is_ubuntu ; then
-    if is_ubuntu ; then
-      mok_key=/var/lib/shim-signed/mok/MOK.priv
-      mok_der=/var/lib/shim-signed/mok/MOK.der
-    else
-      mok_key=/var/lib/dkms/mok.key
-      mok_der=/var/lib/dkms/mok.pub
-    fi
+    install_cuda_keyring_pkg
 
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${DRIVER_URL}" -o driver.run
-    bash "./driver.run" --no-kernel-modules --silent --install-libglvnd \
-      > /dev/null 2>&1
-    rm -f driver.run
-    git clone https://github.com/NVIDIA/open-gpu-kernel-modules.git --branch "${DRIVER_VERSION}" --single-branch \
-      > /dev/null 2>&1
-    pushd open-gpu-kernel-modules
-    make -j$(nproc) modules \
-      > /var/log/open-gpu-kernel-modules-build.log \
-      2> /var/log/open-gpu-kernel-modules-build_error.log
-
-    if [[ -n "${PSN}" ]]; then
-      configure_dkms_certs
-      for module in $(find kernel-open -name '*.ko'); do
-        /lib/modules/$(uname -r)/build/scripts/sign-file sha256 \
-        "${mok_key}" \
-        "${mok_der}" \
-        "${module}"
-      done
-      clear_dkms_key
-    fi
-    make modules_install \
-      >> /var/log/open-gpu-kernel-modules-build.log \
-      2>> /var/log/open-gpu-kernel-modules-build_error.log
-    depmod -a
-    modprobe -r nvidia || echo "no nvidia module loaded"
-    modprobe nvidia
-    popd
-
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${NVIDIA_CUDA_URL}" -o cuda.run
-    bash "./cuda.run" --silent --toolkit --no-opengl-libs
-    rm -f cuda.run
-  elif [[ ${OS_NAME} == ubuntu ]]; then # this condition will be met in the previous check ; this code is now skipped
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${NVIDIA_REPO_URL}/cuda-keyring_1.0-1_all.deb" \
-      -o /tmp/cuda-keyring.deb
-    dpkg -i "/tmp/cuda-keyring.deb"
-
-    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${NVIDIA_REPO_URL}/cuda-${shortname}.pin" \
-      -o /etc/apt/preferences.d/cuda-repository-pin-600
+    install_local_cuda_repo
 
     apt-get update
 
-    if [[ -n "${CUDA_VERSION}" ]]; then
-      local -r cuda_package=cuda-toolkit-${CUDA_VERSION//./-}
-    else
-      local -r cuda_package=cuda-toolkit
-    fi
-    # Without --no-install-recommends this takes a very long time.
-    execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${DRIVER}"
-    execute_with_retries "apt-get install -y -q --no-install-recommends ${cuda_package}"
-  elif [[ ${OS_NAME} == rocky ]]; then
+    execute_with_retries "apt-get install -y -q --no-install-recommends dkms"
 
+    build_driver_from_packages
+
+    execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${DRIVER}"
+
+    load_kernel_module
+
+    install_cuda_toolkit
+
+    uninstall_local_cuda_repo
+
+  elif is_rocky ; then
     # Ensure the Correct Kernel Development Packages are Installed
     execute_with_retries "dnf -y -q update --exclude=systemd*,kernel*"
     execute_with_retries "dnf -y -q install pciutils kernel-devel gcc"
@@ -676,11 +781,11 @@ function install_nvidia_gpu_driver() {
     execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPO_URL}"
     execute_with_retries "dnf clean all"
 
-    configure_dkms_certs
-    execute_with_retries "dnf -y -q module install nvidia-driver:${DRIVER}-open"
-    clear_dkms_key
+    build_driver_from_packages
 
-    execute_with_retries "dnf -y -q install cuda-toolkit-${CUDA_VERSION//./-}"
+    load_kernel_module
+
+    install_cuda_toolkit
 
   else
     echo "Unsupported OS: '${OS_NAME}'"
@@ -688,7 +793,6 @@ function install_nvidia_gpu_driver() {
   fi
   ldconfig
   echo "NVIDIA GPU driver provided by NVIDIA was installed successfully"
-  popd
 }
 
 # Collects 'gpu_utilization' and 'gpu_memory_utilization' metrics
