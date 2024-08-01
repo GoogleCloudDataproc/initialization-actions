@@ -739,7 +739,7 @@ function install_cuda_toolkit() {
 }
 
 function load_kernel_module() {
-  modprobe -r nvidia || echo "no nvidia module loaded"
+  modprobe -r nvidia || echo "unable to unload the nvidia module"
   modprobe nvidia
 }
 
@@ -1062,8 +1062,9 @@ function main() {
       fi
 
       # for some use cases, the kernel module needs to be removed before first use of nvidia-smi
-      for module in nvidia_uvm nvidia_drm nvidia_modeset nvidia ; do rmmod ${module} ; done
-
+      for module in nvidia_uvm nvidia_drm nvidia_modeset nvidia ; do
+        rmmod ${module} || echo "unable to rmmod ${module}"
+      done
       NVIDIA_SMI_L="$(test -f "${nv_smi}" && nvidia-smi -L || echo -n '')"
       MIG_GPU_LIST="$(echo "${NVIDIA_SMI_L}" | grep -e MIG -e H100 -e A100 || echo -n "")"
       if test -n "${NVIDIA_SMI_L}"; then
