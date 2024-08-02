@@ -105,17 +105,11 @@ readonly DEFAULT_CUDA_VERSION
 readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
 readonly CUDA_FULL_VERSION="${CUDA_SUBVER["${CUDA_VERSION}"]}"
 
-function is_cuda12() {
-  [[ "${CUDA_VERSION%%.*}" == "12" ]]
-}
-function is_cuda11() {
-  [[ "${CUDA_VERSION%%.*}" == "11" ]]
-}
+function is_cuda12() { [[ "${CUDA_VERSION%%.*}" == "12" ]] ; }
+function is_cuda11() { [[ "${CUDA_VERSION%%.*}" == "11" ]] ; }
 readonly DEFAULT_DRIVER=${DRIVER_FOR_CUDA["${CUDA_VERSION}"]}
 DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' "${DEFAULT_DRIVER}")
-if is_ubuntu20 && [[ "${CUDA_VERSION}" == "11.8" ]] ; then
-  DRIVER_VERSION="535.183.06"
-fi
+if is_ubuntu20 && is_cuda11 ; then DRIVER_VERSION="535.183.06" ; fi
 readonly DRIVER_VERSION
 readonly DRIVER=${DRIVER_VERSION%%.*}
 
@@ -593,13 +587,15 @@ function build_driver_from_github() {
   mkdir -p "${workdir}"
   pushd "${workdir}"
   test -d /opt/install-nvidia-driver/open-gpu-kernel-modules ||
-    git clone https://github.com/NVIDIA/open-gpu-kernel-modules.git \
+    git -c advice.detachedHead=false \
+      clone https://github.com/NVIDIA/open-gpu-kernel-modules.git \
       --branch "${DRIVER_VERSION}" \
       --single-branch \
       > /dev/null
   cd open-gpu-kernel-modules
+
   make -j$(nproc) modules \
-    > /var/log/open-gpu-kernel-modules-build.log \
+    >  /var/log/open-gpu-kernel-modules-build.log \
     2> /var/log/open-gpu-kernel-modules-build_error.log
 
   if [[ -n "${PSN}" ]]; then
@@ -676,6 +672,7 @@ function install_cuda_toolkit() {
   fi
   readonly cuda_package
   if is_ubuntu || is_debian ; then
+#    if is_ubuntu ; then execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${DRIVER}=${DRIVER_VERSION}-1" ; fi
     execute_with_retries "apt-get install -y -q --no-install-recommends ${cuda_package}"
   elif is_rocky ; then
     execute_with_retries "dnf -y -q install ${cuda_package}"
@@ -722,7 +719,7 @@ function install_nvidia_gpu_driver() {
           libcuda1
     clear_dkms_key
     load_kernel_module
-  elif is_ubuntu18 || is_debian11 || is_debian10 || is_cuda11 ; then
+  elif is_ubuntu18 || is_debian11 || is_debian10 || (is_debian && is_cuda11) ; then
 
     install_nvidia_userspace_runfile
 
@@ -731,7 +728,6 @@ function install_nvidia_gpu_driver() {
     load_kernel_module
 
     install_cuda_runfile
-
   elif is_debian || is_ubuntu ; then
     install_cuda_keyring_pkg
 
@@ -739,16 +735,8 @@ function install_nvidia_gpu_driver() {
 
     load_kernel_module
 
-    if is_ubuntu; then
-      execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${DRIVER}=${DRIVER_VERSION}-1"
-    fi
     install_cuda_toolkit
-
   elif is_rocky ; then
-    # Ensure the Correct Kernel Development Packages are Installed
-    execute_with_retries "dnf -y -q update --exclude=systemd*,kernel*"
-    execute_with_retries "dnf -y -q install pciutils kernel-devel gcc"
-
     add_repo_cuda
 
     execute_with_retries "dnf clean all"
@@ -968,6 +956,7 @@ function main() {
   if is_debian || is_ubuntu ; then
     export DEBIAN_FRONTEND=noninteractive
     execute_with_retries "apt-get install -y -q pciutils"
+    execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
   elif is_rocky ; then
     execute_with_retries "dnf -y -q update --exclude=systemd*,kernel*"
     execute_with_retries "dnf -y -q install pciutils"
@@ -1000,9 +989,6 @@ function main() {
       fi
     fi
 
-    if is_debian || is_ubuntu ; then
-      execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
-    fi
 
     # if mig is enabled drivers would have already been installed
     if [[ $IS_MIG_ENABLED -eq 0 ]]; then
