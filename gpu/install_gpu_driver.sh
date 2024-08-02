@@ -109,7 +109,7 @@ function is_cuda12() { [[ "${CUDA_VERSION%%.*}" == "12" ]] ; }
 function is_cuda11() { [[ "${CUDA_VERSION%%.*}" == "11" ]] ; }
 readonly DEFAULT_DRIVER=${DRIVER_FOR_CUDA["${CUDA_VERSION}"]}
 DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' "${DEFAULT_DRIVER}")
-if is_ubuntu20 && is_cuda11 ; then DRIVER_VERSION="535.183.06" ; fi
+if (is_ubuntu20 || is_ubuntu22) && is_cuda11 ; then DRIVER_VERSION="535.183.06" ; fi
 readonly DRIVER_VERSION
 readonly DRIVER=${DRIVER_VERSION%%.*}
 
@@ -572,6 +572,7 @@ echo "deb [signed-by=${kr_path}] https://developer.download.nvidia.com/compute/c
       -o "${kr_path}"
   elif is_rocky ; then
     execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPO_URL}"
+    execute_with_retries "dnf clean all"
   fi
 }
 
@@ -738,8 +739,6 @@ function install_nvidia_gpu_driver() {
     install_cuda_toolkit
   elif is_rocky ; then
     add_repo_cuda
-
-    execute_with_retries "dnf clean all"
 
     build_driver_from_packages
 
@@ -959,9 +958,7 @@ function main() {
     execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
   elif is_rocky ; then
     execute_with_retries "dnf -y -q update --exclude=systemd*,kernel*"
-    execute_with_retries "dnf -y -q install pciutils"
-    execute_with_retries "dnf -y -q install kernel-devel"
-    execute_with_retries "dnf -y -q install gcc"
+    execute_with_retries "dnf -y -q install pciutils kernel-devel gcc"
   fi
 
   # This configuration should be run on all nodes
@@ -988,7 +985,6 @@ function main() {
         fi
       fi
     fi
-
 
     # if mig is enabled drivers would have already been installed
     if [[ $IS_MIG_ENABLED -eq 0 ]]; then
