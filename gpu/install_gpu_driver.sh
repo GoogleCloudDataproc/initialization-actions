@@ -16,86 +16,35 @@
 
 set -euxo pipefail
 
-function os_id() {
-  grep '^ID=' /etc/os-release | cut -d= -f2 | xargs
-}
-
-function os_version() {
-  grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs
-}
-
-function os_codename() {
-  grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs
-}
-
-function is_rocky() {
-  [[ "$(os_id)" == 'rocky' ]]
-}
-
-is_rocky8() {
-  is_rocky && [[ "$(os_version)" == '8'* ]]
-}
-
-is_rocky9() {
-  is_rocky && [[ "$(os_version)" == '9'* ]]
-}
-
-function is_ubuntu() {
-  [[ "$(os_id)" == 'ubuntu' ]]
-}
-
-function is_ubuntu18() {
-  is_ubuntu && [[ "$(os_version)" == '18.04'* ]]
-}
-
-function is_ubuntu20() {
-  is_ubuntu && [[ "$(os_version)" == '20.04'* ]]
-}
-
-function is_ubuntu22() {
-  is_ubuntu && [[ "$(os_version)" == '22.04'* ]]
-}
-
-function is_debian() {
-  [[ "$(os_id)" == 'debian' ]]
-}
-
-function is_debian10() {
-  is_debian && [[ "$(os_version)" == '10'* ]]
-}
-
-function is_debian11() {
-  is_debian && [[ "$(os_version)" == '11'* ]]
-}
-
-function is_debian12() {
-  is_debian && [[ "$(os_version)" == '12'* ]]
-}
-
-function os_vercat() {
-  if is_ubuntu ; then
-      os_version | sed -e 's/[^0-9]//g'
-  elif is_rocky ; then
-      os_version | sed -e 's/[^0-9].*$//g'
-  else
-      os_version
-  fi
-}
-
+function os_id()       { grep '^ID=' /etc/os-release | cut -d= -f2 | xargs ; }
+function os_version()  { grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs ; }
+function os_codename() { grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs ; }
+function is_rocky()    { [[ "$(os_id)" == 'rocky' ]] ; }
+function is_rocky8()   { is_rocky && [[ "$(os_version)" == '8'* ]] ; }
+function is_rocky9()   { is_rocky && [[ "$(os_version)" == '9'* ]] ; }
+function is_ubuntu()   { [[ "$(os_id)" == 'ubuntu' ]] ; }
+function is_ubuntu18() { is_ubuntu && [[ "$(os_version)" == '18.04'* ]] ; }
+function is_ubuntu20() { is_ubuntu && [[ "$(os_version)" == '20.04'* ]] ; }
+function is_ubuntu22() { is_ubuntu && [[ "$(os_version)" == '22.04'* ]] ; }
+function is_debian()   { [[ "$(os_id)" == 'debian' ]] ; }
+function is_debian10() { is_debian && [[ "$(os_version)" == '10'* ]] ; }
+function is_debian11() { is_debian && [[ "$(os_version)" == '11'* ]] ; }
+function is_debian12() { is_debian && [[ "$(os_version)" == '12'* ]] ; }
+function os_vercat() { if   is_ubuntu ; then os_version | sed -e 's/[^0-9]//g'
+                       elif is_rocky  ; then os_version | sed -e 's/[^0-9].*$//g'
+                                        else os_version ; fi ; }
 
 function remove_old_backports {
+  if is_debian12 ; then return ; fi
   # This script uses 'apt-get update' and is therefore potentially dependent on
   # backports repositories which have been archived.  In order to mitigate this
-  # problem, we will remove any reference to backports repos older than oldstable
-
-  if is_debian12 ; then
-    return
-  fi
+  # problem, we will use archive.debian.org for the oldoldstable repo
 
   # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
-  oldoldstable=$(curl -s https://deb.debian.org/debian/dists/oldoldstable/Release | awk '/^Codename/ {print $2}');
-  oldstable=$(curl -s https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
-  stable=$(curl -s https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
+  debdists="https://deb.debian.org/debian/dists"
+  oldoldstable=$(curl -s "${debdists}/oldoldstable/Release" | awk '/^Codename/ {print $2}');
+  oldstable=$(   curl -s "${debdists}/oldstable/Release"    | awk '/^Codename/ {print $2}');
+  stable=$(      curl -s "${debdists}/stable/Release"       | awk '/^Codename/ {print $2}');
 
   matched_files=( $(test -d /etc/apt && grep -rsil '\-backports' /etc/apt/sources.list*||:) )
 
@@ -173,53 +122,22 @@ readonly DRIVER=${DRIVER_VERSION%%.*}
 # Parameters for NVIDIA-provided CUDNN library
 readonly DEFAULT_CUDNN_VERSION=${CUDNN_FOR_CUDA["${CUDA_VERSION}"]}
 CUDNN_VERSION=$(get_metadata_attribute 'cudnn-version' "${DEFAULT_CUDNN_VERSION}")
+function is_cudnn8() { [[ "${CUDNN_VERSION%%.*}" == "8" ]] ; }
+function is_cudnn9() { [[ "${CUDNN_VERSION%%.*}" == "9" ]] ; }
 if is_rocky \
    && (compare_versions_lte "${CUDNN_VERSION}" "8.0.5.39") ; then
   CUDNN_VERSION="8.0.5.39"
-elif (is_ubuntu20 || is_ubuntu22 || is_debian12) && [[ "${CUDNN_VERSION%%.*}" == "8" ]]; then
+elif (is_ubuntu20 || is_ubuntu22 || is_debian12) && is_cudnn8 ; then
   # cuDNN v8 is not distribution for ubuntu20+, debian12
-#  CUDNN_VERSION="9.2.1.18"
   CUDNN_VERSION="9.1.0.70"
 
-elif (is_ubuntu18 || is_debian10 || is_debian11) && [[ "${CUDNN_VERSION%%.*}" == "9" ]]; then
+elif (is_ubuntu18 || is_debian10 || is_debian11) && is_cudnn9 ; then
   # cuDNN v9 is not distributed for ubuntu18, debian10, debian11 ; fall back to 8
   CUDNN_VERSION="8.8.0.121"
 fi
 readonly CUDNN_VERSION
 
-function is_cudnn8() {
-  [[ "${CUDNN_VERSION%%.*}" == "8" ]]
-}
-
-function is_cudnn9() {
-  [[ "${CUDNN_VERSION%%.*}" == "9" ]]
-}
-
-# Fail early for configurations known to be unsupported
-function unsupported_error {
-  echo "Unsupported kernel driver on ${distribution}: '${DRIVER}'"
-  exit -1
-}
-if is_rocky ; then
-  KERNEL_SUBVERSION=$(uname -r | awk -F- '{print $2}')
-  if [[ "${DRIVER}" < "460" && "${DRIVER}" != "450"
-     && "${KERNEL_SUBVERSION%%.*}" > "305" ]]; then
-    unsupported_error
-  fi
-elif is_debian ; then
-  KERNEL_VERSION=$(uname -r | awk -F- '{print $1}')
-  if [[ "${DRIVER}" < "455"
-     && $(echo "${KERNEL_VERSION%.*} > 5.7" | bc -l) == 1  ]]; then
-    unsupported_error
-  fi
-fi
-
-DEFAULT_NCCL_VERSION=${NCCL_FOR_CUDA["${CUDA_VERSION}"]}
-if is_rocky \
-   && (compare_versions_lte "${DEFAULT_NCCL_VERSION}" "2.8.4") ; then
-  DEFAULT_NCCL_VERSION="2.8.4"
-fi
-readonly DEFAULT_NCCL_VERSION
+readonly DEFAULT_NCCL_VERSION=${NCCL_FOR_CUDA["${CUDA_VERSION}"]}
 readonly NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION})
 
 # Parameters for NVIDIA-provided Debian GPU driver
@@ -765,6 +683,8 @@ function install_cuda_toolkit() {
 }
 
 function install_drivers_aliases() {
+  if ! is_debian12 ; then return ; fi
+  if   is_cuda11   ; then return ; fi
   # Add a modprobe alias to prefer the open kernel modules
   local conffile="/etc/modprobe.d/nvidia-aliases.conf"
   echo -n "" > "${conffile}"
@@ -780,9 +700,7 @@ function install_drivers_aliases() {
 
 function load_kernel_module() {
   modprobe -r nvidia || echo "unable to unload the nvidia module"
-  if is_debian12 ; then
-    install_drivers_aliases
-  fi
+  install_drivers_aliases
   depmod -a
   modprobe nvidia
 }
@@ -804,7 +722,7 @@ function install_nvidia_gpu_driver() {
           libcuda1
     clear_dkms_key
     load_kernel_module
-  elif is_ubuntu18 || is_debian11 || is_debian10 ; then
+  elif is_ubuntu18 || is_debian11 || is_debian10 || is_cuda11 ; then
 
     install_nvidia_userspace_runfile
 
@@ -824,7 +742,6 @@ function install_nvidia_gpu_driver() {
     if is_ubuntu; then
       execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${DRIVER}=${DRIVER_VERSION}-1"
     fi
-
     install_cuda_toolkit
 
   elif is_rocky ; then
