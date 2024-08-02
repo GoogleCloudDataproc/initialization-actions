@@ -896,7 +896,7 @@ NV_SMI_L_CACHE_FILE="/var/run/nvidia-smi_-L.txt"
 if [[ -f "${NV_SMI_L_CACHE_FILE}" ]]; then
   NVIDIA_SMI_L="$(cat "${NV_SMI_L_CACHE_FILE}")"
 else
-  NVIDIA_SMI_L="$(nvidia-smi -L | tee "${NV_SMI_L_CACHE_FILE})"
+  NVIDIA_SMI_L="$(nvidia-smi -L | tee "${NV_SMI_L_CACHE_FILE}")"
 fi
 
 NUM_MIG_DEVICES=$(echo "${NVIDIA_SMI_L}" | grep -e MIG -e H100 -e A100 | wc -l || echo '0')
