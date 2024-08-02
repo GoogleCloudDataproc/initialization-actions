@@ -7,22 +7,27 @@ worker nodes in a Dataproc cluster.
 
 ## Default versions
 
-A reasonable default version will be selected for CUDA, the nvidia kernel
-driver, cuDNN, and NCCL.  When using dataproc images 2.0 or later with the
-default rapids-runtime, CUDA will default to `11.5`, and will otherwise default
-to `11.2`.
+A default version will be selected from the nvidia [support
+matrix](https://docs.nvidia.com/deeplearning/frameworks/support-matrix/index.html)
+for CUDA, the nvidia kernel driver, cuDNN, and NCCL.
+
+Specifying a supported value for the `cuda-version` metadata variable
+will select the following values for Driver, CuDNN and NCCL.  At the
+time of writing, the default value for cuda-version, if unspecified is
+12.4.  In addition to 12.4, we have also tested with 11.8.
 
 CUDA | Full Version | Driver    | CuDNN     | NCCL    | Supported OSs
 -----| ------------ | --------- | --------- | ------- | -------------------
-10.1 | 10.1.243     | 418.88    | 7.6.4.38  | 2.4.8   | Ubuntu
-10.2 | 10.2.89      | 440.64.00 | 7.6.5.32  | 2.5.6   | Ubuntu
-11.0 | 11.0.3       | 450.51.06 | 8.0.4.30  | 2.7.8   | Ubuntu,Rocky
-11.1 | 11.1.0       | 455.45.01 | 8.0.5.39  | 2.8.3   | Ubuntu,Debian
-11.2 | 11.2.2       | 460.73.01 | 8.1.1.33  | 2.8.3   | Ubuntu,Debian,Rocky
-11.5 | 11.5.2       | 495.29.05 | 8.3.0.98  | 2.11.4  | Ubuntu,Debian,Rocky
-11.6 | 11.6.2       | 510.47.03 | 8.4.1.50  | 2.11.4  | Ubuntu,Debian,Rocky
-11.7 | 11.7.1       | 515.65.01 | 8.5.0.96  | 2.12.12 | Ubuntu,Debian,Rocky
-11.8 | 11.8.0       | 520.56.06 | 8.6.0.163 | 2.15.5  | Ubuntu,Debian,Rocky
+11.8 | 11.8.0       | 525.147   | 8.6.0.163 | 2.15.5  | All
+12.4 | 12.4.1       | 550.90.07 | 9.1.0.70  | 2.21.5  | ALL
+
+All variants in the preceeding table have been manually tested to work
+with the installer.  Supported OSs at the time of writing are:
+
+* Debian 10, 11 and 12
+* Ubuntu 18.04, 20.04, and 22.04 LTS
+* Rocky 8 and 9
+
 
 ## Using this initialization action
 
