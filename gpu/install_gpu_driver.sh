@@ -223,10 +223,8 @@ IS_MIG_ENABLED=0
 
 function execute_with_retries() {
   local -r cmd="$*"
-  for ((i = 0; i < 10; i++)); do
-    if eval "$cmd"; then
-      return 0
-    fi
+  for ((i = 0; i < 3; i++)); do
+    if eval "$cmd"; then return 0 ; fi
     sleep 5
   done
   return 1
@@ -366,13 +364,8 @@ function install_nvidia_nccl() {
   fi
 }
 
-function is_src_nvidia() {
-  [[ "${GPU_DRIVER_PROVIDER}" == "NVIDIA" ]]
-}
-
-function is_src_os() {
-  [[ "${GPU_DRIVER_PROVIDER}" == "OS" ]]
-}
+function is_src_nvidia() { [[ "${GPU_DRIVER_PROVIDER}" == "NVIDIA" ]] ; }
+function is_src_os()     { [[ "${GPU_DRIVER_PROVIDER}" == "OS" ]] ; }
 
 function install_nvidia_cudnn() {
   local major_version
@@ -394,7 +387,7 @@ function install_nvidia_cudnn() {
     fi
   elif is_debian || is_ubuntu; then
     if is_debian12 && is_src_os ; then
-      apt-get -y install nvidia-cudnn 
+      apt-get -y install nvidia-cudnn
     else
       local CUDNN="${CUDNN_VERSION%.*}"
       if is_cudnn8 ; then
@@ -576,6 +569,7 @@ echo "deb [signed-by=${kr_path}] https://developer.download.nvidia.com/compute/c
   fi
 }
 
+readonly uname_r=$(uname -r)
 function build_driver_from_github() {
   if is_ubuntu ; then
     mok_key=/var/lib/shim-signed/mok/MOK.priv
@@ -602,7 +596,7 @@ function build_driver_from_github() {
   if [[ -n "${PSN}" ]]; then
     configure_dkms_certs
     for module in $(find kernel-open -name '*.ko'); do
-      /lib/modules/$(uname -r)/build/scripts/sign-file sha256 \
+      "/lib/modules/${uname_r}/build/scripts/sign-file" sha256 \
       "${mok_key}" \
       "${mok_der}" \
       "${module}"
@@ -634,9 +628,9 @@ function build_driver_from_packages() {
     fi
     add_contrib_component
     apt-get update -qq
-    execute_with_retries "apt-get install -y -q --no-install-recommends dkms"
+    execute_with_retries "apt-get install -y -qq --no-install-recommends dkms"
     configure_dkms_certs
-    execute_with_retries "apt-get install -y -q --no-install-recommends ${pkglist[@]}"
+    execute_with_retries "apt-get install -y -qq --no-install-recommends ${pkglist[@]}"
 
   elif is_rocky ; then
     configure_dkms_certs
@@ -673,8 +667,8 @@ function install_cuda_toolkit() {
   fi
   readonly cuda_package
   if is_ubuntu || is_debian ; then
-#    if is_ubuntu ; then execute_with_retries "apt-get install -y -q --no-install-recommends cuda-drivers-${DRIVER}=${DRIVER_VERSION}-1" ; fi
-    execute_with_retries "apt-get install -y -q --no-install-recommends ${cuda_package}"
+#    if is_ubuntu ; then execute_with_retries "apt-get install -y -qq --no-install-recommends cuda-drivers-${DRIVER}=${DRIVER_VERSION}-1" ; fi
+    execute_with_retries "apt-get install -y -qq --no-install-recommends ${cuda_package}"
   elif is_rocky ; then
     execute_with_retries "dnf -y -q install ${cuda_package}"
   fi
@@ -757,7 +751,7 @@ function install_nvidia_gpu_driver() {
 # Collects 'gpu_utilization' and 'gpu_memory_utilization' metrics
 function install_gpu_agent() {
   if ! command -v pip; then
-    execute_with_retries "apt-get install -y -q python-pip"
+    execute_with_retries "apt-get install -y -qq python-pip"
   fi
   local install_dir=/opt/gpu-utilization-agent
   mkdir -p "${install_dir}"
@@ -848,7 +842,7 @@ function configure_gpu_exclusive_mode() {
   spark_version=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
   if [[ ${spark_version} != 3.* ]]; then
     # include exclusive mode on GPU
-    nvidia-smi -c EXCLUSIVE_PROCESS
+    nvsmi -c EXCLUSIVE_PROCESS
   fi
 }
 
@@ -942,23 +936,57 @@ EOF
   systemctl start dataproc-cgroup-device-permissions
 }
 
+nvsmi_works="0"
+function nvsmi() {
+  local nvsmi="/usr/bin/nvidia-smi"
+  if   [[ "${nvsmi_works}" == "1" ]] ; then echo "nvidia-smi is working" >&2
+  elif [[ ! -f "${nvsmi}" ]]         ; then echo "nvidia-smi not installed" >&2 ; return 0
+  elif ! eval "${nvsmi} > /dev/null" ; then echo "nvidia-smi fails" >&2 ; return 0
+  else nvsmi_works="1" ; fi
+
+  if [[ "$1" == "-L" ]] ; then
+    local NV_SMI_L_CACHE_FILE="/var/run/nvidia-smi_-L.txt"
+    if [[ -f "${NV_SMI_L_CACHE_FILE}" ]]; then
+      cat "${NV_SMI_L_CACHE_FILE}"
+    else
+      ${nvsmi} -L | tee "${NV_SMI_L_CACHE_FILE}"
+    fi
+
+    return 0
+  fi
+
+  "${nvsmi}" "$*"
+}
+
 function main() {
   if ! is_debian && ! is_ubuntu && ! is_rocky ; then
     echo "Unsupported OS: '$(os_name)'"
     exit 1
   fi
 
-  if is_debian10 || is_debian11 ; then
-      remove_old_backports
-  fi
+  remove_old_backports
 
   if is_debian || is_ubuntu ; then
     export DEBIAN_FRONTEND=noninteractive
-    execute_with_retries "apt-get install -y -q pciutils"
-    execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
+    execute_with_retries "apt-get install -y -qq pciutils linux-headers-${uname_r}"
   elif is_rocky ; then
     execute_with_retries "dnf -y -q update --exclude=systemd*,kernel*"
-    execute_with_retries "dnf -y -q install pciutils kernel-devel gcc"
+    execute_with_retries "dnf -y -q install pciutils gcc"
+
+    local dnf_cmd="dnf -y -q install kernel-devel-${uname_r}"
+    local kernel_devel_pkg_out="$(eval "${dnf_cmd} 2>&1")"
+    if [[ "${kernel_devel_pkg_out}" =~ 'Unable to find a match: kernel-devel-' ]] ; then
+      # this kernel-devel may have been migrated to the vault
+      local vault="https://download.rockylinux.org/vault/rocky/$(os_version)"
+      execute_with_retries dnf -y -q --setopt=localpkg_gpgcheck=1 install \
+        "${vault}/BaseOS/x86_64/os/Packages/k/kernel-${uname_r}.rpm" \
+        "${vault}/BaseOS/x86_64/os/Packages/k/kernel-core-${uname_r}.rpm" \
+        "${vault}/BaseOS/x86_64/os/Packages/k/kernel-modules-${uname_r}.rpm" \
+        "${vault}/BaseOS/x86_64/os/Packages/k/kernel-modules-core-${uname_r}.rpm" \
+        "${vault}/AppStream/x86_64/os/Packages/k/kernel-devel-${uname_r}.rpm"
+    else
+      execute_with_retries "${dnf_cmd}"
+    fi
   fi
 
   # This configuration should be run on all nodes
@@ -968,11 +996,8 @@ function main() {
   # Detect NVIDIA GPU
   if (lspci | grep -q NVIDIA); then
     # if this is called without the MIG script then the drivers are not installed
-    nv_smi="/usr/bin/nvidia-smi"
-    migquery_result="$(test -f "${nv_smi}" && "${nv_smi}" --query-gpu=mig.mode.current --format=csv,noheader||echo -n '')"
-    if [[ "${migquery_result}" == "[N/A]" ]] ; then
-      migquery_result=""
-    fi
+    migquery_result="$(nvsmi --query-gpu=mig.mode.current --format=csv,noheader)"
+    if [[ "${migquery_result}" == "[N/A]" ]] ; then migquery_result="" ; fi
     NUM_MIG_GPUS="$(echo ${migquery_result} | uniq | wc -l)"
 
     if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
@@ -1006,18 +1031,18 @@ function main() {
       for module in nvidia_uvm nvidia_drm nvidia_modeset nvidia ; do
         rmmod ${module} > /dev/null 2>&1 || echo "unable to rmmod ${module}"
       done
-      NVIDIA_SMI_L="$(test -f "${nv_smi}" && nvidia-smi -L || echo -n '')"
-      MIG_GPU_LIST="$(echo "${NVIDIA_SMI_L}" | grep -e MIG -e H100 -e A100 || echo -n "")"
-      if test -n "${NVIDIA_SMI_L}"; then
+
+      MIG_GPU_LIST="$(nvidia_smi_L | grep -e MIG -e H100 -e A100 || echo -n "")"
+      if test -n "$(nvidia_smi_L)" ; then
 	# cache the result of the gpu query
-        ADDRS=$(nvidia-smi --query-gpu=index --format=csv,noheader | perl -e 'print(join(q{,},map{chomp; qq{"$_"}}<STDIN>))')
+        ADDRS=$(nvsmi --query-gpu=index --format=csv,noheader | perl -e 'print(join(q{,},map{chomp; qq{"$_"}}<STDIN>))')
         echo "{\"name\": \"gpu\", \"addresses\":[$ADDRS]}" | tee "/var/run/nvidia-gpu-index.txt"
       fi
       NUM_MIG_GPUS="$(test -n "${MIG_GPU_LIST}" && echo "${MIG_GPU_LIST}" | wc -l || echo "0")"
       if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
         # enable MIG on every GPU
 	for GPU_ID in $(echo ${MIG_GPU_LIST} | awk -F'[: ]' -e '{print $2}') ; do
-	  nvidia-smi -i ${GPU_ID} --multi-instance-gpu 1
+	  nvsmi -i "${GPU_ID}" --multi-instance-gpu 1
 	done
 
         NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'

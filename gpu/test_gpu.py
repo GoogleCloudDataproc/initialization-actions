@@ -38,8 +38,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_default_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
-    if self.getImageOs() == "rocky":
-      self.skipTest("Rocky tests are known to fail due to packaging policies.  Skip for now.")
 
     metadata = None
     if driver_provider is not None:
@@ -63,8 +61,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_without_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
-    if self.getImageOs() == "rocky":
-      self.skipTest("Rocky tests are known to fail due to packaging policies.  Skip for now.")
 
     metadata = "install-gpu-agent=false"
     if driver_provider is not None:
@@ -90,8 +86,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_with_agent(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider):
-    if self.getImageOs() == "rocky":
-      self.skipTest("Rocky tests are known to fail due to packaging policies.  Skip for now.")
 
     metadata = "install-gpu-agent=true"
     if driver_provider is not None:
@@ -121,8 +115,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
-    if self.getImageOs() == "rocky":
-      self.skipTest("Rocky tests are known to fail due to packaging policies.  Skip for now.")
 
     metadata = "gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
@@ -146,8 +138,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                   master_accelerator, worker_accelerator,
                                   driver_provider, cuda_version):
     self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
-    if self.getImageOs() == "rocky":
-      self.skipTest("Rocky tests are known to fail due to packaging policies.  Skip for now.")
 
     metadata = "gpu-driver-provider={},cuda-version={}".format(driver_provider, cuda_version)
 
@@ -174,8 +164,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_gpu_allocation(self, configuration, master_accelerator,
                           worker_accelerator, driver_provider):
     self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
-    if self.getImageOs() == "rocky":
-      self.skipTest("Rocky tests are known to fail due to packaging policies.  Skip for now.")
 
     metadata = None
     if driver_provider is not None:
@@ -216,8 +204,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
     self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
-    if self.getImageOs() == "rocky":
-      self.skipTest("Rocky tests are known to fail due to packaging policies.  Skip for now.")
 
     metadata = "install-gpu-agent=true,gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
