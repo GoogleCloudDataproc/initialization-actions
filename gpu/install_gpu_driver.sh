@@ -1032,8 +1032,8 @@ function main() {
         rmmod ${module} > /dev/null 2>&1 || echo "unable to rmmod ${module}"
       done
 
-      MIG_GPU_LIST="$(nvidia_smi_L | grep -e MIG -e H100 -e A100 || echo -n "")"
-      if test -n "$(nvidia_smi_L)" ; then
+      MIG_GPU_LIST="$(nvsmi -L | grep -e MIG -e H100 -e A100 || echo -n "")"
+      if test -n "$(nvsmi -L)" ; then
 	# cache the result of the gpu query
         ADDRS=$(nvsmi --query-gpu=index --format=csv,noheader | perl -e 'print(join(q{,},map{chomp; qq{"$_"}}<STDIN>))')
         echo "{\"name\": \"gpu\", \"addresses\":[$ADDRS]}" | tee "/var/run/nvidia-gpu-index.txt"
