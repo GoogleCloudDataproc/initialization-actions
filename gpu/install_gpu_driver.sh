@@ -589,7 +589,7 @@ function build_driver_from_github() {
       > /dev/null
   cd open-gpu-kernel-modules
 
-  make -j$(nproc) modules \
+  time make -j$(nproc) modules \
     >  /var/log/open-gpu-kernel-modules-build.log \
     2> /var/log/open-gpu-kernel-modules-build_error.log
 
@@ -630,11 +630,11 @@ function build_driver_from_packages() {
     apt-get update -qq
     execute_with_retries "apt-get install -y -qq --no-install-recommends dkms"
     configure_dkms_certs
-    execute_with_retries "apt-get install -y -qq --no-install-recommends ${pkglist[@]}"
+    time execute_with_retries "apt-get install -y -qq --no-install-recommends ${pkglist[@]}"
 
   elif is_rocky ; then
     configure_dkms_certs
-    execute_with_retries "dnf -y -q module install nvidia-driver:${DRIVER}-open"
+    time execute_with_retries "dnf -y -q module install nvidia-driver:${DRIVER}-open"
   fi
   clear_dkms_key
 }
@@ -643,7 +643,7 @@ function install_nvidia_userspace_runfile() {
   if test -d /run/nvidia-userspace ; then return ; fi
   curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
     "${USERSPACE_URL}" -o userspace.run
-  bash "./userspace.run" --no-kernel-modules --silent --install-libglvnd \
+  time bash "./userspace.run" --no-kernel-modules --silent --install-libglvnd \
     > /dev/null 2>&1
   rm -f userspace.run
   mkdir -p /run/nvidia-userspace
@@ -653,7 +653,7 @@ function install_cuda_runfile() {
   if test -d /run/nvidia-cuda ; then return ; fi
   curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
     "${NVIDIA_CUDA_URL}" -o cuda.run
-  bash "./cuda.run" --silent --toolkit --no-opengl-libs
+  time bash "./cuda.run" --silent --toolkit --no-opengl-libs
   rm -f cuda.run
   mkdir -p /run/nvidia-cuda
 }
@@ -668,9 +668,9 @@ function install_cuda_toolkit() {
   readonly cuda_package
   if is_ubuntu || is_debian ; then
 #    if is_ubuntu ; then execute_with_retries "apt-get install -y -qq --no-install-recommends cuda-drivers-${DRIVER}=${DRIVER_VERSION}-1" ; fi
-    execute_with_retries "apt-get install -y -qq --no-install-recommends ${cuda_package}"
+    time execute_with_retries "apt-get install -y -qq --no-install-recommends ${cuda_package}"
   elif is_rocky ; then
-    execute_with_retries "dnf -y -q install ${cuda_package}"
+    time execute_with_retries "dnf -y -q install ${cuda_package}"
   fi
 }
 
@@ -946,16 +946,13 @@ function nvsmi() {
 
   if [[ "$1" == "-L" ]] ; then
     local NV_SMI_L_CACHE_FILE="/var/run/nvidia-smi_-L.txt"
-    if [[ -f "${NV_SMI_L_CACHE_FILE}" ]]; then
-      cat "${NV_SMI_L_CACHE_FILE}"
-    else
-      ${nvsmi} -L | tee "${NV_SMI_L_CACHE_FILE}"
-    fi
+    if [[ -f "${NV_SMI_L_CACHE_FILE}" ]]; then cat "${NV_SMI_L_CACHE_FILE}"
+    else "${nvsmi}" $* | tee "${NV_SMI_L_CACHE_FILE}" ; fi
 
     return 0
   fi
 
-  "${nvsmi}" "$*"
+  "${nvsmi}" $*
 }
 
 function main() {
