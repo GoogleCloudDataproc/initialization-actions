@@ -244,7 +244,7 @@ function install_hbase() {
       local VARIANT="bin"
       local BASENAME="hbase-${HBASE_VERSION}-${VARIANT}.tar.gz"
       echo "hbase dist basename: ${BASENAME}"
-      curl -fsSL --output-dir /tmp --retry-connrefused --retry 3 --retry-max-time 5 \
+      curl -fsSL -o "/tmp/${BASENAME}" --retry-connrefused --retry 3 --retry-max-time 5 \
         "https://archive.apache.org/dist/hbase/${HBASE_VERSION}/${BASENAME}" || err 'Unable to download tar'
 
       # extract binaries from bundle
