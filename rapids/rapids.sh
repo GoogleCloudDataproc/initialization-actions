@@ -63,11 +63,12 @@ function get_metadata_attribute() {
   /usr/share/google/get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
 }
 
-readonly DEFAULT_DASK_RAPIDS_VERSION="23.12"
+# Until mamba includes packages for cuda 12, this should stay at 22.04
+readonly DEFAULT_DASK_RAPIDS_VERSION="22.04"
 readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' ${DEFAULT_DASK_RAPIDS_VERSION})
 
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
-readonly DEFAULT_SPARK_RAPIDS_VERSION="24.06.0"
+readonly DEFAULT_SPARK_RAPIDS_VERSION="23.12.0"
 
 if [[ "${SPARK_VERSION_ENV%%.*}" == "3" ]]; then
   readonly DEFAULT_CUDA_VERSION="11.8"
@@ -88,7 +89,7 @@ readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-mast
 
 # RAPIDS config
 CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VERSION})
-if [[ "${CUDA_VERSION%%.*}" == 12 ]]; then
+if [[ "${CUDA_VERSION%%.*}" == "12" ]]; then
     # at the time of writing 20240721 there is no support for the 12.x
     # releases of cudatoolkit package in mamba.  For the time being,
     # we will use a maximum of 11.8
@@ -129,9 +130,8 @@ function install_dask_rapids() {
   else
       local python_ver="3.9"
   fi
-  # Install RAPIDS, cudatoolkit
   mamba install -m -n 'dask-rapids' -y --no-channel-priority -c 'conda-forge' -c 'nvidia' -c 'rapidsai' \
-    "cudatoolkit=${CUDA_VERSION}" "pandas<1.5" "rapids=${RAPIDS_VERSION}" "python=${python_ver}"
+    "cudatoolkit=${CUDA_VERSION%%.*}" "pandas<1.5" "rapids" "python=${python_ver}"
 }
 
 function install_spark_rapids() {
@@ -265,7 +265,7 @@ function main() {
 
   if [[ "${ROLE}" == "Master" ]]; then
     systemctl restart hadoop-yarn-resourcemanager.service
-#     Restart NodeManager on Master as well if this is a single-node-cluster.
+    # Restart NodeManager on Master as well if this is a single-node-cluster.
     if systemctl status hadoop-yarn-nodemanager; then
       systemctl restart hadoop-yarn-nodemanager.service
     fi
