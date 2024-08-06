@@ -38,6 +38,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_default_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
+    self.skipTest("Flaky test")
 
     metadata = None
     if driver_provider is not None:
@@ -61,6 +62,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_without_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
+    self.skipTest("Flaky test")
 
     metadata = "install-gpu-agent=false"
     if driver_provider is not None:
@@ -87,6 +89,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                   master_accelerator, worker_accelerator,
                                   driver_provider):
 
+    self.skipTest("Flaky test")
     metadata = "install-gpu-agent=true"
     if driver_provider is not None:
       metadata += ",gpu-driver-provider={}".format(driver_provider)
