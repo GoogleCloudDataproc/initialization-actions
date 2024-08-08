@@ -57,8 +57,8 @@ class HorovodTestCase(DataprocTestCase):
         self.GPU_INIT_ACTIONS,
         timeout_in_minutes=60,
         machine_type="n1-standard-8",
-        master_accelerator=self.GPU_P100,
-        worker_accelerator=self.GPU_P100,
+        master_accelerator=self.GPU_T4,
+        worker_accelerator=self.GPU_T4,
         metadata=metadata)
 
 
