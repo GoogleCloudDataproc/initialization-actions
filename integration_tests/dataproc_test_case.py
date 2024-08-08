@@ -118,6 +118,12 @@ class DataprocTestCase(parameterized.TestCase):
             if FLAGS.image_version in self.IMAGE_VERSION_2_2:
                 args.append("--public-ip-address")
 
+        for i in init_actions:
+            if "install_gpu_driver.sh" in i or \
+                    "mlvm.sh" in i or "rapids.sh" in i or \
+                    "spark-rapids.sh" in i or "horovod.sh" in i:
+                args.append("--no-shielded-secure-boot")
+
         if optional_components:
             args.append("--optional-components={}".format(
                 ','.join(optional_components)))
@@ -145,14 +151,14 @@ class DataprocTestCase(parameterized.TestCase):
             args.append("--master-accelerator={}".format(master_accelerator))
         if worker_accelerator:
             args.append("--worker-accelerator={}".format(worker_accelerator))
-        
+
         if master_machine_type:
             args.append("--master-machine-type={}".format(master_machine_type))
         else:
             args.append("--master-machine-type={}".format(machine_type))
-        
+
         if worker_machine_type:
-            args.append("--worker-machine-type={}".format(worker_machine_type))   
+            args.append("--worker-machine-type={}".format(worker_machine_type))
         else:
             args.append("--worker-machine-type={}".format(machine_type))
 
