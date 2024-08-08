@@ -15,8 +15,6 @@ class LivyTestCase(DataprocTestCase):
     DEFAULT_SCALA_VERSION = '2.11'
     LIVY_VERSION = '0.8.0'
     SCALA_VERSION = '2.12'
-    PYTHON2_VERSION = 'python2.7'
-    PYTHON3_VERSION = 'python3'
 
     def _verify_instance(self, name):
         self.upload_test_file(
@@ -41,17 +39,11 @@ class LivyTestCase(DataprocTestCase):
             name, "sudo python3 {}".format(self.TEST_SCRIPT_FILE_NAME))
 
     def __submit_pyspark_job(self, cluster_name):
-        if self.getImageVersion() >= pkg_resources.parse_version("2.1"):
-            python_version = self.PYTHON3_VERSION
-        else:
-            python_version = self.PYTHON2_VERSION
         self.assert_dataproc_job(cluster_name, 'pyspark',
-                                 '{}/{}/{} --properties=spark.pyspark.python={},spark.pyspark.driver.python={}'
+                                 '{}/{}/{}'
                                  .format(self.INIT_ACTIONS_REPO,
                                          self.COMPONENT,
-                                         self.TEST_SCRIPT_FILE_NAME,
-                                         python_version,
-                                         python_version))
+                                         self.TEST_SCRIPT_FILE_NAME))
 
     @parameterized.parameters(
         ("SINGLE", ["m"]),

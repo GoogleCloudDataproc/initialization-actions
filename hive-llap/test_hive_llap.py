@@ -43,7 +43,7 @@ class LLAPTestCase(DataprocTestCase):
                             optional_components=self.OPTIONAL_COMPONENTS,
                             metadata="init-actions-repo=" + self.INIT_ACTIONS_REPO,
                             machine_type="e2-standard-4",
-                            boot_disk_size="500GB")
+                            boot_disk_size="50GB")
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
@@ -63,7 +63,7 @@ class LLAPTestCase(DataprocTestCase):
                             optional_components=self.OPTIONAL_COMPONENTS,
                             metadata="init-actions-repo=" + self.INIT_ACTIONS_REPO + "," + self.METADATA_num_executors,
                             machine_type="e2-standard-4",
-                            boot_disk_size="500GB")
+                            boot_disk_size="50GB")
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
@@ -83,7 +83,7 @@ class LLAPTestCase(DataprocTestCase):
                             optional_components=self.OPTIONAL_COMPONENTS,
                             metadata="init-actions-repo=" + self.INIT_ACTIONS_REPO + "," + self.METADATA_num_executors + "," + self.METADATA_exec_size_mb,
                             machine_type="e2-standard-4",
-                            boot_disk_size="500GB")
+                            boot_disk_size="50GB")
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
