@@ -1,3 +1,4 @@
+import pkg_resources
 from absl.testing import absltest
 from absl.testing import parameterized
 
@@ -8,7 +9,7 @@ class HorovodTestCase(DataprocTestCase):
   COMPONENT = "horovod"
   INIT_ACTIONS = ["horovod/horovod.sh"]
   GPU_INIT_ACTIONS = ["gpu/install_gpu_driver.sh"] + INIT_ACTIONS
-  GPU_P100 = "type=nvidia-tesla-p100"
+  GPU_T4 = "type=nvidia-tesla-t4"
 
   TENSORFLOW_TEST_SCRIPT = "scripts/verify_tensorflow.py"
   PYTORCH_TEST_SCRIPT = "scripts/verify_pytorch.py"
@@ -26,6 +27,8 @@ class HorovodTestCase(DataprocTestCase):
   def test_horovod_cpu(self, configuration, controller):
     if self.getImageOs() == 'rocky':
       self.skipTest("Not supported in Rocky Linux-based images")
+    if self.getImageVersion() > pkg_resources.parse_version("2.0"):
+        self.skipTest("Not supported in 2.0+ images")
 
     metadata = ""
     if controller == "mpi":
@@ -44,6 +47,8 @@ class HorovodTestCase(DataprocTestCase):
   def test_horovod_gpu(self, configuration, controller):
     if self.getImageOs() == 'rocky':
       self.skipTest("Not supported in Rocky Linux-based images")
+    if self.getImageVersion() > pkg_resources.parse_version("2.0"):
+        self.skipTest("Not supported in 2.0+ images")
 
     metadata = "cuda-version=11.1,cudnn-version=8.0.5.39,gpu-driver-provider=NVIDIA"
 
