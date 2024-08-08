@@ -78,12 +78,7 @@ if [[ "${DASK_RUNTIME}" == 'yarn' ]]; then
   # Pin `distributed` package version because `dask-yarn` 0.9
   # is not compatible with `distributed` package 2022.2 and newer:
   # https://github.com/dask/dask-yarn/issues/155
-  CONDA_PACKAGES+=('dask-yarn=0.9' "distributed=${DASK_VERSION}")
-fi
-# Downgrade `google-cloud-bigquery` on Dataproc 2.0
-# to fix compatibility with old Arrow version
-if [[ "${DATAPROC_IMAGE_VERSION}" == '2.0' ]]; then
-  CONDA_PACKAGES+=('google-cloud-bigquery=2')
+  CONDA_PACKAGES+=('dask-yarn==0.9' "distributed==${DASK_VERSION}")
 fi
 readonly CONDA_PACKAGES
 
@@ -373,7 +368,8 @@ EOF
 
 function main() {
   # Install dask + conda packages using mamba
-  execute_with_retries "mamba install -y dask=${DASK_VERSION} ${CONDA_PACKAGES[*]}"
+  execute_with_retries "pip install dask==${DASK_VERSION} ${CONDA_PACKAGES[*]}"
+  execute_with_retries "pip install pandas==1.5.3"
 
   if [[ "${DASK_RUNTIME}" == "yarn" ]]; then
     # Create Dask YARN config file
