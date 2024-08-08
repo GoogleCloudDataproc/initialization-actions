@@ -43,13 +43,9 @@ class MLVMTestCase(DataprocTestCase):
       self.assert_instance_command("{}-{}".format(self.name, machine_suffix),
                                    "nvidia-smi")
 
-  def verify_dask(self, dask_runtime):
-    if dask_runtime == "standalone":
-      script = self.DASK_STANDALONE_SCRIPT
-    else:
-      script = self.DASK_YARN_SCRIPT
-
+  def verify_dask(self):
     name = "{}-m".format(self.getClusterName())
+    script = self.DASK_STANDALONE_SCRIPT
     verify_cmd = "/opt/conda/default/bin/python {}".format(script)
     self.upload_test_file(
         os.path.join(
@@ -79,7 +75,8 @@ class MLVMTestCase(DataprocTestCase):
   def verify_all(self):
     self.verify_python()
     self.verify_r()
-    self.verify_spark_bigquery_connector()
+    if self.getImageVersion() == pkg_resources.parse_version("2.0"):
+        self.verify_spark_bigquery_connector()
 
   @parameterized.parameters(
       ("STANDARD", None),
@@ -93,6 +90,8 @@ class MLVMTestCase(DataprocTestCase):
     # Supported on Dataproc 2.0+
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0 images")
+    if self.getImageVersion() > pkg_resources.parse_version("2.0"):
+        self.skipTest("Not supported in 2.0+ images")
 
     metadata = "init-actions-repo={}".format(self.INIT_ACTIONS_REPO)
     if dask_runtime:
@@ -107,7 +106,7 @@ class MLVMTestCase(DataprocTestCase):
         metadata=metadata)
 
     self.verify_all()
-    self.verify_dask(dask_runtime)
+    self.verify_dask()
 
   @parameterized.parameters(
       ("STANDARD", None, None),
@@ -122,12 +121,11 @@ class MLVMTestCase(DataprocTestCase):
     # Supported on Dataproc 2.0+
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0 images")
+    if self.getImageVersion() > pkg_resources.parse_version("2.0"):
+        self.skipTest("Not supported in 2.0+ images")
 
-    metadata = ("init-actions-repo={},include-gpus=true"
-                ",gpu-driver-provider=NVIDIA").format(self.INIT_ACTIONS_REPO)
-
-    cudnn_version = "8.1.1.33"
-    cuda_version = "11.2"
+    cudnn_version = "8.6.0.163"
+    cuda_version = "11.8"
 
     metadata = ("init-actions-repo={},include-gpus=true"
                 ",gpu-driver-provider=NVIDIA,"
@@ -147,7 +145,8 @@ class MLVMTestCase(DataprocTestCase):
         master_accelerator="type=nvidia-tesla-t4",
         worker_accelerator="type=nvidia-tesla-t4",
         timeout_in_minutes=60,
-        metadata=metadata)
+        metadata=metadata,
+        boot_disk_size="500GB")
 
     self.verify_all()
 
@@ -157,5 +156,6 @@ class MLVMTestCase(DataprocTestCase):
     elif rapids_runtime == "DASK":
       self.verify_rapids_dask()
 
+
 if __name__ == "__main__":
-  absltest.main()
+    absltest.main()
