@@ -84,7 +84,7 @@ class SparkRapidsTestCase(DataprocTestCase):
         machine_type="n1-standard-4",
         master_accelerator=accelerator if configuration == "SINGLE" else None,
         worker_accelerator=accelerator,
-        boot_disk_size="1024GB",
+        boot_disk_size="200GB",
         timeout_in_minutes=30)
 
     for machine_suffix in machine_suffixes:
@@ -123,7 +123,7 @@ class SparkRapidsTestCase(DataprocTestCase):
       machine_type="n1-standard-4",
       master_accelerator=accelerator if configuration == "SINGLE" else None,
       worker_accelerator=accelerator,
-      boot_disk_size="1024GB",
+      boot_disk_size="200GB",
       timeout_in_minutes=30)
 
     for machine_suffix in machine_suffixes:
@@ -161,7 +161,7 @@ class SparkRapidsTestCase(DataprocTestCase):
         machine_type="n1-standard-4",
         master_accelerator=accelerator if configuration == "SINGLE" else None,
         worker_accelerator=accelerator,
-        boot_disk_size="1024GB",
+        boot_disk_size="200GB",
         timeout_in_minutes=30)
 
     for machine_suffix in machine_suffixes:
