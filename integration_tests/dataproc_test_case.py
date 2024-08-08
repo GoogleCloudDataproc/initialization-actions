@@ -119,7 +119,9 @@ class DataprocTestCase(parameterized.TestCase):
                 args.append("--public-ip-address")
 
         for i in init_actions:
-            if "install_gpu_driver.sh" in i or "mlvm.sh" in i:
+            if "install_gpu_driver.sh" in i or \
+                    "mlvm.sh" in i or "rapids.sh" in i or \
+                    "spark-rapids.sh" in i or "horovod.sh" in i:
                 args.append("--no-shielded-secure-boot")
 
         if optional_components:
@@ -149,14 +151,14 @@ class DataprocTestCase(parameterized.TestCase):
             args.append("--master-accelerator={}".format(master_accelerator))
         if worker_accelerator:
             args.append("--worker-accelerator={}".format(worker_accelerator))
-        
+
         if master_machine_type:
             args.append("--master-machine-type={}".format(master_machine_type))
         else:
             args.append("--master-machine-type={}".format(machine_type))
-        
+
         if worker_machine_type:
-            args.append("--worker-machine-type={}".format(worker_machine_type))   
+            args.append("--worker-machine-type={}".format(worker_machine_type))
         else:
             args.append("--worker-machine-type={}".format(machine_type))
 
@@ -170,7 +172,7 @@ class DataprocTestCase(parameterized.TestCase):
 
         args.append("--region={}".format(self.REGION))
         if self.cluster_zone:
-          args.append("--zone={}".format(self.cluster_zone))
+            args.append("--zone={}".format(self.cluster_zone))
 
         if not FLAGS.skip_cleanup:
             args.append("--max-age=2h")
@@ -351,8 +353,8 @@ class DataprocTestCase(parameterized.TestCase):
                 INTERNAL_IP_SSH and "gcloud compute ssh " in cmd) else cmd
         cmd = cmd.replace("gcloud compute scp ",
                           "gcloud beta compute scp --internal-ip ") if (
-                              INTERNAL_IP_SSH
-                              and "gcloud compute scp " in cmd) else cmd
+                INTERNAL_IP_SSH
+                and "gcloud compute scp " in cmd) else cmd
         p = subprocess.Popen(
             cmd,
             shell=True,
