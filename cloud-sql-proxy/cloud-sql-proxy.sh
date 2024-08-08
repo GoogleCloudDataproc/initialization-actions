@@ -480,7 +480,7 @@ function install_mysql_cli() {
 
   log "Installing MySQL CLI ..."
   if command -v apt >/dev/null; then
-    apt update && apt install default-mysql-client -y
+    apt update && apt install mysql-client -y
   elif command -v yum >/dev/null; then
     yum -y update && yum -y install mysql
   fi
