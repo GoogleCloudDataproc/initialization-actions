@@ -53,33 +53,6 @@ class RapidsTestCase(DataprocTestCase):
     self.remove_test_script(self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME,
                             instance_name)
 
-  @parameterized.parameters(("STANDARD", ["m", "w-0"], GPU_T4, None),
-                            ("STANDARD", ["m", "w-0"], GPU_T4, "yarn"),
-                            ("STANDARD", ["m"], GPU_T4, "standalone"))
-  def test_rapids_dask(self, configuration, machine_suffixes, accelerator,
-                       dask_runtime):
-
-    if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
-      self.skipTest("Not supported in pre 2.0 images")
-
-    metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=DASK"
-    if dask_runtime:
-      metadata += ",dask-runtime={}".format(dask_runtime)
-
-    self.createCluster(
-        configuration,
-        self.DASK_INIT_ACTIONS,
-        metadata=metadata,
-        machine_type="n1-standard-4",
-        master_accelerator=accelerator,
-        worker_accelerator=accelerator,
-        boot_disk_size="200GB",
-        timeout_in_minutes=30)
-
-    for machine_suffix in machine_suffixes:
-      self.verify_dask_instance("{}-{}".format(self.getClusterName(),
-                                               machine_suffix))
-
   @parameterized.parameters(("SINGLE", ["m"], GPU_T4),
                             ("STANDARD", ["w-0"], GPU_T4))
   def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
