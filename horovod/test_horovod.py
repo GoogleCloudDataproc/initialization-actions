@@ -50,7 +50,7 @@ class HorovodTestCase(DataprocTestCase):
     if self.getImageVersion() > pkg_resources.parse_version("2.0"):
         self.skipTest("Not supported in 2.0+ images")
 
-    metadata = "cuda-version=11.1,cudnn-version=8.0.5.39,gpu-driver-provider=NVIDIA"
+    metadata = "cuda-version=12.4,cudnn-version=9.1.0.70,gpu-driver-provider=NVIDIA"
 
     self.createCluster(
         configuration,
