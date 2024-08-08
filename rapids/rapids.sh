@@ -7,67 +7,32 @@ if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
   DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
 fi
 
-function os_id() {
-  grep '^ID=' /etc/os-release | cut -d= -f2 | xargs
-}
-
-function os_version() {
-  grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs
-}
-
-function os_codename() {
-  grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs
-}
-
-function is_rocky() {
-  [[ "$(os_id)" == 'rocky' ]]
-}
-
-function is_ubuntu() {
-  [[ "$(os_id)" == 'ubuntu' ]]
-}
-
-function is_ubuntu20() {
-  is_ubuntu && [[ "$(os_version)" == '20.04'* ]]
-}
-
-function is_ubuntu22() {
-  is_ubuntu && [[ "$(os_version)" == '22.04'* ]]
-}
-
-function is_debian() {
-  [[ "$(os_id)" == 'debian' ]]
-}
-
-function is_debian11() {
-  is_debian && [[ "$(os_version)" == '11'* ]]
-}
-
-function is_debian12() {
-  is_debian && [[ "$(os_version)" == '12'* ]]
-}
-
-function os_vercat() {
-  if is_ubuntu ; then
-      os_version | sed -e 's/[^0-9]//g'
-  elif is_rocky ; then
-      os_version | sed -e 's/[^0-9].*$//g'
-  else
-      os_version
-  fi
-}
+function os_id()       { grep '^ID=' /etc/os-release | cut -d= -f2 | xargs ; }
+function os_version()  { grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs ; }
+function os_codename() { grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs ; }
+function is_rocky()    { [[ "$(os_id)" == 'rocky' ]] ; }
+function is_rocky8()   { is_rocky && [[ "$(os_version)" == '8'* ]] ; }
+function is_rocky9()   { is_rocky && [[ "$(os_version)" == '9'* ]] ; }
+function is_ubuntu()   { [[ "$(os_id)" == 'ubuntu' ]] ; }
+function is_ubuntu18() { is_ubuntu && [[ "$(os_version)" == '18.04'* ]] ; }
+function is_ubuntu20() { is_ubuntu && [[ "$(os_version)" == '20.04'* ]] ; }
+function is_ubuntu22() { is_ubuntu && [[ "$(os_version)" == '22.04'* ]] ; }
+function is_debian()   { [[ "$(os_id)" == 'debian' ]] ; }
+function is_debian10() { is_debian && [[ "$(os_version)" == '10'* ]] ; }
+function is_debian11() { is_debian && [[ "$(os_version)" == '11'* ]] ; }
+function is_debian12() { is_debian && [[ "$(os_version)" == '12'* ]] ; }
+function os_vercat() { if   is_ubuntu ; then os_version | sed -e 's/[^0-9]//g'
+                       elif is_rocky  ; then os_version | sed -e 's/[^0-9].*$//g'
+                                        else os_version ; fi ; }
 
 function get_metadata_attribute() {
   local -r attribute_name=$1
-  local -r default_value=$2
+  local -r default_value="${2:-}"
   /usr/share/google/get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
 }
 
-readonly DEFAULT_DASK_RAPIDS_VERSION="24.06"
-readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' ${DEFAULT_DASK_RAPIDS_VERSION})
-
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
-readonly DEFAULT_SPARK_RAPIDS_VERSION="24.06"
+readonly DEFAULT_SPARK_RAPIDS_VERSION="24.06.0"
 
 if [[ "${SPARK_VERSION_ENV%%.*}" == "3" ]]; then
   readonly DEFAULT_CUDA_VERSION="11.8"
@@ -81,16 +46,24 @@ else
   readonly SPARK_VERSION="2.x"
 fi
 
+# RAPIDS config
+readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VERSION})
+function is_cuda12() { [[ "${CUDA_VERSION%%.*}" == "12" ]] ; }
+function is_cuda11() { [[ "${CUDA_VERSION%%.*}" == "11" ]] ; }
+
+if is_cuda11 ; then DEFAULT_DASK_RAPIDS_VERSION="22.08"
+else                DEFAULT_DASK_RAPIDS_VERSION="24.06" ; fi
+
+readonly DEFAULT_DASK_RAPIDS_VERSION
+readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' ${DEFAULT_DASK_RAPIDS_VERSION})
+
 readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 
 readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-master' 'true')
 
-# RAPIDS config
-readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VERSION})
-function is_cuda12() { [[ "${CUDA_VERSION%%.*}" == "12" ]] ; }
-function is_cuda11() { [[ "${CUDA_VERSION%%.*}" == "11" ]] ; }
+
 
 # SPARK config
 readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
@@ -121,20 +94,25 @@ function execute_with_retries() {
 
 function install_dask_rapids() {
   if is_cuda12 ; then
-    # This task takes a lot of memory and time.  The 15G available in n1-standard-4 is insufficient
-    conda config --set channel_priority flexible
-    conda create -n "rapids-${RAPIDS_VERSION}" -c rapidsai -c conda-forge -c nvidia  \
-      "rapids=${RAPIDS_VERSION}" python="3.11" "cuda-version=${CUDA_VERSION}"
+    local pandas_spec='pandas'
+    local python_ver="3.11"
   elif is_cuda11 ; then
+    local pandas_spec='pandas<1.5'
     if is_debian11 || is_debian12 || is_ubuntu20 || is_ubuntu22 ; then
         local python_ver="3.10"
     else
         local python_ver="3.9"
     fi
-    # Install cudatoolkit, pandas, rapids and cudf
-    mamba install -m -n 'dask-rapids' -y --no-channel-priority -c 'conda-forge' -c 'nvidia' -c 'rapidsai' \
-      "cudatoolkit=11.0" "pandas<1.5" "rapids" "cudf" "python=${python_ver}"
   fi
+
+  # Install cuda, pandas, rapids, dask and cudf
+  mamba="/opt/conda/default/bin/mamba"
+  "${mamba}" install -m -n 'dask-rapids' -y --no-channel-priority \
+    -c 'conda-forge' -c 'nvidia' -c 'rapidsai'  \
+    "cuda-version=${CUDA_VERSION}" \
+    "${pandas_spec}" \
+    "rapids=${RAPIDS_VERSION}" \
+    dask cudf python="${python_ver}"
 }
 
 function install_spark_rapids() {
