@@ -165,6 +165,9 @@ class DataprocTestCase(parameterized.TestCase):
         args.append("--master-boot-disk-size={}".format(boot_disk_size))
         args.append("--worker-boot-disk-size={}".format(boot_disk_size))
 
+        args.append("--master-boot-disk-type=pd-ssd")
+        args.append("--worker-boot-disk-type=pd-ssd")
+
         args.append("--format=json")
 
         args.append("--region={}".format(self.REGION))
