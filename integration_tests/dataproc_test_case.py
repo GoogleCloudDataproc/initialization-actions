@@ -165,14 +165,11 @@ class DataprocTestCase(parameterized.TestCase):
         args.append("--master-boot-disk-size={}".format(boot_disk_size))
         args.append("--worker-boot-disk-size={}".format(boot_disk_size))
 
-        args.append("--master-boot-disk-type=pd-ssd")
-        args.append("--worker-boot-disk-type=pd-ssd")
-
         args.append("--format=json")
 
         args.append("--region={}".format(self.REGION))
         if self.cluster_zone:
-            args.append("--zone={}".format(self.cluster_zone))
+          args.append("--zone={}".format(self.cluster_zone))
 
         if not FLAGS.skip_cleanup:
             args.append("--max-age=2h")
@@ -353,8 +350,8 @@ class DataprocTestCase(parameterized.TestCase):
                 INTERNAL_IP_SSH and "gcloud compute ssh " in cmd) else cmd
         cmd = cmd.replace("gcloud compute scp ",
                           "gcloud beta compute scp --internal-ip ") if (
-                INTERNAL_IP_SSH
-                and "gcloud compute scp " in cmd) else cmd
+                              INTERNAL_IP_SSH
+                              and "gcloud compute scp " in cmd) else cmd
         p = subprocess.Popen(
             cmd,
             shell=True,
