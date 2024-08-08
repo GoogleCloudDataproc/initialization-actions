@@ -63,16 +63,17 @@ function get_metadata_attribute() {
   /usr/share/google/get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
 }
 
-readonly DEFAULT_DASK_RAPIDS_VERSION="23.12"
+readonly DEFAULT_DASK_RAPIDS_VERSION="24.06"
 readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' ${DEFAULT_DASK_RAPIDS_VERSION})
 
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
-readonly DEFAULT_SPARK_RAPIDS_VERSION="22.10.0"
+readonly DEFAULT_SPARK_RAPIDS_VERSION="24.06"
 
 if [[ "${SPARK_VERSION_ENV%%.*}" == "3" ]]; then
   readonly DEFAULT_CUDA_VERSION="11.8"
   readonly DEFAULT_XGBOOST_VERSION="2.0.3"
   readonly SPARK_VERSION="${SPARK_VERSION_ENV}"
+  readonly DEFAULT_XGBOOST_GPU_SUB_VERSION=""
 else
   readonly DEFAULT_CUDA_VERSION="10.1"
   readonly DEFAULT_XGBOOST_VERSION="1.0.0"
@@ -87,14 +88,9 @@ readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-master' 'true')
 
 # RAPIDS config
-CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VERSION})
-if [[ "${CUDA_VERSION%%.*}" == 12 ]]; then
-    # at the time of writing 20240721 there is no support for the 12.x
-    # releases of cudatoolkit package in mamba.  For the time being,
-    # we will use a maximum of 11.8
-    CUDA_VERSION="11.8"
-fi
-readonly CUDA_VERSION
+readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VERSION})
+function is_cuda12() { [[ "${CUDA_VERSION%%.*}" == "12" ]] ; }
+function is_cuda11() { [[ "${CUDA_VERSION%%.*}" == "11" ]] ; }
 
 # SPARK config
 readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
@@ -124,14 +120,21 @@ function execute_with_retries() {
 }
 
 function install_dask_rapids() {
-  if is_debian11 || is_debian12 || is_ubuntu20 || is_ubuntu22 ; then
-      local python_ver="3.10"
-  else
-      local python_ver="3.9"
+  if is_cuda12 ; then
+    # This task takes a lot of memory and time.  The 15G available in n1-standard-4 is insufficient
+    conda config --set channel_priority flexible
+    conda create -n "rapids-${RAPIDS_VERSION}" -c rapidsai -c conda-forge -c nvidia  \
+      "rapids=${RAPIDS_VERSION}" python="3.11" "cuda-version=${CUDA_VERSION}"
+  elif is_cuda11 ; then
+    if is_debian11 || is_debian12 || is_ubuntu20 || is_ubuntu22 ; then
+        local python_ver="3.10"
+    else
+        local python_ver="3.9"
+    fi
+    # Install cudatoolkit, pandas, rapids and cudf
+    mamba install -m -n 'dask-rapids' -y --no-channel-priority -c 'conda-forge' -c 'nvidia' -c 'rapidsai' \
+      "cudatoolkit=11.0" "pandas<1.5" "rapids" "cudf" "python=${python_ver}"
   fi
-  # Install RAPIDS, cudatoolkit
-  mamba install -m -n 'dask-rapids' -y --no-channel-priority -c 'conda-forge' -c 'nvidia' -c 'rapidsai' \
-    "cudatoolkit=${CUDA_VERSION}" "pandas<1.5" "rapids=${RAPIDS_VERSION}" "python=${python_ver}"
 }
 
 function install_spark_rapids() {
