@@ -345,8 +345,8 @@ readonly NVIDIA_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64"
 function hold_nvidia_packages() {
   apt-mark hold nvidia-*
   apt-mark hold libnvidia-*
-  if apt list --installed 2>/dev/null | grep -q "xserver-xorg-video-nvidia"; then
-    sudo apt-mark hold xserver-xorg-video-nvidia*
+  if dpkg -l | grep -q "xserver-xorg-video-nvidia"; then
+    apt-mark hold xserver-xorg-video-nvidia*
   fi
 }
 
