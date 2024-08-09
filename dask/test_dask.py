@@ -9,7 +9,12 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 class DaskTestCase(DataprocTestCase):
     COMPONENT = 'dask'
     INIT_ACTIONS = ['dask/dask.sh']
+
+    DASK_YARN_TEST_SCRIPT = 'verify_dask_yarn.py'
     DASK_STANDALONE_TEST_SCRIPT = 'verify_dask_standalone.py'
+
+    def verify_dask_yarn(self, name):
+        self._run_dask_test_script(name, self.DASK_YARN_TEST_SCRIPT)
 
     def verify_dask_standalone(self, name):
         self._run_dask_test_script(name, self.DASK_STANDALONE_TEST_SCRIPT)
@@ -21,10 +26,12 @@ class DaskTestCase(DataprocTestCase):
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          script), name)
         self.assert_instance_command(name, verify_cmd)
-        self.remove_test_script(script, name)        
+        self.remove_test_script(script, name)
 
 
     @parameterized.parameters(
+        ("STANDARD", ["m", "w-0"], None),
+        ("STANDARD", ["m", "w-0"], "yarn"),
         ("STANDARD", ["m"], "standalone"))
     def test_dask(self, configuration, instances, runtime):
         if self.getImageOs() == 'rocky':
@@ -42,11 +49,14 @@ class DaskTestCase(DataprocTestCase):
                            machine_type='e2-standard-2',
                            metadata=metadata,
                            timeout_in_minutes=20)
-        
+
         for instance in instances:
             name = "{}-{}".format(self.getClusterName(), instance)
-            self.verify_dask_standalone(name)
 
+            if runtime is "standalone":
+                self.verify_dask_standalone(name)
+            else:
+                self.verify_dask_yarn(name)
 
 if __name__ == '__main__':
     absltest.main()
