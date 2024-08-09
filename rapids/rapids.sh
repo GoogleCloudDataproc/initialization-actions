@@ -17,7 +17,7 @@ readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[
 readonly DEFAULT_SPARK_RAPIDS_VERSION="24.06.1"
 
 if [[ "${SPARK_VERSION_ENV%%.*}" == "3" ]]; then
-  readonly DEFAULT_CUDA_VERSION="11.8"
+  readonly DEFAULT_CUDA_VERSION="12.4"
   readonly DEFAULT_XGBOOST_VERSION="2.0.3"
   readonly SPARK_VERSION="${SPARK_VERSION_ENV}"
   readonly DEFAULT_XGBOOST_GPU_SUB_VERSION=""
@@ -33,8 +33,8 @@ readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VER
 function is_cuda12() { [[ "${CUDA_VERSION%%.*}" == "12" ]] ; }
 function is_cuda11() { [[ "${CUDA_VERSION%%.*}" == "11" ]] ; }
 
-if is_cuda11 ; then DEFAULT_DASK_RAPIDS_VERSION="22.08"
-else                DEFAULT_DASK_RAPIDS_VERSION="24.08" ; fi
+if is_cuda11 ; then DEFAULT_DASK_RAPIDS_VERSION="22.06"
+else                DEFAULT_DASK_RAPIDS_VERSION="24.06" ; fi
 
 readonly DEFAULT_DASK_RAPIDS_VERSION
 readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' ${DEFAULT_DASK_RAPIDS_VERSION})
@@ -76,34 +76,38 @@ function execute_with_retries() {
 
 function install_dask_rapids() {
   if is_cuda12 ; then
-    local pandas_spec='pandas'
     local python_ver="3.11"
-    local cuda_spec='cuda-version>=12,<=12.5'
-    local dask_spec='dask'
+    local cuda_spec="cuda-version>=12,<=12.5"
+    local dask_spec="dask"
   elif is_cuda11 ; then
-    local pandas_spec='pandas<1.5'
     local python_ver="3.9"
-    local cuda_spec='cuda-version>=11,<12.0a0'
-    local dask_spec='dask'
+    local cuda_spec="cuda-version>=11,<12.0a0"
+    local dask_spec="dask"
   fi
 
-  # Install cuda, pandas, rapids, dask and cudf
+  # Install cuda, rapids, dask
   local is_installed="0"
   mamba="/opt/conda/default/bin/mamba"
   conda="/opt/conda/default/bin/conda"
   "${conda}" config --set channel_priority flexible
+
+  if [[ -d /opt/conda/miniconda3/envs/dask-rapids ]]; then
+    local operation="install"
+  else
+    local operation="create"
+  fi
+
   for installer in "${mamba}" "${conda}" ; do
     set +e
-    time "${installer}" install -m -n 'dask-rapids' -y --no-channel-priority \
+    time "${installer}" "${operation}" -m -n 'dask-rapids' -y --no-channel-priority \
       -c 'conda-forge' -c 'nvidia' -c 'rapidsai'  \
-      "cuda-version=${CUDA_VERSION%%.*}" \
-      "${pandas_spec}" \
+      "${cuda_spec}" \
       "rapids=${RAPIDS_VERSION}" \
       "${dask_spec}" \
-      cudf "python=${python_ver}"
+      "python=${python_ver}"
     if [[ "$?" == "0" ]] ; then
       is_installed="1"
-      continue
+      break
     fi
     set -e
   done

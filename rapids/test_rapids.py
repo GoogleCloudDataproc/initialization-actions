@@ -15,6 +15,8 @@ class RapidsTestCase(DataprocTestCase):
   ]
 
   GPU_P100 = "type=nvidia-tesla-p100"
+  GPU_A100 = "type=nvidia-tesla-a100,count=2"
+  GPU_H100 = "type=nvidia-h100-80gb,count=2"
   GPU_T4 = "type=nvidia-tesla-t4"
 
   # Tests for RAPIDS init action
