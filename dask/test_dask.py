@@ -26,7 +26,7 @@ class DaskTestCase(DataprocTestCase):
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          script), name)
         self.assert_instance_command(name, verify_cmd)
-        self.remove_test_script(script, name)        
+        self.remove_test_script(script, name)
 
 
     @parameterized.parameters(
@@ -49,7 +49,7 @@ class DaskTestCase(DataprocTestCase):
                            machine_type='e2-standard-2',
                            metadata=metadata,
                            timeout_in_minutes=20)
-        
+
         for instance in instances:
             name = "{}-{}".format(self.getClusterName(), instance)
 
