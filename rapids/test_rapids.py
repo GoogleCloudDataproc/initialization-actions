@@ -32,7 +32,7 @@ class RapidsTestCase(DataprocTestCase):
         os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             self.DASK_RAPIDS_TEST_SCRIPT_FILE_NAME), name)
-    verify_cmd = "/opt/conda/default/bin/python {}".format(
+    verify_cmd = "/opt/conda/miniconda3/envs/dask-rapids/bin/python {}".format(
         self.DASK_RAPIDS_TEST_SCRIPT_FILE_NAME)
     self.assert_instance_command(name, verify_cmd)
     self.remove_test_script(self.DASK_RAPIDS_TEST_SCRIPT_FILE_NAME, name)

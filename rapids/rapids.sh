@@ -91,15 +91,11 @@ function install_dask_rapids() {
   conda="/opt/conda/default/bin/conda"
   "${conda}" config --set channel_priority flexible
 
-  if [[ -d /opt/conda/miniconda3/envs/dask-rapids ]]; then
-    local operation="install"
-  else
-    local operation="create"
-  fi
+  local operation="create"
 
   for installer in "${mamba}" "${conda}" ; do
     set +e
-    time "${installer}" "${operation}" -m -n 'dask-rapids' -y --no-channel-priority \
+    time "${installer}" "create" -m -n 'dask-rapids' -y --no-channel-priority \
       -c 'conda-forge' -c 'nvidia' -c 'rapidsai'  \
       "${cuda_spec}" \
       "rapids=${RAPIDS_VERSION}" \
