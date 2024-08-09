@@ -453,6 +453,7 @@ function install_dask() {
     echo "failed to install dask"
     return 1
   fi
+  set -e
 }
 
 function main() {
