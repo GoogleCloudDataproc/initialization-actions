@@ -14,7 +14,7 @@ function get_metadata_attribute() {
 }
 
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
-readonly DEFAULT_SPARK_RAPIDS_VERSION="24.08.0"
+readonly DEFAULT_SPARK_RAPIDS_VERSION="24.06.1"
 
 if [[ "${SPARK_VERSION_ENV%%.*}" == "3" ]]; then
   readonly DEFAULT_CUDA_VERSION="11.8"
