@@ -85,7 +85,7 @@ function install_dask_rapids() {
 
   # Install cuda, pandas, rapids, dask and cudf
   mamba="/opt/conda/default/bin/mamba"
-  "${mamba}" install -m -n 'dask-rapids' -y --no-channel-priority \
+  time "${mamba}" install -m -n 'dask-rapids' -y --no-channel-priority \
     -c 'conda-forge' -c 'nvidia' -c 'rapidsai'  \
     "cuda-version=${CUDA_VERSION}" \
     "${pandas_spec}" \
