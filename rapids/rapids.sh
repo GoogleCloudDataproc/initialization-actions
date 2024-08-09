@@ -14,7 +14,7 @@ function get_metadata_attribute() {
 }
 
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
-readonly DEFAULT_SPARK_RAPIDS_VERSION="24.06.0"
+readonly DEFAULT_SPARK_RAPIDS_VERSION="24.08.0"
 
 if [[ "${SPARK_VERSION_ENV%%.*}" == "3" ]]; then
   readonly DEFAULT_CUDA_VERSION="11.8"
@@ -34,7 +34,7 @@ function is_cuda12() { [[ "${CUDA_VERSION%%.*}" == "12" ]] ; }
 function is_cuda11() { [[ "${CUDA_VERSION%%.*}" == "11" ]] ; }
 
 if is_cuda11 ; then DEFAULT_DASK_RAPIDS_VERSION="22.08"
-else                DEFAULT_DASK_RAPIDS_VERSION="24.06" ; fi
+else                DEFAULT_DASK_RAPIDS_VERSION="24.08" ; fi
 
 readonly DEFAULT_DASK_RAPIDS_VERSION
 readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' ${DEFAULT_DASK_RAPIDS_VERSION})
@@ -78,19 +78,40 @@ function install_dask_rapids() {
   if is_cuda12 ; then
     local pandas_spec='pandas'
     local python_ver="3.11"
+    local cuda_spec='cuda-version>=12,<=12.5'
+    local dask_spec='dask'
   elif is_cuda11 ; then
     local pandas_spec='pandas<1.5'
     local python_ver="3.9"
+    local cuda_spec='cuda-version>=11,<12.0a0'
+    local dask_spec='dask'
   fi
 
   # Install cuda, pandas, rapids, dask and cudf
+  local is_installed="0"
   mamba="/opt/conda/default/bin/mamba"
-  time "${mamba}" install -m -n 'dask-rapids' -y --no-channel-priority \
-    -c 'conda-forge' -c 'nvidia' -c 'rapidsai'  \
-    "cuda-version=${CUDA_VERSION}" \
-    "${pandas_spec}" \
-    "rapids=${RAPIDS_VERSION}" \
-    dask cudf "python=${python_ver}"
+  conda="/opt/conda/default/bin/conda"
+  "${conda}" config --set channel_priority flexible
+  for installer in "${mamba}" "${conda}" ; do
+    set +e
+    time "${installer}" install -m -n 'dask-rapids' -y --no-channel-priority \
+      -c 'conda-forge' -c 'nvidia' -c 'rapidsai'  \
+      "cuda-version=${CUDA_VERSION%%.*}" \
+      "${pandas_spec}" \
+      "rapids=${RAPIDS_VERSION}" \
+      "${dask_spec}" \
+      cudf "python=${python_ver}"
+    if [[ "$?" == "0" ]] ; then
+      is_installed="1"
+      continue
+    fi
+    set -e
+  done
+  if [[ "${is_installed}" == "0" ]]; then
+    echo "failed to install dask"
+    return 1
+  fi
+  set -e
 }
 
 function install_spark_rapids() {
