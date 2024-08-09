@@ -43,9 +43,13 @@ class MLVMTestCase(DataprocTestCase):
       self.assert_instance_command("{}-{}".format(self.name, machine_suffix),
                                    "nvidia-smi")
 
-  def verify_dask(self):
+  def verify_dask(self, dask_runtime):
+    if dask_runtime == "standalone":
+      script = self.DASK_STANDALONE_SCRIPT
+    else:
+      script = self.DASK_YARN_SCRIPT
+
     name = "{}-m".format(self.getClusterName())
-    script = self.DASK_STANDALONE_SCRIPT
     verify_cmd = "/opt/conda/default/bin/python {}".format(script)
     self.upload_test_file(
         os.path.join(
@@ -106,7 +110,7 @@ class MLVMTestCase(DataprocTestCase):
         metadata=metadata)
 
     self.verify_all()
-    self.verify_dask()
+    self.verify_dask(dask_runtime)
 
   @parameterized.parameters(
       ("STANDARD", None, None),
@@ -116,11 +120,11 @@ class MLVMTestCase(DataprocTestCase):
   )
   def test_mlvm_gpu(self, configuration, dask_runtime, rapids_runtime):
     if self.getImageOs() == 'rocky':
-      self.skipTest("Not supported in Rocky Linux-based images")
+        self.skipTest("Not supported in Rocky Linux-based images")
 
     # Supported on Dataproc 2.0+
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
-      self.skipTest("Not supported in pre 2.0 images")
+        self.skipTest("Not supported in pre 2.0 images")
     if self.getImageVersion() > pkg_resources.parse_version("2.0"):
         self.skipTest("Not supported in 2.0+ images")
 
