@@ -74,6 +74,8 @@ class KafkaTestCase(DataprocTestCase):
     def test_kafka_cruise_control(self, configuration, machine_suffixes):
         if self.getImageOs() == 'rocky':
             self.skipTest("Not supported in Rocky Linux-based images")
+        if self.getImageVersion() > pkg_resources.parse_version("2.0"):
+            self.skipTest("Not supported in 2.0+ images")
 
         metadata = 'run-on-master=true'
         self.createCluster(configuration, self.KAFKA_CRUISE_CONTROL_INIT_ACTION, metadata=metadata)
@@ -88,6 +90,8 @@ class KafkaTestCase(DataprocTestCase):
     def test_kafka_cruise_control_job(self, configuration):
         if self.getImageOs() == 'rocky':
             self.skipTest("Not supported in Rocky Linux-based images")
+        if self.getImageVersion() > pkg_resources.parse_version("2.0"):
+            self.skipTest("Not supported in 2.0+ images")
 
         metadata = 'run-on-master=true,install-kafka-python=true'
         properties = 'dataproc:alpha.components=ZOOKEEPER'
