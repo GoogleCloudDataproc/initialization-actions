@@ -70,10 +70,10 @@ class RapidsTestCase(DataprocTestCase):
         configuration,
         self.DASK_INIT_ACTIONS,
         metadata=metadata,
-        machine_type="n1-standard-4",
+        machine_type="n1-standard-8",
         master_accelerator=accelerator,
         worker_accelerator=accelerator,
-        boot_disk_size="200GB",
+        boot_disk_size="100GB",
         timeout_in_minutes=30)
 
     for machine_suffix in machine_suffixes:
@@ -95,10 +95,10 @@ class RapidsTestCase(DataprocTestCase):
         self.INIT_ACTIONS,
         optional_components=optional_components,
         metadata=metadata,
-        machine_type="n1-standard-4",
+        machine_type="n1-standard-8",
         master_accelerator=accelerator if configuration == "SINGLE" else None,
         worker_accelerator=accelerator,
-        boot_disk_size="200GB",
+        boot_disk_size="100GB",
         timeout_in_minutes=30)
 
     for machine_suffix in machine_suffixes:
@@ -107,7 +107,7 @@ class RapidsTestCase(DataprocTestCase):
     # Only need to do this once
     self.verify_spark_job()
 
-  @parameterized.parameters(("STANDARD", ["w-0"], GPU_T4, "12.4"))
+  @parameterized.parameters(("STANDARD", ["w-0"], GPU_T4, "11.8"))
   def test_non_default_cuda_versions(self, configuration, machine_suffixes,
                                      accelerator, cuda_version):
 
@@ -121,10 +121,10 @@ class RapidsTestCase(DataprocTestCase):
         configuration,
         self.INIT_ACTIONS,
         metadata=metadata,
-        machine_type="n1-standard-4",
+        machine_type="n1-standard-8",
         master_accelerator=accelerator if configuration == "SINGLE" else None,
         worker_accelerator=accelerator,
-        boot_disk_size="200GB",
+        boot_disk_size="100GB",
         timeout_in_minutes=30)
 
     for machine_suffix in machine_suffixes:
