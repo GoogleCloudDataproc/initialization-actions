@@ -1,39 +1,35 @@
-import cudf
-import dask_cudf
-import xgboost
+import pandas as pd
+import dask.dataframe as dd
 
-from dask.distributed import Client
 import dask.array as da
 import numpy as np
 
-
-def test_rapids():
-  # confirm RAPIDS and xgboost are available
-  df = cudf.DataFrame()
+def test_pandas_dask():
+  # Create a simple pandas DataFrame
+  df = pd.DataFrame()
   df['a'] = [0, 1, 2]
   df['b'] = [1, 2, 3]
   df['c'] = df.a * df.b + 100
-  dmat = xgboost.DMatrix(df)
 
-  # confirm Dask is available
-  ds = dask_cudf.from_cudf(df['c'], npartitions=2)
-  ds.compute()
+  # Convert the pandas DataFrame to a Dask DataFrame
+  ddf = dd.from_pandas(df['c'], npartitions=2)
 
+  # Compute the Dask DataFrame
+  computed_df = ddf.compute()
+
+  # Print the results
+  print("Pandas DataFrame:")
+  print(df)
+  print("\nComputed Dask DataFrame:")
+  print(computed_df)
 
 def test_dask_yarn():
-  try:
-    from dask_yarn import YarnCluster
-  except:
-    return
-
-  # Validate dask_yarn configuration
-  cluster = YarnCluster()
-  client = Client(cluster)
-
-  cluster.scale(4)
   x = da.sum(np.ones(5))
-  x.compute()
+  result = x.compute()
 
+  print("\nDask-Yarn Result:")
+  print(result)
 
-test_rapids()
+# Run the test functions
+test_pandas_dask()
 test_dask_yarn()
