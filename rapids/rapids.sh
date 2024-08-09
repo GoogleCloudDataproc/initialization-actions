@@ -7,24 +7,6 @@ if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
   DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
 fi
 
-function os_id()       { grep '^ID=' /etc/os-release | cut -d= -f2 | xargs ; }
-function os_version()  { grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs ; }
-function os_codename() { grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs ; }
-function is_rocky()    { [[ "$(os_id)" == 'rocky' ]] ; }
-function is_rocky8()   { is_rocky && [[ "$(os_version)" == '8'* ]] ; }
-function is_rocky9()   { is_rocky && [[ "$(os_version)" == '9'* ]] ; }
-function is_ubuntu()   { [[ "$(os_id)" == 'ubuntu' ]] ; }
-function is_ubuntu18() { is_ubuntu && [[ "$(os_version)" == '18.04'* ]] ; }
-function is_ubuntu20() { is_ubuntu && [[ "$(os_version)" == '20.04'* ]] ; }
-function is_ubuntu22() { is_ubuntu && [[ "$(os_version)" == '22.04'* ]] ; }
-function is_debian()   { [[ "$(os_id)" == 'debian' ]] ; }
-function is_debian10() { is_debian && [[ "$(os_version)" == '10'* ]] ; }
-function is_debian11() { is_debian && [[ "$(os_version)" == '11'* ]] ; }
-function is_debian12() { is_debian && [[ "$(os_version)" == '12'* ]] ; }
-function os_vercat() { if   is_ubuntu ; then os_version | sed -e 's/[^0-9]//g'
-                       elif is_rocky  ; then os_version | sed -e 's/[^0-9].*$//g'
-                                        else os_version ; fi ; }
-
 function get_metadata_attribute() {
   local -r attribute_name=$1
   local -r default_value="${2:-}"
@@ -98,11 +80,7 @@ function install_dask_rapids() {
     local python_ver="3.11"
   elif is_cuda11 ; then
     local pandas_spec='pandas<1.5'
-    if is_debian11 || is_debian12 || is_ubuntu20 || is_ubuntu22 ; then
-        local python_ver="3.10"
-    else
-        local python_ver="3.9"
-    fi
+    local python_ver="3.9"
   fi
 
   # Install cuda, pandas, rapids, dask and cudf
@@ -112,7 +90,7 @@ function install_dask_rapids() {
     "cuda-version=${CUDA_VERSION}" \
     "${pandas_spec}" \
     "rapids=${RAPIDS_VERSION}" \
-    dask cudf python="${python_ver}"
+    dask cudf "python=${python_ver}"
 }
 
 function install_spark_rapids() {
