@@ -7,72 +7,20 @@ if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
   DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
 fi
 
-function os_id() {
-  grep '^ID=' /etc/os-release | cut -d= -f2 | xargs
-}
-
-function os_version() {
-  grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs
-}
-
-function os_codename() {
-  grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs
-}
-
-function is_rocky() {
-  [[ "$(os_id)" == 'rocky' ]]
-}
-
-function is_ubuntu() {
-  [[ "$(os_id)" == 'ubuntu' ]]
-}
-
-function is_ubuntu20() {
-  is_ubuntu && [[ "$(os_version)" == '20.04'* ]]
-}
-
-function is_ubuntu22() {
-  is_ubuntu && [[ "$(os_version)" == '22.04'* ]]
-}
-
-function is_debian() {
-  [[ "$(os_id)" == 'debian' ]]
-}
-
-function is_debian11() {
-  is_debian && [[ "$(os_version)" == '11'* ]]
-}
-
-function is_debian12() {
-  is_debian && [[ "$(os_version)" == '12'* ]]
-}
-
-function os_vercat() {
-  if is_ubuntu ; then
-      os_version | sed -e 's/[^0-9]//g'
-  elif is_rocky ; then
-      os_version | sed -e 's/[^0-9].*$//g'
-  else
-      os_version
-  fi
-}
-
 function get_metadata_attribute() {
   local -r attribute_name=$1
-  local -r default_value=$2
+  local -r default_value="${2:-}"
   /usr/share/google/get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
 }
 
-readonly DEFAULT_DASK_RAPIDS_VERSION="23.12"
-readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' ${DEFAULT_DASK_RAPIDS_VERSION})
-
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
-readonly DEFAULT_SPARK_RAPIDS_VERSION="22.10.0"
+readonly DEFAULT_SPARK_RAPIDS_VERSION="24.06.1"
 
 if [[ "${SPARK_VERSION_ENV%%.*}" == "3" ]]; then
   readonly DEFAULT_CUDA_VERSION="11.8"
   readonly DEFAULT_XGBOOST_VERSION="2.0.3"
   readonly SPARK_VERSION="${SPARK_VERSION_ENV}"
+  readonly DEFAULT_XGBOOST_GPU_SUB_VERSION=""
 else
   readonly DEFAULT_CUDA_VERSION="10.1"
   readonly DEFAULT_XGBOOST_VERSION="1.0.0"
@@ -80,21 +28,24 @@ else
   readonly SPARK_VERSION="2.x"
 fi
 
+# RAPIDS config
+readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VERSION})
+function is_cuda12() { [[ "${CUDA_VERSION%%.*}" == "12" ]] ; }
+function is_cuda11() { [[ "${CUDA_VERSION%%.*}" == "11" ]] ; }
+
+if is_cuda11 ; then DEFAULT_DASK_RAPIDS_VERSION="22.08"
+else                DEFAULT_DASK_RAPIDS_VERSION="24.08" ; fi
+
+readonly DEFAULT_DASK_RAPIDS_VERSION
+readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' ${DEFAULT_DASK_RAPIDS_VERSION})
+
 readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 
 readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-master' 'true')
 
-# RAPIDS config
-CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VERSION})
-if [[ "${CUDA_VERSION%%.*}" == 12 ]]; then
-    # at the time of writing 20240721 there is no support for the 12.x
-    # releases of cudatoolkit package in mamba.  For the time being,
-    # we will use a maximum of 11.8
-    CUDA_VERSION="11.8"
-fi
-readonly CUDA_VERSION
+
 
 # SPARK config
 readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
@@ -124,14 +75,43 @@ function execute_with_retries() {
 }
 
 function install_dask_rapids() {
-  if is_debian11 || is_debian12 || is_ubuntu20 || is_ubuntu22 ; then
-      local python_ver="3.10"
-  else
-      local python_ver="3.9"
+  if is_cuda12 ; then
+    local pandas_spec='pandas'
+    local python_ver="3.11"
+    local cuda_spec='cuda-version>=12,<=12.5'
+    local dask_spec='dask'
+  elif is_cuda11 ; then
+    local pandas_spec='pandas<1.5'
+    local python_ver="3.9"
+    local cuda_spec='cuda-version>=11,<12.0a0'
+    local dask_spec='dask'
   fi
-  # Install RAPIDS, cudatoolkit
-  mamba install -m -n 'dask-rapids' -y --no-channel-priority -c 'conda-forge' -c 'nvidia' -c 'rapidsai' \
-    "cudatoolkit=${CUDA_VERSION}" "pandas<1.5" "rapids=${RAPIDS_VERSION}" "python=${python_ver}"
+
+  # Install cuda, pandas, rapids, dask and cudf
+  local is_installed="0"
+  mamba="/opt/conda/default/bin/mamba"
+  conda="/opt/conda/default/bin/conda"
+  "${conda}" config --set channel_priority flexible
+  for installer in "${mamba}" "${conda}" ; do
+    set +e
+    time "${installer}" install -m -n 'dask-rapids' -y --no-channel-priority \
+      -c 'conda-forge' -c 'nvidia' -c 'rapidsai'  \
+      "cuda-version=${CUDA_VERSION%%.*}" \
+      "${pandas_spec}" \
+      "rapids=${RAPIDS_VERSION}" \
+      "${dask_spec}" \
+      cudf "python=${python_ver}"
+    if [[ "$?" == "0" ]] ; then
+      is_installed="1"
+      continue
+    fi
+    set -e
+  done
+  if [[ "${is_installed}" == "0" ]]; then
+    echo "failed to install dask"
+    return 1
+  fi
+  set -e
 }
 
 function install_spark_rapids() {
