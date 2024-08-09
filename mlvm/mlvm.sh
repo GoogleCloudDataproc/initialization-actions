@@ -37,37 +37,76 @@ R_VERSION="$(R --version | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/
 readonly R_VERSION
 readonly SPARK_NLP_VERSION="3.2.1" # Must include subminor version here
 
-CONDA_PACKAGES=(
-  "r-dplyr=1.0"
-  "r-essentials=${R_VERSION}"
-  "r-sparklyr=1.7"
-  "scikit-learn=0.24"
-  "xgboost=1.4"
-)
+if [[ $(echo "${DATAPROC_IMAGE_VERSION} == 2.0" | bc -l) == 1 ]]; then
+  CONDA_PACKAGES=(
+    "r-dplyr=1.0"
+    "r-essentials=${R_VERSION}"
+    "r-sparklyr=1.7"
+    "scikit-learn=0.24"
+    "xgboost=1.4"
+  )
+elif [[ $(echo "${DATAPROC_IMAGE_VERSION} == 2.1" | bc -l) == 1 ]]; then
+  CONDA_PACKAGES=(
+    "r-dplyr=1.0"
+    "r-essentials=${R_VERSION}"
+    "r-sparklyr=1.7"
+    "scikit-learn=1.0"
+    "xgboost=1.6"
+  )
+elif [[ $(echo "${DATAPROC_IMAGE_VERSION} == 2.2" | bc -l) == 1 ]]; then
+  CONDA_PACKAGES=(
+    "r-dplyr=1.1"
+    "r-essentials=${R_VERSION}"
+    "r-sparklyr=1.8"
+    "scikit-learn=1.1"
+    "xgboost=2.0"
+  )
+fi
 
 # rapids-xgboost (part of the RAPIDS library) requires a custom build of
 # xgboost that is incompatible with r-xgboost. As such, r-xgboost is not
 # installed into the MLVM if RAPIDS support is desired.
 if [[ -z ${RAPIDS_RUNTIME} ]]; then
-  CONDA_PACKAGES+=("r-xgboost=1.4")
+  if [[ $(echo "${DATAPROC_IMAGE_VERSION} == 2.0" | bc -l) == 1 ]]; then
+    CONDA_PACKAGES+=("r-xgboost=1.4")
+  elif [[ $(echo "${DATAPROC_IMAGE_VERSION} == 2.1" | bc -l) == 1 ]]; then
+    CONDA_PACKAGES+=("r-xgboost=1.6")
+  elif [[ $(echo "${DATAPROC_IMAGE_VERSION} == 2.2" | bc -l) == 1 ]]; then
+    CONDA_PACKAGES+=("r-xgboost=2.0")
+  fi
 fi
 
 PIP_PACKAGES=(
+  "spark-tensorflow-distributor==1.0.0"
+  "tensorflow-probability==0.13.*"
   "mxnet==1.8.*"
   "rpy2==3.4.*"
   "spark-nlp==${SPARK_NLP_VERSION}"
   "sparksql-magic==0.0.*"
   "tensorflow-datasets==4.4.*"
   "tensorflow-hub==0.12.*"
+  "nltk==3.6.5"
 )
 
-PIP_PACKAGES+=(
-  "spark-tensorflow-distributor==1.0.0"
-  "tensorflow==2.6.*"
-  "tensorflow-estimator==2.6.*"
-  "tensorflow-io==0.20"
-  "tensorflow-probability==0.13.*"
-)
+if [[ $(echo "${DATAPROC_IMAGE_VERSION} == 2.0" | bc -l) == 1 ]]; then
+  PIP_PACKAGES+=(
+    "tensorflow==2.6.*"
+    "tensorflow-estimator==2.6.*"
+    "tensorflow-io==0.20"
+  )
+elif [[ $(echo "${DATAPROC_IMAGE_VERSION} == 2.1" | bc -l) == 1 ]]; then
+  PIP_PACKAGES+=(
+    "tensorflow==2.8.*"
+    "tensorflow-estimator==2.8.*"
+    "tensorflow-io==0.23.1"
+  )
+elif [[ $(echo "${DATAPROC_IMAGE_VERSION} == 2.2" | bc -l) == 1 ]]; then
+  PIP_PACKAGES+=(
+    "tensorflow==2.12.*"
+    "tensorflow-estimator==2.12.*"
+    "tensorflow-io==0.29.0"
+  )
+fi
 
 readonly CONDA_PACKAGES
 readonly PIP_PACKAGES
@@ -119,26 +158,24 @@ function install_conda_packages() {
   conda config --add channels pytorch
   conda config --add channels conda-forge
 
-  conda install pytorch==1.9.0 torchvision==0.10.0 torchaudio==0.9.0 -c pytorch -c conda-forge
-
   # Create a separate environment with mamba.
   # Mamba provides significant decreases in installation times.
   conda create -y -n ${mamba_env_name} mamba
 
-  execute_with_retries "${mamba_env}/bin/mamba install -y ${CONDA_PACKAGES[*]} -p ${base}"
+  execute_with_retries "${base}/bin/mamba install -y ${CONDA_PACKAGES[*]} -p ${base}"
 
   if [[ -n "${extra_channels}" ]]; then
     for channel in ${extra_channels}; do
-      "${mamba_env}/bin/conda" config --add channels "${channel}"
+      "${base}/bin/conda" config --add channels "${channel}"
     done
   fi
 
   if [[ -n "${extra_packages}" ]]; then
-    execute_with_retries "${mamba_env}/bin/mamba install -y ${extra_packages[*]} -p ${base}"
+    execute_with_retries "${base}/bin/mamba install -y ${extra_packages[*]} -p ${base}"
   fi
 
   # Clean up environment
-  "${mamba_env}/bin/mamba" clean -y --all
+  "${base}/bin/mamba" clean -y --all
 
   # Remove mamba env when done
   conda env remove -n ${mamba_env_name}
@@ -147,10 +184,21 @@ function install_conda_packages() {
 function install_pip_packages() {
   local -r extra_packages="$(/usr/share/google/get_metadata_value attributes/PIP_PACKAGES || echo "")"
 
+  if [[ $(echo "${DATAPROC_IMAGE_VERSION} == 2.0" | bc -l) == 1 ]]; then
+    pip install torch==1.9.0 torchvision==0.10.0 torchaudio==0.9.0
+  elif [[ $(echo "${DATAPROC_IMAGE_VERSION} == 2.1" | bc -l) == 1 ]]; then
+    pip install torch==1.11.0 torchvision==0.12.0 torchaudio==0.11.0
+  elif [[ $(echo "${DATAPROC_IMAGE_VERSION} == 2.2" | bc -l) == 1 ]]; then
+    pip install torch==2.0.0 torchvision==0.15.1 torchaudio==2.0.1
+  fi
+
   execute_with_retries "pip install ${PIP_PACKAGES[*]}"
 
   if [[ -n "${extra_packages}" ]]; then
     execute_with_retries "pip install ${extra_packages[*]}"
+  fi
+  if [[ $(echo "${DATAPROC_IMAGE_VERSION} == 2.0" | bc -l) == 1 ]]; then
+    execute_with_retries "pip install numpy==1.20.* --no-deps"
   fi
 }
 
@@ -211,13 +259,13 @@ function main() {
   echo "Installing rapids"
   install_rapids
 
-  # Install Conda packages
-  echo "Installing Conda packages"
-  install_conda_packages
-
   # Install Pip packages
   echo "Installing Pip Packages"
   install_pip_packages
+
+  # Install Conda packages
+  echo "Installing Conda packages"
+  install_conda_packages
 }
 
 main

@@ -1,6 +1,5 @@
 from pyspark.sql import SparkSession
 from pyspark import SparkConf, SparkContext
-from ml.dmlc.xgboost4j.scala.spark import XGBoostClassificationModel
 
 conf = SparkConf().setAppName("RAPIDS_Accelerator_Spark_join_test")
 conf.set("spark.executor.instances", "1")
