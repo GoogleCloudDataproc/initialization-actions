@@ -345,7 +345,7 @@ readonly NVIDIA_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64"
 function hold_nvidia_packages() {
   apt-mark hold nvidia-*
   apt-mark hold libnvidia-*
-  apt-mark hold xserver-xorg-video-nvidia-*
+  apt-mark hold xserver-xorg-video-nvidia*
 }
 
 # Install NVIDIA GPU driver provided by NVIDIA
