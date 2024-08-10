@@ -126,6 +126,7 @@ class DataprocTestCase(parameterized.TestCase):
                     "mlvm.sh" in i or "rapids.sh" in i or \
                     "spark-rapids.sh" in i or "horovod.sh" in i:
                 args.append("--no-shielded-secure-boot")
+                break
 
         if optional_components:
             args.append("--optional-components={}".format(
