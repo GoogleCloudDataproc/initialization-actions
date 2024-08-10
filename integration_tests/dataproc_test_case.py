@@ -17,7 +17,7 @@ logging.basicConfig(level=os.getenv("LOG_LEVEL", logging.INFO))
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('image', None, 'Dataproc image URL')
-flags.DEFINE_string('image_version', None, 'Dataproc image version, e.g. 1.4')
+flags.DEFINE_string('image_version', None, 'Dataproc image version, e.g. 2.2')
 flags.DEFINE_boolean('skip_cleanup', False, 'Skip cleanup of test resources')
 FLAGS(sys.argv)
 
@@ -178,7 +178,9 @@ class DataprocTestCase(parameterized.TestCase):
           args.append("--zone={}".format(self.cluster_zone))
 
         if not FLAGS.skip_cleanup:
-            args.append("--max-age=2h")
+            args.append("--max-age=30m")
+
+        args.append("--max-idle=5m")
 
         cmd = "{} dataproc clusters create {} {}".format(
             "gcloud beta" if beta else "gcloud", self.name, " ".join(args))
@@ -239,7 +241,7 @@ class DataprocTestCase(parameterized.TestCase):
 
     @staticmethod
     def getImageVersion():
-        # Get a numeric version from the version flag: '1.5-debian10' -> '1.5'.
+        # Get a numeric version from the version flag: '2.2-debian10' -> '2.2'.
         # Special case a 'preview' image versions and return a large number
         # instead to make it a higher image version in comparisons
         version = FLAGS.image_version
@@ -248,7 +250,7 @@ class DataprocTestCase(parameterized.TestCase):
 
     @staticmethod
     def getImageOs():
-        # Get OS string from the version flag: '1.5-debian10' -> 'debian'.
+        # Get OS string from the version flag: '2.2-debian10' -> 'debian'.
         # If image version specified without OS suffix ('2.0')
         # then return 'debian' by default
         version = FLAGS.image_version
