@@ -42,8 +42,7 @@ readonly BIGTABLE_HBASE_CLIENT_2X_VERSION='2.12.0'
 readonly BIGTABLE_HBASE_CLIENT_2X_JAR="bigtable-hbase-2.x-hadoop-${BIGTABLE_HBASE_CLIENT_2X_VERSION}.jar"
 readonly BIGTABLE_HBASE_CLIENT_2X_URL="${BIGTABLE_HBASE_CLIENT_2X_REPO}/${BIGTABLE_HBASE_CLIENT_2X_VERSION}/${BIGTABLE_HBASE_CLIENT_2X_JAR}"
 
-readonly region="$(/usr/share/google/get_metadata_value attributes/dataproc-region)"
-readonly SCH_REPO="gs://dataproc-initialization-actions-${region}/jars/bigtable"
+readonly SCH_REPO="https://repo.hortonworks.com/content/repositories/releases/com/hortonworks"
 readonly SHC_VERSION='1.1.1-2.1-s_2.11'
 readonly SHC_JAR="shc-core-${SHC_VERSION}.jar"
 readonly SHC_EXAMPLES_JAR="shc-examples-${SHC_VERSION}.jar"
@@ -59,24 +58,21 @@ readonly BIGTABLE_PROJECT="$(/usr/share/google/get_metadata_value attributes/big
     /usr/share/google/get_metadata_value ../project/project-id)"
 
 function remove_old_backports {
-  if is_debian12 ; then return ; fi
   # This script uses 'apt-get update' and is therefore potentially dependent on
   # backports repositories which have been archived.  In order to mitigate this
-  # problem, we will use archive.debian.org for the oldoldstable repo
+  # problem, we will remove any reference to backports repos older than oldstable
 
   # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
-  debdists="https://deb.debian.org/debian/dists"
-  oldoldstable=$(curl -s "${debdists}/oldoldstable/Release" | awk '/^Codename/ {print $2}');
-  oldstable=$(   curl -s "${debdists}/oldstable/Release"    | awk '/^Codename/ {print $2}');
-  stable=$(      curl -s "${debdists}/stable/Release"       | awk '/^Codename/ {print $2}');
+  oldstable=$(curl -s https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
+  stable=$(curl -s https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
 
-  matched_files=( $(test -d /etc/apt && grep -rsil '\-backports' /etc/apt/sources.list*||:) )
-
-  for filename in "${matched_files[@]}"; do
-    # Fetch from archive.debian.org for ${oldoldstable}-backports
-    perl -pi -e "s{^(deb[^\s]*) https?://[^/]+/debian ${oldoldstable}-backports }
-                  {\$1 https://archive.debian.org/debian ${oldoldstable}-backports }g" "${filename}"
-  done
+  matched_files=( $(grep -rsil '\-backports' /etc/apt/sources.list*||:) )
+  if [[ -n "$matched_files" ]]; then
+    for filename in "${matched_files[@]}"; do
+      grep -e "$oldstable-backports" -e "$stable-backports" "$filename" || \
+        sed -i -e 's/^.*-backports.*$//' "$filename"
+    done
+  fi
 }
 
 function retry_command() {
@@ -112,10 +108,12 @@ function install_bigtable_client() {
 function install_shc() {
   mkdir -p "/usr/lib/spark/external"
   local out="/usr/lib/spark/external/${SHC_JAR}"
-  gsutil cp -r "${SHC_URL}" "${out}"
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "${SHC_URL}" -O "${out}"
   ln -s "${out}" "/usr/lib/spark/external/shc-core.jar"
   local example_out="/usr/lib/spark/examples/jars/${SHC_EXAMPLES_JAR}"
-  gsutil cp -r "${SHC_EXAMPLES_URL}" "${example_out}"
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "${SHC_EXAMPLES_URL}" -O "${example_out}"
   ln -s "${example_out}" "/usr/lib/spark/examples/jars/shc-examples.jar"
 }
 
@@ -244,8 +242,7 @@ function install_hbase() {
       local VARIANT="bin"
       local BASENAME="hbase-${HBASE_VERSION}-${VARIANT}.tar.gz"
       echo "hbase dist basename: ${BASENAME}"
-      curl -fsSL -o "/tmp/${BASENAME}" --retry-connrefused --retry 3 --retry-max-time 5 \
-        "https://archive.apache.org/dist/hbase/${HBASE_VERSION}/${BASENAME}" || err 'Unable to download tar'
+      wget -q -nv "https://archive.apache.org/dist/hbase/${HBASE_VERSION}/${BASENAME}" -P /tmp || err 'Unable to download tar'
 
       # extract binaries from bundle
       mkdir -p "/tmp/hbase-${HBASE_VERSION}/" "${HBASE_HOME}"
