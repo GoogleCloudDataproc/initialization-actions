@@ -192,10 +192,10 @@ EOF
   fi
 }
 
+readonly conda_env="/opt/conda/miniconda3/envs/dask-rapids"
 configure_systemd_dask_service() {
   echo "Configuring systemd Dask service for RAPIDS..."
   local -r dask_worker_local_dir="/tmp/dask"
-  local conda_env="/opt/conda/miniconda3/envs/dask-rapids"
   local conda_env_bin="${conda_env}/bin"
 
   # Replace Dask Launcher file with dask-cuda config
@@ -228,7 +228,6 @@ EOF
 
 function configure_dask_yarn() {
   local base
-  base=$(conda info --base)
 
   # Replace config file on cluster.
   cat <<EOF >"${DASK_YARN_CONFIG_FILE}"
@@ -238,7 +237,7 @@ function configure_dask_yarn() {
 # https://yarn.dask.org/en/latest/configuration.html#default-configuration
 
 yarn:
-  environment: python://${base}/bin/python
+  environment: environment://${conda_env}
 
   worker:
     count: 2
