@@ -93,34 +93,43 @@ function execute_with_retries() {
 
 function install_dask_rapids() {
   if is_cuda12 ; then
-    local python_ver="3.11"
+    local python_ver="3.10"
     local cuda_spec="cuda-version>=12,<=12.5"
     local dask_spec="dask"
+    local numba_spec="numba"
   elif is_cuda11 ; then
     local python_ver="3.9"
-    local cuda_spec="cuda-version>=11,<12.0a0"
+    local cuda_spec="cuda-version>=11,<11.6"
     local dask_spec="dask"
+    local numba_spec="numba<0.56"
   fi
+
+
+  local CONDA_PACKAGES=("${cuda_spec}"
+			"rapids=${RAPIDS_VERSION}"
+			"${dask_spec}"
+			"dask-bigquery"
+			"dask-ml"
+			"dask-sql"
+			"${numba_spec}"
+		       )
 
   # Install cuda, rapids, dask
   local is_installed="0"
   mamba="/opt/conda/default/bin/mamba"
   conda="/opt/conda/default/bin/conda"
-  "${conda}" config --set channel_priority flexible
-
-  local operation="create"
 
   for installer in "${mamba}" "${conda}" ; do
     set +e
     time "${installer}" "create" -m -n 'dask-rapids' -y --no-channel-priority \
       -c 'conda-forge' -c 'nvidia' -c 'rapidsai'  \
-      "${cuda_spec}" \
-      "rapids=${RAPIDS_VERSION}" \
-      "${dask_spec}" \
+      ${CONDA_PACKAGES[*]} \
       "python=${python_ver}"
     if [[ "$?" == "0" ]] ; then
       is_installed="1"
       break
+    else
+      "${conda}" config --set channel_priority flexible
     fi
     set -e
   done
@@ -186,8 +195,8 @@ EOF
 configure_systemd_dask_service() {
   echo "Configuring systemd Dask service for RAPIDS..."
   local -r dask_worker_local_dir="/tmp/dask"
-  local conda_env_bin
-  conda_env_bin=$(conda info --base)/bin
+  local conda_env="/opt/conda/miniconda3/envs/dask-rapids"
+  local conda_env_bin="${conda_env}/bin"
 
   # Replace Dask Launcher file with dask-cuda config
   systemctl stop ${DASK_SERVICE}
