@@ -69,6 +69,7 @@ determine_tests_to_run() {
     changed_dir="${changed_dir%%/*}/"
     # Run all tests if common directories modified
     if [[ ${changed_dir} =~ ^(integration_tests|util|cloudbuild)/$ ]]; then
+      continue
       echo "All tests will be run: '${changed_dir}' was changed"
       TESTS_TO_RUN=(":DataprocInitActionsTestSuite")
       return 0
@@ -76,7 +77,6 @@ determine_tests_to_run() {
     # Hack to workaround empty array expansion on old versions of Bash.
     # See: https://stackoverflow.com/a/7577209/3227693
     if [[ $changed_dir != ./ ]] && [[ ${changed_dirs[*]+" ${changed_dirs[*]} "} != *" ${changed_dir} "* ]]; then
-      continue
       changed_dirs+=("$changed_dir")
     fi
   done
