@@ -59,6 +59,7 @@ determine_tests_to_run() {
     return 0
   fi
 
+  set +x
   # Determines init actions directories that were changed
   declare -a changed_dirs
   for changed_file in "${CHANGED_FILES[@]}"; do
@@ -75,6 +76,7 @@ determine_tests_to_run() {
     # Hack to workaround empty array expansion on old versions of Bash.
     # See: https://stackoverflow.com/a/7577209/3227693
     if [[ $changed_dir != ./ ]] && [[ ${changed_dirs[*]+" ${changed_dirs[*]} "} != *" ${changed_dir} "* ]]; then
+      continue
       changed_dirs+=("$changed_dir")
     fi
   done
@@ -93,6 +95,8 @@ determine_tests_to_run() {
     TESTS_TO_RUN+=("${test_target}")
   done
   echo "Tests: ${TESTS_TO_RUN[*]}"
+
+  set -x
 }
 
 run_tests() {
