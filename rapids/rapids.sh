@@ -62,8 +62,6 @@ readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-maste
 readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-master' 'true')
 
-
-
 # SPARK config
 readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
 readonly XGBOOST_VERSION=$(get_metadata_attribute 'xgboost-version' ${DEFAULT_XGBOOST_VERSION})
@@ -103,7 +101,6 @@ function install_dask_rapids() {
     local dask_spec="dask"
     local numba_spec="numba<0.56"
   fi
-
 
   local CONDA_PACKAGES=("${cuda_spec}"
 			"rapids=${RAPIDS_VERSION}"
