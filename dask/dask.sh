@@ -95,6 +95,7 @@ function install_systemd_dask_worker() {
 
   mkdir -p "${dask_worker_local_dir}"
 
+
   local DASK_WORKER_LAUNCHER="/usr/local/bin/${DASK_WORKER_SERVICE}-launcher.sh"
 
   cat <<EOF >"${DASK_WORKER_LAUNCHER}"
