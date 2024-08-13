@@ -72,9 +72,9 @@ class DaskTestCase(DataprocTestCase):
             if runtime == "standalone":
                 self.verify_dask_standalone(name, master_hostname)
             else:
+                self.verify_skein(name)
                 # https://github.com/dask/dask-yarn/pull/162
                 self.skipTest("dask-yarn known to fail presently.")
-                self.verify_skein(name)
                 self.verify_dask_yarn(name)
 
 if __name__ == '__main__':
