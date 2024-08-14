@@ -92,6 +92,7 @@ function execute_with_retries() {
   return 1
 }
 
+readonly conda_env="/opt/conda/miniconda3/envs/dask-rapids"
 function install_dask_rapids() {
   if is_cuda12 ; then
     local python_ver="3.10"
@@ -121,7 +122,8 @@ function install_dask_rapids() {
 
   for installer in "${mamba}" "${conda}" ; do
     set +e
-    time "${installer}" "create" -m -n 'dask-rapids' -y --no-channel-priority \
+    test -d "${conda_env}" || \
+      time "${installer}" "create" -m -n 'dask-rapids' -y --no-channel-priority \
       -c 'conda-forge' -c 'nvidia' -c 'rapidsai'  \
       ${CONDA_PACKAGES[*]} \
       "python=${python_ver}"
@@ -192,7 +194,6 @@ EOF
   fi
 }
 
-readonly conda_env="/opt/conda/miniconda3/envs/dask-rapids"
 enable_worker_service="0"
 function install_systemd_dask_worker() {
   echo "Installing systemd Dask Worker service..."
@@ -205,10 +206,9 @@ function install_systemd_dask_worker() {
   cat <<EOF >"${DASK_WORKER_LAUNCHER}"
 #!/bin/bash
 LOGFILE="/var/log/${DASK_WORKER_SERVICE}.log"
-ERRLOG="/var/log/${DASK_WORKER_SERVICE}-error.log"
 nvidia-smi -c DEFAULT
-echo "dask-cuda-worker starting, logging to \${LOGFILE} and \${ERRLOG}"
-${conda_env}/bin/dask-cuda-worker "${MASTER}:8786" --local-directory="${dask_worker_local_dir}" --memory-limit=auto >> "\${LOGFILE}" 2>> "\${ERRLOG}"
+echo "dask-cuda-worker starting, logging to \${LOGFILE}"
+${conda_env}/bin/dask-cuda-worker "${MASTER}:8786" --local-directory="${dask_worker_local_dir}" --memory-limit=auto >> "\${LOGFILE}" 2>&1
 EOF
 
   chmod 750 "${DASK_WORKER_LAUNCHER}"
