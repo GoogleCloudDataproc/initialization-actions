@@ -10,17 +10,21 @@ class DaskTestCase(DataprocTestCase):
     COMPONENT = 'dask'
     INIT_ACTIONS = ['dask/dask.sh']
 
+    SKEIN_TEST_SCRIPT = 'verify_skein.py'
     DASK_YARN_TEST_SCRIPT = 'verify_dask_yarn.py'
     DASK_STANDALONE_TEST_SCRIPT = 'verify_dask_standalone.py'
+
+    def verify_skein(self, name):
+        self._run_dask_test_script(name, self.SKEIN_TEST_SCRIPT)
 
     def verify_dask_yarn(self, name):
         self._run_dask_test_script(name, self.DASK_YARN_TEST_SCRIPT)
 
-    def verify_dask_standalone(self, name):
-        self._run_dask_test_script(name, self.DASK_STANDALONE_TEST_SCRIPT)
+    def verify_dask_standalone(self, name, master_hostname):
+        self._run_dask_test_script(name, self.DASK_STANDALONE_TEST_SCRIPT, master_hostname)
 
     def _run_dask_test_script(self, name, script):
-        verify_cmd = "/opt/conda/default/bin/python {}".format(
+        verify_cmd = "/opt/conda/miniconda3/envs/dask/bin/python {}".format(
             script)
         self.upload_test_file(
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -30,12 +34,9 @@ class DaskTestCase(DataprocTestCase):
 
 
     @parameterized.parameters(
-        ("STANDARD", ["m", "w-0"], None),
         ("STANDARD", ["m", "w-0"], "yarn"),
         ("STANDARD", ["m"], "standalone"))
     def test_dask(self, configuration, instances, runtime):
-        if self.getImageOs() == 'rocky':
-            self.skipTest("Not supported in Rocky Linux-based images")
 
         if self.getImageVersion() < pkg_resources.parse_version("2.0"):
             self.skipTest("Not supported in pre-2.0 images")
@@ -46,17 +47,26 @@ class DaskTestCase(DataprocTestCase):
 
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
-                           machine_type='e2-standard-2',
+                           machine_type='n1-standard-16',
                            metadata=metadata,
                            timeout_in_minutes=20)
+
+        if configuration == 'HA':
+            master_hostname = self.getClusterName + '-m-0'
+        else:
+            master_hostname = self.getClusterName + '-m'
 
         for instance in instances:
             name = "{}-{}".format(self.getClusterName(), instance)
 
-            if runtime is "standalone":
-                self.verify_dask_standalone(name)
+            if runtime == "standalone":
+                self.verify_dask_standalone(name, master_hostname)
             else:
+                self.verify_skein(name)
+                # https://github.com/dask/dask-yarn/pull/162
+                self.skipTest("dask-yarn known to fail presently.")
                 self.verify_dask_yarn(name)
+
 
 if __name__ == '__main__':
     absltest.main()
