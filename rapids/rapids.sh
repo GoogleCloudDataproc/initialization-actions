@@ -277,12 +277,12 @@ function main() {
       configure_dask_yarn
     fi
     echo "RAPIDS installed with Dask runtime"
-  elif [[ "${RUNTIME}" == "SPARK" ]]; then
+  elif [[ "${RAPIDS_RUNTIME}" == "SPARK" ]]; then
     install_spark_rapids
     configure_spark
     echo "RAPIDS initialized with Spark runtime"
   else
-    echo "Unsupported RAPIDS Runtime: ${RUNTIME}"
+    echo "Unsupported RAPIDS Runtime: ${RAPIDS_RUNTIME}"
     exit 1
   fi
 
