@@ -103,7 +103,7 @@ function install_dask_rapids() {
     local python_ver="3.9"
     local cuda_spec="cuda-version>=11,<11.6"
     local dask_spec="dask"
-    local numba_spec="numba<0.56"
+    local numba_spec="numba"
   fi
 
   local CONDA_PACKAGES=(
