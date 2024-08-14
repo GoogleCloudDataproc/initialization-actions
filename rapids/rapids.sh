@@ -112,6 +112,7 @@ function install_dask_rapids() {
 			"dask-bigquery"
 			"dask-ml"
 			"dask-sql"
+			"cudf"
 			"${numba_spec}"
 		       )
 
