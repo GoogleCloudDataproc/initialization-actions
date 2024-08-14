@@ -37,6 +37,8 @@ class DaskTestCase(DataprocTestCase):
 
         if self.getImageVersion() < pkg_resources.parse_version("2.0"):
             self.skipTest("Not supported in pre-2.0 images")
+        if runtime == "yarn":
+            self.skipTest("dask-yarn known to fail presently.")
 
         metadata = None
         if runtime:
@@ -53,10 +55,6 @@ class DaskTestCase(DataprocTestCase):
 
             if runtime == "standalone":
                 self.verify_dask_standalone(name)
-            else:
-                # https://github.com/dask/dask-yarn/pull/162
-                self.skipTest("dask-yarn known to fail presently.")
-                self.verify_dask_yarn(name)
 
 
 if __name__ == '__main__':
