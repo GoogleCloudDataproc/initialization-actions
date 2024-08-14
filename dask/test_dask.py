@@ -61,6 +61,7 @@ class DaskTestCase(DataprocTestCase):
                            metadata=metadata,
                            timeout_in_minutes=20)
 
+        master_hostname = self.getClusterName
         if configuration == 'HA':
             master_hostname = self.getClusterName() + '-m-0'
         else:
