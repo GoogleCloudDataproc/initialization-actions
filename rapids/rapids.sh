@@ -288,7 +288,7 @@ function main() {
   if [[ "${ROLE}" == "Master" ]]; then
     systemctl restart hadoop-yarn-resourcemanager.service
     # Restart NodeManager on Master as well if this is a single-node-cluster.
-    if systemctl status hadoop-yarn-nodemanager; then
+    if systemctl list-units | grep hadoop-yarn-nodemanager; then
       systemctl restart hadoop-yarn-nodemanager.service
     fi
   else
