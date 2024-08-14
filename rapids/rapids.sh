@@ -59,7 +59,7 @@ readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' ${DEFAULT_DASK
 readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 
-readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
+readonly RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-master' 'true')
 
 # SPARK config
@@ -71,8 +71,11 @@ readonly XGBOOST_GPU_SUB_VERSION=$(get_metadata_attribute 'spark-gpu-sub-version
 readonly SCALA_VER="2.12"
 
 # Dask config
+readonly DASK_RUNTIME="$(/usr/share/google/get_metadata_value attributes/dask-runtime || echo 'standalone')"
 readonly DASK_LAUNCHER=/usr/local/bin/dask-launcher.sh
 readonly DASK_SERVICE=dask-cluster
+readonly DASK_WORKER_SERVICE=dask-worker
+readonly DASK_SCHEDULER_SERVICE=dask-scheduler
 readonly DASK_YARN_CONFIG_FILE=/etc/dask/config.yaml
 
 # Dataproc configurations
@@ -190,42 +193,59 @@ EOF
 }
 
 readonly conda_env="/opt/conda/miniconda3/envs/dask-rapids"
-configure_systemd_dask_service() {
-  echo "Configuring systemd Dask service for RAPIDS..."
-  local -r dask_worker_local_dir="/tmp/dask"
-  local conda_env_bin="${conda_env}/bin"
+enable_worker_service="0"
+function install_systemd_dask_worker() {
+  echo "Installing systemd Dask Worker service..."
+  local -r dask_worker_local_dir="/tmp/${DASK_WORKER_SERVICE}"
 
-  # Replace Dask Launcher file with dask-cuda config
-  systemctl stop ${DASK_SERVICE}
+  mkdir -p "${dask_worker_local_dir}"
 
-  if [[ "${ROLE}" == "Master" ]]; then
-    cat <<EOF >"${DASK_LAUNCHER}"
+  local DASK_WORKER_LAUNCHER="/usr/local/bin/${DASK_WORKER_SERVICE}-launcher.sh"
+
+  cat <<EOF >"${DASK_WORKER_LAUNCHER}"
 #!/bin/bash
-if [[ "${RUN_WORKER_ON_MASTER}" == true ]]; then
-  nvidia-smi -c DEFAULT
-  echo "dask-cuda-worker starting, logging to /var/log/dask-cuda-worker.log."
-  ${conda_env_bin}/dask-cuda-worker ${MASTER}:8786 --local-directory=${dask_worker_local_dir} --memory-limit=auto > /var/log/dask-cuda-worker.log 2>&1 &
-fi
-echo "dask-scheduler starting, logging to /var/log/dask-scheduler.log."
-${conda_env_bin}/dask-scheduler > /var/log/dask-scheduler.log 2>&1
+LOGFILE="/var/log/${DASK_WORKER_SERVICE}.log"
+ERRLOG="/var/log/${DASK_WORKER_SERVICE}-error.log"
+nvidia-smi -c DEFAULT
+echo "dask-cuda-worker starting, logging to \${LOGFILE} and \${ERRLOG}"
+${conda_env}/bin/dask-cuda-worker "${MASTER}:8786" --local-directory="${dask_worker_local_dir}" --memory-limit=auto >> "\${LOGFILE}" 2>> "\${ERRLOG}"
 EOF
-  else
-    nvidia-smi -c DEFAULT
-    cat <<EOF >"${DASK_LAUNCHER}"
-#!/bin/bash
-${conda_env_bin}/dask-cuda-worker ${MASTER}:8786 --local-directory=${dask_worker_local_dir} --memory-limit=auto > /var/log/dask-cuda-worker.log 2>&1
+
+  chmod 750 "${DASK_WORKER_LAUNCHER}"
+
+  local -r dask_service_file="/usr/lib/systemd/system/${DASK_WORKER_SERVICE}.service"
+  cat <<EOF >"${dask_service_file}"
+[Unit]
+Description=Dask Worker Service
+[Service]
+Type=simple
+Restart=on-failure
+ExecStart=/bin/bash -c 'exec ${DASK_WORKER_LAUNCHER}'
+[Install]
+WantedBy=multi-user.target
 EOF
-  fi
-  chmod 750 "${DASK_LAUNCHER}"
+  chmod a+r "${dask_service_file}"
 
   systemctl daemon-reload
-  echo "Restarting Dask cluster..."
-  systemctl start "${DASK_SERVICE}"
+
+  # Enable the service
+  if [[ "${ROLE}" != "Master" ]]; then
+    enable_worker_service="1"
+  else
+    # Enable service on single-node cluster (no workers)
+    local worker_count="$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)"
+    if [[ "${worker_count}" == "0" || "${RUN_WORKER_ON_MASTER}" == "true" ]]; then
+      enable_worker_service="1"
+    fi
+  fi
+
+  if [[ "${enable_worker_service}" == "1" ]]; then
+    systemctl enable "${DASK_WORKER_SERVICE}"
+    systemctl restart "${DASK_WORKER_SERVICE}"
+  fi
 }
 
 function configure_dask_yarn() {
-  local base
-
   # Replace config file on cluster.
   cat <<EOF >"${DASK_YARN_CONFIG_FILE}"
 # Config file for Dask Yarn.
@@ -244,15 +264,15 @@ EOF
 }
 
 function main() {
-  if [[ "${RUNTIME}" == "DASK" ]]; then
+  if [[ "${RAPIDS_RUNTIME}" == "DASK" ]]; then
     # Install RAPIDS
     install_dask_rapids
 
     # In "standalone" mode, Dask relies on a shell script to launch.
     # In "yarn" mode, it relies a config.yaml file.
-    if [[ -f "${DASK_LAUNCHER}" ]]; then
-      configure_systemd_dask_service
-    elif [[ -f "${DASK_YARN_CONFIG_FILE}" ]]; then
+    if [[ "${DASK_RUNTIME}" == "standalone" ]]; then
+      install_systemd_dask_worker
+    elif [[ "${DASK_RUNTIME}" == "yarn" ]]; then
       configure_dask_yarn
     fi
     echo "RAPIDS installed with Dask runtime"
