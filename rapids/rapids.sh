@@ -95,12 +95,12 @@ function execute_with_retries() {
 readonly conda_env="/opt/conda/miniconda3/envs/dask-rapids"
 function install_dask_rapids() {
   if is_cuda12 ; then
-    local python_ver="3.10"
-    local cuda_spec="cuda-version>=12,<=12.5"
+    local python_ver="python>=3.10"
+    local cuda_spec="cuda-version>=12,<12.6"
     local dask_spec="dask>=2024.5"
     local numba_spec="numba"
   elif is_cuda11 ; then
-    local python_ver="3.9"
+    local python_spec="python>=3.9"
     local cuda_spec="cuda-version>=11,<11.6"
     local dask_spec="dask"
     local numba_spec="numba"
@@ -128,7 +128,7 @@ function install_dask_rapids() {
       time "${installer}" "create" -m -n 'dask-rapids' -y --no-channel-priority \
       -c 'conda-forge' -c 'nvidia' -c 'rapidsai'  \
       ${CONDA_PACKAGES[*]} \
-      "python=${python_ver}"
+      "${python_spec}"
     if [[ "$?" == "0" ]] ; then
       is_installed="1"
       break
