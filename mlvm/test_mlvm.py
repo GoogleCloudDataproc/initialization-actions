@@ -150,7 +150,7 @@ class MLVMTestCase(DataprocTestCase):
         worker_accelerator="type=nvidia-tesla-t4",
         timeout_in_minutes=60,
         metadata=metadata,
-        boot_disk_size="200GB")
+        boot_disk_size="100GB")
 
     self.verify_all()
 
