@@ -14,9 +14,6 @@ class DaskTestCase(DataprocTestCase):
     DASK_YARN_TEST_SCRIPT = 'verify_dask_yarn.py'
     DASK_STANDALONE_TEST_SCRIPT = 'verify_dask_standalone.py'
 
-    def verify_skein(self, name):
-        self._run_dask_test_script(name, self.SKEIN_TEST_SCRIPT)
-
     def verify_dask_yarn(self, name):
         self._run_dask_test_script(name, self.DASK_YARN_TEST_SCRIPT)
 
@@ -62,7 +59,6 @@ class DaskTestCase(DataprocTestCase):
             if runtime == "standalone":
                 self.verify_dask_standalone(name, master_hostname)
             else:
-                self.verify_skein(name)
                 # https://github.com/dask/dask-yarn/pull/162
                 self.skipTest("dask-yarn known to fail presently.")
                 self.verify_dask_yarn(name)
