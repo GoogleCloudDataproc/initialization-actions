@@ -10,6 +10,7 @@ py_test(
         "dask.sh",
         "verify_dask_yarn.py",
         "verify_dask_standalone.py",
+        "verify_skein.py",
     ],
     local = True,
     shard_count = 3,
