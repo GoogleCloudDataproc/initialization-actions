@@ -638,7 +638,7 @@ function install_fluentd_configuration() {
 <source>
   @type tail
   format none
-  path /var/log/oozie/*.log
+  path /var/log/oozie/*
   pos_file /var/tmp/fluentd.dataproc.oozie.pos
   refresh_interval 2s
   read_from_head true
