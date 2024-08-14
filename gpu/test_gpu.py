@@ -30,6 +30,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.assert_instance_command(
         name, "sudo ldconfig -v 2>/dev/null | grep -q libcudnn" )
 
+  def verify_instance_nvcc(self, name, cuda_version):
+    self.assert_instance_command(
+        name, "/usr/local/cuda-{}/bin/nvcc --version | grep 'release {}'".format(cuda_version,cuda_version) )
+
   @parameterized.parameters(
       ("SINGLE", ["m"], GPU_T4, None, None),
       ("STANDARD", ["m"], GPU_T4, None, None),
@@ -127,12 +131,13 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         timeout_in_minutes=30,
         boot_disk_size="50GB")
     for machine_suffix in machine_suffixes:
-      self.verify_instance("{}-{}".format(self.getClusterName(),
-                                          machine_suffix))
+      machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
+      self.verify_instance(machine_name)
+      self.verify_instance_nvcc(machine_name, cuda_version)
 
   @parameterized.parameters(
-      ("STANDARD", ["m"], GPU_H100, None, "NVIDIA", "12.4"),
-      ("STANDARD", ["m"], GPU_A100, None, "NVIDIA", "11.8"),
+      ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "12.4"),
+      ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "11.8"),
   )
   def test_install_gpu_with_mig(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
@@ -144,8 +149,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
-        master_machine_type="n1-standard-4",
-        worker_machine_type="n1-standard-4",
+        master_machine_type="a3-highgpu-8g",
+        worker_machine_type="a2-highgpu-2g",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
