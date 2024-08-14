@@ -478,6 +478,8 @@ function main() {
       systemctl start "${DASK_WORKER_SERVICE}"
       systemctl status "${DASK_WORKER_SERVICE}"
     fi
+    systemctl start "${DASK_SCHEDULER_SERVICE}"
+    systemctl status "${DASK_SCHEDULER_SERVICE}"
 
     configure_knox_for_dask
 
