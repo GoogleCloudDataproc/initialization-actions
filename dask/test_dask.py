@@ -17,8 +17,8 @@ class DaskTestCase(DataprocTestCase):
     def verify_dask_yarn(self, name):
         self._run_dask_test_script(name, self.DASK_YARN_TEST_SCRIPT)
 
-    def verify_dask_standalone(self, name, master_hostname):
-        self._run_dask_test_script(name, self.DASK_STANDALONE_TEST_SCRIPT, master_hostname)
+    def verify_dask_standalone(self, name):
+        self._run_dask_test_script(name, self.DASK_STANDALONE_TEST_SCRIPT)
 
     def _run_dask_test_script(self, name, script):
         verify_cmd = "/opt/conda/miniconda3/envs/dask/bin/python {}".format(
@@ -48,16 +48,11 @@ class DaskTestCase(DataprocTestCase):
                            metadata=metadata,
                            timeout_in_minutes=20)
 
-        if configuration == 'HA':
-            master_hostname = "{}-{}".format(self.getClusterName(), "m-0")
-        else:
-            master_hostname = "{}-{}".format(self.getClusterName(), "m")
-
         for instance in instances:
             name = "{}-{}".format(self.getClusterName(), instance)
 
             if runtime == "standalone":
-                self.verify_dask_standalone(name, master_hostname)
+                self.verify_dask_standalone(name)
             else:
                 # https://github.com/dask/dask-yarn/pull/162
                 self.skipTest("dask-yarn known to fail presently.")
