@@ -661,7 +661,7 @@ function install_cuda_runfile() {
 
 function install_cuda_toolkit() {
   local cudatk_package=cuda-toolkit
-  if is_debian12 && [[ "${GPU_DRIVER_PROVIDER}" == "OS" ]] ; then
+  if is_debian12 && is_src_os ; then
     cudatk_package="${cudatk_package}=${CUDA_FULL_VERSION}-1"
   elif [[ -n "${CUDA_VERSION}" ]]; then
     cudatk_package="${cudatk_package}-${CUDA_VERSION//./-}"
@@ -678,7 +678,7 @@ function install_cuda_toolkit() {
 
 function install_drivers_aliases() {
   if ! (is_debian12 || is_debian11) ; then return ; fi
-  if is_debian12 && is_src_nvidia ; then return ; fi # don't install on debian 12 with drivers from nvidia
+  if (is_debian12 && is_cuda11) && is_src_nvidia ; then return ; fi # don't install on debian 12 / cuda11 with drivers from nvidia
   # Add a modprobe alias to prefer the open kernel modules
   local conffile="/etc/modprobe.d/nvidia-aliases.conf"
   echo -n "" > "${conffile}"
@@ -706,7 +706,7 @@ function load_kernel_module() {
 
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
-  if is_debian12 && [[ "${GPU_DRIVER_PROVIDER}" == "OS" ]] ; then
+  if is_debian12 && is_src_os ; then
     add_nonfree_components
     add_repo_nvidia_container_toolkit
     apt-get update -qq
