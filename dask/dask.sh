@@ -398,7 +398,6 @@ EOF
 }
 
 function install_dask() {
-  local DASK_VERSION='2024.6'
   if is_cuda12 ; then
     local python_spec="python=3.10"
     local cuda_spec="cuda-version>=12,<=12.5"

@@ -97,7 +97,7 @@ function install_dask_rapids() {
   if is_cuda12 ; then
     local python_ver="3.10"
     local cuda_spec="cuda-version>=12,<=12.5"
-    local dask_spec="dask"
+    local dask_spec="dask>=2024.5"
     local numba_spec="numba"
   elif is_cuda11 ; then
     local python_ver="3.9"
@@ -106,15 +106,16 @@ function install_dask_rapids() {
     local numba_spec="numba<0.56"
   fi
 
-  local CONDA_PACKAGES=("${cuda_spec}"
-			"rapids=${RAPIDS_VERSION}"
-			"${dask_spec}"
-			"dask-bigquery"
-			"dask-ml"
-			"dask-sql"
-			"cudf"
-			"${numba_spec}"
-		       )
+  local CONDA_PACKAGES=(
+    "${cuda_spec}"
+    "rapids=${RAPIDS_VERSION}"
+    "${dask_spec}"
+    "dask-bigquery"
+    "dask-ml"
+    "dask-sql"
+    "cudf"
+    "${numba_spec}"
+  )
 
   # Install cuda, rapids, dask
   local is_installed="0"
@@ -255,7 +256,7 @@ function configure_dask_yarn() {
 # https://yarn.dask.org/en/latest/configuration.html#default-configuration
 
 yarn:
-  environment: environment://${conda_env}
+  environment: python://${conda_env}/bin/python
 
   worker:
     count: 2
