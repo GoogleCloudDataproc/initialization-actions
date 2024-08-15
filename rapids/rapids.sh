@@ -83,10 +83,9 @@ readonly SPARK_CONF_DIR='/etc/spark/conf'
 
 function execute_with_retries() {
   local -r cmd=$1
-  for ((i = 0; i < 10; i++)); do
+  for i in {0..9} ; do
     if eval "$cmd"; then
-      return 0
-    fi
+      return 0 ; fi
     sleep 5
   done
   return 1
