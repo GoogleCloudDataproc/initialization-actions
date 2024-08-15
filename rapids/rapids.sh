@@ -100,7 +100,7 @@ function install_dask_rapids() {
     local numba_spec="numba"
   elif is_cuda11 ; then
     local python_spec="python>=3.9"
-    local cuda_spec="cuda-version>=11,<11.6"
+    local cuda_spec="cuda-version>=11,<=11.8"
     local dask_spec="dask"
     local numba_spec="numba"
   fi
