@@ -95,7 +95,7 @@ function execute_with_retries() {
 readonly conda_env="/opt/conda/miniconda3/envs/dask-rapids"
 function install_dask_rapids() {
   if is_cuda12 ; then
-    local python_ver="python>=3.10"
+    local python_spec="python>=3.10"
     local cuda_spec="cuda-version>=12,<12.6"
     local dask_spec="dask>=2024.5"
     local numba_spec="numba"
