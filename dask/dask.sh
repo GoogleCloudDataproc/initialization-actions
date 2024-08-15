@@ -95,7 +95,6 @@ function install_systemd_dask_worker() {
 
   mkdir -p "${dask_worker_local_dir}"
 
-
   local DASK_WORKER_LAUNCHER="/usr/local/bin/${DASK_WORKER_SERVICE}-launcher.sh"
 
   cat <<EOF >"${DASK_WORKER_LAUNCHER}"
@@ -104,7 +103,6 @@ LOGFILE="/var/log/${DASK_WORKER_SERVICE}.log"
 echo "dask worker starting, logging to \${LOGFILE}"
 ${DASK_CONDA_ENV}/bin/dask worker "${MASTER}:8786" --local-directory="${dask_worker_local_dir}" --memory-limit=auto >> "\${LOGFILE}" 2>&1
 EOF
-  )
 
   chmod 750 "${DASK_WORKER_LAUNCHER}"
 
