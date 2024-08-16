@@ -340,6 +340,16 @@ EOF
 readonly NVIDIA_BASE_DL_URL='https://developer.download.nvidia.com/compute'
 readonly NVIDIA_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64"
 
+# Hold all NVIDIA-related packages from upgrading unintenionally or services like unattended-upgrades
+# Users should run apt-mark unhold before they wish to upgrade these packages
+function hold_nvidia_packages() {
+  apt-mark hold nvidia-*
+  apt-mark hold libnvidia-*
+  if dpkg -l | grep -q "xserver-xorg-video-nvidia"; then
+    apt-mark hold xserver-xorg-video-nvidia*
+  fi
+}
+
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
 
@@ -387,6 +397,8 @@ function install_nvidia_gpu_driver() {
 
     # enable a systemd service that updates kernel headers after reboot
     setup_systemd_update_headers
+    # prevent auto upgrading nvidia packages
+    hold_nvidia_packages
 
   elif is_ubuntu ; then
 
@@ -471,6 +483,8 @@ function install_nvidia_gpu_driver() {
 
     # enable a systemd service that updates kernel headers after reboot
     setup_systemd_update_headers
+    # prevent auto upgrading nvidia packages
+    hold_nvidia_packages
 
   elif is_rocky ; then
 

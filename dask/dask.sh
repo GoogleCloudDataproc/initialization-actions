@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2020 Google LLC
+# Copyright 2020,2021,2023,2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,71 +21,33 @@
 
 set -euxo pipefail
 
-function os_id() {
-  grep '^ID=' /etc/os-release | cut -d= -f2 | xargs
+function os_id()       { grep '^ID=' /etc/os-release | cut -d= -f2 | xargs ; }
+function os_version()  { grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs ; }
+function os_codename() { grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs ; }
+function is_ubuntu()   { [[ "$(os_id)" == 'ubuntu' ]] ; }
+function is_ubuntu18() { is_ubuntu && [[ "$(os_version)" == '18.04'* ]] ; }
+
+function get_metadata_attribute() {
+  local -r attribute_name=$1
+  local -r default_value="${2:-}"
+  /usr/share/google/get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
 }
 
-function os_version() {
-  grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs
-}
+readonly DEFAULT_CUDA_VERSION="12.4"
+readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VERSION})
+function is_cuda12() { [[ "${CUDA_VERSION%%.*}" == "12" ]] ; }
+function is_cuda11() { [[ "${CUDA_VERSION%%.*}" == "11" ]] ; }
 
-function os_codename() {
-  grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs
-}
-
-function is_debian() {
-  [[ "$(os_id)" == 'debian' ]]
-}
-
-function is_debian11() {
-  is_debian && [[ "$(os_version)" == '11'* ]]
-}
-
-function is_debian12() {
-  is_debian && [[ "$(os_version)" == '12'* ]]
-}
-
-if is_debian12 ; then
-    DASK_VERSION='2024.6'
-else
-    DASK_VERSION='2022.3'
-fi
-readonly DASK_VERSION
-
-readonly DEFAULT_CONDA_ENV=$(conda info --base)
-readonly DASK_YARN_CONFIG_DIR=/etc/dask/
-readonly DASK_YARN_CONFIG_FILE=${DASK_YARN_CONFIG_DIR}/config.yaml
-
-readonly DASK_RUNTIME="$(/usr/share/google/get_metadata_value attributes/dask-runtime || echo 'yarn')"
-readonly RUN_WORKER_ON_MASTER="$(/usr/share/google/get_metadata_value attributes/dask-worker-on-master || echo 'true')"
-readonly DASK_CLOUD_LOGGING="$(/usr/share/google/get_metadata_value attributes/dask-cloud-logging || echo 'false')"
-
-readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-readonly MASTER="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
+readonly DASK_RUNTIME="$(/usr/share/google/get_metadata_value attributes/dask-runtime || echo 'standalone')"
 
 # Dask 'standalone' config
-readonly DASK_LAUNCHER=/usr/local/bin/dask-launcher.sh
 readonly DASK_SERVICE=dask-cluster
-readonly DASK_UI_PORT=8787
+readonly DASK_WORKER_SERVICE=dask-worker
+readonly DASK_SCHEDULER_SERVICE=dask-scheduler
 
 readonly KNOX_HOME=/usr/lib/knox
-readonly KNOX_DASK_DIR=${KNOX_HOME}/data/services/dask/0.1.0
-readonly KNOX_DASKWS_DIR=${KNOX_HOME}/data/services/daskws/0.1.0
-
-CONDA_PACKAGES=('dask-bigquery' 'dask-ml' 'dask-sql')
-
-if [[ "${DASK_RUNTIME}" == 'yarn' ]]; then
-  # Pin `distributed` package version because `dask-yarn` 0.9
-  # is not compatible with `distributed` package 2022.2 and newer:
-  # https://github.com/dask/dask-yarn/issues/155
-  CONDA_PACKAGES+=('dask-yarn=0.9' "distributed=${DASK_VERSION}")
-fi
-# Downgrade `google-cloud-bigquery` on Dataproc 2.0
-# to fix compatibility with old Arrow version
-if [[ "${DATAPROC_IMAGE_VERSION}" == '2.0' ]]; then
-  CONDA_PACKAGES+=('google-cloud-bigquery=2')
-fi
-readonly CONDA_PACKAGES
+readonly KNOX_DASK_DIR="${KNOX_HOME}/data/services/dask/0.1.0"
+readonly KNOX_DASKWS_DIR="${KNOX_HOME}/data/services/daskws/0.1.0"
 
 function execute_with_retries() {
   local -r cmd=$1
@@ -99,7 +61,12 @@ function execute_with_retries() {
   return 1
 }
 
+DASK_CONDA_ENV="/opt/conda/miniconda3/envs/dask"
+
 function configure_dask_yarn() {
+  readonly DASK_YARN_CONFIG_DIR=/etc/dask/
+  readonly DASK_YARN_CONFIG_FILE=${DASK_YARN_CONFIG_DIR}/config.yaml
+  dask_python="$(realpath "${DASK_CONDA_ENV}/bin/python")"
   # Minimal custom configuration is required for this
   # setup. Please see https://yarn.dask.org/en/latest/quickstart.html#usage
   # for information on tuning Dask-Yarn environments.
@@ -112,55 +79,108 @@ function configure_dask_yarn() {
 # https://yarn.dask.org/en/latest/configuration.html#default-configuration
 
 yarn:
-  environment: python://${DEFAULT_CONDA_ENV}/bin/python
+  environment: python://${dask_python}
 
   worker:
     count: 2
 EOF
 }
 
-function install_systemd_dask_service() {
-  echo "Installing systemd Dask service..."
-  local -r dask_worker_local_dir="/tmp/dask"
+enable_worker_service="0"
+ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+MASTER="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
+function install_systemd_dask_worker() {
+  echo "Installing systemd Dask Worker service..."
+  local -r dask_worker_local_dir="/tmp/${DASK_WORKER_SERVICE}"
 
   mkdir -p "${dask_worker_local_dir}"
 
-  if [[ "${ROLE}" == "Master" ]]; then
-    cat <<EOF >"${DASK_LAUNCHER}"
-#!/bin/bash
-if [[ "${RUN_WORKER_ON_MASTER}" == true ]]; then
-  echo "dask-worker starting, logging to /var/log/dask-worker.log."
-  ${DEFAULT_CONDA_ENV}/bin/dask-worker ${MASTER}:8786 --local-directory=${dask_worker_local_dir} --memory-limit=auto > /var/log/dask-worker.log 2>&1 &
-fi
-echo "dask-scheduler starting, logging to /var/log/dask-scheduler.log."
-${DEFAULT_CONDA_ENV}/bin/dask-scheduler > /var/log/dask-scheduler.log 2>&1
-EOF
-  else
-    cat <<EOF >"${DASK_LAUNCHER}"
-#!/bin/bash
-echo "dask-worker starting, logging to /var/log/dask-worker.log."
-${DEFAULT_CONDA_ENV}/bin/dask-worker ${MASTER}:8786 --local-directory=${dask_worker_local_dir} --memory-limit=auto > /var/log/dask-worker.log 2>&1
-EOF
-  fi
-  chmod 750 "${DASK_LAUNCHER}"
+  local DASK_WORKER_LAUNCHER="/usr/local/bin/${DASK_WORKER_SERVICE}-launcher.sh"
 
-  local -r dask_service_file=/usr/lib/systemd/system/${DASK_SERVICE}.service
+  cat <<EOF >"${DASK_WORKER_LAUNCHER}"
+#!/bin/bash
+LOGFILE="/var/log/${DASK_WORKER_SERVICE}.log"
+echo "dask worker starting, logging to \${LOGFILE}"
+${DASK_CONDA_ENV}/bin/dask worker "${MASTER}:8786" --local-directory="${dask_worker_local_dir}" --memory-limit=auto >> "\${LOGFILE}" 2>&1
+EOF
+
+  chmod 750 "${DASK_WORKER_LAUNCHER}"
+
+  local -r dask_service_file="/usr/lib/systemd/system/${DASK_WORKER_SERVICE}.service"
   cat <<EOF >"${dask_service_file}"
 [Unit]
-Description=Dask Cluster Service
+Description=Dask Worker Service
 [Service]
 Type=simple
 Restart=on-failure
-ExecStart=/bin/bash -c 'exec ${DASK_LAUNCHER}'
+ExecStart=/bin/bash -c 'exec ${DASK_WORKER_LAUNCHER}'
 [Install]
 WantedBy=multi-user.target
 EOF
   chmod a+r "${dask_service_file}"
 
   systemctl daemon-reload
-  systemctl enable "${DASK_SERVICE}"
+
+  # Enable the service
+  if [[ "${ROLE}" != "Master" ]]; then
+    enable_worker_service="1"
+  else
+    local RUN_WORKER_ON_MASTER="$(/usr/share/google/get_metadata_value attributes/dask-worker-on-master || echo 'true')"
+    # Enable service on single-node cluster (no workers)
+    local worker_count="$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)"
+    if [[ "${worker_count}" == "0" ]]; then RUN_WORKER_ON_MASTER='true'; fi
+
+    if [[ "${RUN_WORKER_ON_MASTER}" == "true" ]]; then
+      enable_worker_service="1"
+    fi
+  fi
+
+  if [[ "${enable_worker_service}" == "1" ]]; then systemctl enable "${DASK_WORKER_SERVICE}" ; fi
 }
 
+function install_systemd_dask_scheduler() {
+  # only run scheduler on primary master
+  if [[ "$(hostname -s)" != "${MASTER}" ]]; then return ; fi
+  echo "Installing systemd Dask Scheduler service..."
+  local -r dask_scheduler_local_dir="/tmp/${DASK_SCHEDULER_SERVICE}"
+
+  mkdir -p "${dask_scheduler_local_dir}"
+
+
+  local DASK_SCHEDULER_LAUNCHER="/usr/local/bin/${DASK_SCHEDULER_SERVICE}-launcher.sh"
+
+  cat <<EOF >"${DASK_SCHEDULER_LAUNCHER}"
+#!/bin/bash
+LOGFILE="/var/log/${DASK_SCHEDULER_SERVICE}.log"
+echo "dask scheduler starting, logging to \${LOGFILE}"
+${DASK_CONDA_ENV}/bin/dask scheduler >> "\${LOGFILE}" 2>&1
+EOF
+
+  chmod 750 "${DASK_SCHEDULER_LAUNCHER}"
+
+  local -r dask_service_file="/usr/lib/systemd/system/${DASK_SCHEDULER_SERVICE}.service"
+  cat <<EOF >"${dask_service_file}"
+[Unit]
+Description=Dask Scheduler Service
+[Service]
+Type=simple
+Restart=on-failure
+ExecStart=/bin/bash -c 'exec ${DASK_SCHEDULER_LAUNCHER}'
+[Install]
+WantedBy=multi-user.target
+EOF
+  chmod a+r "${dask_service_file}"
+
+  systemctl daemon-reload
+
+  # Enable the service
+  systemctl enable "${DASK_SCHEDULER_SERVICE}"
+}
+
+function install_systemd_dask_service() {
+  install_systemd_dask_scheduler
+  install_systemd_dask_worker
+}
 
 function restart_knox() {
   systemctl stop knox
@@ -168,15 +188,15 @@ function restart_knox() {
   systemctl start knox
 }
 
-
 function configure_knox_for_dask() {
   if [[ ! -d "${KNOX_HOME}" ]]; then
     echo "Skip configuring Knox rules for Dask"
     return 0
   fi
 
+  local DASK_UI_PORT=8787
   sed -i \
-    "/<\/topology>/i <service><role>DASK<\/role><url>http://localhost:${DASK_UI_PORT}<\/url><\/service> <service><role>DASKWS<\/role><url>ws:\/\/localhost:${DASK_UI_PORT}<\/url><\/service>" \
+    "/<\/topology>/i <service><role>DASK<\/role><url>http://localhost:${DASK_UI_PORT}<\/url><\/service> <service><role>DASKWS<\/role><url>ws:\/\/${MASTER}:${DASK_UI_PORT}<\/url><\/service>" \
     /etc/knox/conf/topologies/default.xml
 
   mkdir -p "${KNOX_DASK_DIR}"
@@ -324,7 +344,8 @@ EOF
 
 
 function configure_fluentd_for_dask() {
-  cat >/etc/google-fluentd/config.d/dataproc-dask.conf <<EOF
+  if [[ "$(hostname -s)" == "${MASTER}" ]]; then
+    cat >/etc/google-fluentd/config.d/dataproc-dask.conf <<EOF
 # Fluentd config for Dask logs
 
 # Dask scheduler
@@ -345,8 +366,11 @@ function configure_fluentd_for_dask() {
     filename dask-scheduler.log
   </record>
 </filter>
+EOF
+  fi
 
-
+  if [[ "${enable_worker_service}" == "1" ]]; then
+    cat >>/etc/google-fluentd/config.d/dataproc-dask.conf <<EOF
 # Dask worker
 <source>
   @type tail
@@ -366,14 +390,73 @@ function configure_fluentd_for_dask() {
   </record>
 </filter>
 EOF
+  fi
 
   systemctl restart google-fluentd
 }
 
+function install_dask() {
+  if is_cuda12 ; then
+    local python_spec="python=3.10"
+    local cuda_spec="cuda-version>=12,<=12.5"
+    local dask_spec="dask>=2024.5"
+  elif is_cuda11 ; then
+    local python_spec="python=3.9"
+    local cuda_spec="cuda-version>=11,<12.0a0"
+    local dask_spec="dask"
+  fi
+
+  if [[ "${DASK_RUNTIME}" == 'yarn' ]]; then
+    # Pin `distributed` and `dask` package versions to old release
+    # because `dask-yarn` 0.9 uses skein in a way which
+    # is not compatible with `distributed` package 2022.2 and newer:
+    # https://github.com/dask/dask-yarn/issues/155
+
+    dask_spec="dask<2022.2"
+    python_spec="python>=3.7,<3.8.0a0"
+    if is_ubuntu18 ; then
+      # the libuuid.so.1 distributed with fiona 1.8.22 dumps core when calling uuid_generate_time_generic
+      CONDA_PACKAGES+=("fiona<1.8.22")
+    fi
+    CONDA_PACKAGES+=('dask-yarn=0.9' "distributed<2022.2")
+  fi
+
+  CONDA_PACKAGES+=(
+    "${cuda_spec}"
+    "${dask_spec}"
+    "dask-bigquery"
+    "dask-ml"
+    "dask-sql"
+  )
+
+  # Install dask
+  local is_installed="0"
+  mamba="/opt/conda/default/bin/mamba"
+  conda="/opt/conda/default/bin/conda"
+
+  set +e
+  for installer in "${mamba}" "${conda}" ; do
+    test -d "${DASK_CONDA_ENV}" || \
+      time "${installer}" "create" -m -n "dask" -y --no-channel-priority \
+      -c 'conda-forge' -c 'nvidia'  \
+      ${CONDA_PACKAGES[*]} \
+      "${python_spec}"
+    set -e
+    if [[ "$?" == "0" ]] ; then
+      is_installed="1"
+      break
+    else
+      "${conda}" config --set channel_priority flexible
+    fi
+  done
+  if [[ "${is_installed}" == "0" ]]; then
+    echo "failed to install dask"
+    return 1
+  fi
+}
 
 function main() {
-  # Install dask + conda packages using mamba
-  execute_with_retries "mamba install -y dask=${DASK_VERSION} ${CONDA_PACKAGES[*]}"
+  install_dask
 
   if [[ "${DASK_RUNTIME}" == "yarn" ]]; then
     # Create Dask YARN config file
@@ -382,11 +465,20 @@ function main() {
     # Create Dask service
     install_systemd_dask_service
 
+    if [[ "$(hostname -s)" == "${MASTER}" ]]; then
+      systemctl start "${DASK_SCHEDULER_SERVICE}"
+      systemctl status "${DASK_SCHEDULER_SERVICE}"
+    fi
+
     echo "Starting Dask 'standalone' cluster..."
-    systemctl start "${DASK_SERVICE}"
+    if [[ "${enable_worker_service}" == "1" ]]; then
+      systemctl start "${DASK_WORKER_SERVICE}"
+      systemctl status "${DASK_WORKER_SERVICE}"
+    fi
 
     configure_knox_for_dask
 
+    local DASK_CLOUD_LOGGING="$(/usr/share/google/get_metadata_value attributes/dask-cloud-logging || echo 'false')"
     if [[ "${DASK_CLOUD_LOGGING}" == "true" ]]; then
       configure_fluentd_for_dask
     fi
