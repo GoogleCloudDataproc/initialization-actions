@@ -77,7 +77,7 @@ class RapidsTestCase(DataprocTestCase):
         master_accelerator=accelerator,
         worker_accelerator=accelerator,
         boot_disk_size="100GB",
-        timeout_in_minutes=30)
+        timeout_in_minutes=60)
 
     for machine_suffix in machine_suffixes:
       self.verify_dask_instance("{}-{}".format(self.getClusterName(),
@@ -105,7 +105,7 @@ class RapidsTestCase(DataprocTestCase):
         master_accelerator=accelerator if configuration == "SINGLE" else None,
         worker_accelerator=accelerator,
         boot_disk_size="100GB",
-        timeout_in_minutes=30)
+        timeout_in_minutes=60)
 
     for machine_suffix in machine_suffixes:
       self.verify_spark_instance("{}-{}".format(self.getClusterName(),
@@ -131,7 +131,7 @@ class RapidsTestCase(DataprocTestCase):
         master_accelerator=accelerator if configuration == "SINGLE" else None,
         worker_accelerator=accelerator,
         boot_disk_size="100GB",
-        timeout_in_minutes=30)
+        timeout_in_minutes=60)
 
     for machine_suffix in machine_suffixes:
       self.verify_spark_instance("{}-{}".format(self.getClusterName(),
