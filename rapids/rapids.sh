@@ -34,12 +34,12 @@ readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[
 readonly DEFAULT_SPARK_RAPIDS_VERSION="24.06.1"
 
 if [[ "${SPARK_VERSION_ENV%%.*}" == "3" ]]; then
-  readonly DEFAULT_CUDA_VERSION="12.4"
+  DEFAULT_CUDA_VERSION="12.4"
   readonly DEFAULT_XGBOOST_VERSION="2.0.3"
   readonly SPARK_VERSION="${SPARK_VERSION_ENV}"
   readonly DEFAULT_XGBOOST_GPU_SUB_VERSION=""
 else
-  readonly DEFAULT_CUDA_VERSION="10.1"
+  DEFAULT_CUDA_VERSION="10.1"
   readonly DEFAULT_XGBOOST_VERSION="1.0.0"
   readonly DEFAULT_XGBOOST_GPU_SUB_VERSION="Beta5"
   readonly SPARK_VERSION="2.x"
@@ -50,6 +50,7 @@ readonly RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 if [[ "${RAPIDS_RUNTIME}" != "SPARK" ]]; then # to match install_gpu_driver.sh ; they should both probably be removed
   DEFAULT_CUDA_VERSION='11.8'
 fi
+readonly DEFAULT_CUDA_VERSION
 CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VERSION})
 
 readonly CUDA_VERSION
