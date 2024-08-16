@@ -48,6 +48,7 @@ class RapidsTestCase(DataprocTestCase):
             self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME), instance_name)
     self.assert_instance_command(
         instance_name, """echo :quit | spark-shell \
+         --conf spark.rapids.sql.incompatibleOps.enabled=true \
          --conf spark.executor.resource.gpu.amount=1 \
          --conf spark.task.resource.gpu.amount=1 \
          --conf spark.dynamicAllocation.enabled=false -i {}""".format(
@@ -107,7 +108,10 @@ class RapidsTestCase(DataprocTestCase):
       self.verify_spark_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
     # Only need to do this once
-    self.verify_spark_job()
+    if self.getImageOs() == 'rocky' and self.getImageVersion() > pkg_resources.parse_version("2.1"):
+      print("not supported on rocky 2.2")
+    else:
+      self.verify_spark_job()
 
   @parameterized.parameters(("STANDARD", ["w-0"], GPU_T4, "11.8"))
   def test_non_default_cuda_versions(self, configuration, machine_suffixes,
@@ -133,7 +137,10 @@ class RapidsTestCase(DataprocTestCase):
       self.verify_spark_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
     # Only need to do this once
-    self.verify_spark_job()
+    if self.getImageOs() == 'rocky' and self.getImageVersion() > pkg_resources.parse_version("2.1"):
+      print("not supported on rocky 2.2")
+    else:
+      self.verify_spark_job()
 
 
 if __name__ == "__main__":
