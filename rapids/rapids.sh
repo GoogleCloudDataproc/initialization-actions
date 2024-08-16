@@ -50,10 +50,7 @@ readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VER
 function is_cuda12() { [[ "${CUDA_VERSION%%.*}" == "12" ]] ; }
 function is_cuda11() { [[ "${CUDA_VERSION%%.*}" == "11" ]] ; }
 
-if is_cuda11 ; then DEFAULT_DASK_RAPIDS_VERSION="22.06"
-else                DEFAULT_DASK_RAPIDS_VERSION="24.06" ; fi
-
-readonly DEFAULT_DASK_RAPIDS_VERSION
+readonly DEFAULT_DASK_RAPIDS_VERSION="24.08"
 readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' ${DEFAULT_DASK_RAPIDS_VERSION})
 
 readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
