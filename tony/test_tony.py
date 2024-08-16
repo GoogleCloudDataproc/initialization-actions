@@ -9,6 +9,7 @@ class TonYTestCase(DataprocTestCase):
     COMPONENT = 'tony'
     INIT_ACTIONS = ['tony/tony.sh']
     GPU_V100 = "type=nvidia-tesla-v100"
+    GPU_T4 = "type=nvidia-tesla-t4"
     GPU_INIT_ACTIONS = ['gpu/install_gpu_driver.sh'] + INIT_ACTIONS
 
     @parameterized.parameters(
@@ -17,8 +18,9 @@ class TonYTestCase(DataprocTestCase):
     )
     def test_tony_tf(self, configuration):
         # Init action supported on Dataproc 1.5+
-        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
-            self.skipTest("Not supported in pre 1.5 images")
+        if self.getImageVersion() < pkg_resources.parse_version("1.5") or \
+                self.getImageVersion() > pkg_resources.parse_version("2.0"):
+            self.skipTest("Not supported in pre 1.5 images and 2.0+ images")
 
         if self.getImageOs() == 'rocky':
             self.skipTest("Not supported in Rocky Linux-based images")
@@ -50,20 +52,21 @@ class TonYTestCase(DataprocTestCase):
     )
     def test_tony_tf_gpu(self, configuration):
         # Init action supported on Dataproc 1.5+
-        if self.getImageVersion() < pkg_resources.parse_version("2.0"):
-            self.skipTest("TonY with GPUs not supported in pre 2.0 images")
+        if self.getImageVersion() < pkg_resources.parse_version("2.0") \
+                or self.getImageVersion() > pkg_resources.parse_version("2.0"):
+            self.skipTest("TonY with GPUs not supported in pre 2.0 images and 2.0+ images")
 
         if self.getImageOs() == 'rocky':
             self.skipTest("Not supported in Rocky Linux-based images")
 
-        metadata ="tf_gpu=true,cuda-version=11.1,cudnn-version=8.0.5.39"
+        metadata = "tf_gpu=true,cuda-version=12.4,cudnn-version=9.1.0.70"
         self.createCluster(
             configuration,
             self.GPU_INIT_ACTIONS,
             timeout_in_minutes=30,
             metadata=metadata,
-            master_accelerator=self.GPU_V100,
-            worker_accelerator=self.GPU_V100,
+            master_accelerator=self.GPU_T4,
+            worker_accelerator=self.GPU_T4,
             machine_type="n1-standard-4")
 
         # Verify a cluster using TensorFlow job

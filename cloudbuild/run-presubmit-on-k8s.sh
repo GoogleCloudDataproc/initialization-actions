@@ -12,6 +12,8 @@ gcloud container clusters get-credentials "${CLOUDSDK_CONTAINER_CLUSTER}"
 
 LOGS_SINCE_TIME=$(date --iso-8601=seconds)
 
+cat /builder/home/.kube/config
+
 kubectl run "${POD_NAME}" \
   --image="${IMAGE}" \
   --restart=Never \
