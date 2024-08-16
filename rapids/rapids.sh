@@ -82,12 +82,13 @@ readonly DASK_YARN_CONFIG_FILE=/etc/dask/config.yaml
 readonly SPARK_CONF_DIR='/etc/spark/conf'
 
 function execute_with_retries() {
-  local -r cmd=$1
+  local -r cmd="$*"
   for i in {0..9} ; do
     if eval "$cmd"; then
       return 0 ; fi
     sleep 5
   done
+  echo "Cmd '${cmd}' failed."
   return 1
 }
 
@@ -149,20 +150,20 @@ function install_spark_rapids() {
   local -r dmlc_repo_url='https://repo.maven.apache.org/maven2/ml/dmlc'
 
   if [[ "${SPARK_VERSION}" == "3"* ]]; then
-    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    execute_with_retries wget -nv --timeout=30 --tries=5 --retry-connrefused \
       "${dmlc_repo_url}/xgboost4j-spark-gpu_${SCALA_VER}/${XGBOOST_VERSION}/xgboost4j-spark-gpu_${SCALA_VER}-${XGBOOST_VERSION}.jar" \
       -P /usr/lib/spark/jars/
-    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    execute_with_retries wget -nv --timeout=30 --tries=5 --retry-connrefused \
       "${dmlc_repo_url}/xgboost4j-gpu_${SCALA_VER}/${XGBOOST_VERSION}/xgboost4j-gpu_${SCALA_VER}-${XGBOOST_VERSION}.jar" \
       -P /usr/lib/spark/jars/
-    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    execute_with_retries wget -nv --timeout=30 --tries=5 --retry-connrefused \
       "${nvidia_repo_url}/rapids-4-spark_${SCALA_VER}/${SPARK_RAPIDS_VERSION}/rapids-4-spark_${SCALA_VER}-${SPARK_RAPIDS_VERSION}.jar" \
       -P /usr/lib/spark/jars/
   else
-    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    execute_with_retries wget -nv --timeout=30 --tries=5 --retry-connrefused \
       "${rapids_repo_url}/xgboost4j-spark_${SPARK_VERSION}/${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}/xgboost4j-spark_${SPARK_VERSION}-${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}.jar" \
       -P /usr/lib/spark/jars/
-    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    execute_with_retries wget -nv --timeout=30 --tries=5 --retry-connrefused \
       "${rapids_repo_url}/xgboost4j_${SPARK_VERSION}/${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}/xgboost4j_${SPARK_VERSION}-${XGBOOST_VERSION}-${XGBOOST_GPU_SUB_VERSION}.jar" \
       -P /usr/lib/spark/jars/
   fi
