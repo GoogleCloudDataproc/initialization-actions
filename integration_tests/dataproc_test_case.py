@@ -122,9 +122,9 @@ class DataprocTestCase(parameterized.TestCase):
                 args.append("--public-ip-address")
 
         for i in init_actions:
-            if "install_gpu_driver.sh" in i or \
-                    "mlvm.sh" in i or "rapids.sh" in i or \
-                    "spark-rapids.sh" in i or "horovod.sh" in i:
+            if "install_gpu_driver.sh" in i or "horovod.sh" in i or \
+                     "dask-rapids.sh"  in i or "mlvm.sh"    in i or \
+                     "spark-rapids.sh" in i:
                 args.append("--no-shielded-secure-boot")
 
         if optional_components:
@@ -178,7 +178,7 @@ class DataprocTestCase(parameterized.TestCase):
           args.append("--zone={}".format(self.cluster_zone))
 
         if not FLAGS.skip_cleanup:
-            args.append("--max-age=30m")
+          args.append("--max-age=60m")
 
         args.append("--max-idle=5m")
 

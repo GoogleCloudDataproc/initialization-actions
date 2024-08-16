@@ -46,7 +46,13 @@ else
 fi
 
 # RAPIDS config
-readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VERSION})
+readonly RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
+if [[ "${RAPIDS_RUNTIME}" != "SPARK" ]]; then # to match install_gpu_driver.sh ; they should both probably be removed
+  DEFAULT_CUDA_VERSION='11.8'
+fi
+CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VERSION})
+
+readonly CUDA_VERSION
 function is_cuda12() { [[ "${CUDA_VERSION%%.*}" == "12" ]] ; }
 function is_cuda11() { [[ "${CUDA_VERSION%%.*}" == "11" ]] ; }
 
@@ -56,7 +62,6 @@ readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' ${DEFAULT_DASK
 readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 
-readonly RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-master' 'true')
 
 # SPARK config
