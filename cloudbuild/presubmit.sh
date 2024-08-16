@@ -28,6 +28,7 @@ configure_gcloud_ssh_key() {
 # so we can diff what changed relatively to master branch.
 initialize_git_repo() {
   rm -fr .git
+  git config --global init.defaultBranch main
   git init
 
   git config user.email "ia-tests@presubmit.example.com"
