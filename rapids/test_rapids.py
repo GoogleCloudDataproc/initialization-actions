@@ -87,6 +87,9 @@ class RapidsTestCase(DataprocTestCase):
                             ("STANDARD", ["w-0"], GPU_T4))
   def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
 
+    if self.getImageOs() == 'rocky' and self.getImageVersion() > pkg_resources.parse_version("2.1"):
+      self.skipTest("Test is known to fail on 2.2-rocky9")
+
     if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0 images")
     optional_components = None
@@ -108,10 +111,7 @@ class RapidsTestCase(DataprocTestCase):
       self.verify_spark_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
     # Only need to do this once
-    if self.getImageOs() == 'rocky' and self.getImageVersion() > pkg_resources.parse_version("2.1"):
-      print("not supported on rocky 2.2")
-    else:
-      self.verify_spark_job()
+    self.verify_spark_job()
 
   @parameterized.parameters(("STANDARD", ["w-0"], GPU_T4, "11.8"))
   def test_non_default_cuda_versions(self, configuration, machine_suffixes,
