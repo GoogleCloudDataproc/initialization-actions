@@ -28,6 +28,7 @@ configure_gcloud_ssh_key() {
 # so we can diff what changed relatively to master branch.
 initialize_git_repo() {
   rm -fr .git
+  git config --global init.defaultBranch main
   git init
 
   git config user.email "ia-tests@presubmit.example.com"
@@ -36,7 +37,7 @@ initialize_git_repo() {
   git remote add origin "https://github.com/GoogleCloudDataproc/initialization-actions.git"
   git fetch origin master
   # Fetch all PRs to get history for PRs created from forked repos
-  git fetch origin +refs/pull/*/merge:refs/remotes/origin/pr/*
+  git fetch origin +refs/pull/*/merge:refs/remotes/origin/pr/* > /dev/null 2>&1
 
   git reset --hard "${COMMIT_SHA}"
 
@@ -59,6 +60,7 @@ determine_tests_to_run() {
     return 0
   fi
 
+  set +x
   # Determines init actions directories that were changed
   declare -a changed_dirs
   for changed_file in "${CHANGED_FILES[@]}"; do
@@ -93,6 +95,8 @@ determine_tests_to_run() {
     TESTS_TO_RUN+=("${test_target}")
   done
   echo "Tests: ${TESTS_TO_RUN[*]}"
+
+  set -x
 }
 
 run_tests() {
