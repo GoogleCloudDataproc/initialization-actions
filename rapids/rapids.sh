@@ -31,8 +31,6 @@ function get_metadata_attribute() {
 }
 
 readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
-readonly DEFAULT_SPARK_RAPIDS_VERSION="24.08.0"
-
 if [[ "${SPARK_VERSION_ENV%%.*}" == "3" ]]; then
   DEFAULT_CUDA_VERSION="12.4"
   readonly DEFAULT_XGBOOST_VERSION="2.0.3"
@@ -66,6 +64,7 @@ readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-maste
 readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-master' 'true')
 
 # SPARK config
+readonly DEFAULT_SPARK_RAPIDS_VERSION="24.08.0"
 readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
 readonly XGBOOST_VERSION=$(get_metadata_attribute 'xgboost-version' ${DEFAULT_XGBOOST_VERSION})
 readonly XGBOOST_GPU_SUB_VERSION=$(get_metadata_attribute 'spark-gpu-sub-version' ${DEFAULT_XGBOOST_GPU_SUB_VERSION})
@@ -98,9 +97,9 @@ function execute_with_retries() {
 readonly conda_env="/opt/conda/miniconda3/envs/dask-rapids"
 function install_dask_rapids() {
   if is_cuda12 ; then
-    local python_spec="python>=3.10"
-    local cuda_spec="cuda-version>=12,<12.6"
-    local dask_spec="dask>=2024.5"
+    local python_spec="python>=3.11"
+    local cuda_spec="cuda-version>=12,<13"
+    local dask_spec="dask>=2024.8"
     local numba_spec="numba"
   elif is_cuda11 ; then
     local python_spec="python>=3.9"
@@ -177,9 +176,10 @@ function configure_spark() {
     cat >>${SPARK_CONF_DIR}/spark-defaults.conf <<EOF
 
 ###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
-# Rapids Accelerator for Spark can utilize AQE, but when the plan is not finalized,
-# query explain output won't show GPU operator, if user have doubt
-# they can uncomment the line before seeing the GPU plan explain, but AQE on gives user the best performance.
+# Rapids Accelerator for Spark can utilize AQE, but when the plan is
+# not finalized, query explain output won't show GPU operator, if user
+# have doubt they can uncomment the following line before seeing the GPU plan
+# explain, but AQE on gives user the best performance.
 # spark.sql.adaptive.enabled=false
 spark.executor.resource.gpu.amount=1
 spark.plugins=com.nvidia.spark.SQLPlugin
