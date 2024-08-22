@@ -140,7 +140,7 @@ if [[ "${ROLE}" == 'Master' ]]; then
   fi
   apt-get install -y software-properties-common
   add-apt-repository "deb http://cran.r-project.org/bin/linux/${OS_ID} ${OS_CODE}-cran40/"
-  if [[ ${OS_ID} == ubuntu ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} == 2.0" | bc -l) == 1 ]]; then
+  if [[ ${OS_ID} == ubuntu ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} < 2.1" | bc -l) == 1 ]]; then
     install_package
   fi
   update_apt_get
