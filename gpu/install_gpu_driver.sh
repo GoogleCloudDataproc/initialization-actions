@@ -81,7 +81,7 @@ readonly ROLE
 # https://docs.nvidia.com/deeplearning/frameworks/support-matrix/index.html
 readonly -A DRIVER_FOR_CUDA=(
           [11.8]="525.147.05" [12.1]="530.30.02"  [12.4]="550.54.14"
-          [12.5]="555.42.06"
+          [12.5]="555.42.06"  [12.6]="560.28.03"
 )
 readonly -A CUDNN_FOR_CUDA=(
           [11.8]="8.6.0.163"  [12.1]="8.9.0"      [12.4]="9.1.0.70"
@@ -96,12 +96,8 @@ readonly -A CUDA_SUBVER=(
           [12.5]="12.5.1"
 )
 
-RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
-DEFAULT_CUDA_VERSION='12.4'
-if [[ "${RUNTIME}" != "SPARK" ]]; then
-  DEFAULT_CUDA_VERSION='11.8'
-fi
-readonly DEFAULT_CUDA_VERSION
+RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
+readonly DEFAULT_CUDA_VERSION='12.4'
 readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
 readonly CUDA_FULL_VERSION="${CUDA_SUBVER["${CUDA_VERSION}"]}"
 
@@ -109,7 +105,9 @@ function is_cuda12() { [[ "${CUDA_VERSION%%.*}" == "12" ]] ; }
 function is_cuda11() { [[ "${CUDA_VERSION%%.*}" == "11" ]] ; }
 readonly DEFAULT_DRIVER=${DRIVER_FOR_CUDA["${CUDA_VERSION}"]}
 DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' "${DEFAULT_DRIVER}")
-if (is_ubuntu20 || is_ubuntu22) && is_cuda11 ; then DRIVER_VERSION="535.183.06" ; fi
+if is_debian11 || is_ubuntu22 || is_ubuntu20 ; then DRIVER_VERSION="560.28.03" ; fi
+if is_ubuntu20 && is_cuda11 ; then DRIVER_VERSION="535.183.06" ; fi
+
 readonly DRIVER_VERSION
 readonly DRIVER=${DRIVER_VERSION%%.*}
 
@@ -139,8 +137,6 @@ readonly DEFAULT_USERSPACE_URL="https://download.nvidia.com/XFree86/Linux-x86_64
 
 readonly USERSPACE_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_USERSPACE_URL}")
 
-readonly NVIDIA_BASE_DL_URL='https://developer.download.nvidia.com/compute'
-
 # Short name for urls
 if is_ubuntu22  ; then
     # at the time of writing 20240721 there is no ubuntu2204 in the index of repos at
@@ -165,6 +161,7 @@ else
 fi
 
 # Parameters for NVIDIA-provided package repositories
+readonly NVIDIA_BASE_DL_URL='https://developer.download.nvidia.com/compute'
 readonly NVIDIA_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64"
 
 # Parameters for NVIDIA-provided NCCL library
@@ -181,7 +178,6 @@ readonly -A DEFAULT_NVIDIA_CUDA_URLS=(
 readonly DEFAULT_NVIDIA_CUDA_URL=${DEFAULT_NVIDIA_CUDA_URLS["${CUDA_VERSION}"]}
 NVIDIA_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_CUDA_URL}")
 readonly NVIDIA_CUDA_URL
-
 
 # Parameter for NVIDIA-provided Rocky Linux GPU driver
 readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_REPO_URL}/cuda-${shortname}.repo"
@@ -339,18 +335,20 @@ function install_nvidia_nccl() {
   local -r nccl_version="${NCCL_VERSION}-1+cuda${CUDA_VERSION}"
 
   if is_rocky ; then
-    execute_with_retries "dnf -y -q install libnccl-${nccl_version} libnccl-devel-${nccl_version} libnccl-static-${nccl_version}"
+    time execute_with_retries \
+      "dnf -y -q install" \
+        "libnccl-${nccl_version} libnccl-devel-${nccl_version} libnccl-static-${nccl_version}"
   elif is_ubuntu ; then
     install_cuda_keyring_pkg
 
     apt-get update -qq
 
     if is_ubuntu18 ; then
-      execute_with_retries \
+      time execute_with_retries \
         "apt-get install -q -y " \
           "libnccl2 libnccl-dev"
     else
-      execute_with_retries \
+      time execute_with_retries \
         "apt-get install -q -y " \
           "libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
     fi
@@ -581,12 +579,14 @@ function build_driver_from_github() {
   workdir=/opt/install-nvidia-driver
   mkdir -p "${workdir}"
   pushd "${workdir}"
-  test -d /opt/install-nvidia-driver/open-gpu-kernel-modules ||
-    git -c advice.detachedHead=false \
-      clone https://github.com/NVIDIA/open-gpu-kernel-modules.git \
-      --branch "${DRIVER_VERSION}" \
-      --single-branch \
-      > /dev/null
+  test -d "${workdir}/open-gpu-kernel-modules" || {
+    tarball_fn="${DRIVER_VERSION}.tar.gz"
+    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+      "https://github.com/NVIDIA/open-gpu-kernel-modules/archive/refs/tags/${tarball_fn}" \
+      -o "${tarball_fn}"
+    tar xzf "${tarball_fn}"
+    mv "open-gpu-kernel-modules-${DRIVER_VERSION}" open-gpu-kernel-modules
+  }
   cd open-gpu-kernel-modules
 
   time make -j$(nproc) modules \
@@ -612,18 +612,18 @@ function build_driver_from_github() {
 
 function build_driver_from_packages() {
   if is_ubuntu || is_debian ; then
-    local pkglist=("nvidia-driver-${DRIVER}-server-open")
+    if [[ -n "$(apt-cache search -n "nvidia-driver-${DRIVER}-server-open")" ]] ; then
+      local pkglist=("nvidia-driver-${DRIVER}-server-open") ; else
+      local pkglist=("nvidia-driver-${DRIVER}-open") ; fi
     if is_debian ; then
       pkglist=(
         "firmware-nvidia-gsp=${DRIVER_VERSION}-1"
-        "nvidia-legacy-check=${DRIVER_VERSION}-1"
         "nvidia-smi=${DRIVER_VERSION}-1"
         "nvidia-alternative=${DRIVER_VERSION}-1"
-        "libnvidia-ml1=${DRIVER_VERSION}-1"
-        "firmware-nvidia-gsp=${DRIVER_VERSION}-1"
         "nvidia-kernel-open-dkms=${DRIVER_VERSION}-1"
         "nvidia-kernel-support=${DRIVER_VERSION}-1"
         "nvidia-modprobe=${DRIVER_VERSION}-1"
+        "libnvidia-ml1=${DRIVER_VERSION}-1"
       )
     fi
     add_contrib_component
@@ -659,24 +659,25 @@ function install_cuda_runfile() {
 }
 
 function install_cuda_toolkit() {
-  local cuda_package=cuda-toolkit
-  if is_debian12 ; then
-    cuda_package="${cuda_package}=${CUDA_FULL_VERSION}-1"
+  local cudatk_package=cuda-toolkit
+  if is_debian12 && is_src_os ; then
+    cudatk_package="${cudatk_package}=${CUDA_FULL_VERSION}-1"
   elif [[ -n "${CUDA_VERSION}" ]]; then
-    cuda_package="${cuda_package}-${CUDA_VERSION//./-}"
+    cudatk_package="${cudatk_package}-${CUDA_VERSION//./-}"
   fi
-  readonly cuda_package
+  cuda_package="cuda=${CUDA_FULL_VERSION}-1"
+  readonly cudatk_package
   if is_ubuntu || is_debian ; then
 #    if is_ubuntu ; then execute_with_retries "apt-get install -y -qq --no-install-recommends cuda-drivers-${DRIVER}=${DRIVER_VERSION}-1" ; fi
-    time execute_with_retries "apt-get install -y -qq --no-install-recommends ${cuda_package}"
+    time execute_with_retries "apt-get install -y -qq --no-install-recommends ${cuda_package} ${cudatk_package}"
   elif is_rocky ; then
-    time execute_with_retries "dnf -y -q install ${cuda_package}"
+    time execute_with_retries "dnf -y -q install ${cudatk_package}"
   fi
 }
 
 function install_drivers_aliases() {
-  if ! is_debian12 ; then return ; fi
-  if   is_cuda11   ; then return ; fi
+  if ! (is_debian12 || is_debian11) ; then return ; fi
+  if (is_debian12 && is_cuda11) && is_src_nvidia ; then return ; fi # don't install on debian 12 / cuda11 with drivers from nvidia
   # Add a modprobe alias to prefer the open kernel modules
   local conffile="/etc/modprobe.d/nvidia-aliases.conf"
   echo -n "" > "${conffile}"
@@ -692,6 +693,11 @@ function install_drivers_aliases() {
 
 function load_kernel_module() {
   modprobe -r nvidia || echo "unable to unload the nvidia module"
+  # for some use cases, the kernel module needs to be removed before first use of nvidia-smi
+  for module in nvidia_uvm nvidia_drm nvidia_modeset nvidia ; do
+    rmmod ${module} > /dev/null 2>&1 || echo "unable to rmmod ${module}"
+  done
+
   install_drivers_aliases
   depmod -a
   modprobe nvidia
@@ -699,7 +705,7 @@ function load_kernel_module() {
 
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
-  if is_debian12 && [[ "${GPU_DRIVER_PROVIDER}" == "OS" ]] ; then
+  if is_debian12 && is_src_os ; then
     add_nonfree_components
     add_repo_nvidia_container_toolkit
     apt-get update -qq
@@ -714,7 +720,7 @@ function install_nvidia_gpu_driver() {
           libcuda1
     clear_dkms_key
     load_kernel_module
-  elif is_ubuntu18 || is_debian11 || is_debian10 || (is_debian && is_cuda11) ; then
+  elif is_ubuntu18 || is_debian10 || (is_debian12 && is_cuda11) ; then
 
     install_nvidia_userspace_runfile
 
