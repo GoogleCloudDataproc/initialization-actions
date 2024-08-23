@@ -120,10 +120,10 @@ class KafkaTestRunner(object):
             if DATAPROC_IMAGE_VERSION < "2.1":
                 consumer_iter = iter(consumer)
 
-            # ensures consumer receives all messages sent by producer
-            for _ in range(NUM_MESSAGES):
-                message = consumer_iter.next()
-                print(message.value)
+                # ensures consumer receives all messages sent by producer
+                for _ in range(NUM_MESSAGES):
+                    message = consumer_iter.next()
+                    print(message.value)
         except KafkaError:
             raise Exception('Consume messages unsuccessful')
         finally:
