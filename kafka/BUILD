@@ -13,7 +13,7 @@ py_test(
         "kafka-manager.sh",
     ],
     local = True,
-    shard_count = 1,
+    shard_count = 9,
     deps = [
         ":verify_kafka_running",
         "//integration_tests:dataproc_test_case",
