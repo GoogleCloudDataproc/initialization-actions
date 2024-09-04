@@ -138,7 +138,11 @@ if [[ "${ROLE}" == 'Master' ]]; then
   if [[ "${OS_ID}" == "ubuntu" ]]; then
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc | tee -a /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc
   fi
-  apt-get install -y software-properties-common
+  if [[ ${OS_ID} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION}" == "2.2" | bc -l) == 1 ]]; then
+    apt-get install -y software-properties-common libsystemd0=252.26-1~deb12u2
+  else
+    apt-get install -y software-properties-common
+  fi
   add-apt-repository "deb http://cran.r-project.org/bin/linux/${OS_ID} ${OS_CODE}-cran40/"
   if [[ ${OS_ID} == ubuntu ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} < 2.1" | bc -l) == 1 ]]; then
     install_package
