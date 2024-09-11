@@ -62,7 +62,7 @@ class SparkRapidsTestCase(DataprocTestCase):
       self.skipTest("Not supported for Rocky OS")
 
     if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
-      self.skipTest("Not supported in pre 2.0 images")
+      self.skipTest("Not supported in 2.0 and earlier images")
 
     optional_components = None
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
@@ -92,7 +92,7 @@ class SparkRapidsTestCase(DataprocTestCase):
       self.skipTest("Not supported for Rocky OS")
 
     if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
-      self.skipTest("Not supported in pre 2.0 images")
+      self.skipTest("Not supported in 2.0 and earlier images")
 
     optional_components = None
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
@@ -122,7 +122,7 @@ class SparkRapidsTestCase(DataprocTestCase):
       self.skipTest("Not supported for Rocky OS")
 
     if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
-      self.skipTest("Not supported in pre 2.0 images")
+      self.skipTest("Not supported in 2.0 and earlier images")
 
     metadata = ("gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
                 ",cuda-version={0},driver-version={1}".format(cuda_version, driver_version))
