@@ -138,6 +138,15 @@ else
 fi
 readonly METASTORE_PROXY_PORT
 
+# get postgres driver
+if [[ "${CLOUDSQL_INSTANCE_TYPE}" == "POSTGRES" ]]; then
+  log 'Downloading JDBC driver for Postgres...'
+  wget -P /usr/share/java https://jdbc.postgresql.org/download/postgresql-"${POSTGRES_JDBC_VERSION}".jar
+  ln -s /usr/share/java/postgresql-"${POSTGRES_JDBC_VERSION}".jar /usr/share/java/postgresql-jdbc.jar
+  ln -s /usr/share/java/postgresql-jdbc.jar /usr/lib/hive/lib/postgresql-jdbc.jar
+  #wget https://jdbc.postgresql.org/download/postgresql-42.7.4.jar
+fi
+
 # Database user to use to access metastore.
 DB_HIVE_USER="$(/usr/share/google/get_metadata_value attributes/db-hive-user || echo 'hive')"
 readonly DB_HIVE_USER
