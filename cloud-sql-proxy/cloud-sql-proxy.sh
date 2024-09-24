@@ -69,6 +69,9 @@ readonly METASTORE_INSTANCE
 ADDITIONAL_INSTANCES="$(/usr/share/google/get_metadata_value ${ADDITIONAL_INSTANCES_KEY} || echo '')"
 readonly ADDITIONAL_INSTANCES
 
+POSTGRES_JDBC_VERSION="$(/usr/share/google/get_metadata_value attributes/postgres-jdbc-version || echo '42.7.4')"
+readonly POSTGRES_JDBC_VERSION
+
 function remove_old_backports {
   # This script uses 'apt-get update' and is therefore potentially dependent on
   # backports repositories which have been archived.  In order to mitigate this
