@@ -1186,13 +1186,22 @@ cAZUlaj3id3TxquAlud4lWDz
     sed -i -e 's:deb https:deb [signed-by=/usr/share/keyrings/mysql.gpg] https:g' /etc/apt/sources.list.d/mysql.list
   fi
 
-  rm -rf /etc/apt/trusted.gpg
+  mv /etc/apt/trusted.gpg /etc/apt/untrusted.gpg
 
 }
 
 if is_debian ; then
   clean_up_sources_lists
   apt-get update
+  export DEBIAN_FRONTEND="noninteractive"
+  echo "Begin full upgrade"
+  date
+  apt-get --yes -qq -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" full-upgrade
+
+  date
+  echo "End full upgrade"
+  pkgs="$(apt-get -y full-upgrade 2>&1 | grep -A9 'The following packages have been kept back:' | grep '^ ')"
+  apt-get install -y --allow-change-held-packages -qq ${pkgs}
 fi
 
 main
