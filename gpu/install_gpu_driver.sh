@@ -97,11 +97,7 @@ readonly -A CUDA_SUBVER=(
 )
 
 RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
-DEFAULT_CUDA_VERSION='12.4'
-if [[ "${RAPIDS_RUNTIME}" != "SPARK" ]]; then
-  DEFAULT_CUDA_VERSION='11.8'
-fi
-readonly DEFAULT_CUDA_VERSION
+readonly DEFAULT_CUDA_VERSION='12.4'
 readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
 readonly CUDA_FULL_VERSION="${CUDA_SUBVER["${CUDA_VERSION}"]}"
 
@@ -111,7 +107,6 @@ readonly DEFAULT_DRIVER=${DRIVER_FOR_CUDA["${CUDA_VERSION}"]}
 DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' "${DEFAULT_DRIVER}")
 if is_debian11 || is_ubuntu22 || is_ubuntu20 ; then DRIVER_VERSION="560.28.03" ; fi
 if is_ubuntu20 && is_cuda11 ; then DRIVER_VERSION="535.183.06" ; fi
-#if is_ubuntu22 && is_cuda11 ; then DRIVER_VERSION="550.90.07" ; fi # no driver of this version that matches cuda11
 
 readonly DRIVER_VERSION
 readonly DRIVER=${DRIVER_VERSION%%.*}
@@ -340,18 +335,20 @@ function install_nvidia_nccl() {
   local -r nccl_version="${NCCL_VERSION}-1+cuda${CUDA_VERSION}"
 
   if is_rocky ; then
-    execute_with_retries "dnf -y -q install libnccl-${nccl_version} libnccl-devel-${nccl_version} libnccl-static-${nccl_version}"
+    time execute_with_retries \
+      "dnf -y -q install" \
+        "libnccl-${nccl_version} libnccl-devel-${nccl_version} libnccl-static-${nccl_version}"
   elif is_ubuntu ; then
     install_cuda_keyring_pkg
 
     apt-get update -qq
 
     if is_ubuntu18 ; then
-      execute_with_retries \
+      time execute_with_retries \
         "apt-get install -q -y " \
           "libnccl2 libnccl-dev"
     else
-      execute_with_retries \
+      time execute_with_retries \
         "apt-get install -q -y " \
           "libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
     fi
@@ -582,12 +579,14 @@ function build_driver_from_github() {
   workdir=/opt/install-nvidia-driver
   mkdir -p "${workdir}"
   pushd "${workdir}"
-  test -d /opt/install-nvidia-driver/open-gpu-kernel-modules ||
-    git -c advice.detachedHead=false \
-      clone https://github.com/NVIDIA/open-gpu-kernel-modules.git \
-      --branch "${DRIVER_VERSION}" \
-      --single-branch \
-      > /dev/null
+  test -d "${workdir}/open-gpu-kernel-modules" || {
+    tarball_fn="${DRIVER_VERSION}.tar.gz"
+    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+      "https://github.com/NVIDIA/open-gpu-kernel-modules/archive/refs/tags/${tarball_fn}" \
+      -o "${tarball_fn}"
+    tar xzf "${tarball_fn}"
+    mv "open-gpu-kernel-modules-${DRIVER_VERSION}" open-gpu-kernel-modules
+  }
   cd open-gpu-kernel-modules
 
   time make -j$(nproc) modules \
