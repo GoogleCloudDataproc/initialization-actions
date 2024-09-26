@@ -1192,6 +1192,7 @@ cAZUlaj3id3TxquAlud4lWDz
 
 if is_debian ; then
   clean_up_sources_lists
+  apt-get update
 fi
 
 main
