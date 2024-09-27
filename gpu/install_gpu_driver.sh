@@ -1127,6 +1127,30 @@ EOF
   fi
 
   #
+  # cran-r
+  #
+  if [[ -f /etc/apt/sources.list.d/cran-r.list ]]; then
+    rm -f /usr/share/keyrings/cran-r.gpg
+    curl 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x95c0faf38db3ccad0c080a7bdc78b2ddeabc47b7' | \
+      gpg --dearmor -o /usr/share/keyrings/cran-r.gpg
+    sed -i -e 's:deb http:deb [signed_by=/usr/share/keyrings/cran-r.gpg] http:g' /etc/apt/sources.list.d/cran-r.list
+  fi
+
+  #
+  # google cloud + logging/monitoring
+  #
+  if ls /etc/apt/sources.list.d/google-cloud*.list ; then
+    rm -f /usr/share/keyrings/cloud.google.gpg
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+    for list in google-cloud google-cloud-logging google-cloud-monitoring ; do
+      list_file="/etc/apt/sources.list.d/${list}.list"
+      if [[ -f "${list_file}" ]]; then
+        sed -i -e 's:deb https:deb [signed_by=/usr/share/keyrings/cloud.google.gpg] https:g' "${list_file}"
+      fi
+    done
+  fi
+
+  #
   # mysql
   #
   if [[ -f /etc/apt/sources.list.d/mysql.list ]]; then
