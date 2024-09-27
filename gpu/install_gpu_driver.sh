@@ -1193,6 +1193,8 @@ cAZUlaj3id3TxquAlud4lWDz
 if is_debian ; then
   clean_up_sources_lists
   apt-get update
+fi
+if is_debian12 ; then
   export DEBIAN_FRONTEND="noninteractive"
   echo "Begin full upgrade"
   date
