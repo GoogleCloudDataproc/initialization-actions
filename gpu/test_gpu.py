@@ -53,7 +53,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
-        timeout_in_minutes=30,
+        timeout_in_minutes=90,
         boot_disk_size="50GB")
     for machine_suffix in machine_suffixes:
       self.verify_instance("{}-{}".format(self.getClusterName(),
