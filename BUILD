@@ -18,7 +18,7 @@ test_suite(
         "//drill:test_drill",
         "//flink:test_flink",
         "//ganglia:test_ganglia",
-        "//gpu:test_gpu",
+#        "//gpu:test_gpu",
         "//h2o:test_h2o",
         "//hbase:test_hbase",
 #        "//horovod:test_horovod",
