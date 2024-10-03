@@ -24,6 +24,37 @@ readonly KNOX_GW_CONFIG="$(sudo -u knox mktemp -d -t knox-init-action-config-XXX
 
 readonly KNOX_HOME=/usr/lib/knox
 
+# Detect dataproc image version from its various names
+if (! test -n DATAPROC_IMAGE_VERSION) && test -n DATAPROC_VERSION; then
+  DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
+  echo $DATAPROC_IMAGE_VERSION
+fi
+
+get_dataproc_sub_minor_version() {
+  # Setting Cluster name and region
+  hostname_output=$(hostname -A | tr -d '[:space:]' | awk -F "." '{print $1}')
+  if [[ "$hostname_output" == *"-m" ]]; then
+    CLUSTER="${hostname_output%-*}"
+  else
+    CLUSTER=$(hostname -A  |tr -d '[:space:]' | awk -F "." '{print $1}' | sed 's/\(.*\)-[^-]*-\([^-]*\)$/\1/')
+  fi
+  ZONE_PATH=$(curl "http://metadata.google.internal/computeMetadata/v1/instance/zone" -H "Metadata-Flavor: Google")
+  ZONE=$(echo $ZONE_PATH |awk -F "/" '{print $4}')
+  REGION="${ZONE%-*}"
+
+
+  # Get Subminor version of Dataproc
+  SUB_MINOR_VERSION=$(gcloud dataproc clusters describe "$CLUSTER" --region "$REGION" | grep "imageVersion" | awk -F "." '{print $3}' | sed 's/-.*//')
+  echo "$SUB_MINOR_VERSION"
+}
+
+
+# Function to perform common operations in case of specific version_sub_minor version
+apply_changes() {
+  sed -i "s/^deb*/#deb/g" /etc/apt/sources.list.d/google-cloud-logging.list
+  sed -i "s/https:\/\/deb.debian.org\/debian buster-backports main/https:\/\/archive.debian.org\/debian buster-backports main contrib non-free/g" /etc/apt/sources.list
+}
+
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
   exit 1
@@ -128,8 +159,31 @@ function initialize_crontab() {
 function install() {
   local master_name
   master_name=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
-  if [[ "${master_name}" == $(hostname) ]]; then
+  if [[ "$DATAPROC_IMAGE_VERSION" == "2.2" ]]; then
+      if [[ "${master_name}" == $(hostname -A | tr -d '[:space:]' | awk -F "." '{print $1}') ]]; then
+         [[ -z "${KNOX_GW_CONFIG_GCS}" ]] && err "Metadata knox-gw-config is not provided. knox-gw-config stores the configuration files for knox."
+          
+          retry_command "apt-get update"
+          install_dependencies
+          update
+          enable_demo_ldap_for_dev_testing
+          get_config_parameters
+          replace_the_master_key
+          generate_or_replace_certificate
+          initialize_crontab
+
+         [[ -f "/lib/systemd/system/knoxldapdemo.service" ]] && systemctl restart knoxldapdemo
+         systemctl restart knox
+      fi
+  elif [[ "${master_name}" == $(hostname) ]]; then
     [[ -z "${KNOX_GW_CONFIG_GCS}" ]] && err "Metadata knox-gw-config is not provided. knox-gw-config stores the configuration files for knox."
+      if [ "$DATAPROC_IMAGE_VERSION" = "2.0" ]; then
+        echo "Dataproc version is 2.0"
+        SUB_MINOR_VERSION=$(get_dataproc_sub_minor_version)
+        if [ "$SUB_MINOR_VERSION" -le 102 ]; then
+           apply_changes
+        fi
+      fi
 
     retry_command "apt-get update"
     install_dependencies
