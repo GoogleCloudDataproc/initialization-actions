@@ -20,6 +20,11 @@
 
 set -euxo pipefail
 
+function os_id()       { grep '^ID=' /etc/os-release | cut -d= -f2 | xargs ; }
+function os_version()  { grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs ; }
+function is_debian()   { [[ "$(os_id)" == 'debian' ]] ; }
+function is_debian12() { is_debian && [[ "$(os_version)" == '12'* ]] ; }
+
 readonly KAFKA_MANAGER_HTTP_PORT="$(/usr/share/google/get_metadata_value attributes/kafka-manager-http-port || echo 9000)"
 readonly KAFKA_MANAGER_GIT_URI=https://github.com/yahoo/CMAK.git
 readonly KAFKA_MANAGER_GIT_DIR=/tmp/kafka-manager
@@ -29,7 +34,11 @@ readonly ZOOKEEPER_CONFIG=/etc/zookeeper/conf/zoo.cfg
 
 function install_packages(){
    apt-get update
-   apt-get install -yq apt-transport-https curl gnupg
+   if is_debian12; then
+     apt-get install -yq libsystemd0=252.26-1~deb12u2 apt-transport-https curl gnupg
+   else
+     apt-get install -yq apt-transport-https curl gnupg
+   fi
 }
 
 function add_sources(){
