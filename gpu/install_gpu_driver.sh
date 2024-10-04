@@ -1234,8 +1234,6 @@ if is_debian ; then
   apt-mark unhold systemd libsystemd0 ; fi
 fi
 
-configure_dkms_certs
-
 main
 
 clear_dkms_key
