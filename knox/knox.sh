@@ -25,7 +25,7 @@ readonly KNOX_GW_CONFIG="$(sudo -u knox mktemp -d -t knox-init-action-config-XXX
 readonly KNOX_HOME=/usr/lib/knox
 
 # Detect dataproc image version from its various names
-if [[ -n "${DATAPROC_IMAGE_VERSION}" && -n "${DATAPROC_VERSION}" ]]; then
+if (! test -n "${DATAPROC_IMAGE_VERSION}") && test -n "${DATAPROC_VERSION}"; then
   DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
   echo $DATAPROC_IMAGE_VERSION
 fi
