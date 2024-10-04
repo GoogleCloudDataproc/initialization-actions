@@ -25,7 +25,7 @@ readonly KNOX_GW_CONFIG="$(sudo -u knox mktemp -d -t knox-init-action-config-XXX
 readonly KNOX_HOME=/usr/lib/knox
 
 # Detect dataproc image version from its various names
-if (! test -n DATAPROC_IMAGE_VERSION) && test -n DATAPROC_VERSION; then
+if [[ -n "${DATAPROC_IMAGE_VERSION}" && -n "${DATAPROC_VERSION}" ]]; then
   DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
   echo $DATAPROC_IMAGE_VERSION
 fi
@@ -159,7 +159,7 @@ function initialize_crontab() {
 function install() {
   local master_name
   master_name=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
-  if [[ "$DATAPROC_IMAGE_VERSION" == "2.2" ]]; then
+  if [[ "${DATAPROC_IMAGE_VERSION}" == "2.2" ]]; then
       if [[ "${master_name}" == $(hostname -A | tr -d '[:space:]' | awk -F "." '{print $1}') ]]; then
          [[ -z "${KNOX_GW_CONFIG_GCS}" ]] && err "Metadata knox-gw-config is not provided. knox-gw-config stores the configuration files for knox."
           
@@ -177,10 +177,10 @@ function install() {
       fi
   elif [[ "${master_name}" == $(hostname) ]]; then
     [[ -z "${KNOX_GW_CONFIG_GCS}" ]] && err "Metadata knox-gw-config is not provided. knox-gw-config stores the configuration files for knox."
-      if [ "$DATAPROC_IMAGE_VERSION" = "2.0" ]; then
+      if [ "${DATAPROC_IMAGE_VERSION}" = "2.0" ]; then
         echo "Dataproc version is 2.0"
         SUB_MINOR_VERSION=$(get_dataproc_sub_minor_version)
-        if [ "$SUB_MINOR_VERSION" -le 102 ]; then
+        if [ "${SUB_MINOR_VERSION}" -le 102 ]; then
            apply_changes
         fi
       fi
