@@ -594,14 +594,12 @@ function build_driver_from_github() {
     2> /var/log/open-gpu-kernel-modules-build_error.log
 
   if [[ -n "${PSN}" ]]; then
-    configure_dkms_certs
     for module in $(find kernel-open -name '*.ko'); do
       "/lib/modules/${uname_r}/build/scripts/sign-file" sha256 \
       "${mok_key}" \
       "${mok_der}" \
       "${module}"
     done
-    clear_dkms_key
   fi
 
   make modules_install \
@@ -629,14 +627,11 @@ function build_driver_from_packages() {
     add_contrib_component
     apt-get update -qq
     execute_with_retries "apt-get install -y -qq --no-install-recommends dkms"
-    configure_dkms_certs
     time execute_with_retries "apt-get install -y -qq --no-install-recommends ${pkglist[@]}"
 
   elif is_rocky ; then
-    configure_dkms_certs
     time execute_with_retries "dnf -y -q module install nvidia-driver:${DRIVER}-open"
   fi
-  clear_dkms_key
 }
 
 function install_nvidia_userspace_runfile() {
@@ -709,7 +704,6 @@ function install_nvidia_gpu_driver() {
     add_nonfree_components
     add_repo_nvidia_container_toolkit
     apt-get update -qq
-    configure_dkms_certs
     apt-get -yq install \
           nvidia-container-toolkit \
           dkms \
@@ -718,7 +712,6 @@ function install_nvidia_gpu_driver() {
           nvidia-smi \
           libglvnd0 \
           libcuda1
-    clear_dkms_key
     load_kernel_module
   elif is_ubuntu18 || is_debian10 || (is_debian12 && is_cuda11) ; then
 
@@ -1080,12 +1073,31 @@ function clean_up_sources_lists() {
   # bigtop (primary)
   #
   local -r dataproc_repo_file="/etc/apt/sources.list.d/dataproc.list"
-  local -r bigtop_kr_path="/usr/share/keyrings/bigtop-keyring.gpg"
-  rm -f "${bigtop_kr_path}"
-  curl -fsS --retry-connrefused --retry 10 --retry-max-time 30 \
-    "${bigtop_repo_url}/archive.key" | gpg --dearmor -o "${bigtop_kr_path}"
 
-  sed -i -e 's:deb https:deb [signed-by=${bigtop_kr_path}] https:g' "${dataproc_repo_file}"
+  if ! grep -q signed-by "${dataproc_repo_file}" ; then
+    region="$(/usr/share/google/get_metadata_value zone | perl -p -e 's:.*/:: ; s:-[a-z]+$::')"
+
+    local regional_bigtop_repo_uri
+    regional_bigtop_repo_uri=$(cat ${dataproc_repo_file} |
+      sed "s#/dataproc-bigtop-repo/#/goog-dataproc-bigtop-repo-${region}/#" |
+      grep "deb .*goog-dataproc-bigtop-repo-${region}.* dataproc contrib" |
+      cut -d ' ' -f 2 |
+      head -1)
+
+    if [[ "${regional_bigtop_repo_uri}" == */ ]]; then
+      local -r bigtop_key_uri="${regional_bigtop_repo_uri}archive.key"
+    else
+      local -r bigtop_key_uri="${regional_bigtop_repo_uri}/archive.key"
+    fi
+
+    local -r bigtop_kr_path="/usr/share/keyrings/bigtop-keyring.gpg"
+    rm -f "${bigtop_kr_path}"
+    curl -fsS --retry-connrefused --retry 10 --retry-max-time 30 \
+      "${bigtop_key_uri}" | gpg --dearmor -o "${bigtop_kr_path}"
+
+    sed -i -e "s:deb https:deb [signed-by=${bigtop_kr_path}] https:g" "${dataproc_repo_file}"
+    sed -i -e "s:deb-src https:deb-src [signed-by=${bigtop_kr_path}] https:g" "${dataproc_repo_file}"
+  fi
 
   #
   # adoptium
@@ -1154,17 +1166,11 @@ function clean_up_sources_lists() {
 if is_debian ; then
   clean_up_sources_lists
   apt-get update
+  apt-mark unhold systemd libsystemd0
 fi
-if is_debian12 ; then
-  export DEBIAN_FRONTEND="noninteractive"
-  echo "Begin full upgrade"
-  date
-  apt-get --yes -qq -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" full-upgrade
 
-  date
-  echo "End full upgrade"
-  pkgs="$(apt-get -y full-upgrade 2>&1 | grep -A9 'The following packages have been kept back:' | grep '^ ')"
-  apt-get install -y --allow-change-held-packages -qq ${pkgs}
-fi
+configure_dkms_certs
 
 main
+
+clear_dkms_key
