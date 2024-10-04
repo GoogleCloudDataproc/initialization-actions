@@ -594,12 +594,14 @@ function build_driver_from_github() {
     2> /var/log/open-gpu-kernel-modules-build_error.log
 
   if [[ -n "${PSN}" ]]; then
+    configure_dkms_certs
     for module in $(find kernel-open -name '*.ko'); do
       "/lib/modules/${uname_r}/build/scripts/sign-file" sha256 \
       "${mok_key}" \
       "${mok_der}" \
       "${module}"
     done
+    clear_dkms_key
   fi
 
   make modules_install \
@@ -627,11 +629,14 @@ function build_driver_from_packages() {
     add_contrib_component
     apt-get update -qq
     execute_with_retries "apt-get install -y -qq --no-install-recommends dkms"
+    configure_dkms_certs
     time execute_with_retries "apt-get install -y -qq --no-install-recommends ${pkglist[@]}"
 
   elif is_rocky ; then
+    configure_dkms_certs
     time execute_with_retries "dnf -y -q module install nvidia-driver:${DRIVER}-open"
   fi
+  clear_dkms_key
 }
 
 function install_nvidia_userspace_runfile() {
@@ -704,6 +709,7 @@ function install_nvidia_gpu_driver() {
     add_nonfree_components
     add_repo_nvidia_container_toolkit
     apt-get update -qq
+    configure_dkms_certs
     apt-get -yq install \
           nvidia-container-toolkit \
           dkms \
@@ -712,6 +718,7 @@ function install_nvidia_gpu_driver() {
           nvidia-smi \
           libglvnd0 \
           libcuda1
+    clear_dkms_key
     load_kernel_module
   elif is_ubuntu18 || is_debian10 || (is_debian12 && is_cuda11) ; then
 
@@ -1169,8 +1176,4 @@ if is_debian ; then
   apt-mark unhold systemd libsystemd0
 fi
 
-configure_dkms_certs
-
 main
-
-clear_dkms_key
