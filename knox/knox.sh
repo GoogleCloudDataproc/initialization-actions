@@ -50,7 +50,8 @@ get_dataproc_sub_minor_version() {
 
 
 # Function to perform common operations in case of specific version_sub_minor version
-apply_changes() {
+comment_repo_line() {
+  # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
   sed -i "s/^deb*/#deb/g" /etc/apt/sources.list.d/google-cloud-logging.list
   sed -i "s/https:\/\/deb.debian.org\/debian buster-backports main/https:\/\/archive.debian.org\/debian buster-backports main contrib non-free/g" /etc/apt/sources.list
 }
@@ -181,7 +182,7 @@ function install() {
         echo "Dataproc version is 2.0"
         SUB_MINOR_VERSION=$(get_dataproc_sub_minor_version)
         if [ "${SUB_MINOR_VERSION}" -le 102 ]; then
-           apply_changes
+           comment_repo_line
         fi
       fi
 
