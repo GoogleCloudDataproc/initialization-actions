@@ -24,36 +24,45 @@ readonly KNOX_GW_CONFIG="$(sudo -u knox mktemp -d -t knox-init-action-config-XXX
 
 readonly KNOX_HOME=/usr/lib/knox
 
-# Detect dataproc image version from its various names
-if (! test -n "${DATAPROC_IMAGE_VERSION}") && test -n "${DATAPROC_VERSION}"; then
-  DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
-  echo $DATAPROC_IMAGE_VERSION
-fi
+function os_id()       { grep '^ID=' /etc/os-release | cut -d= -f2 | xargs ; }
+function os_version()  { grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs ; }
+function os_codename() { grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs ; }
+function is_rocky()    { [[ "$(os_id)" == 'rocky' ]] ; }
+function is_rocky8()   { is_rocky && [[ "$(os_version)" == '8'* ]] ; }
+function is_rocky9()   { is_rocky && [[ "$(os_version)" == '9'* ]] ; }
+function is_ubuntu()   { [[ "$(os_id)" == 'ubuntu' ]] ; }
+function is_ubuntu18() { is_ubuntu && [[ "$(os_version)" == '18.04'* ]] ; }
+function is_ubuntu20() { is_ubuntu && [[ "$(os_version)" == '20.04'* ]] ; }
+function is_ubuntu22() { is_ubuntu && [[ "$(os_version)" == '22.04'* ]] ; }
+function is_debian()   { [[ "$(os_id)" == 'debian' ]] ; }
+function is_debian10() { is_debian && [[ "$(os_version)" == '10'* ]] ; }
+function is_debian11() { is_debian && [[ "$(os_version)" == '11'* ]] ; }
+function is_debian12() { is_debian && [[ "$(os_version)" == '12'* ]] ; }
+function os_vercat() { if   is_ubuntu ; then os_version | sed -e 's/[^0-9]//g'
+                       elif is_rocky  ; then os_version | sed -e 's/[^0-9].*$//g'
+                                        else os_version ; fi ; }
 
-get_dataproc_sub_minor_version() {
-  # Setting Cluster name and region
-  hostname_output=$(hostname -A | tr -d '[:space:]' | awk -F "." '{print $1}')
-  if [[ "$hostname_output" == *"-m" ]]; then
-    CLUSTER="${hostname_output%-*}"
-  else
-    CLUSTER=$(hostname -A  |tr -d '[:space:]' | awk -F "." '{print $1}' | sed 's/\(.*\)-[^-]*-\([^-]*\)$/\1/')
-  fi
-  ZONE_PATH=$(curl "http://metadata.google.internal/computeMetadata/v1/instance/zone" -H "Metadata-Flavor: Google")
-  ZONE=$(echo $ZONE_PATH |awk -F "/" '{print $4}')
-  REGION="${ZONE%-*}"
+function remove_old_backports {
+  if is_debian12 ; then return ; fi
+  if is_debian11 ; then return ; fi
+  # This script uses 'apt-get update' and is therefore potentially dependent on
+  # backports repositories which have been archived.  In order to mitigate this
+  # problem, we will use archive.debian.org for the oldoldstable repo
 
-
-  # Get Subminor version of Dataproc
-  SUB_MINOR_VERSION=$(gcloud dataproc clusters describe "$CLUSTER" --region "$REGION" | grep "imageVersion" | awk -F "." '{print $3}' | sed 's/-.*//')
-  echo "$SUB_MINOR_VERSION"
-}
-
-
-# Function to perform common operations in case of specific version_sub_minor version
-comment_repo_line() {
   # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
+  debdists="https://deb.debian.org/debian/dists"
+  oldoldstable=$(curl -s "${debdists}/oldoldstable/Release" | awk '/^Codename/ {print $2}');
+  oldstable=$(   curl -s "${debdists}/oldstable/Release"    | awk '/^Codename/ {print $2}');
+  stable=$(      curl -s "${debdists}/stable/Release"       | awk '/^Codename/ {print $2}');
+
+  matched_files=( $(test -d /etc/apt && grep -rsil '\-backports' /etc/apt/sources.list*||:) )
+
+  for filename in "${matched_files[@]}"; do
+    # Fetch from archive.debian.org for ${oldoldstable}-backports
+    perl -pi -e "s{^(deb[^\s]*) https?://[^/]+/debian ${oldoldstable}-backports }
+                  {\$1 https://archive.debian.org/debian ${oldoldstable}-backports }g" "${filename}"
+  done
   sed -i "s/^deb*/#deb/g" /etc/apt/sources.list.d/google-cloud-logging.list
-  sed -i "s/https:\/\/deb.debian.org\/debian buster-backports main/https:\/\/archive.debian.org\/debian buster-backports main contrib non-free/g" /etc/apt/sources.list
 }
 
 function err() {
@@ -160,10 +169,10 @@ function initialize_crontab() {
 function install() {
   local master_name
   master_name=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
-  if [[ "${DATAPROC_IMAGE_VERSION}" == "2.2" ]]; then
-      if [[ "${master_name}" == $(hostname -A | tr -d '[:space:]' | awk -F "." '{print $1}') ]]; then
+  if [[ "${master_name}" == $(hostname -s) ]]; then
          [[ -z "${KNOX_GW_CONFIG_GCS}" ]] && err "Metadata knox-gw-config is not provided. knox-gw-config stores the configuration files for knox."
           
+          remove_old_backports
           retry_command "apt-get update"
           install_dependencies
           update
@@ -173,32 +182,12 @@ function install() {
           generate_or_replace_certificate
           initialize_crontab
 
-         [[ -f "/lib/systemd/system/knoxldapdemo.service" ]] && systemctl restart knoxldapdemo
+         if [[ -f "/lib/systemd/system/knoxldapdemo.service" ]]; then
+           systemctl restart knoxldapdemo
+         fi
          systemctl restart knox
-      fi
-  elif [[ "${master_name}" == $(hostname) ]]; then
-    [[ -z "${KNOX_GW_CONFIG_GCS}" ]] && err "Metadata knox-gw-config is not provided. knox-gw-config stores the configuration files for knox."
-      if [ "${DATAPROC_IMAGE_VERSION}" = "2.0" ]; then
-        echo "Dataproc version is 2.0"
-        SUB_MINOR_VERSION=$(get_dataproc_sub_minor_version)
-        if [ "${SUB_MINOR_VERSION}" -le 102 ]; then
-           comment_repo_line
-        fi
-      fi
-
-    retry_command "apt-get update"
-    install_dependencies
-    update
-    enable_demo_ldap_for_dev_testing
-    get_config_parameters
-    replace_the_master_key
-    generate_or_replace_certificate
-    initialize_crontab
-
-    [[ -f "/lib/systemd/system/knoxldapdemo.service" ]] && systemctl restart knoxldapdemo
-    systemctl restart knox
   fi
-}
+  }
 
 ########### UPDATE ############
 
