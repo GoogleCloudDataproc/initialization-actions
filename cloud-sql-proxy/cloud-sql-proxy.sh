@@ -472,11 +472,6 @@ function run_validation() {
    log 'Validated Hive functioning'
 }
 
-function os_id()       { grep '^ID=' /etc/os-release | cut -d= -f2 | xargs ; }
-function os_version()  { grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs ; }
-function is_debian()   { [[ "$(os_id)" == 'debian' ]] ; }
-function is_debian12() { is_debian && [[ "$(os_version)" == '12'* ]] ; }
-
 function install_mysql_cli() {
   if command -v mysql >/dev/null; then
     log "MySQL CLI is already installed"
@@ -485,11 +480,7 @@ function install_mysql_cli() {
 
   log "Installing MySQL CLI ..."
   if command -v apt >/dev/null; then
-    if is_debian12; then
-      apt update && apt install libsystemd0=252.26-1~deb12u2 mysql-client -y
-    else
-      apt update && apt install mysql-client -y
-    fi
+    apt update && apt install mysql-client -y
   elif command -v yum >/dev/null; then
     yum -y update && yum -y install mysql
   fi
@@ -504,11 +495,7 @@ function install_postgres_cli() {
 
   log "Installing POSTGRES CLI ..."
   if command -v apt >/dev/null; then
-    if is_debian12; then
-      apt update && apt install libsystemd0=252.26-1~deb12u2 postgresql-client -y
-    else
-      apt update && apt install postgresql-client -y
-    fi
+    apt update && apt install postgresql-client -y
   elif command -v yum >/dev/null; then
     yum -y update && yum -y install postgresql
   fi

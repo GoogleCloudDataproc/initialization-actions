@@ -11,7 +11,7 @@ test_suite(
 #        ":test_spark_rapids",
         "//alluxio:test_alluxio",
         "//atlas:test_atlas",
-#        "//bigtable:test_bigtable",
+        "//bigtable:test_bigtable",
         "//conda:test_conda",
         "//connectors:test_connectors",
         "//dask:test_dask",

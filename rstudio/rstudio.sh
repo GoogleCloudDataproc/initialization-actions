@@ -19,8 +19,6 @@ set -euxo pipefail
 
 function os_id()       { grep '^ID=' /etc/os-release | cut -d= -f2 | xargs ; }
 function os_version()  { grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs ; }
-function is_debian()   { [[ "$(os_id)" == 'debian' ]] ; }
-function is_debian12() { is_debian && [[ "$(os_version)" == '12'* ]] ; }
 function is_ubuntu()   { [[ "$(os_id)" == 'ubuntu' ]] ; }
 function is_ubuntu18() { is_ubuntu && [[ "$(os_version)" == '18.04'* ]] ; }
 
@@ -123,14 +121,6 @@ function install_libflate_package() {
   fi
 }
 
-function install_r_packages() {
-  if is_debian12; then
-    apt-get install -y libsystemd0=252.26-1~deb12u2 r-base r-base-dev gdebi-core
-  else
-    apt-get install -y r-base r-base-dev gdebi-core
-  fi
-}
-
 if [[ "${ROLE}" == 'Master' ]]; then
   if [[ ${OS_ID} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
     remove_old_backports
@@ -163,7 +153,7 @@ if [[ "${ROLE}" == 'Master' ]]; then
   add-apt-repository "deb http://cran.r-project.org/bin/linux/${OS_ID} ${OS_CODE}-cran40/"
   install_libflate_package
   update_apt_get
-  install_r_packages
+  apt-get install -y r-base r-base-dev gdebi-core
 
   # Download and install RStudio Server package:
   wget -nv --timeout=30 --tries=5 --retry-connrefused ${RSTUDIO_SERVER_PACKAGE_URI} -P /tmp
