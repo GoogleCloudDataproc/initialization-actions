@@ -117,7 +117,7 @@ class DataprocTestCase(parameterized.TestCase):
             args.append("--image-version={}".format(FLAGS.image_version))
             if FLAGS.image_version in self.IMAGE_VERSION_2_2:
                 args.append("--public-ip-address")
-
+        #dummy
         for i in init_actions:
             if "install_gpu_driver.sh" in i or \
                     "mlvm.sh" in i or "rapids.sh" in i or \

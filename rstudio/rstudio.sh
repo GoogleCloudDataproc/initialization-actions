@@ -17,6 +17,11 @@
 
 set -euxo pipefail
 
+function os_id()       { grep '^ID=' /etc/os-release | cut -d= -f2 | xargs ; }
+function os_version()  { grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs ; }
+function is_ubuntu()   { [[ "$(os_id)" == 'ubuntu' ]] ; }
+function is_ubuntu18() { is_ubuntu && [[ "$(os_version)" == '18.04'* ]] ; }
+
 # Only run on the master node
 ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 
@@ -103,15 +108,17 @@ function run_with_retries() {
   "${cmd[@]}"
 }
 
-function install_package() {
-  local LIBDEFLATE0_URL="http://archive.ubuntu.com/ubuntu/pool/universe/libd/libdeflate/libdeflate0_1.5-3_amd64.deb"
-  local LIBDEFLATE_DEV_URL="http://archive.ubuntu.com/ubuntu/pool/universe/libd/libdeflate/libdeflate-dev_1.5-3_amd64.deb"
-  TMP_DIR=$(mktemp -d)
-  wget -q -P "${TMP_DIR}" "${LIBDEFLATE0_URL}"
-  dpkg -i "${TMP_DIR}/$(basename "${LIBDEFLATE0_URL}")"
-  wget -q -P "${TMP_DIR}" "${LIBDEFLATE_DEV_URL}"
-  dpkg -i "${TMP_DIR}/$(basename "${LIBDEFLATE_DEV_URL}")"
-  rm -rf "${TMP_DIR}"
+function install_libflate_package() {
+  if is_ubuntu18; then
+    local LIBDEFLATE0_URL="http://archive.ubuntu.com/ubuntu/pool/universe/libd/libdeflate/libdeflate0_1.5-3_amd64.deb"
+    local LIBDEFLATE_DEV_URL="http://archive.ubuntu.com/ubuntu/pool/universe/libd/libdeflate/libdeflate-dev_1.5-3_amd64.deb"
+    TMP_DIR=$(mktemp -d)
+    wget -q -P "${TMP_DIR}" "${LIBDEFLATE0_URL}"
+    dpkg -i "${TMP_DIR}/$(basename "${LIBDEFLATE0_URL}")"
+    wget -q -P "${TMP_DIR}" "${LIBDEFLATE_DEV_URL}"
+    dpkg -i "${TMP_DIR}/$(basename "${LIBDEFLATE_DEV_URL}")"
+    rm -rf "${TMP_DIR}"
+  fi
 }
 
 if [[ "${ROLE}" == 'Master' ]]; then
@@ -138,15 +145,13 @@ if [[ "${ROLE}" == 'Master' ]]; then
   if [[ "${OS_ID}" == "ubuntu" ]]; then
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc | tee -a /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc
   fi
-  if [[ ${OS_ID} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION}" == "2.2" | bc -l) == 1 ]]; then
-    apt-get install -y software-properties-common libsystemd0=252.26-1~deb12u2
+  if is_debian12; then
+    apt-get install -y libsystemd0=252.26-1~deb12u2 software-properties-common
   else
     apt-get install -y software-properties-common
   fi
   add-apt-repository "deb http://cran.r-project.org/bin/linux/${OS_ID} ${OS_CODE}-cran40/"
-  if [[ ${OS_ID} == ubuntu ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} < 2.1" | bc -l) == 1 ]]; then
-    install_package
-  fi
+  install_libflate_package
   update_apt_get
   apt-get install -y r-base r-base-dev gdebi-core
 
