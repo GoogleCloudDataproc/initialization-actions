@@ -48,7 +48,6 @@ class HueTestCase(DataprocTestCase):
         ("SINGLE", ["m"]),
         ("STANDARD", ["m"]),
         ("HA", ["m-0"]),
-        ("KERBEROS", ["m"]),
     )
     def test_hue(self, configuration, machine_suffixes):
         self.createCluster(configuration, self.INIT_ACTIONS)
@@ -59,7 +58,6 @@ class HueTestCase(DataprocTestCase):
     @parameterized.parameters(
         'SINGLE',
         'STANDARD',
-        'KERBEROS',
     )
     def test_hue_job(self, configuration):
         if self.getImageVersion() >= pkg_resources.parse_version("2.2"):

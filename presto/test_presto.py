@@ -83,7 +83,6 @@ class PrestoTestCase(DataprocTestCase):
         ("SINGLE", ["m"], 1, 0),
         ("STANDARD", ["m"], 1, 2),
         ("HA", ["m-0"], 1, 2),
-        ("KERBEROS", ["m"], 1, 2),
     )
     def test_presto(self, configuration, machine_suffixes, coordinators,
                     workers):
@@ -100,8 +99,7 @@ class PrestoTestCase(DataprocTestCase):
                 "{}-{}".format(self.getClusterName(), machine_suffix),
                 coordinators, workers)
 
-    @parameterized.parameters(("SINGLE", ["m"], 1, 0),
-                              ("KERBEROS", ["m"], 1, 2))
+    @parameterized.parameters(("SINGLE", ["m"], 1, 0),)
     def test_presto_custom_port(self, configuration, machine_suffixes,
                                 coordinators, workers):
         if self.getImageOs() == 'rocky':

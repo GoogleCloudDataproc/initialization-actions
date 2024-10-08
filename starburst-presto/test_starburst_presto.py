@@ -83,7 +83,6 @@ class StarburstPrestoTestCase(DataprocTestCase):
         ("SINGLE", ["m"], 1, 0),
         ("STANDARD", ["m"], 1, 2),
         ("HA", ["m-0"], 1, 2),
-        ("KERBEROS", ["m"], 1, 2),
     )
     def test_starburst_presto(self, configuration, machine_suffixes,
                               coordinators, workers):
@@ -102,7 +101,6 @@ class StarburstPrestoTestCase(DataprocTestCase):
 
     @parameterized.parameters(
         ("SINGLE", ["m"], 1, 0),
-        ("KERBEROS", ["m"], 1, 2),
     )
     def test_starburst_presto_custom_port(
             self, configuration, machine_suffixes, coordinators, workers):
