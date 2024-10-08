@@ -32,6 +32,7 @@ class OozieTestCase(DataprocTestCase):
         ("SINGLE", ["m"]),
         ("STANDARD", ["m"]),
         ("HA", ["m-0", "m-1", "m-2"]),
+        ("KERBEROS", ["m"]),
     )
     def test_oozie(self, configuration, machine_suffixes):
         if self.getImageOs() == 'rocky':

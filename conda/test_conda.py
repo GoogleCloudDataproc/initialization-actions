@@ -56,6 +56,8 @@ class CondaTestCase(DataprocTestCase):
     @parameterized.parameters(
         ("STANDARD", [], []),
         ("STANDARD", CONDA_PKGS, PIP_PKGS),
+        ("KERBEROS", [], []),
+        ("KERBEROS", CONDA_PKGS, PIP_PKGS),
     )
     def test_conda(self, configuration, conda_packages, pip_packages):
         if self.getImageOs() == 'rocky':

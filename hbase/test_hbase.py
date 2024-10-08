@@ -32,6 +32,7 @@ class HBaseTestCase(DataprocTestCase):
         ("SINGLE", ["m"]),
         ("STANDARD", ["m"]),
         ("HA", ["m-0"]),
+        ("KERBEROS", ["m"]),
     )
     def test_hbase(self, configuration, machine_suffixes):
         if self.getImageOs() == 'rocky':
@@ -54,6 +55,7 @@ class HBaseTestCase(DataprocTestCase):
         ("SINGLE", ["m"]),
         ("STANDARD", ["m"]),
         ("HA", ["m-0"]),
+        ("KERBEROS", ["m"]),
     )
     def test_hbase_on_gcs(self, configuration, machine_suffixes):
         if self.getImageOs() == 'rocky':

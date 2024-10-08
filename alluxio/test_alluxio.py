@@ -16,7 +16,9 @@ class AlluxioTestCase(DataprocTestCase):
     self.assert_instance_command(name, "alluxio fs leader")
 
   @parameterized.parameters(
-      ("STANDARD", ["m"]),)
+      ("STANDARD", ["m"]),
+      ("KERBEROS", ["m"]),
+  )
   def test_alluxio(self, configuration, machine_suffixes):
     if self.getImageOs() == 'rocky':
       self.skipTest("Not supported in Rocky Linux-based images")
@@ -32,7 +34,9 @@ class AlluxioTestCase(DataprocTestCase):
                                           machine_suffix))
 
   @parameterized.parameters(
-      ("STANDARD", ["m"]),)
+      ("STANDARD", ["m"]),
+      ("KERBEROS", ["m"]),
+  )
   def test_alluxio_with_presto(self, configuration, machine_suffixes):
     if self.getImageOs() == 'rocky':
       self.skipTest("Not supported in Rocky Linux-based images")

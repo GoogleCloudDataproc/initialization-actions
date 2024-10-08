@@ -30,6 +30,7 @@ class RangerTestCase(DataprocTestCase):
         ("SINGLE", ["m"]),
         ("STANDARD", ["m"]),
         ("HA", ["m-0"]),
+        ("KERBEROS", ["m"]),
     )
     def test_ranger(self, configuration, machine_suffixes):
         if self.getImageOs() == 'rocky':

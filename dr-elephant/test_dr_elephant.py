@@ -30,6 +30,7 @@ class DrElephantTestCase(DataprocTestCase):
     @parameterized.parameters(
         ("STANDARD", ["m"]),
         ("HA", ["m-0"]),
+        ("KERBEROS", ["m"]),
     )
     def test_dr_elephant(self, configuration, machine_suffixes):
         if self.getImageVersion() >= pkg_resources.parse_version("1.3"):

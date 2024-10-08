@@ -49,6 +49,7 @@ class LivyTestCase(DataprocTestCase):
         ("SINGLE", ["m"]),
         ("STANDARD", ["m"]),
         ("HA", ["m-0", "m-1", "m-2"]),
+        ("KERBEROS", ["m"]),
     )
     def test_livy(self, configuration, machine_suffixes):
         if self.getImageVersion() >= pkg_resources.parse_version("1.5"):
@@ -63,6 +64,7 @@ class LivyTestCase(DataprocTestCase):
         "SINGLE",
         "STANDARD",
         "HA",
+        "KERBEROS",
     )
     def test_livy_job(self, configuration):
         if self.getImageVersion() < pkg_resources.parse_version("2.0"):

@@ -39,7 +39,10 @@ class DaskTestCase(DataprocTestCase):
 
     @parameterized.parameters(
         ("STANDARD", ["m", "w-0"], "yarn"),
-        ("STANDARD", ["m"], "standalone"))
+        ("STANDARD", ["m"], "standalone"),
+        ("KERBEROS", ["m"], "yarn"),
+        ("KERBEROS", ["m"], "standalone"),
+    )
     def test_dask(self, configuration, instances, runtime):
 
         if self.getImageVersion() < pkg_resources.parse_version("2.0"):
