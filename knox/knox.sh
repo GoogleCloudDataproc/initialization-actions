@@ -24,6 +24,28 @@ readonly KNOX_GW_CONFIG="$(sudo -u knox mktemp -d -t knox-init-action-config-XXX
 
 readonly KNOX_HOME=/usr/lib/knox
 
+function os_id()       { grep '^ID=' /etc/os-release | cut -d= -f2 | xargs ; }
+function is_rocky()    { [[ "$(os_id)" == 'rocky' ]] ; }
+
+function update_oldoldstable_backports {
+  if is_rocky ; then return ; fi
+  # This script uses 'apt-get update' and is therefore potentially dependent on
+  # backports repositories which have been archived.  In order to mitigate this
+  # problem, we will use archive.debian.org for the oldoldstable repo
+
+  # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
+  debdists="https://deb.debian.org/debian/dists"
+  oldoldstable=$(curl -s "${debdists}/oldoldstable/Release" | awk '/^Codename/ {print $2}');
+
+  matched_files=( $(test -d /etc/apt && grep -rsil "${oldoldstable}-backports" /etc/apt/sources.list*||:) )
+
+  for filename in "${matched_files[@]}"; do
+    # Fetch from archive.debian.org for ${oldoldstable}-backports
+    perl -pi -e "s{^(deb[^\s]*) https?://[^/]+/debian ${oldoldstable}-backports }
+                  {\$1 https://archive.debian.org/debian ${oldoldstable}-backports }g" "${filename}"
+  done
+}
+
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
   exit 1
@@ -128,9 +150,10 @@ function initialize_crontab() {
 function install() {
   local master_name
   master_name=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
-  if [[ "${master_name}" == $(hostname) ]]; then
+  if [[ "${master_name}" == $(hostname -s) ]]; then
     [[ -z "${KNOX_GW_CONFIG_GCS}" ]] && err "Metadata knox-gw-config is not provided. knox-gw-config stores the configuration files for knox."
 
+    update_oldoldstable_backports
     retry_command "apt-get update"
     install_dependencies
     update
