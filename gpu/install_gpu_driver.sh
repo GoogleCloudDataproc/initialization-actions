@@ -56,8 +56,10 @@ function remove_old_backports {
   done
 }
 
+# Return true if the first argument is equal to or less than the second argument
 function compare_versions_lte { [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ] ; }
 
+# Return true if the first argument is less than the second argument
 function compare_versions_lt() {
   [ "$1" = "$2" ] && return 1 || compare_versions_lte $1 $2
 }
