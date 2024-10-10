@@ -1220,7 +1220,8 @@ function clean_up_sources_lists() {
 if is_debian ; then
   clean_up_sources_lists
   apt-get update
-  apt-mark unhold systemd libsystemd0
+  if is_debian12 ; then
+  apt-mark unhold systemd libsystemd0 ; fi
 fi
 
 configure_dkms_certs
