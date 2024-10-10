@@ -6,7 +6,7 @@ py_test(
     srcs = ["test_rstudio.py"],
     data = ["rstudio.sh"],
     local = True,
-    shard_count = 4,
+    shard_count = 5,
     deps = [
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",

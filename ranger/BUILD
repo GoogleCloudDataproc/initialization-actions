@@ -9,7 +9,7 @@ py_test(
         "//solr:solr.sh",
     ],
     local = True,
-    shard_count = 3,
+    shard_count = 4,
     deps = [
         ":verify_ranger",
         "//integration_tests:dataproc_test_case",

@@ -50,8 +50,11 @@ class ConnectorsTestCase(DataprocTestCase):
     def _scala_version(self):
         return "2.12"
 
-    @parameterized.parameters(("SINGLE", ["m"]),
-                              ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
+    @parameterized.parameters(
+        ("SINGLE", ["m"]),
+        ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]),
+        ("KERBEROS", ["m"]),
+    )
     def test_bq_connector_version(self, configuration, instances):
         if self.getImageOs() == 'rocky':
           self.skipTest("Not supported in Rocky Linux-based images")
@@ -63,8 +66,11 @@ class ConnectorsTestCase(DataprocTestCase):
         self.verify_instances(self.getClusterName(), instances,
                               "bigquery-connector", self.BQ_CONNECTOR_VERSION)
 
-    @parameterized.parameters(("SINGLE", ["m"]),
-                              ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
+    @parameterized.parameters(
+        ("SINGLE", ["m"]),
+        ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]),
+        ("KERBEROS", ["m"]),
+    )
     def test_spark_bq_connector_version(self, configuration, instances):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             self.SPARK_BQ_CONNECTOR_VERSION = "0.29.0"
@@ -83,8 +89,11 @@ class ConnectorsTestCase(DataprocTestCase):
                               "spark-bigquery-connector",
                               self.SPARK_BQ_CONNECTOR_VERSION)
 
-    @parameterized.parameters(("SINGLE", ["m"]),
-                              ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
+    @parameterized.parameters(
+        ("SINGLE", ["m"]),
+        ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]),
+        ("KERBEROS", ["m"]),
+    )
     def test_bq_connector_url(self, configuration, instances):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             self.SPARK_BQ_CONNECTOR_VERSION = "0.29.0"
@@ -102,8 +111,11 @@ class ConnectorsTestCase(DataprocTestCase):
         self.verify_instances(self.getClusterName(), instances,
                               "bigquery-connector", self.BQ_CONNECTOR_VERSION)
 
-    @parameterized.parameters(("SINGLE", ["m"]),
-                              ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
+    @parameterized.parameters(
+        ("SINGLE", ["m"]),
+        ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]),
+        ("KERBEROS", ["m"]),
+    )
     def test_spark_bq_connector_url(self, configuration, instances):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             self.SPARK_BQ_CONNECTOR_VERSION = "0.29.0"

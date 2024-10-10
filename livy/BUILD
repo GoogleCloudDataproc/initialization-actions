@@ -6,7 +6,7 @@ py_test(
     srcs = ["test_livy.py"],
     data = ["livy.sh"],
     local = True,
-    shard_count = 3,
+    shard_count = 8,
     deps = [
         ":verify_livy_running",
         "//integration_tests:dataproc_test_case",

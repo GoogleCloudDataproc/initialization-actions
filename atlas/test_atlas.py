@@ -94,6 +94,7 @@ class AtlasTestCase(DataprocTestCase):
     @parameterized.parameters(
         ("SINGLE", ["m"]),
         ("STANDARD", ["m"]),
+        ("KERBEROS", ["m"]),
     )
     def test_atlas(self, configuration, machine_suffixes):
         if self.getImageOs() == 'rocky':
@@ -145,7 +146,10 @@ class AtlasTestCase(DataprocTestCase):
         if configuration == "HA":
             self.assertEqual(2, atlas_statuses.count("PASSIVE"))
 
-    @parameterized.parameters(("SINGLE", ["m"]))
+    @parameterized.parameters(
+        ("SINGLE", ["m"]),
+        ("KERBEROS", ["m"]),
+    )
     def test_atlas_overrides_admin_credentials(self, configuration,
                                                machine_suffixes):
       if self.getImageOs() == 'rocky':

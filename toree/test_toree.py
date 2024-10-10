@@ -29,6 +29,7 @@ class ToreeTestCase(DataprocTestCase):
         ("STANDARD", "m", True),
         ("HA", "m-0", True),
         ("SINGLE", "m", False),
+        ("KERBEROS", "m", False),
     )
     def test_toree(self, configuration, machine_suffix, install_explicit):
         properties = "dataproc:jupyter.port=12345"

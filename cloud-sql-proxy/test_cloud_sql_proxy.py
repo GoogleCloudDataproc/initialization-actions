@@ -59,6 +59,7 @@ class CloudSqlProxyTestCase(DataprocTestCase):
       'SINGLE',
       'STANDARD',
       'HA',
+      'KERBEROS',
   )
   def test_cloud_sql_proxy(self, configuration):
     metadata = 'hive-metastore-instance={}:{},hive-metastore-db=metastore'.format(self.PROJECT_METADATA,

@@ -8,7 +8,7 @@ py_test(
     srcs = ["test_presto.py"],
     data = ["presto.sh"],
     local = True,
-    shard_count = 4,
+    shard_count = 6,
     deps = [
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",

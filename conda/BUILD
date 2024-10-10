@@ -11,7 +11,7 @@ py_test(
         "install-conda-env.sh",
     ],
     local = True,
-    shard_count = 2,
+    shard_count = 4,
     deps = [
         ":get_sys_exec",
         "//integration_tests:dataproc_test_case",

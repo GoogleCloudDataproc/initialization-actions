@@ -9,7 +9,7 @@ py_test(
         "validate.sh",
     ],
     local = True,
-    shard_count = 5,
+    shard_count = 7,
     deps = [
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",

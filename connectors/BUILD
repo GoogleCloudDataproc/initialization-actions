@@ -6,7 +6,7 @@ py_test(
     srcs = ["test_connectors.py"],
     data = ["connectors.sh"],
     local = True,
-    shard_count = 10,
+    shard_count = 12,
     deps = [
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",

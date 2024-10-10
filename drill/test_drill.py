@@ -30,6 +30,7 @@ class DrillTestCase(DataprocTestCase):
         ("SINGLE", [("m", "m")]),
         ("STANDARD", [("m", "w-0"), ("m", "m")]),
         ("HA", [("m-0", "w-0"), ("w-0", "m-1")]),
+        ("KERBEROS", ["m"]),
     )
     def test_drill(self, configuration, verify_options):
         if self.getImageOs() == 'rocky':

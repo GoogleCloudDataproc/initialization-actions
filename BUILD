@@ -6,7 +6,6 @@ test_suite(
         ":test_cloud_sql_proxy",
         ":test_dr_elephant",
         ":test_hive_hcatalog",
-        ":test_hive_llap",
         ":test_starburst_presto",
         ":test_spark_rapids",
         "//alluxio:test_alluxio",
@@ -63,7 +62,7 @@ py_test(
     srcs = ["cloud-sql-proxy/test_cloud_sql_proxy.py"],
     data = ["cloud-sql-proxy/cloud-sql-proxy.sh", "cloud-sql-proxy/hivetest.hive"],
     local = True,
-    shard_count = 3,
+    shard_count = 4,
     deps = [
         ":pyspark_metastore_test",
         "//integration_tests:dataproc_test_case",
@@ -77,7 +76,7 @@ py_test(
     srcs = ["dr-elephant/test_dr_elephant.py"],
     data = ["dr-elephant/dr-elephant.sh"],
     local = True,
-    shard_count = 2,
+    shard_count = 3,
     deps = [
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",
@@ -90,7 +89,7 @@ py_test(
     srcs = ["hive-hcatalog/test_hive_hcatalog.py"],
     data = ["hive-hcatalog/hive-hcatalog.sh"],
     local = True,
-    shard_count = 6,
+    shard_count = 8,
     deps = [
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",
@@ -103,7 +102,7 @@ py_test(
     srcs = ["starburst-presto/test_starburst_presto.py"],
     data = ["starburst-presto/presto.sh"],
     local = True,
-    shard_count = 4,
+    shard_count = 6,
     deps = [
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",

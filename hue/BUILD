@@ -10,7 +10,7 @@ py_test(
             "run_queries.py"],
     data = ["hue.sh"],
     local = True,
-    shard_count = 3,
+    shard_count = 7,
     deps = [
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",

@@ -16,7 +16,7 @@ py_test(
         "topologies/*",
     ]),
     local = True,
-    shard_count = 6,
+    shard_count = 8,
     deps = [
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",

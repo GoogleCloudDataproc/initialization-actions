@@ -8,7 +8,7 @@ py_test(
         "ganglia.sh",
     ],
     local = True,
-    shard_count = 3,
+    shard_count = 4,
     deps = [
         ":verify_ganglia_running",
         "//integration_tests:dataproc_test_case",

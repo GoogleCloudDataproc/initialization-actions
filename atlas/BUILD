@@ -10,7 +10,7 @@ py_test(
         "//kafka:kafka.sh",
     ],
     local = True,
-    shard_count = 7,
+    shard_count = 9,
     deps = [
         ":validate_atlas",
         "//integration_tests:dataproc_test_case",

@@ -10,7 +10,7 @@ py_test(
         "verify_oozie_running.py",
     ],
     local = True,
-    shard_count = 3,
+    shard_count = 4,
     deps = [
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",

@@ -38,6 +38,9 @@ class DataprocTestCase(parameterized.TestCase):
         "HA": [
             "--num-masters=3",
             "--num-workers=2",
+        ],
+        "KERBEROS": [
+            "--enable-kerberos"
         ]
     }
 
