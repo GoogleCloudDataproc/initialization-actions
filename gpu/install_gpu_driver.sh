@@ -30,9 +30,10 @@ function is_debian()   { [[ "$(os_id)" == 'debian' ]] ; }
 function is_debian10() { is_debian && [[ "$(os_version)" == '10'* ]] ; }
 function is_debian11() { is_debian && [[ "$(os_version)" == '11'* ]] ; }
 function is_debian12() { is_debian && [[ "$(os_version)" == '12'* ]] ; }
-function os_vercat() { if   is_ubuntu ; then os_version | sed -e 's/[^0-9]//g'
-                       elif is_rocky  ; then os_version | sed -e 's/[^0-9].*$//g'
-                                        else os_version ; fi ; }
+function os_vercat()   { set +x
+  if   is_ubuntu ; then os_version | sed -e 's/[^0-9]//g'
+  elif is_rocky  ; then os_version | sed -e 's/[^0-9].*$//g'
+                   else os_version ; fi ; set -x ; }
 
 function remove_old_backports {
   if is_debian12 ; then return ; fi
@@ -55,18 +56,55 @@ function remove_old_backports {
   done
 }
 
-function compare_versions_lte {
-  [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]
-}
+function compare_versions_lte { [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ] ; }
 
 function compare_versions_lt() {
   [ "$1" = "$2" ] && return 1 || compare_versions_lte $1 $2
 }
 
+function print_metadata_value() {
+  local readonly tmpfile=$(mktemp)
+  http_code=$(curl -f "${1}" -H "Metadata-Flavor: Google" -w "%{http_code}" \
+    -s -o ${tmpfile} 2>/dev/null)
+  local readonly return_code=$?
+  # If the command completed successfully, print the metadata value to stdout.
+  if [[ ${return_code} == 0 && ${http_code} == 200 ]]; then
+    cat ${tmpfile}
+  fi
+  rm -f ${tmpfile}
+  return ${return_code}
+}
+
+function print_metadata_value_if_exists() {
+  local return_code=1
+  local readonly url=$1
+  print_metadata_value ${url}
+  return_code=$?
+  return ${return_code}
+}
+
+function get_metadata_value() {
+  set +x
+  local readonly varname=$1
+  local -r MDS_PREFIX=http://metadata.google.internal/computeMetadata/v1
+  # Print the instance metadata value.
+  print_metadata_value_if_exists ${MDS_PREFIX}/instance/${varname}
+  return_code=$?
+  # If the instance doesn't have the value, try the project.
+  if [[ ${return_code} != 0 ]]; then
+    print_metadata_value_if_exists ${MDS_PREFIX}/project/${varname}
+    return_code=$?
+  fi
+  set -x
+  return ${return_code}
+}
+
 function get_metadata_attribute() {
-  local -r attribute_name=$1
+  set +x
+  local -r attribute_name="$1"
   local -r default_value="${2:-}"
-  /usr/share/google/get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
+  get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
+  set -x
 }
 
 OS_NAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
@@ -98,7 +136,8 @@ readonly -A CUDA_SUBVER=(
 
 RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 readonly DEFAULT_CUDA_VERSION='12.4'
-readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
+CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
+readonly CUDA_VERSION
 readonly CUDA_FULL_VERSION="${CUDA_SUBVER["${CUDA_VERSION}"]}"
 
 function is_cuda12() { [[ "${CUDA_VERSION%%.*}" == "12" ]] ; }
@@ -218,11 +257,13 @@ MIG_MAJOR_CAPS=0
 IS_MIG_ENABLED=0
 
 function execute_with_retries() {
+  set +x
   local -r cmd="$*"
   for ((i = 0; i < 3; i++)); do
-    if eval "$cmd"; then return 0 ; fi
+    if eval "$cmd"; then set -x ; return 0 ; fi
     sleep 5
   done
+  set -x
   return 1
 }
 
@@ -336,8 +377,8 @@ function install_nvidia_nccl() {
 
   if is_rocky ; then
     time execute_with_retries \
-      "dnf -y -q install" \
-        "libnccl-${nccl_version} libnccl-devel-${nccl_version} libnccl-static-${nccl_version}"
+      dnf -y -q install \
+        "libnccl-${nccl_version}" "libnccl-devel-${nccl_version}" "libnccl-static-${nccl_version}"
   elif is_ubuntu ; then
     install_cuda_keyring_pkg
 
@@ -345,12 +386,12 @@ function install_nvidia_nccl() {
 
     if is_ubuntu18 ; then
       time execute_with_retries \
-        "apt-get install -q -y " \
-          "libnccl2 libnccl-dev"
+        apt-get install -q -y \
+          libnccl2 libnccl-dev
     else
       time execute_with_retries \
-        "apt-get install -q -y " \
-          "libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
+        apt-get install -q -y \
+          "libnccl2=${nccl_version}" "libnccl-dev=${nccl_version}"
     fi
   else
     echo "Unsupported OS: '${OS_NAME}'"
@@ -594,14 +635,14 @@ function build_driver_from_github() {
     2> /var/log/open-gpu-kernel-modules-build_error.log
 
   if [[ -n "${PSN}" ]]; then
-    configure_dkms_certs
+    #configure_dkms_certs
     for module in $(find kernel-open -name '*.ko'); do
       "/lib/modules/${uname_r}/build/scripts/sign-file" sha256 \
       "${mok_key}" \
       "${mok_der}" \
       "${module}"
     done
-    clear_dkms_key
+    #clear_dkms_key
   fi
 
   make modules_install \
@@ -629,14 +670,18 @@ function build_driver_from_packages() {
     add_contrib_component
     apt-get update -qq
     execute_with_retries "apt-get install -y -qq --no-install-recommends dkms"
-    configure_dkms_certs
+    #configure_dkms_certs
     time execute_with_retries "apt-get install -y -qq --no-install-recommends ${pkglist[@]}"
 
   elif is_rocky ; then
-    configure_dkms_certs
-    time execute_with_retries "dnf -y -q module install nvidia-driver:${DRIVER}-open"
+    #configure_dkms_certs
+    if execute_with_retries dnf -y -q module install "nvidia-driver:${DRIVER}-dkms" ; then
+      echo "nvidia-driver:${DRIVER}-dkms installed successfully"
+    else
+      time execute_with_retries dnf -y -q module install 'nvidia-driver:latest'
+    fi
   fi
-  clear_dkms_key
+  #clear_dkms_key
 }
 
 function install_nvidia_userspace_runfile() {
@@ -676,6 +721,7 @@ function install_cuda_toolkit() {
 }
 
 function install_drivers_aliases() {
+  if is_rocky ; then return ; fi
   if ! (is_debian12 || is_debian11) ; then return ; fi
   if (is_debian12 && is_cuda11) && is_src_nvidia ; then return ; fi # don't install on debian 12 / cuda11 with drivers from nvidia
   # Add a modprobe alias to prefer the open kernel modules
@@ -692,7 +738,6 @@ function install_drivers_aliases() {
 }
 
 function load_kernel_module() {
-  modprobe -r nvidia || echo "unable to unload the nvidia module"
   # for some use cases, the kernel module needs to be removed before first use of nvidia-smi
   for module in nvidia_uvm nvidia_drm nvidia_modeset nvidia ; do
     rmmod ${module} > /dev/null 2>&1 || echo "unable to rmmod ${module}"
@@ -709,7 +754,7 @@ function install_nvidia_gpu_driver() {
     add_nonfree_components
     add_repo_nvidia_container_toolkit
     apt-get update -qq
-    configure_dkms_certs
+    #configure_dkms_certs
     apt-get -yq install \
           nvidia-container-toolkit \
           dkms \
@@ -718,7 +763,7 @@ function install_nvidia_gpu_driver() {
           nvidia-smi \
           libglvnd0 \
           libcuda1
-    clear_dkms_key
+    #clear_dkms_key
     load_kernel_module
   elif is_ubuntu18 || is_debian10 || (is_debian12 && is_cuda11) ; then
 
@@ -804,7 +849,7 @@ function set_hadoop_property() {
 }
 
 function configure_yarn() {
-  if [[ ! -f ${HADOOP_CONF_DIR}/resource-types.xml ]]; then
+  if [[ -d "${HADOOP_CONF_DIR}" && ! -f "${HADOOP_CONF_DIR}/resource-types.xml" ]]; then
     printf '<?xml version="1.0" ?>\n<configuration/>' >"${HADOOP_CONF_DIR}/resource-types.xml"
   fi
   set_hadoop_property 'resource-types.xml' 'yarn.resource-types' 'yarn.io/gpu'
@@ -836,10 +881,14 @@ function configure_yarn_nodemanager() {
 
   # Fix local dirs access permissions
   local yarn_local_dirs=()
+
   readarray -d ',' yarn_local_dirs < <("${bdcfg}" get_property_value \
     --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
     --name "yarn.nodemanager.local-dirs" 2>/dev/null | tr -d '\n')
-  chown yarn:yarn -R "${yarn_local_dirs[@]/,/}"
+
+  if [[ "${#yarn_local_dirs[@]}" -ne "0" && "${yarn_local_dirs[@]}" != "None" ]]; then
+    chown yarn:yarn -R "${yarn_local_dirs[@]/,/}"
+  fi
 }
 
 function configure_gpu_exclusive_mode() {
@@ -1074,15 +1123,13 @@ function main() {
 }
 
 function clean_up_sources_lists() {
-  local OS_CODENAME="$(. /etc/os-release; echo "${VERSION_CODENAME}")"
-
   #
   # bigtop (primary)
   #
   local -r dataproc_repo_file="/etc/apt/sources.list.d/dataproc.list"
 
-  if ! grep -q signed-by "${dataproc_repo_file}" ; then
-    region="$(/usr/share/google/get_metadata_value zone | perl -p -e 's:.*/:: ; s:-[a-z]+$::')"
+  if [[ -f "${dataproc_repo_file}" ]] && ! grep -q signed-by "${dataproc_repo_file}" ; then
+    region="$(get_metadata_value zone | perl -p -e 's:.*/:: ; s:-[a-z]+$::')"
 
     local regional_bigtop_repo_uri
     regional_bigtop_repo_uri=$(cat ${dataproc_repo_file} |
@@ -1115,7 +1162,7 @@ function clean_up_sources_lists() {
   rm -f "${adoptium_kr_path}"
   curl -fsS --retry-connrefused --retry 10 --retry-max-time 30 "${key_url}" \
    | gpg --dearmor -o "${adoptium_kr_path}"
-  echo "deb [signed-by=${adoptium_kr_path}] https://packages.adoptium.net/artifactory/deb/ ${OS_CODENAME} main" \
+  echo "deb [signed-by=${adoptium_kr_path}] https://packages.adoptium.net/artifactory/deb/ $(os_codename) main" \
    > /etc/apt/sources.list.d/adoptium.list
 
 
@@ -1129,7 +1176,7 @@ function clean_up_sources_lists() {
   rm -f "${docker_kr_path}"
   curl -fsS --retry-connrefused --retry 10 --retry-max-time 30 "${docker_key_url}" \
     | gpg --dearmor -o "${docker_kr_path}"
-  echo "deb [signed-by=${docker_kr_path}] https://download.docker.com/linux/$(os_id) ${OS_CODENAME} stable" \
+  echo "deb [signed-by=${docker_kr_path}] https://download.docker.com/linux/$(os_id) $(os_codename) stable" \
     > ${docker_repo_file}
 
   #
@@ -1166,7 +1213,7 @@ function clean_up_sources_lists() {
     sed -i -e 's:deb https:deb [signed-by=/usr/share/keyrings/mysql.gpg] https:g' /etc/apt/sources.list.d/mysql.list
   fi
 
-  mv /etc/apt/trusted.gpg /etc/apt/old-trusted.gpg
+  if -f /etc/apt/trusted.gpg ; then mv /etc/apt/trusted.gpg /etc/apt/old-trusted.gpg ; fi
 
 }
 
@@ -1176,4 +1223,10 @@ if is_debian ; then
   apt-mark unhold systemd libsystemd0
 fi
 
+configure_dkms_certs
+
 main
+
+clear_dkms_key
+
+df -h
