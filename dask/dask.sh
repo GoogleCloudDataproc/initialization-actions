@@ -27,49 +27,10 @@ function os_codename() { grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2
 function is_ubuntu()   { [[ "$(os_id)" == 'ubuntu' ]] ; }
 function is_ubuntu18() { is_ubuntu && [[ "$(os_version)" == '18.04'* ]] ; }
 
-function print_metadata_value() {
-  local readonly tmpfile=$(mktemp)
-  http_code=$(curl -f "${1}" -H "Metadata-Flavor: Google" -w "%{http_code}" \
-    -s -o ${tmpfile} 2>/dev/null)
-  local readonly return_code=$?
-  # If the command completed successfully, print the metadata value to stdout.
-  if [[ ${return_code} == 0 && ${http_code} == 200 ]]; then
-    cat ${tmpfile}
-  fi
-  rm -f ${tmpfile}
-  return ${return_code}
-}
-
-function print_metadata_value_if_exists() {
-  local return_code=1
-  local readonly url=$1
-  print_metadata_value ${url}
-  return_code=$?
-  return ${return_code}
-}
-
-function get_metadata_value() {
-  set +x
-  local readonly varname=$1
-  local -r MDS_PREFIX=http://metadata.google.internal/computeMetadata/v1
-  # Print the instance metadata value.
-  print_metadata_value_if_exists ${MDS_PREFIX}/instance/${varname}
-  return_code=$?
-  # If the instance doesn't have the value, try the project.
-  if [[ ${return_code} != 0 ]]; then
-    print_metadata_value_if_exists ${MDS_PREFIX}/project/${varname}
-    return_code=$?
-  fi
-  set -x
-  return ${return_code}
-}
-
 function get_metadata_attribute() {
-  set +x
-  local -r attribute_name="$1"
+  local -r attribute_name=$1
   local -r default_value="${2:-}"
-  get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
-  set -x
+  /usr/share/google/get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
 }
 
 readonly DEFAULT_CUDA_VERSION="12.4"
@@ -77,7 +38,7 @@ readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VER
 function is_cuda12() { [[ "${CUDA_VERSION%%.*}" == "12" ]] ; }
 function is_cuda11() { [[ "${CUDA_VERSION%%.*}" == "11" ]] ; }
 
-readonly DASK_RUNTIME="$(get_metadata_attribute dask-runtime || echo 'standalone')"
+readonly DASK_RUNTIME="$(/usr/share/google/get_metadata_value attributes/dask-runtime || echo 'standalone')"
 
 # Dask 'standalone' config
 readonly DASK_SERVICE=dask-cluster
@@ -126,8 +87,8 @@ EOF
 }
 
 enable_worker_service="0"
-ROLE="$(get_metadata_attribute dataproc-role)"
-MASTER="$(get_metadata_attribute dataproc-master)"
+ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+MASTER="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 function install_systemd_dask_worker() {
   echo "Installing systemd Dask Worker service..."
   local -r dask_worker_local_dir="/tmp/${DASK_WORKER_SERVICE}"
@@ -164,9 +125,9 @@ EOF
   if [[ "${ROLE}" != "Master" ]]; then
     enable_worker_service="1"
   else
-    local RUN_WORKER_ON_MASTER="$(get_metadata_attribute dask-worker-on-master || echo 'true')"
+    local RUN_WORKER_ON_MASTER="$(/usr/share/google/get_metadata_value attributes/dask-worker-on-master || echo 'true')"
     # Enable service on single-node cluster (no workers)
-    local worker_count="$(get_metadata_attribute dataproc-worker-count)"
+    local worker_count="$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)"
     if [[ "${worker_count}" == "0" ]]; then RUN_WORKER_ON_MASTER='true'; fi
 
     if [[ "${RUN_WORKER_ON_MASTER}" == "true" ]]; then
@@ -470,8 +431,8 @@ function install_dask() {
 
   # Install dask
   local is_installed="0"
-  mamba="/opt/conda/miniconda3/bin/mamba"
-  conda="/opt/conda/miniconda3/bin/conda"
+  mamba="/opt/conda/default/bin/mamba"
+  conda="/opt/conda/default/bin/conda"
 
   set +e
   for installer in "${mamba}" "${conda}" ; do
@@ -517,7 +478,7 @@ function main() {
 
     configure_knox_for_dask
 
-    local DASK_CLOUD_LOGGING="$(get_metadata_attribute dask-cloud-logging || echo 'false')"
+    local DASK_CLOUD_LOGGING="$(/usr/share/google/get_metadata_value attributes/dask-cloud-logging || echo 'false')"
     if [[ "${DASK_CLOUD_LOGGING}" == "true" ]]; then
       configure_fluentd_for_dask
     fi
@@ -531,5 +492,3 @@ function main() {
 
 
 main
-
-df -h
