@@ -9,8 +9,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class RapidsTestCase(DataprocTestCase):
   COMPONENT = "rapids"
-  INIT_ACTIONS = ["gpu/install_gpu_driver.sh", "rapids/rapids.sh"]
-  DASK_INIT_ACTIONS = [
+  INIT_ACTIONS = [
       "gpu/install_gpu_driver.sh", "dask/dask.sh", "rapids/rapids.sh"
   ]
 
@@ -24,8 +23,7 @@ class RapidsTestCase(DataprocTestCase):
 
   def verify_dask_instance(self, name):
     self.assert_instance_command(
-        name, "pgrep -f dask-cuda-worker || "
-        "grep 'class: \"dask_cuda.CUDAWorker\"' /etc/dask/config.yaml")
+        name, '[[ "$(systemctl show dask-worker -p SubState --value)" == "running" ]]')
 
     self.upload_test_file(
         os.path.join(
@@ -51,7 +49,7 @@ class RapidsTestCase(DataprocTestCase):
 
     self.createCluster(
         configuration,
-        self.DASK_INIT_ACTIONS,
+        self.INIT_ACTIONS,
         metadata=metadata,
         machine_type="n1-standard-4",
         master_accelerator=accelerator,
