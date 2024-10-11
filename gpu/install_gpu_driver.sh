@@ -56,10 +56,8 @@ function remove_old_backports {
   done
 }
 
-# Return true if the first argument is equal to or less than the second argument
 function compare_versions_lte { [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ] ; }
 
-# Return true if the first argument is less than the second argument
 function compare_versions_lt() {
   [ "$1" = "$2" ] && return 1 || compare_versions_lte $1 $2
 }
@@ -1128,8 +1126,8 @@ function clean_up_sources_lists() {
   #
   # bigtop (primary)
   #
-
   local -r dataproc_repo_file="/etc/apt/sources.list.d/dataproc.list"
+
   if [[ -f "${dataproc_repo_file}" ]] && ! grep -q signed-by "${dataproc_repo_file}" ; then
     region="$(get_metadata_value zone | perl -p -e 's:.*/:: ; s:-[a-z]+$::')"
 
@@ -1193,16 +1191,6 @@ function clean_up_sources_lists() {
         sed -i -e 's:deb https:deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https:g' "${list_file}"
       fi
     done
-  fi
-
-  #
-  # cran-r
-  #
-  if [[ -f /etc/apt/sources.list.d/cran-r.list ]]; then
-    rm -f /usr/share/keyrings/cran-r.gpg
-    curl 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x95c0faf38db3ccad0c080a7bdc78b2ddeabc47b7' | \
-      gpg --dearmor -o /usr/share/keyrings/cran-r.gpg
-    sed -i -e 's:deb http:deb [signed-by=/usr/share/keyrings/cran-r.gpg] http:g' /etc/apt/sources.list.d/cran-r.list
   fi
 
   #
