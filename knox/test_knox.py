@@ -27,7 +27,7 @@ class KnoxTestCase(DataprocTestCase):
 
     @parameterized.parameters(("SINGLE", ["m"]), ("SINGLE", ["m"]),
                               ("STANDARD", ["m", "w-0"]),
-                              ("HA", ["m-2", "w-0"]))
+                              ("HA", ["m-2", "w-0"]),)
     def test_knox_localhost_cert(self, configuration, machine_suffixes):
         if self.getImageOs() == 'rocky':
             self.skipTest("Not supported in Rocky Linux-based images")
@@ -49,7 +49,7 @@ class KnoxTestCase(DataprocTestCase):
                 "localhost")
 
     @parameterized.parameters(("STANDARD", ["w-0", "m"]),
-                              ("HA", ["m-1", "m-0"]))
+                              ("HA", ["m-1", "m-0"]),)
     def test_knox_hostname_cert(self, configuration, machine_suffixes):
         if self.getImageOs() == 'rocky':
             self.skipTest("Not supported in Rocky Linux-based images")

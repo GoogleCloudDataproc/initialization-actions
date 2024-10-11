@@ -31,6 +31,7 @@ class GangliaTestCase(DataprocTestCase):
         ("SINGLE", ["m"]),
         ("STANDARD", ["m", "w-0"]),
         ("HA", ["m-0", "m-1", "m-2", "w-0"]),
+        ("KERBEROS", ["m"]),
     )
     def test_ganglia(self, configuration, machine_suffixes):
         if self.getImageOs() == 'rocky':

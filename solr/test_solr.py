@@ -32,6 +32,7 @@ class SolrTestCase(DataprocTestCase):
         ("SINGLE", ["m"]),
         ("STANDARD", ["m"]),
         ("HA", ["m-0"]),
+        ("KERBEROS", ["m"]),
     )
     def test_solr(self, configuration, machine_suffixes):
         if self.getImageOs() == 'rocky':

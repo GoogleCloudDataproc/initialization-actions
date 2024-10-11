@@ -15,6 +15,7 @@ class OpenTelemetryTestCase(DataprocTestCase):
   @parameterized.parameters(
     'SINGLE',
     'STANDARD',
+    'KERBEROS',
   )
   def test_otel(self, configuration):
     self.createCluster(configuration, self.INIT_ACTIONS)

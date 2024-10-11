@@ -28,6 +28,7 @@ class FlinkTestCase(DataprocTestCase):
   @parameterized.parameters(
       ("STANDARD", ["m"]),
       ("HA", ["m-0", "m-1", "m-2"]),
+      ("KERBEROS", ["m"]),
   )
   def test_flink(self, configuration, machine_suffixes):
     if self.getImageOs() == 'rocky':
@@ -49,6 +50,7 @@ class FlinkTestCase(DataprocTestCase):
       ("SINGLE", ["m"]),
       ("STANDARD", ["m"]),
       ("HA", ["m-0", "m-1", "m-2"]),
+      ("KERBEROS", ["m"]),
   )
   def test_flink_with_optional_metadata(self, configuration, machine_suffixes):
     if self.getImageOs() == 'rocky':

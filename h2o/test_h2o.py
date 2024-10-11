@@ -10,7 +10,7 @@ class H2OTestCase(DataprocTestCase):
     INIT_ACTIONS = ["h2o/h2o.sh"]
     SAMPLE_H2O_JOB_PATH = "h2o/sample-script.py"
 
-    @parameterized.parameters("STANDARD", "HA")
+    @parameterized.parameters("STANDARD", "HA", "KERBEROS")
     def test_h2o(self, configuration):
         if self.getImageVersion() < pkg_resources.parse_version("2.0"):
             self.skipTest("Not supported in pre-2.0 images")

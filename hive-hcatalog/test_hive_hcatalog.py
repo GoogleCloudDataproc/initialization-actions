@@ -61,9 +61,11 @@ class HiveHCatalogTestCase(DataprocTestCase):
         ("SINGLE", False),
         ("STANDARD", False),
         ("HA", False),
+        ("KERBEROS", False),
         ("SINGLE", True),
         ("STANDARD", True),
         ("HA", True),
+        ("KERBEROS", True),
     )
     def test_hive_hcatalog(self, configuration, should_repeat_job):
         if self.getImageOs() == 'rocky':

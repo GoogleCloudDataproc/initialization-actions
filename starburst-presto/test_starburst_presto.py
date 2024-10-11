@@ -100,7 +100,8 @@ class StarburstPrestoTestCase(DataprocTestCase):
                 coordinators, workers)
 
     @parameterized.parameters(
-        ("SINGLE", ["m"], 1, 0), )
+        ("SINGLE", ["m"], 1, 0),
+    )
     def test_starburst_presto_custom_port(
             self, configuration, machine_suffixes, coordinators, workers):
         if self.getImageOs() == 'rocky':

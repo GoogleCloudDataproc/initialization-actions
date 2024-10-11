@@ -13,6 +13,7 @@ class RStudioTestCase(DataprocTestCase):
         ("SINGLE", "", "password"),  # default username
         ("SINGLE", "rstudio", ""),  # no auth
         ("SINGLE", "", ""),  # default username and no auth
+        ("KERBEROS", "", ""),
     )
     def test_rstudio(self, configuration, user, password):
         if self.getImageOs() == 'rocky':

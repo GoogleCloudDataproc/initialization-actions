@@ -46,6 +46,7 @@ class KafkaTestCase(DataprocTestCase):
     @parameterized.parameters(
         'STANDARD',
         'HA',
+        'KERBEROS',
     )
     def test_kafka_job(self, configuration):
         if self.getImageOs() == 'rocky':
@@ -60,6 +61,7 @@ class KafkaTestCase(DataprocTestCase):
     @parameterized.parameters(
         'STANDARD',
         'HA',
+        'KERBEROS',
     )
     def test_kafka_cruise_control_job(self, configuration):
         if self.getImageOs() == 'rocky':
@@ -74,6 +76,7 @@ class KafkaTestCase(DataprocTestCase):
     @parameterized.parameters(
         'STANDARD',
         'HA',
+        'KERBEROS',
     )
     def test_kafka_manager_job(self, configuration):
         if self.getImageOs() == 'rocky':

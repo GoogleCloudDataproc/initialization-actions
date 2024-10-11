@@ -58,6 +58,7 @@ class SqoopTestCase(DataprocTestCase):
       ("SINGLE", ["m"]),
       ("STANDARD", ["m"]),
       ("HA", ["m-0", "m-1", "m-2"]),
+      ("KERBEROS", ["m"]),
   )
   def test_sqoop(self, configuration, machine_suffixes):
     if self.getImageOs() == 'rocky':
@@ -68,7 +69,7 @@ class SqoopTestCase(DataprocTestCase):
       self.verify_instance("{}-{}".format(self.getClusterName(),
                                           machine_suffix))
 
-  @parameterized.parameters(("SINGLE", ["m"]))
+  @parameterized.parameters(("SINGLE", ["m"]),)
   def test_sqoop_import_from_local_mysql_to_hdfs(self, configuration,
                                                  machine_suffixes):
     if self.getImageOs() == 'rocky':

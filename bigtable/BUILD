@@ -6,7 +6,7 @@ py_test(
     srcs = ["test_bigtable.py"],
     data = ["bigtable.sh"],
     local = True,
-    shard_count = 3,
+    shard_count = 4,
     deps = [
         ":run_hbase_commands",
         "//integration_tests:dataproc_test_case",
