@@ -53,10 +53,10 @@ class RapidsTestCase(DataprocTestCase):
         configuration,
         self.DASK_INIT_ACTIONS,
         metadata=metadata,
-        machine_type="n1-standard-16",
+        machine_type="n1-standard-4",
         master_accelerator=accelerator,
         worker_accelerator=accelerator,
-        boot_disk_size="100GB",
+        boot_disk_size="60GB",
         timeout_in_minutes=60)
 
     for machine_suffix in machine_suffixes:
