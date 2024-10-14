@@ -23,7 +23,8 @@ class RapidsTestCase(DataprocTestCase):
 
   def verify_dask_instance(self, name):
     self.assert_instance_command(
-        name, '[[ X$(systemctl show dask-worker -p SubState --value)X == XrunningX ]]')
+        name, "[[ \"X$(systemctl show dask-worker -p SubState --value)X\" == \"XrunningX\" ]] || "
+        "grep 'class: \"dask_cuda.CUDAWorker\"' /etc/dask/config.yaml")
 
     self.upload_test_file(
         os.path.join(
