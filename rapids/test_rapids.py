@@ -23,7 +23,7 @@ class RapidsTestCase(DataprocTestCase):
 
   def verify_dask_instance(self, name):
     self.assert_instance_command(
-        name, '[[ $(systemctl show dask-worker -p SubState --value) == running ]]')
+        name, '[[ X$(systemctl show dask-worker -p SubState --value)X == XrunningX ]]')
 
     self.upload_test_file(
         os.path.join(
