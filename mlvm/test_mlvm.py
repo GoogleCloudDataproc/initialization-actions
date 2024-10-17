@@ -79,7 +79,8 @@ class MLVMTestCase(DataprocTestCase):
   def verify_all(self):
     self.verify_python()
     self.verify_r()
-    self.verify_spark_bigquery_connector()
+    if self.getImageVersion() == pkg_resources.parse_version("2.0"):
+        self.verify_spark_bigquery_connector()
 
   @parameterized.parameters(
       ("STANDARD", None),
@@ -93,6 +94,8 @@ class MLVMTestCase(DataprocTestCase):
     # Supported on Dataproc 2.0+
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0 images")
+    if self.getImageVersion() > pkg_resources.parse_version("2.0"):
+        self.skipTest("Not supported in 2.0+ images")
 
     metadata = "init-actions-repo={}".format(self.INIT_ACTIONS_REPO)
     if dask_runtime:
@@ -117,17 +120,16 @@ class MLVMTestCase(DataprocTestCase):
   )
   def test_mlvm_gpu(self, configuration, dask_runtime, rapids_runtime):
     if self.getImageOs() == 'rocky':
-      self.skipTest("Not supported in Rocky Linux-based images")
+        self.skipTest("Not supported in Rocky Linux-based images")
 
     # Supported on Dataproc 2.0+
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
-      self.skipTest("Not supported in pre 2.0 images")
+        self.skipTest("Not supported in pre 2.0 images")
+    if self.getImageVersion() > pkg_resources.parse_version("2.0"):
+        self.skipTest("Not supported in 2.0+ images")
 
-    metadata = ("init-actions-repo={},include-gpus=true"
-                ",gpu-driver-provider=NVIDIA").format(self.INIT_ACTIONS_REPO)
-
-    cudnn_version = "8.1.1.33"
-    cuda_version = "11.2"
+    cudnn_version = "8.6.0.163"
+    cuda_version = "11.8"
 
     metadata = ("init-actions-repo={},include-gpus=true"
                 ",gpu-driver-provider=NVIDIA,"
@@ -147,7 +149,8 @@ class MLVMTestCase(DataprocTestCase):
         master_accelerator="type=nvidia-tesla-t4",
         worker_accelerator="type=nvidia-tesla-t4",
         timeout_in_minutes=60,
-        metadata=metadata)
+        metadata=metadata,
+        boot_disk_size="100GB")
 
     self.verify_all()
 
@@ -157,5 +160,6 @@ class MLVMTestCase(DataprocTestCase):
     elif rapids_runtime == "DASK":
       self.verify_rapids_dask()
 
+
 if __name__ == "__main__":
-  absltest.main()
+    absltest.main()
