@@ -20,15 +20,15 @@ RAPIDS Accelerator For Apache Spark is supported on Dataproc 2.0+ (Spark 3.0)+.
 
 To use RAPIDS Accelerator For Apache Spark, XGBoost4j with Spark 3
 
-*   Apache Spark 3.0+
+*   Apache Spark 3.2+
 *   Hardware Requirements
-    *   NVIDIA Pascal™ GPU architecture or better (V100, P100, T4 and later)
+    *   NVIDIA Volta™ GPU architecture or better (V100, T4, A10/A100, L4 and later)
     *   Multi-node clusters with homogenous GPU configuration
 *   Software Requirements
-    *   NVIDIA GPU driver 440.33+
-    *   CUDA v11.5/v11.0/v10.2/v10.1
+    *   NVIDIA GPU driver R470+
+    *   CUDA v11.0+
     *   NCCL 2.11.4+
-    *   Ubuntu 18.04, Ubuntu 20.04 or Rocky Linux 7, Rocky Linux8, Debian 10, Debian 11
+    *   Ubuntu 20.04, Ubuntu 22.04, CentOS 7, or Rocky Linux 8, Debian 10, Debian 11
 
 This section describes how to create
 [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster with
@@ -63,7 +63,7 @@ export CUDA_VER=11.5
 
 gcloud dataproc clusters create $CLUSTER_NAME  \
     --region $REGION \
-    --image-version=2.0-ubuntu18 \
+    --image-version=2.1-ubuntu20 \
     --master-machine-type n1-standard-4 \
     --master-boot-disk-size 200 \
     --num-workers $NUM_WORKERS \
