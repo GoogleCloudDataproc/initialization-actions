@@ -8,8 +8,6 @@ py_test(
     srcs = ["test_rapids.py"],
     data = [
         "rapids.sh",
-        "verify_xgboost_spark.scala",
-        "//dask:dask.sh",
         "//gpu:install_gpu_driver.sh",
     ],
     local = True,

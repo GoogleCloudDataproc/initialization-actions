@@ -19,6 +19,11 @@
 
 set -euxo pipefail
 
+function os_id()       { grep '^ID=' /etc/os-release | cut -d= -f2 | xargs ; }
+function is_ubuntu()   { [[ "$(os_id)" == 'ubuntu' ]] ; }
+function is_debian()   { [[ "$(os_id)" == 'debian' ]] ; }
+function is_debuntu()  { is_debian || is_ubuntu ; }
+
 # Detect dataproc image version from its various names
 if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
   DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
@@ -99,7 +104,7 @@ function install_dask_rapids() {
   if is_cuda12 ; then
     local python_spec="python>=3.11"
     local cuda_spec="cuda-version>=12,<13"
-    local dask_spec="dask>=2024.8"
+    local dask_spec="dask>=2024.5"
     local numba_spec="numba"
   elif is_cuda11 ; then
     local python_spec="python>=3.9"
@@ -121,8 +126,10 @@ function install_dask_rapids() {
 
   # Install cuda, rapids, dask
   local is_installed="0"
-  mamba="/opt/conda/default/bin/mamba"
-  conda="/opt/conda/default/bin/conda"
+  mamba="/opt/conda/miniconda3/bin/mamba"
+  conda="/opt/conda/miniconda3/bin/conda"
+
+  "${conda}" remove -n dask --all || echo "unable to remove conda environment [dask]"
 
   for installer in "${mamba}" "${conda}" ; do
     set +e
@@ -252,6 +259,7 @@ EOF
 
 function configure_dask_yarn() {
   # Replace config file on cluster.
+  mkdir -p "$(dirname "${DASK_YARN_CONFIG_FILE}")"
   cat <<EOF >"${DASK_YARN_CONFIG_FILE}"
 # Config file for Dask Yarn.
 #
@@ -300,5 +308,94 @@ function main() {
     systemctl restart hadoop-yarn-nodemanager.service
   fi
 }
+
+function exit_handler() {
+  # Free conda cache
+  /opt/conda/miniconda3/bin/conda clean -a > /dev/null 2>&1
+
+  # Clear pip cache
+  pip cache purge || echo "unable to purge pip cache"
+
+  # remove the tmpfs conda pkgs_dirs
+  if [[ -d /mnt/shm ]] ; then /opt/conda/miniconda3/bin/conda config --remove pkgs_dirs /mnt/shm ; fi
+
+  # Clean up shared memory mounts
+  for shmdir in /var/cache/apt/archives /var/cache/dnf /mnt/shm ; do
+    if grep -q "^tmpfs ${shmdir}" /proc/mounts ; then
+      rm -rf ${shmdir}/*
+      umount -f ${shmdir}
+    fi
+  done
+
+  # Clean up OS package cache ; re-hold systemd package
+  if is_debuntu ; then
+    apt-get -y -qq clean
+    apt-get -y -qq autoremove
+  else
+    dnf clean all
+  fi
+
+  # print disk usage statistics
+  if is_debuntu ; then
+    # Rocky doesn't have sort -h and fails when the argument is passed
+    du --max-depth 3 -hx / | sort -h | tail -10
+  fi
+
+  # Process disk usage logs from installation period
+  rm /tmp/keep-running-df
+  sleep 6s
+  # compute maximum size of disk during installation
+  # Log file contains logs like the following (minus the preceeding #):
+#Filesystem      Size  Used Avail Use% Mounted on
+#/dev/vda2       6.8G  2.5G  4.0G  39% /
+  df -h
+  perl -e '$max=( sort
+                   map { (split)[2] =~ /^(\d+)/ }
+                  grep { m:^/: } <STDIN> )[-1];
+print( "maximum-disk-used: $max", $/ );' < /tmp/disk-usage.log
+
+  echo "exit_handler has completed"
+
+  # zero free disk space
+  if [[ -n "$(get_metadata_attribute creating-image)" ]]; then
+    set +e
+    dd if=/dev/zero of=/zero ; sync ; rm -f /zero
+    set -e
+  fi
+}
+
+trap exit_handler EXIT
+
+function prepare_to_install(){
+  free_mem="$(awk '/^MemFree/ {print $2}' /proc/meminfo)"
+  # Write to a ramdisk instead of churning the persistent disk
+  if [[ ${free_mem} -ge 5250000 ]]; then
+    mkdir -p /mnt/shm
+    mount -t tmpfs tmpfs /mnt/shm
+
+    # Download conda packages to tmpfs
+    /opt/conda/miniconda3/bin/conda config --add pkgs_dirs /mnt/shm
+    mount -t tmpfs tmpfs /mnt/shm
+
+    # Download pip packages to tmpfs
+    pip config set global.cache-dir /mnt/shm || echo "unable to set global.cache-dir"
+
+    # Download OS packages to tmpfs
+    if is_debuntu ; then
+      mount -t tmpfs tmpfs /var/cache/apt/archives
+    else
+      mount -t tmpfs tmpfs /var/cache/dnf
+    fi
+  fi
+
+  # Monitor disk usage in a screen session
+  apt-get install -y -qq screen
+  rm -f /tmp/disk-usage.log
+  touch /tmp/keep-running-df
+  screen -d -m -US keep-running-df \
+    bash -c 'while [[ -f /tmp/keep-running-df ]] ; do df -h / | tee -a /tmp/disk-usage.log ; sleep 5s ; done'
+}
+
+prepare_to_install
 
 main

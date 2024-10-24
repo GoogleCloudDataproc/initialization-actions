@@ -1,4 +1,5 @@
 import os
+import time
 
 import pkg_resources
 from absl.testing import absltest
@@ -6,11 +7,10 @@ from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
-
 class RapidsTestCase(DataprocTestCase):
   COMPONENT = "rapids"
   INIT_ACTIONS = [
-      "gpu/install_gpu_driver.sh", "dask/dask.sh", "rapids/rapids.sh"
+      "gpu/install_gpu_driver.sh", "rapids/rapids.sh"
   ]
 
   GPU_P100 = "type=nvidia-tesla-p100"
@@ -21,15 +21,24 @@ class RapidsTestCase(DataprocTestCase):
   # Tests for RAPIDS init action
   DASK_RAPIDS_TEST_SCRIPT_FILE_NAME = "verify_rapids_dask.py"
 
-  def verify_dask_instance(self, name):
-    self.assert_instance_command(
-        name, "[[ \"X$(systemctl show dask-worker -p SubState --value)X\" == \"XrunningX\" ]] || "
-        "grep 'class: \"dask_cuda.CUDAWorker\"' /etc/dask/config.yaml")
+  def verify_dask_worker_service(self, name):
+    # Retry the first ssh to ensure it has enough time to propagate SSH keys
+    for try_number in range(0, 3):
+      try:
+        self.assert_instance_command(
+            name, "[[ X$(systemctl show dask-worker -p SubState --value)X == XrunningX ]]")
+        break
+      except:
+        time.sleep(2**try_number)
 
-    self.upload_test_file(
-        os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            self.DASK_RAPIDS_TEST_SCRIPT_FILE_NAME), name)
+  def verify_dask_config(self, name):
+    self.assert_instance_command(
+        name, "grep 'class: \"dask_cuda.CUDAWorker\"' /etc/dask/config.yaml")
+
+  def run_dask_script(self, name):
+    test_filename=os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               self.DASK_RAPIDS_TEST_SCRIPT_FILE_NAME)
+    self.upload_test_file(test_filename, name)
     verify_cmd = "/opt/conda/miniconda3/envs/dask-rapids/bin/python {}".format(
         self.DASK_RAPIDS_TEST_SCRIPT_FILE_NAME)
     self.assert_instance_command(name, verify_cmd)
@@ -40,9 +49,6 @@ class RapidsTestCase(DataprocTestCase):
                             ("STANDARD", ["m"], GPU_T4, "standalone"))
   def test_rapids_dask(self, configuration, machine_suffixes, accelerator,
                        dask_runtime):
-
-    if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
-      self.skipTest("Not supported in pre 2.0 images")
 
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=DASK"
     if dask_runtime:
@@ -59,8 +65,16 @@ class RapidsTestCase(DataprocTestCase):
         timeout_in_minutes=60)
 
     for machine_suffix in machine_suffixes:
-      self.verify_dask_instance("{}-{}".format(self.getClusterName(),
+      if dask_runtime == 'standalone' or dask_runtime == None:
+        self.verify_dask_worker_service("{}-{}".format(self.getClusterName(),
+                                                       machine_suffix))
+      elif dask_runtime == 'yarn':
+        self.verify_dask_config("{}-{}".format(self.getClusterName(),
                                                machine_suffix))
+
+      self.run_dask_script("{}-{}".format(self.getClusterName(),
+                                               machine_suffix))
+
 
 if __name__ == "__main__":
   absltest.main()
