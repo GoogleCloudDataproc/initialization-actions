@@ -465,10 +465,6 @@ function main() {
     # Create Dask service
     install_systemd_dask_service
 
-    # Create empty dask config file when running standalone
-    mkdir -p /etc/dask
-    touch /etc/dask/config.yaml
-
     if [[ "$(hostname -s)" == "${MASTER}" ]]; then
       systemctl start "${DASK_SCHEDULER_SERVICE}"
       systemctl status "${DASK_SCHEDULER_SERVICE}"
