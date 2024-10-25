@@ -122,9 +122,9 @@ class DataprocTestCase(parameterized.TestCase):
                 args.append("--public-ip-address")
 
         for i in init_actions:
-            if "install_gpu_driver.sh" in i or "horovod.sh" in i or \
-                     "rapids.sh"       in i or "mlvm.sh"    in i or \
-                     "spark-rapids.sh" in i:
+            if "install_gpu_driver.sh" in i or \
+                     "mlvm.sh"         in i or "rapids.sh"       in i or \
+                     "horovod.sh"      in i or "spark-rapids.sh" in i:
                 args.append("--no-shielded-secure-boot")
 
         if optional_components:
