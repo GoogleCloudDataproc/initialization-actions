@@ -431,6 +431,7 @@ function install_dask_rapids() {
     local numba_spec="numba"
   fi
 
+  rapids_spec="rapids=${RAPIDS_VERSION}"
   CONDA_PACKAGES=()
   if [[ "${DASK_RUNTIME}" == 'yarn' ]]; then
     # Pin `distributed` and `dask` package versions to old release
@@ -440,6 +441,7 @@ function install_dask_rapids() {
 
     dask_spec="dask<2022.2"
     python_spec="python>=3.7,<3.8.0a0"
+    rapids_spec="rapids<=24.05"
     if is_ubuntu18 ; then
       # the libuuid.so.1 distributed with fiona 1.8.22 dumps core when calling uuid_generate_time_generic
       CONDA_PACKAGES+=("fiona<1.8.22")
@@ -449,7 +451,7 @@ function install_dask_rapids() {
 
   CONDA_PACKAGES+=(
     "${cuda_spec}"
-    "rapids=${RAPIDS_VERSION}"
+    "${rapids_spec}"
     "${dask_spec}"
     "dask-bigquery"
     "dask-ml"
@@ -471,7 +473,8 @@ function install_dask_rapids() {
       time "${installer}" "create" -m -n 'dask-rapids' -y --no-channel-priority \
       -c 'conda-forge' -c 'nvidia' -c 'rapidsai'  \
       ${CONDA_PACKAGES[*]} \
-      "${python_spec}"
+      "${python_spec}" \
+      > "${install_log}" 2>&1 || { cat "${install_log}" && exit -4 ; }
     local retval=$?
     sync
     if [[ "$retval" == "0" ]] ; then
@@ -567,7 +570,7 @@ function exit_handler() (
   fi
 
   # Process disk usage logs from installation period
-  rm -f /tmp/keep-running-df
+  rm -f "${tmpdir}/keep-running-df"
   sleep 6s
   # compute maximum size of disk during installation
   # Log file contains logs like the following (minus the preceeding #):
@@ -577,7 +580,7 @@ function exit_handler() (
   perl -e '$max=( sort
                    map { (split)[2] =~ /^(\d+)/ }
                   grep { m:^/: } <STDIN> )[-1];
-print( "maximum-disk-used: $max", $/ );' < /tmp/disk-usage.log
+print( "maximum-disk-used: $max", $/ );' < "${tmpdir}/disk-usage.log"
 
   echo "exit_handler has completed"
 
@@ -588,8 +591,6 @@ print( "maximum-disk-used: $max", $/ );' < /tmp/disk-usage.log
 
   return 0
 )
-
-trap exit_handler EXIT
 
 function prepare_to_install(){
   readonly DEFAULT_CUDA_VERSION="12.4"
@@ -623,6 +624,7 @@ function prepare_to_install(){
   free_mem="$(awk '/^MemFree/ {print $2}' /proc/meminfo)"
   # Write to a ramdisk instead of churning the persistent disk
   if [[ ${free_mem} -ge 5250000 ]]; then
+    tmpdir=/mnt/shm
     mkdir -p /mnt/shm
     mount -t tmpfs tmpfs /mnt/shm
 
@@ -639,7 +641,11 @@ function prepare_to_install(){
     else
       mount -t tmpfs tmpfs /var/cache/dnf
     fi
+  else
+    tmpdir=/tmp
   fi
+  install_log="${tmpdir}/install.log"
+  trap exit_handler EXIT
 
   # Monitor disk usage in a screen session
   if is_debuntu ; then
@@ -647,10 +653,10 @@ function prepare_to_install(){
   elif is_rocky ; then
       dnf -y -q install screen
   fi
-  rm -f /tmp/disk-usage.log
-  touch /tmp/keep-running-df
+  rm -f "${tmpdir}/disk-usage.log"
+  touch "${tmpdir}/keep-running-df"
   screen -d -m -US keep-running-df \
-    bash -c 'while [[ -f /tmp/keep-running-df ]] ; do df --si / | tee -a /tmp/disk-usage.log ; sleep 5s ; done'
+    bash -c 'while [[ -f ${tmpdir}/keep-running-df ]] ; do df --si / | tee -a ${tmpdir}/disk-usage.log ; sleep 5s ; done'
 }
 
 prepare_to_install
