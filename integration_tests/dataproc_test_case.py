@@ -21,7 +21,7 @@ flags.DEFINE_string('image_version', None, 'Dataproc image version, e.g. 2.2')
 flags.DEFINE_boolean('skip_cleanup', False, 'Skip cleanup of test resources')
 FLAGS(sys.argv)
 
-INTERNAL_IP_SSH = os.getenv("INTERNAL_IP_SSH", "false").lower() == "true"
+INTERNAL_IP_SSH = os.getenv("INTERNAL_IP_SSH", "true").lower() == "true"
 
 DEFAULT_TIMEOUT = 15  # minutes
 
@@ -123,7 +123,7 @@ class DataprocTestCase(parameterized.TestCase):
 
         for i in init_actions:
             if "install_gpu_driver.sh" in i or "horovod.sh" in i or \
-                     "dask-rapids.sh"  in i or "mlvm.sh"    in i or \
+                     "rapids.sh"       in i or "mlvm.sh"    in i or \
                      "spark-rapids.sh" in i:
                 args.append("--no-shielded-secure-boot")
 
@@ -356,10 +356,10 @@ class DataprocTestCase(parameterized.TestCase):
     @staticmethod
     def run_command(cmd, timeout_in_minutes=DEFAULT_TIMEOUT):
         cmd = cmd.replace(
-            "gcloud compute ssh ", "gcloud compute ssh --internal-ip ") if (
+            "gcloud compute ssh ", "gcloud compute ssh --tunnel-through-iap ") if (
                 INTERNAL_IP_SSH and "gcloud compute ssh " in cmd) else cmd
         cmd = cmd.replace("gcloud compute scp ",
-                          "gcloud beta compute scp --internal-ip ") if (
+                          "gcloud beta compute scp --tunnel-through-iap ") if (
                               INTERNAL_IP_SSH
                               and "gcloud compute scp " in cmd) else cmd
         p = subprocess.Popen(
