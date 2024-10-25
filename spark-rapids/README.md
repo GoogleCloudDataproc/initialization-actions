@@ -18,7 +18,7 @@ RAPIDS Accelerator For Apache Spark is supported on Dataproc 2.0+ (Spark 3.0)+.
 
 ### Prerequisites
 Please find the [RAPIDS Accelerator For Apache Spark](https://nvidia.github.io/spark-rapids/) 
-official doc for the hardware and software [requirements](https://nvidia.github.io/spark-rapids/docs/download.html).
+official document for the hardware and software [requirements](https://nvidia.github.io/spark-rapids/docs/download.html).
 
 This section describes how to create
 [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster with
