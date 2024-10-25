@@ -6,6 +6,8 @@
 #
 # git clone git@github.com:GoogleCloudDataproc/initialization-actions
 # cd initialization-actions
+# cp rapids/env.json.sample env.json
+# vi env.json
 # docker build -f rapids/Dockerfile -t rapids-init-actions-runner:latest . && time docker run -it rapids-init-actions-runner:latest rapids/manual-test-runner.sh
 # docker build -f rapids/Dockerfile -t rapids-init-actions-runner:latest .
 # time docker run -it rapids-init-actions-runner:latest rapids/manual-test-runner.sh

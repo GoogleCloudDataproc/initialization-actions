@@ -44,11 +44,13 @@ class RapidsTestCase(DataprocTestCase):
     self.assert_instance_command(name, verify_cmd)
     self.remove_test_script(self.DASK_RAPIDS_TEST_SCRIPT_FILE_NAME, name)
 
-  # If a new version of dask-yarn is released, add this test back in.
-  #                             ("STANDARD", ["m", "w-0"], GPU_T4, "yarn"),
-  #                             ("STANDARD", ["m", "w-0"], GPU_T4, None),
                             
-  @parameterized.parameters(("STANDARD", ["m"], GPU_T4, "standalone"))
+  @parameterized.parameters(
+# If a new version of dask-yarn is released, add this test back in.
+#    ("STANDARD", ["m", "w-0"], GPU_T4, "yarn"),
+#    ("STANDARD", ["m"], GPU_T4, None),
+    ("STANDARD", ["m", "w-0"], GPU_T4, "standalone")
+  )
   def test_rapids_dask(self, configuration, machine_suffixes, accelerator,
                        dask_runtime):
 
