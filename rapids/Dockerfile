@@ -11,7 +11,7 @@ RUN apt-get -qq update \
   && apt-get -y -qq install \
      apt-transport-https apt-utils \
      ca-certificates libmime-base64-perl gnupg \
-     curl jq less screen
+     curl jq less screen > /dev/null 2>&1  && apt-get clean
 
 # Install bazel signing key, repo and package
 ENV bazel_kr_path=/usr/share/keyrings/bazel-release.pub.gpg
@@ -24,12 +24,12 @@ RUN /usr/bin/curl -s https://bazel.build/bazel-release.pub.gpg \
     && apt-get update -qq
 
 RUN apt-get autoremove -y -qq && \
-    apt-get install -y -qq default-jdk python3-setuptools bazel && \
+    apt-get install -y -qq default-jdk python3-setuptools bazel > /dev/null 2>&1 && \
     apt-get clean
 
 
 # Install here any utilities you find useful when troubleshooting
-RUN apt-get -y -qq install emacs-nox vim uuid-runtime && apt-get clean
+RUN apt-get -y -qq install emacs-nox vim uuid-runtime > /dev/null 2>&1 && apt-get clean
 
 WORKDIR /init-actions
 
