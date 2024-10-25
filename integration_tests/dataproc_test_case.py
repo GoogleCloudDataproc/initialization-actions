@@ -180,10 +180,12 @@ class DataprocTestCase(parameterized.TestCase):
         if not FLAGS.skip_cleanup:
           args.append("--max-age=60m")
 
-        args.append("--max-idle=5m")
+        args.append("--max-idle=25m")
 
         cmd = "{} dataproc clusters create {} {}".format(
             "gcloud beta" if beta else "gcloud", self.name, " ".join(args))
+
+        print("Running command: [{}]".format(cmd))
 
         _, stdout, _ = self.assert_command(
             cmd, timeout_in_minutes=timeout_in_minutes or DEFAULT_TIMEOUT)
