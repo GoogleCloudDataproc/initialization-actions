@@ -13,10 +13,9 @@ class RapidsTestCase(DataprocTestCase):
       "gpu/install_gpu_driver.sh", "rapids/rapids.sh"
   ]
 
-  GPU_P100 = "type=nvidia-tesla-p100"
   GPU_A100 = "type=nvidia-tesla-a100,count=2"
   GPU_H100 = "type=nvidia-h100-80gb,count=2"
-  GPU_T4 = "type=nvidia-tesla-t4"
+  GPU_T4   = "type=nvidia-tesla-t4"
 
   # Tests for RAPIDS init action
   DASK_RAPIDS_TEST_SCRIPT_FILE_NAME = "verify_rapids_dask.py"
