@@ -70,7 +70,7 @@ determine_tests_to_run() {
     changed_dir="${changed_dir%%/*}/"
     # Run all tests if common directories modified
     if [[ ${changed_dir} =~ ^(integration_tests|util|cloudbuild)/$ ]]; then
-      continue # remove this and merge all changes to integration_tests/ and cloudbuild/ into prince's branch before squash/merge
+      continue # remove this before squash/merge
       echo "All tests will be run: '${changed_dir}' was changed"
       TESTS_TO_RUN=(":DataprocInitActionsTestSuite")
       return 0
