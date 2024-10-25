@@ -496,7 +496,7 @@ function main() {
   if [[ "${DASK_RUNTIME}" == "yarn" ]]; then
     # Create Dask YARN config file
     configure_dask_yarn
-  elif [[ "${DASK_RUNTIME}" == "standalone" ]]; then
+  else
     # Create Dask service
     install_systemd_dask_service
 
@@ -517,9 +517,6 @@ function main() {
     if [[ "${DASK_CLOUD_LOGGING}" == "true" ]]; then
       configure_fluentd_for_dask
     fi
-  else
-    echo "Unsupported Dask Runtime: ${DASK_RUNTIME}"
-    exit 1
   fi
 
   echo "Dask RAPIDS for ${DASK_RUNTIME} successfully initialized."

@@ -58,22 +58,20 @@ class RapidsTestCase(DataprocTestCase):
         configuration,
         self.INIT_ACTIONS,
         metadata=metadata,
-        machine_type="n1-standard-4",
+        machine_type="n1-standard-8",
         master_accelerator=accelerator,
         worker_accelerator=accelerator,
-        boot_disk_size="60GB",
+        boot_disk_size="50GB",
         timeout_in_minutes=60)
 
     for machine_suffix in machine_suffixes:
+      machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
       if dask_runtime == 'standalone' or dask_runtime == None:
-        self.verify_dask_worker_service("{}-{}".format(self.getClusterName(),
-                                                       machine_suffix))
+        self.verify_dask_worker_service(machine_name)
       elif dask_runtime == 'yarn':
-        self.verify_dask_config("{}-{}".format(self.getClusterName(),
-                                               machine_suffix))
+        self.verify_dask_config(machine_name)
 
-      self.run_dask_script("{}-{}".format(self.getClusterName(),
-                                               machine_suffix))
+      self.run_dask_script(machine_name)
 
 
 if __name__ == "__main__":
