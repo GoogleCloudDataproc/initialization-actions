@@ -576,7 +576,7 @@ function exit_handler() (
   # Log file contains logs like the following (minus the preceeding #):
 #Filesystem      Size  Used Avail Use% Mounted on
 #/dev/vda2       6.8G  2.5G  4.0G  39% /
-  df --si
+  df -h | tee -a "${tmpdir}/disk-usage.log"
   perl -e '$max=( sort
                    map { (split)[2] =~ /^(\d+)/ }
                   grep { m:^/: } <STDIN> )[-1];
@@ -653,10 +653,10 @@ function prepare_to_install(){
   elif is_rocky ; then
       dnf -y -q install screen
   fi
-  rm -f "${tmpdir}/disk-usage.log"
+  df -h | tee "${tmpdir}/disk-usage.log"
   touch "${tmpdir}/keep-running-df"
   screen -d -m -US keep-running-df \
-    bash -c 'while [[ -f ${tmpdir}/keep-running-df ]] ; do df --si / | tee -a ${tmpdir}/disk-usage.log ; sleep 5s ; done'
+    bash -c "while [[ -f ${tmpdir}/keep-running-df ]] ; do df -h / | tee -a ${tmpdir}/disk-usage.log ; sleep 5s ; done"
 }
 
 prepare_to_install
