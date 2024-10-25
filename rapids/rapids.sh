@@ -650,7 +650,7 @@ function prepare_to_install(){
   # Monitor disk usage in a screen session
   if is_debuntu ; then
       apt-get install -y -qq screen
-  elif is_rocky ; then
+  else
       dnf -y -q install screen
   fi
   df -h | tee "${tmpdir}/disk-usage.log"
