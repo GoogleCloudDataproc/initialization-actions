@@ -22,6 +22,7 @@
 set -euxo pipefail
 
 function os_id()       { grep '^ID=' /etc/os-release | cut -d= -f2 | xargs ; }
+function os_version()  { grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs ; }
 function is_ubuntu()   { [[ "$(os_id)" == 'ubuntu' ]] ; }
 function is_ubuntu18() { is_ubuntu && [[ "$(os_version)" == '18.04'* ]] ; }
 function is_debian()   { [[ "$(os_id)" == 'debian' ]] ; }
