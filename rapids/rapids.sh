@@ -422,7 +422,7 @@ function install_dask_rapids() {
   if is_cuda12 ; then
     local python_spec="python>=3.11"
     local cuda_spec="cuda-version>=12,<13"
-    local dask_spec="dask>=2024.5"
+    local dask_spec="dask>=2024.7"
     local numba_spec="numba"
   elif is_cuda11 ; then
     local python_spec="python>=3.9"
@@ -431,7 +431,7 @@ function install_dask_rapids() {
     local numba_spec="numba"
   fi
 
-  rapids_spec="rapids=${RAPIDS_VERSION}"
+  rapids_spec="rapids>=${RAPIDS_VERSION}"
   CONDA_PACKAGES=()
   if [[ "${DASK_RUNTIME}" == 'yarn' ]]; then
     # Pin `distributed` and `dask` package versions to old release
@@ -461,21 +461,20 @@ function install_dask_rapids() {
   )
 
   # Install cuda, rapids, dask
-  local is_installed="0"
   mamba="/opt/conda/miniconda3/bin/mamba"
   conda="/opt/conda/miniconda3/bin/conda"
 
   "${conda}" remove -n dask --all || echo "unable to remove conda environment [dask]"
 
   ( set +e
+  local is_installed="0"
   for installer in "${mamba}" "${conda}" ; do
     test -d "${DASK_CONDA_ENV}" || \
       time "${installer}" "create" -m -n 'dask-rapids' -y --no-channel-priority \
       -c 'conda-forge' -c 'nvidia' -c 'rapidsai'  \
       ${CONDA_PACKAGES[*]} \
       "${python_spec}" \
-      > "${install_log}" 2>&1 || { cat "${install_log}" && exit -4 ; }
-    local retval=$?
+      > "${install_log}" 2>&1 && retval=$? || { retval=$? ; cat "${install_log}" ; }
     sync
     if [[ "$retval" == "0" ]] ; then
       is_installed="1"
@@ -576,7 +575,7 @@ function exit_handler() (
   # Log file contains logs like the following (minus the preceeding #):
 #Filesystem      Size  Used Avail Use% Mounted on
 #/dev/vda2       6.8G  2.5G  4.0G  39% /
-  df -h | tee -a "${tmpdir}/disk-usage.log"
+  df -h / | tee -a "${tmpdir}/disk-usage.log"
   perl -e '$max=( sort
                    map { (split)[2] =~ /^(\d+)/ }
                   grep { m:^/: } <STDIN> )[-1];
@@ -653,7 +652,7 @@ function prepare_to_install(){
   else
       dnf -y -q install screen
   fi
-  df -h | tee "${tmpdir}/disk-usage.log"
+  df -h / | tee "${tmpdir}/disk-usage.log"
   touch "${tmpdir}/keep-running-df"
   screen -d -m -US keep-running-df \
     bash -c "while [[ -f ${tmpdir}/keep-running-df ]] ; do df -h / | tee -a ${tmpdir}/disk-usage.log ; sleep 5s ; done"
