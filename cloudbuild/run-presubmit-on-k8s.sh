@@ -12,6 +12,8 @@ gcloud container clusters get-credentials "${CLOUDSDK_CONTAINER_CLUSTER}"
 
 LOGS_SINCE_TIME=$(date --iso-8601=seconds)
 
+# This kubectl sometimes fails because services have not caught up.  Thread.yield()
+sleep 10s
 kubectl run "${POD_NAME}" \
   --image="${IMAGE}" \
   --restart=Never \
