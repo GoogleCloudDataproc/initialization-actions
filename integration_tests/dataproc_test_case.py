@@ -122,9 +122,9 @@ class DataprocTestCase(parameterized.TestCase):
                 args.append("--public-ip-address")
 
         for i in init_actions:
-            if "install_gpu_driver.sh" in i or \
-                     "mlvm.sh"         in i or "rapids.sh"       in i or \
-                     "horovod.sh"      in i or "spark-rapids.sh" in i:
+            if "install_gpu_driver.sh" in i or "horovod.sh" in i or \
+                     "dask-rapids.sh"  in i or "mlvm.sh"    in i or \
+                     "spark-rapids.sh" in i:
                 args.append("--no-shielded-secure-boot")
 
         if optional_components:
@@ -356,10 +356,10 @@ class DataprocTestCase(parameterized.TestCase):
     @staticmethod
     def run_command(cmd, timeout_in_minutes=DEFAULT_TIMEOUT):
         cmd = cmd.replace(
-            "gcloud compute ssh ", "gcloud compute ssh --tunnel-through-iap ") if (
+            "gcloud compute ssh ", "gcloud compute ssh --internal-ip ") if (
                 INTERNAL_IP_SSH and "gcloud compute ssh " in cmd) else cmd
         cmd = cmd.replace("gcloud compute scp ",
-                          "gcloud beta compute scp --tunnel-through-iap ") if (
+                          "gcloud beta compute scp --internal-ip ") if (
                               INTERNAL_IP_SSH
                               and "gcloud compute scp " in cmd) else cmd
         p = subprocess.Popen(
