@@ -465,7 +465,6 @@ function install_dask() {
       ${CONDA_PACKAGES[*]} \
       "${python_spec}" \
       > "${install_log}" 2>&1 && retval=$? || { retval=$? ; cat "${install_log}" ; }
-    local retval=$?
     sync
     if [[ "$retval" == "0" ]] ; then
       is_installed="1"

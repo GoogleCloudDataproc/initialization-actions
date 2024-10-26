@@ -33,7 +33,17 @@ class DaskTestCase(DataprocTestCase):
         self.upload_test_file(
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          script), name)
-        self.assert_instance_command(name, verify_cmd)
+        command_asserted=0
+        for try_number in range(0, 3):
+          try:
+            self.assert_instance_command(name, verify_cmd)
+            command_asserted=1
+            break
+          except:
+            time.sleep(2**try_number)
+        if command_asserted == 0:
+          raise Exception("Unable to assert instance command")
+
         self.remove_test_script(script, name)        
 
 
