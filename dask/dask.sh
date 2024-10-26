@@ -615,6 +615,7 @@ function prepare_to_install() {
     if is_debuntu ; then
       mount -t tmpfs tmpfs /var/cache/apt/archives
     else
+      while [[ -f /var/cache/dnf/metadata_lock.pid ]] ; do sleep 1s ; done
       mount -t tmpfs tmpfs /var/cache/dnf
     fi
   else
