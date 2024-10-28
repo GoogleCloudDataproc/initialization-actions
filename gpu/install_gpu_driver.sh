@@ -1334,9 +1334,10 @@ function prepare_to_install(){
   nvsmi_works="0"
   readonly bdcfg="/usr/local/bin/bdconfig"
   download_dir=/tmp/
+  local free_mem
   free_mem="$(awk '/^MemFree/ {print $2}' /proc/meminfo)"
   # Write to a ramdisk instead of churning the persistent disk
-  if [[ ${free_mem} -ge 5250000 ]]; then
+  if [[ ${free_mem} -ge 10500000 ]]; then
     download_dir="/mnt/shm"
     mkdir -p "${download_dir}"
     mount -t tmpfs tmpfs "${download_dir}"
