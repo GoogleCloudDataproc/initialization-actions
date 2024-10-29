@@ -1302,7 +1302,7 @@ function exit_handler() {
   perl -e '$max=( sort
                    map { (split)[2] =~ /^(\d+)/ }
                   grep { m:^/: } <STDIN> )[-1];
-print( "maximum-disk-used: $max", $/ );' < /tmp/disk-usage.log
+print( "maximum-disk-used: $max", $/ );' < "${tmpdir}/disk-usage.log"
 
   echo "exit_handler has completed"
 
