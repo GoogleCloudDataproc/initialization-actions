@@ -120,21 +120,20 @@ readonly ROLE
 
 # CUDA version and Driver version
 # https://docs.nvidia.com/deeplearning/frameworks/support-matrix/index.html
+# https://developer.nvidia.com/cuda-downloads
 readonly -A DRIVER_FOR_CUDA=(
-          [11.8]="525.147.05" [12.1]="530.30.02"  [12.4]="550.54.14"
-          [12.5]="555.42.06"  [12.6]="560.28.03"
+          [11.8]="525.147.05" [12.4]="550.54.14"  [12.6]="560.35.03"
 )
+# https://developer.nvidia.com/cudnn-downloads
 readonly -A CUDNN_FOR_CUDA=(
-          [11.8]="8.6.0.163"  [12.1]="8.9.0"      [12.4]="9.1.0.70"
-          [12.5]="9.2.1.18"
+          [11.8]="9.5.1.17"   [12.4]="9.5.1.17"   [12.6]="9.5.1.17"
 )
+# https://developer.nvidia.com/nccl/nccl-download
 readonly -A NCCL_FOR_CUDA=(
-          [11.8]="2.15.5"     [12.1]="2.17.1"     [12.4]="2.21.5"
-          [12.5]="2.22.3"
+          [11.8]="2.15.5"     [12.4]="2.23.4"     [12.6]="2.23.4"
 )
 readonly -A CUDA_SUBVER=(
-          [11.8]="11.8.0"     [12.1]="12.1.0"     [12.4]="12.4.1"
-          [12.5]="12.5.1"
+          [11.8]="11.8.0"     [12.4]="12.4.1"     [12.6]="12.6.2"
 )
 
 RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
@@ -216,6 +215,7 @@ readonly -A DEFAULT_NVIDIA_CUDA_URLS=(
   [11.8]="${NVIDIA_BASE_DL_URL}/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run"
   [12.1]="${NVIDIA_BASE_DL_URL}/cuda/12.1.0/local_installers/cuda_12.1.0_530.30.02_linux.run"
   [12.4]="${NVIDIA_BASE_DL_URL}/cuda/12.4.0/local_installers/cuda_12.4.0_550.54.14_linux.run"
+  [12.6]="${NVIDIA_BASE_DL_URL}/cuda/12.6.2/local_installers/cuda_12.6.2_560.35.03_linux.run"
 )
 readonly DEFAULT_NVIDIA_CUDA_URL=${DEFAULT_NVIDIA_CUDA_URLS["${CUDA_VERSION}"]}
 NVIDIA_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_CUDA_URL}")
@@ -233,9 +233,9 @@ if ( compare_versions_lte "8.3.1.22" "${CUDNN_VERSION}" ); then
   fi
   CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN_VERSION%.*}/local_installers/${CUDA_VERSION}/${CUDNN_TARBALL}"
 fi
-if ( compare_versions_lte "12.0" "${CUDA_VERSION}" ); then
-  # When cuda version is greater than 12.0
-  CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/cudnn/redist/cudnn/linux-x86_64/cudnn-linux-x86_64-9.2.0.82_cuda12-archive.tar.xz"
+if is_cuda12 ; then
+  # When cuda version is 12
+  CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/cudnn/redist/cudnn/linux-x86_64/cudnn-linux-x86_64-9.5.1.17_cuda12-archive.tar.xz"
 fi
 readonly CUDNN_TARBALL
 readonly CUDNN_TARBALL_URL
@@ -1368,9 +1368,9 @@ function prepare_to_install(){
 
   # Monitor disk usage in a screen session
   if is_debuntu ; then
-      apt-get install -y -qq screen > /dev/null 2>&1
+      execute_with_retries apt-get install -y -qq screen
   else
-      dnf -y -q install screen > /dev/null 2>&1
+      execute_with_retries dnf -y -q install screen
   fi
   df -h / | tee "${tmpdir}/disk-usage.log"
   touch "${tmpdir}/keep-running-df"
