@@ -279,9 +279,9 @@ function install_cuda_keyring_pkg() {
   local kr_ver=1.1
   curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
     "${NVIDIA_REPO_URL}/cuda-keyring_${kr_ver}-1_all.deb" \
-    -o "${download_dir}/cuda-keyring.deb"
-  dpkg -i "${download_dir}/cuda-keyring.deb"
-  rm -f "${download_dir}/cuda-keyring.deb"
+    -o "${tmpdir}/cuda-keyring.deb"
+  dpkg -i "${tmpdir}/cuda-keyring.deb"
+  rm -f "${tmpdir}/cuda-keyring.deb"
   CUDA_KEYRING_PKG_INSTALLED="1"
 }
 
@@ -301,10 +301,10 @@ function install_local_cuda_repo() {
   readonly DIST_KEYRING_DIR="/var/${pkgname}"
 
   curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
-    "${LOCAL_DEB_URL}" -o "${download_dir}/${LOCAL_INSTALLER_DEB}"
+    "${LOCAL_DEB_URL}" -o "${tmpdir}/${LOCAL_INSTALLER_DEB}"
 
-  dpkg -i "${download_dir}/${LOCAL_INSTALLER_DEB}"
-  rm "${download_dir}/${LOCAL_INSTALLER_DEB}"
+  dpkg -i "${tmpdir}/${LOCAL_INSTALLER_DEB}"
+  rm "${tmpdir}/${LOCAL_INSTALLER_DEB}"
   cp ${DIST_KEYRING_DIR}/cuda-*-keyring.gpg /usr/share/keyrings/
 
   if is_ubuntu ; then
@@ -329,11 +329,11 @@ function install_local_cudnn_repo() {
 
   # ${NVIDIA_BASE_DL_URL}/redist/cudnn/v8.6.0/local_installers/11.8/cudnn-linux-x86_64-8.6.0.163_cuda11-archive.tar.xz
   curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
-    "${local_deb_url}" -o "${download_dir}/local-installer.deb"
+    "${local_deb_url}" -o "${tmpdir}/local-installer.deb"
 
-  dpkg -i "${download_dir}/local-installer.deb"
+  dpkg -i "${tmpdir}/local-installer.deb"
 
-  rm -f "${download_dir}/local-installer.deb"
+  rm -f "${tmpdir}/local-installer.deb"
 
   cp /var/cudnn-local-repo-*-${CUDNN}*/cudnn-local-*-keyring.gpg /usr/share/keyrings
 
@@ -361,7 +361,7 @@ function install_local_cudnn8_repo() {
   CUDNN8_PKG_NAME="${pkgname}"
 
   deb_fn="${pkgname}_1.0-1_amd64.deb"
-  local_deb_fn="${download_dir}/${deb_fn}"
+  local_deb_fn="${tmpdir}/${deb_fn}"
   local_deb_url="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN}/local_installers/${CUDNN8_CUDA_VER}/${deb_fn}"
   curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
       "${local_deb_url}" -o "${local_deb_fn}"
@@ -714,24 +714,24 @@ function build_driver_from_packages() {
 }
 
 function install_nvidia_userspace_runfile() {
-  if test -f "${download_dir}/userspace-complete" ; then return ; fi
+  if test -f "${tmpdir}/userspace-complete" ; then return ; fi
   curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-    "${USERSPACE_URL}" -o "${download_dir}/userspace.run"
-  time bash "${download_dir}/userspace.run" --no-kernel-modules --silent --install-libglvnd \
+    "${USERSPACE_URL}" -o "${tmpdir}/userspace.run"
+  time bash "${tmpdir}/userspace.run" --no-kernel-modules --silent --install-libglvnd \
   > "${install_log}" 2>&1 || { cat "${install_log}" && exit -4 ; }
-  rm -f "${download_dir}/userspace.run"
-  touch "${download_dir}/userspace-complete"
+  rm -f "${tmpdir}/userspace.run"
+  touch "${tmpdir}/userspace-complete"
   sync
 }
 
 function install_cuda_runfile() {
-  if test -f "${download_dir}/cuda-complete" ; then return ; fi
+  if test -f "${tmpdir}/cuda-complete" ; then return ; fi
   time curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-    "${NVIDIA_CUDA_URL}" -o "${download_dir}/cuda.run"
-  time bash "${download_dir}/cuda.run" --silent --toolkit --no-opengl-libs \
+    "${NVIDIA_CUDA_URL}" -o "${tmpdir}/cuda.run"
+  time bash "${tmpdir}/cuda.run" --silent --toolkit --no-opengl-libs \
   > "${install_log}" 2>&1 || { cat "${install_log}" && exit -4 ; }
-  rm -f "${download_dir}/cuda.run"
-  touch "${download_dir}/cuda-complete"
+  rm -f "${tmpdir}/cuda.run"
+  touch "${tmpdir}/cuda-complete"
   sync
 }
 
@@ -1241,8 +1241,10 @@ function clean_up_sources_lists() {
   # cran-r
   #
   if [[ -f /etc/apt/sources.list.d/cran-r.list ]]; then
+    keyid="0x95c0faf38db3ccad0c080a7bdc78b2ddeabc47b7"
+    if is_ubuntu18 ; then keyid="0x51716619E084DAB9"; fi
     rm -f /usr/share/keyrings/cran-r.gpg
-    curl 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x95c0faf38db3ccad0c080a7bdc78b2ddeabc47b7' | \
+    curl "https://keyserver.ubuntu.com/pks/lookup?op=get&search=${keyid}" | \
       gpg --dearmor -o /usr/share/keyrings/cran-r.gpg
     sed -i -e 's:deb http:deb [signed-by=/usr/share/keyrings/cran-r.gpg] http:g' /etc/apt/sources.list.d/cran-r.list
   fi
@@ -1328,25 +1330,24 @@ print( "maximum-disk-used: $max", $/ );' < /tmp/disk-usage.log
   return 0
 }
 
-trap exit_handler EXIT
-
 function prepare_to_install(){
   nvsmi_works="0"
   readonly bdcfg="/usr/local/bin/bdconfig"
-  download_dir=/tmp/
+  tmpdir=/tmp/
   local free_mem
+  trap exit_handler EXIT
   free_mem="$(awk '/^MemFree/ {print $2}' /proc/meminfo)"
   # Write to a ramdisk instead of churning the persistent disk
   if [[ ${free_mem} -ge 10500000 ]]; then
-    download_dir="/mnt/shm"
-    mkdir -p "${download_dir}"
-    mount -t tmpfs tmpfs "${download_dir}"
+    tmpdir="/mnt/shm"
+    mkdir -p "${tmpdir}"
+    mount -t tmpfs tmpfs "${tmpdir}"
 
     # Download conda packages to tmpfs
-    /opt/conda/miniconda3/bin/conda config --add pkgs_dirs "${download_dir}"
+    /opt/conda/miniconda3/bin/conda config --add pkgs_dirs "${tmpdir}"
 
     # Download pip packages to tmpfs
-    pip config set global.cache-dir "${download_dir}" || echo "unable to set global.cache-dir"
+    pip config set global.cache-dir "${tmpdir}" || echo "unable to set global.cache-dir"
 
     # Download OS packages to tmpfs
     if is_debuntu ; then
@@ -1354,8 +1355,10 @@ function prepare_to_install(){
     else
       mount -t tmpfs tmpfs /var/cache/dnf
     fi
+  else
+    tmpdir=/tmp
   fi
-  install_log="${download_dir}/install.log"
+  install_log="${tmpdir}/install.log"
 
   if is_debuntu ; then
     clean_up_sources_lists
@@ -1372,23 +1375,23 @@ function prepare_to_install(){
   /opt/conda/miniconda3/bin/conda clean -a
 
   # zero free disk space
-  if [[ -n "$(get_metadata_attribute creating-image)" ]]; then
-    set +e
-    time dd if=/dev/zero of=/zero ; sync ; rm -f /zero
-    set -e
-  fi
+  if [[ -n "$(get_metadata_attribute creating-image)" ]]; then ( set +e
+    df -h
+    time dd if=/dev/zero of=/zero status=progress ; sync ; sleep 3s ; rm -f /zero
+  ) fi
 
   configure_dkms_certs
 
   # Monitor disk usage in a screen session
   if is_debuntu ; then
       apt-get install -y -qq screen > /dev/null 2>&1
-  elif is_rocky ; then
+  else
       dnf -y -q install screen > /dev/null 2>&1
   fi
-  touch /tmp/keep-running-df
+  df -h / | tee "${tmpdir}/disk-usage.log"
+  touch "${tmpdir}/keep-running-df"
   screen -d -m -US keep-running-df \
-    bash -c 'while [[ -f /tmp/keep-running-df ]] ; do df --si / | tee -a /tmp/disk-usage.log ; sleep 5s ; done'
+    bash -c "while [[ -f ${tmpdir}/keep-running-df ]] ; do df -h / | tee -a ${tmpdir}/disk-usage.log ; sleep 5s ; done"
 }
 
 prepare_to_install
