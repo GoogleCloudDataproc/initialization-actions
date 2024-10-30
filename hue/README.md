@@ -22,7 +22,7 @@ installed:
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/hue/hue.sh
     ```
 
-1.  Once the cluster has been created, Hue is configured to run on port `8888`
+2.  Once the cluster has been created, Hue is configured to run on port `8888`
     on the master node in a Dataproc cluster. To connect to the Hue web
     interface, you will need to create an SSH tunnel and use a SOCKS 5 Proxy
     with your web browser as described in the
@@ -88,7 +88,7 @@ installed:
     STORED AS PARQUET
     LOCATION 'gs://${WAREHOUSE_BUCKET}/datasets/transactions';"
     ```
-    ![External Hive table for the dataset][https://screenshot.googleplex.com/wdwUQYv2hhEawLN]
+    ![External Hive table for the dataset][01.png]
     
 7.  Run the following simple HiveQL query to select the 10 transactions:
    
@@ -97,7 +97,7 @@ installed:
     	FROM transactions
     	LIMIT 10;"
     ```
-    ![HiveQL query to select the 10 transactions][https://screenshot.googleplex.com/hJNZ8xDdfsVQpAq]
+    ![HiveQL query to select the 10 transactions][02.png]
     
 8.  Another query:
 
@@ -107,7 +107,7 @@ installed:
         WHERE SubmissionDate = '2017-08-22'
         GROUP BY TransactionType;"
     ```
-   ![Another query][https://screenshot.googleplex.com/3xPsvYtF8ovzjyL]
+   ![Another query][03.png]
    
 ****************************************************************************
 
