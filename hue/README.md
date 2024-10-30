@@ -135,14 +135,14 @@ The hue.sh script performs some generic updates to the hostnames, such as replac
 2.  Add the following properties to oozie-site as follows replacing the \#USER\# with the impacted user in step 1 above. 
 
     ```
-    \<property\>
-        \<name\>oozie.service.ProxyUserService.proxyuser.\#USER\#.hosts\</name\>*  
-        \<value\>\*\</value\>  
-    \</property\>  
-    \<property\>  
-        \<name\>oozie.service.ProxyUserService.proxyuser.\#USER\#.groups\</name\>*  
-        \<value\>\*\</value\>  
-    \</property\>
+    <property>
+        <name>oozie.service.ProxyUserService.proxyuser.\#USER\#.hosts\</name>  
+        <value>*</value>  
+    </property>  
+    <property>  
+        <name>oozie.service.ProxyUserService.proxyuser.\#USER\#.groups\</name\> 
+        <value>*</value>  
+    </property>
     ```
 
 3.  Restart Oozie  
