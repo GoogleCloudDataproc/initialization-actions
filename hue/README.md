@@ -115,7 +115,7 @@ installed:
 
 1.  ### Missing configurations for the distributed Hadoop services
 
-![][image4]
+![Hue UI](https://github.com/e55010104110/initialization-actions/blob/master/hue/03.png)
 
     The hue.ini configuration file is configured to assume a single-node cluster with hostnames set to localhost and port numbers set to default values. For a distributed system, the different sections for each Hadoop service must be updated with the correct hostnames and ports for the servers on which the services are running. 
 
