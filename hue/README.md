@@ -117,13 +117,13 @@ installed:
 
 ![Hue UI](https://github.com/e55010104110/initialization-actions/blob/master/hue/04.png)
 
-The hue.ini configuration file is configured to assume a single-node cluster with hostnames set to localhost and port numbers set to default values. For a distributed system, the different sections for each Hadoop service must be updated with the correct hostnames and ports for the servers on which the services are running. 
+    The hue.ini configuration file is configured to assume a single-node cluster with hostnames set to localhost and port numbers set to default values. For a distributed system, the different sections for each Hadoop service must be updated with the correct hostnames and ports for the servers on which the services are running. 
 
-The hue.sh script performs some generic updates to the hostnames, such as replacing all occurrences of localhost with the fully qualified domain name (FQDN), but additional configurations may be required based on the available services, as described in the documentation for [How to configure Hue for your Hadoop cluster.](https://gethue.com/how-to-configure-hue-in-your-hadoop-cluster/)
+    The hue.sh script performs some generic updates to the hostnames, such as replacing all occurrences of localhost with the fully qualified domain name (FQDN), but additional configurations may be required based on the available services, as described in the documentation for [How to configure Hue for your Hadoop cluster.](https://gethue.com/how-to-configure-hue-in-your-hadoop-cluster/)
 
 2.  ### Changes made to hue.ini are not effective after restart using systemctl {#changes-made-to-hue.ini-are-not-effective-after-restart-using-systemctl}
 
-`systemctl restart hue.service` leaves behind some orphaned processes and the following command can be used to perform a clean restart of Hue: `sudo /etc/init.d/hue force-stop && sudo /etc/init.d/hue start`
+    `systemctl restart hue.service` leaves behind some orphaned processes and the following command can be used to perform a clean restart of Hue: `sudo /etc/init.d/hue force-stop && sudo /etc/init.d/hue start`
 
 3.  ### User \[hue\] not defined as proxyuser" when integrated with Oozie
 
@@ -146,9 +146,9 @@ The hue.sh script performs some generic updates to the hostnames, such as replac
     ```
 
 3.  Restart Oozie  
-   1.   Find the process number for the org.apache.oozie.server.EmbeddedOozieServer  ps \-ef | grep oozie  
+   1.   Find the process number for the `org.apache.oozie.server.EmbeddedOozieServer  ps \-ef | grep oozie`  
    2.   Kill the process by PID sudo kill \-9 \<PID\>  
-   3.   Confirm that the process is not running:  ps \-ef | grep oozie  
-   4.   Restart Oozie service sudo systemctl restart oozie.service
+   3.   Confirm that the process is not running:  `ps \-ef | grep oozie`  
+   4.   Restart Oozie service `sudo systemctl restart oozie.service`
    
 ****************************************************************************
