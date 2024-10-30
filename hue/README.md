@@ -88,7 +88,7 @@ installed:
     STORED AS PARQUET
     LOCATION 'gs://${WAREHOUSE_BUCKET}/datasets/transactions';"
     ```
-    ![External Hive table for the dataset](https://github.com/e55010104110/initialization-actions/blob/master/hue/01.png)
+    ![External Hive table for the dataset](https://github.com/e55010104110/initialization-actions/blob/master/hue/create-hive-table.png)
     
 7.  Run the following simple HiveQL query to select the 10 transactions:
    
@@ -97,7 +97,7 @@ installed:
     	FROM transactions
     	LIMIT 10;"
     ```
-    ![HiveQL query to select the 10 transactions](https://github.com/e55010104110/initialization-actions/blob/master/hue/02.png)
+    ![HiveQL query to select the 10 transactions](https://github.com/e55010104110/initialization-actions/blob/master/hue/simple-hiveql.png)
     
 8.  Another query:
 
@@ -107,7 +107,7 @@ installed:
         WHERE SubmissionDate = '2017-08-22'
         GROUP BY TransactionType;"
     ```
-   ![Another query](https://github.com/e55010104110/initialization-actions/blob/master/hue/03.png)
+   ![Another query](https://github.com/e55010104110/initialization-actions/blob/master/hue/another-query.png)
    
 ****************************************************************************
 
@@ -115,7 +115,7 @@ installed:
 
 1.  ### Missing configurations for the distributed Hadoop services
 
-![Hue UI](https://github.com/e55010104110/initialization-actions/blob/master/hue/04.png)
+![Hue UI](https://github.com/e55010104110/initialization-actions/blob/master/hue/hue-ui.png)
 
 The hue.ini configuration file is configured to assume a single-node cluster with hostnames set to localhost and port numbers set to default values. For a distributed system, the different sections for each Hadoop service must be updated with the correct hostnames and ports for the servers on which the services are running. 
 
