@@ -29,49 +29,32 @@ class RapidsTestCase(DataprocTestCase):
 
   def verify_dask_standalone(self, name, master_hostname):
     script=self.DASK_STANDALONE_TEST_SCRIPT
-    verify_cmd = "{} {} {}".format(
-      INTERPRETER,
-      script,
-      master_hostname
-    )
-    abspath=os.path.join(os.path.dirname(os.path.abspath(__file__)),script)
-    self.upload_test_file(abspath, name)
-    self.assert_instance_command(name, verify_cmd)
-    self.remove_test_script(script, name)
+    script_and_arg="{} {}".format( script, master_hostname )
+    self._run_dask_test_script(name, script_and_arg)
 
   def _run_dask_test_script(self, name, script):
-    verify_cmd = "{} {}".format(
-      INTERPRETER,
-      script)
-    self.upload_test_file(
-      os.path.join(os.path.dirname(os.path.abspath(__file__)),
-             script), name)
-    command_asserted=0
-    for try_number in range(0, 3):
-      try:
-      self.assert_instance_command(name, verify_cmd)
-      command_asserted=1
-      break
-      except:
-      time.sleep(2**try_number)
-    if command_asserted == 0:
-      raise Exception("Unable to assert instance command [{}]".format(verify_cmd))
-
+    verify_cmd = "{} {}".format( INTERPRETER, script )
+    abspath=os.path.join(os.path.dirname(os.path.abspath(__file__)),script)
+    self.upload_test_file(abspath, name)
+    self.retry_assert_instance_command( name, verify_cmd )
     self.remove_test_script(script, name)
 
-  def verify_dask_worker_service(self, name):
-    verify_cmd = "[[ X$(systemctl show dask-worker -p SubState --value)X == XrunningX ]]"
-    # Retry the first ssh to ensure it has enough time to propagate SSH keys
+  def retry_assert_instance_command(self, name, verify_cmd):
     command_asserted=0
     for try_number in range(0, 3):
       try:
         self.assert_instance_command(name, verify_cmd)
         command_asserted=1
         break
-      except:
+      except Exception as err:
+        print('command failed with exception «{}»'.format(err))
         time.sleep(2**try_number)
     if command_asserted == 0:
-      raise Exception("Unable to assert instance command [{}]".format(verify_cmd))
+      raise Exception("Unable to assert instance command «{}»".format(verify_cmd))
+
+  def verify_dask_worker_service(self, name):
+    verify_cmd = "[[ X$(systemctl show dask-worker -p SubState --value)X == XrunningX ]]"
+    self.retry_assert_instance_command( name, verify_cmd )
 
   def verify_dask_config(self, name):
     self.assert_instance_command(
@@ -99,7 +82,7 @@ class RapidsTestCase(DataprocTestCase):
         machine_type='n1-standard-8',
         master_accelerator=accelerator,
         worker_accelerator=accelerator,
-        timeout_in_minutes=20
+        timeout_in_minutes=40
     )
 
     c_name=self.getClusterName()
