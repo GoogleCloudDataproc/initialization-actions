@@ -146,8 +146,9 @@ The hue.sh script performs some generic updates to the hostnames, such as replac
     ```
 
 3.  Restart Oozie  
-   1.   Stop the Oozie process with `sudo systemctl stop oozie.service` and if it doesn't stop successfully, then you can give this option to kill it with `kill -9`
-   2.   Confirm that the process is not running:  `ps \-ef | grep oozie`  
-   3.   Restart Oozie service `sudo systemctl restart oozie.service`
+   1.   Identify oozie process PID   
+   2.   Stop the Oozie process with `sudo systemctl stop oozie.service` and if it doesn't stop successfully, then use `kill -9 <oozie-process-PID>` to kill the process   
+   3.   Confirm that the process is not running:  `ps \-ef | grep oozie`  
+   4.   Restart Oozie service `sudo systemctl restart oozie.service`
    
 ****************************************************************************
