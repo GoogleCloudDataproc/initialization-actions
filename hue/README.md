@@ -130,9 +130,9 @@ The hue.sh script performs some generic updates to the hostnames, such as replac
     This is caused by missing ProxyUser/impersonation configuration for the logged in user in Oozie.   
     [Hue.sh](https://github.com/GoogleCloudDataproc/initialization-actions/blob/12792d9d40821e1fad202756e2532a1a8768fe54/hue/hue.sh\#L136) only adds the default user Hue as a ProxyUser, therefore all the other users must also be added. 
 
-   1.  Identify the impacted user for example in the error message below it is the  doAs user \`hueuser\`:  *401 Client Error: Unauthorized for url: http://\<redacted\>:11000/oozie/v1/jobs?len=100\&doAs=hueuser\&filter=user%3Dhueadmin%3Bstartcreatedtime%3D-7d\&user.name=hue\&offset=1\&timezone=America%2FLos\_Angeles\&jobtype=wf {"errorMessage":"User \[hue\] not defined as proxyuser","httpStatusCode":401} (error 401\)*  
+    1.  Identify the impacted user for example in the error message below it is the  doAs user \`hueuser\`:  *401 Client Error: Unauthorized for url: http://\<redacted\>:11000/oozie/v1/jobs?len=100\&doAs=hueuser\&filter=user%3Dhueadmin%3Bstartcreatedtime%3D-7d\&user.name=hue\&offset=1\&timezone=America%2FLos\_Angeles\&jobtype=wf {"errorMessage":"User \[hue\] not defined as proxyuser","httpStatusCode":401} (error 401\)*  
 
-   2.  Add the following properties to oozie-site as follows replacing the \#USER\# with the impacted user in step 1 above. 
+    2.  Add the following properties to oozie-site as follows replacing the \#USER\# with the impacted user in step 1 above. 
 
     ```
     <property>
@@ -145,10 +145,11 @@ The hue.sh script performs some generic updates to the hostnames, such as replac
     </property>
     ```
 
-   3.  Restart Oozie
-      1.   Identify oozie process PID   
-      2.   Stop the Oozie process with `sudo systemctl stop oozie.service` and if it doesn't stop successfully, then use `kill -9 <oozie-process-PID>` to kill the process   
-      3.   Confirm that the process is not running:  `ps \-ef | grep oozie`  
-      4.   Restart Oozie service `sudo systemctl restart oozie.service`
+    3.  Restart Oozie
+
+        1.   Identify oozie process PID   
+        2.   Stop the Oozie process with `sudo systemctl stop oozie.service` and if it doesn't stop successfully, then use `kill -9 <oozie-process-PID>` to kill the process   
+        3.   Confirm that the process is not running:  `ps \-ef | grep oozie`  
+        4.   Restart Oozie service `sudo systemctl restart oozie.service`
    
 ****************************************************************************
