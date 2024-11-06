@@ -100,13 +100,15 @@ determine_tests_to_run() {
 }
 
 run_tests() {
-  local -r max_parallel_tests=20
+  local -r max_parallel_tests=10
   bazel test \
     --jobs="${max_parallel_tests}" \
     --local_test_jobs="${max_parallel_tests}" \
     --flaky_test_attempts=3 \
     --action_env="INTERNAL_IP_SSH=true" \
     --test_output="all" \
+    --noshow_progress \
+    --noshow_loading_progress \
     --test_arg="--image_version=${IMAGE_VERSION}" \
     "${TESTS_TO_RUN[@]}"
 }
