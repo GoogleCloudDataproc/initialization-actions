@@ -14,12 +14,32 @@ LOGS_SINCE_TIME=$(date --iso-8601=seconds)
 
 # This kubectl sometimes fails because services have not caught up.  Thread.yield()
 sleep 10s
-kubectl run "${POD_NAME}" \
-  --image="${IMAGE}" \
-  --restart=Never \
-  --env="COMMIT_SHA=${COMMIT_SHA}" \
-  --env="IMAGE_VERSION=${DATAPROC_IMAGE_VERSION}" \
-  --command -- bash /init-actions/cloudbuild/presubmit.sh
+
+readonly POD_CONFIG="pod.yaml"
+cat >$POD_CONFIG <<EOF
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "${POD_NAME}"
+spec:
+  restartPolicy: Never
+  containers:
+  - name: "dataproc-test-runner"
+    image: "${IMAGE}"
+    resources:
+      requests:
+        memory: "4G"
+        cpu: "6000m"
+    env:
+    - name: COMMIT_SHA
+      value: "${COMMIT_SHA}"
+    - name: IMAGE_VERSION
+      value: "${DATAPROC_IMAGE_VERSION}"
+    command: ["bash"]
+    args: ["/init-actions/cloudbuild/presubmit.sh"]
+EOF
+
+kubectl apply -f $POD_CONFIG
 
 # Delete POD on exit and describe it before deletion if exit was unsuccessful
 trap '[[ $? != 0 ]] && kubectl describe "pod/${POD_NAME}"; kubectl delete pods "${POD_NAME}"' EXIT
