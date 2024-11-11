@@ -15,7 +15,7 @@ LOGS_SINCE_TIME=$(date --iso-8601=seconds)
 # This kubectl sometimes fails because services have not caught up.  Thread.yield()
 sleep 10s
 
-readonly POD_CONFIG="pod.yaml"
+readonly POD_CONFIG="${POD_NAME}-config.yaml"
 cat >$POD_CONFIG <<EOF
 apiVersion: v1
 kind: Pod
