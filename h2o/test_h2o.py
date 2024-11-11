@@ -9,7 +9,6 @@ class H2OTestCase(DataprocTestCase):
     COMPONENT = "h2o"
     INIT_ACTIONS = ["h2o/h2o.sh"]
     SAMPLE_H2O_JOB_PATH = "h2o/sample-script.py"
-    #dummy
 
     @parameterized.parameters("STANDARD", "HA", "KERBEROS")
     def test_h2o(self, configuration):
