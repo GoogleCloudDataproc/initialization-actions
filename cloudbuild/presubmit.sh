@@ -70,7 +70,6 @@ determine_tests_to_run() {
     changed_dir="${changed_dir%%/*}/"
     # Run all tests if common directories modified
     if [[ ${changed_dir} =~ ^(integration_tests|util|cloudbuild)/$ ]]; then
-      continue # remove this before squash/merge
       echo "All tests will be run: '${changed_dir}' was changed"
       TESTS_TO_RUN=(":DataprocInitActionsTestSuite")
       return 0
@@ -101,13 +100,13 @@ determine_tests_to_run() {
 }
 
 run_tests() {
-  local -r max_parallel_tests=10
+  local -r max_parallel_tests=20
   bazel test \
     --jobs="${max_parallel_tests}" \
     --local_test_jobs="${max_parallel_tests}" \
     --flaky_test_attempts=3 \
     --action_env="INTERNAL_IP_SSH=true" \
-    --test_output="errors" \
+    --test_output="all" \
     --noshow_progress \
     --noshow_loading_progress \
     --test_arg="--image_version=${IMAGE_VERSION}" \
