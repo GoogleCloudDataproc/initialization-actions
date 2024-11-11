@@ -22,6 +22,7 @@ class MLVMTestCase(DataprocTestCase):
   RAPIDS_DASK_SCRIPT = "verify_rapids_dask.py"
   DASK_YARN_SCRIPT = "verify_dask_yarn.py"
   DASK_STANDALONE_SCRIPT = "verify_dask_standalone.py"
+  #dummy
 
   def verify_python(self):
     self.assert_dataproc_job(
