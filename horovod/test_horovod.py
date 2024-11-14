@@ -1,3 +1,5 @@
+import pkg_resources
+
 from absl.testing import absltest
 from absl.testing import parameterized
 
@@ -26,6 +28,8 @@ class HorovodTestCase(DataprocTestCase):
   def test_horovod_cpu(self, configuration, controller):
     if self.getImageOs() == 'rocky':
       self.skipTest("Not supported in Rocky Linux-based images")
+    if self.getImageVersion() > pkg_resources.parse_version("2.0"):
+      self.skipTest("Not supported in Dataproc image version 2.1 and 2.2")
 
     metadata = ""
     if controller == "mpi":
@@ -44,6 +48,8 @@ class HorovodTestCase(DataprocTestCase):
   def test_horovod_gpu(self, configuration, controller):
     if self.getImageOs() == 'rocky':
       self.skipTest("Not supported in Rocky Linux-based images")
+    if self.getImageVersion() > pkg_resources.parse_version("2.0"):
+      self.skipTest("Not supported in Dataproc image version 2.1 and 2.2")
 
     metadata = "cuda-version=11.1,cudnn-version=8.0.5.39,gpu-driver-provider=NVIDIA"
 
