@@ -51,7 +51,7 @@ class HorovodTestCase(DataprocTestCase):
     if self.getImageVersion() > pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in Dataproc image version 2.1 and 2.2")
 
-    metadata = "cuda-version=11.1,cudnn-version=8.0.5.39,gpu-driver-provider=NVIDIA"
+    metadata = "cuda-version=12.4,cudnn-version=9.1.0.70,gpu-driver-provider=NVIDIA"
 
     self.createCluster(
         configuration,
