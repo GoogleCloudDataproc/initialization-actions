@@ -49,7 +49,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
-        machine_type="n1-standard-2",
+        machine_type="n1-standard-8",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
@@ -72,7 +72,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
-        machine_type="n1-standard-2",
+        machine_type="n1-standard-8",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
@@ -97,7 +97,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
-        machine_type="n1-standard-2",
+        machine_type="n1-standard-8",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
@@ -124,11 +124,11 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
-        machine_type="n1-standard-2",
+        machine_type="n1-standard-8",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
-        timeout_in_minutes=30,
+        timeout_in_minutes=90,
         boot_disk_size="50GB")
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
@@ -178,7 +178,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         configuration,
         self.INIT_ACTIONS,
         metadata=metadata,
-        machine_type="n1-standard-2",
+        machine_type="n1-standard-8",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         boot_disk_size="50GB",
@@ -214,7 +214,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.createCluster(
       configuration,
       self.INIT_ACTIONS,
-      machine_type="n1-standard-2",
+      machine_type="n1-standard-8",
       master_accelerator=master_accelerator,
       worker_accelerator=worker_accelerator,
       metadata=metadata,
