@@ -49,7 +49,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
-        machine_type="n1-standard-2",
+        machine_type="n1-standard-16",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
@@ -72,7 +72,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
-        machine_type="n1-standard-2",
+        machine_type="n1-standard-16",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
@@ -97,7 +97,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
-        machine_type="n1-standard-2",
+        machine_type="n1-standard-16",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
@@ -124,7 +124,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
-        machine_type="n1-standard-2",
+        machine_type="n1-standard-16",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
@@ -178,7 +178,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         configuration,
         self.INIT_ACTIONS,
         metadata=metadata,
-        machine_type="n1-standard-2",
+        machine_type="n1-standard-16",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         boot_disk_size="50GB",
@@ -214,7 +214,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.createCluster(
       configuration,
       self.INIT_ACTIONS,
-      machine_type="n1-standard-2",
+      machine_type="n1-standard-16",
       master_accelerator=master_accelerator,
       worker_accelerator=worker_accelerator,
       metadata=metadata,
