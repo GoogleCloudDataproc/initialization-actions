@@ -19,18 +19,29 @@ set -euxo pipefail
 function os_id()       ( set +x ;  grep '^ID=' /etc/os-release | cut -d= -f2 | xargs ; )
 function os_version()  ( set +x ;  grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs ; )
 function os_codename() ( set +x ;  grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs ; )
-function is_rocky()    ( set +x ;  [[ "$(os_id)" == 'rocky' ]] ; )
-function is_rocky8()   ( set +x ;  is_rocky && [[ "$(os_version)" == '8'* ]] ; )
-function is_rocky9()   ( set +x ;  is_rocky && [[ "$(os_version)" == '9'* ]] ; )
-function is_ubuntu()   ( set +x ;  [[ "$(os_id)" == 'ubuntu' ]] ; )
-function is_ubuntu18() ( set +x ;  is_ubuntu && [[ "$(os_version)" == '18.04'* ]] ; )
-function is_ubuntu20() ( set +x ;  is_ubuntu && [[ "$(os_version)" == '20.04'* ]] ; )
-function is_ubuntu22() ( set +x ;  is_ubuntu && [[ "$(os_version)" == '22.04'* ]] ; )
-function is_debian()   ( set +x ;  [[ "$(os_id)" == 'debian' ]] ; )
-function is_debian10() ( set +x ;  is_debian && [[ "$(os_version)" == '10'* ]] ; )
-function is_debian11() ( set +x ;  is_debian && [[ "$(os_version)" == '11'* ]] ; )
-function is_debian12() ( set +x ;  is_debian && [[ "$(os_version)" == '12'* ]] ; )
-function is_debuntu()  ( set +x ;  is_debian || is_ubuntu ; )
+
+function version_ge() ( set +x ;  [ "$1" = "$(echo -e "$1\n$2" | sort -V | tail -n1)" ] ; )
+function version_gt() ( set +x ;  [ "$1" = "$2" ] && return 1 || version_ge $1 $2 ; )
+function version_le() ( set +x ;  [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ] ; )
+function version_lt() ( set +x ;  [ "$1" = "$2" ] && return 1 || version_le $1 $2 ; )
+
+readonly -A supported_os=(
+  ['debian']=('10' '11' '12')
+  ['ubuntu']=('18.04' '20.04' '22.04')
+  ['rocky']=('8' '9')
+)
+
+# dynamically define OS version test utility functions
+for os_id_val in 'rocky' 'ubuntu' 'debian' ; do
+  eval "function is_${os_id_val}() ( set +x ;  [[ \"\$(os_id)\" == '${os_id_val}' ]] ; )"
+
+  supported_versions=${supported_os["${os_id_val}"]}
+  for osver in "${supported_versions[@]}"; do
+    eval "function is_${os_id_val}${osver}() ( set +x ; is_${os_id_val} && [[ \"\$(os_version)\" == '${osver}'* ]] ; )"
+    eval "function ge_${os_id_val}${osver}() ( set +x ; is_${os_id_val} && version_ge \"\$(os_version)\" '${osver}' ; )"
+    eval "function le_${os_id_val}${osver}() ( set +x ; is_${os_id_val} && version_le \"\$(os_version)\" '${osver}' ; )"
+  done
+done
 
 function os_vercat()   ( set +x
   if   is_ubuntu ; then os_version | sed -e 's/[^0-9]//g'
@@ -38,8 +49,7 @@ function os_vercat()   ( set +x
                    else os_version ; fi ; )
 
 function remove_old_backports {
-  if ! is_debuntu ; then  return ; fi
-  if is_debian12 ; then return ; fi
+  if ge_debian12 || ! is_debuntu ; then return ; fi
   # This script uses 'apt-get update' and is therefore potentially dependent on
   # backports repositories which have been archived.  In order to mitigate this
   # problem, we will use archive.debian.org for the oldoldstable repo
@@ -58,14 +68,6 @@ function remove_old_backports {
                   {\$1 https://archive.debian.org/debian ${oldoldstable}-backports }g" "${filename}"
   done
 }
-
-# Return true if the first argument is equal to or less than the second argument
-function compare_versions_lte { [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ] ; }
-
-# Return true if the first argument is less than the second argument
-function compare_versions_lt() ( set +x
-  [ "$1" = "$2" ] && return 1 || compare_versions_lte $1 $2
-)
 
 function print_metadata_value() {
   local readonly tmpfile=$(mktemp)
@@ -144,11 +146,17 @@ readonly CUDA_VERSION
 readonly CUDA_FULL_VERSION="${CUDA_SUBVER["${CUDA_VERSION}"]}"
 
 function is_cuda12() ( set +x ; [[ "${CUDA_VERSION%%.*}" == "12" ]] ; )
+function le_cuda12() ( set +x ; version_le "${CUDA_VERSION}" "12" ; )
+function ge_cuda12() ( set +x ; version_ge "${CUDA_VERSION}" "12" ; )
+
 function is_cuda11() ( set +x ; [[ "${CUDA_VERSION%%.*}" == "11" ]] ; )
+function le_cuda11() ( set +x ; version_le "${CUDA_VERSION}" "11" ; )
+function ge_cuda11() ( set +x ; version_ge "${CUDA_VERSION}" "11" ; )
+
 readonly DEFAULT_DRIVER=${DRIVER_FOR_CUDA["${CUDA_VERSION}"]}
 DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' "${DEFAULT_DRIVER}")
-if is_debian11 || is_ubuntu22 || is_ubuntu20 ; then DRIVER_VERSION="560.28.03" ; fi
-if is_ubuntu20 && is_cuda11 ; then DRIVER_VERSION="535.183.06" ; fi
+if is_debian11 || ge_ubuntu20 ; then DRIVER_VERSION="560.28.03" ; fi
+if is_ubuntu20 && le_cuda11 ; then DRIVER_VERSION="535.183.06" ; fi
 
 readonly DRIVER_VERSION
 readonly DRIVER=${DRIVER_VERSION%%.*}
@@ -158,14 +166,12 @@ readonly DEFAULT_CUDNN_VERSION=${CUDNN_FOR_CUDA["${CUDA_VERSION}"]}
 CUDNN_VERSION=$(get_metadata_attribute 'cudnn-version' "${DEFAULT_CUDNN_VERSION}")
 function is_cudnn8() ( set +x ; [[ "${CUDNN_VERSION%%.*}" == "8" ]] ; )
 function is_cudnn9() ( set +x ; [[ "${CUDNN_VERSION%%.*}" == "9" ]] ; )
-if is_rocky \
-   && (compare_versions_lte "${CUDNN_VERSION}" "8.0.5.39") ; then
+if is_rocky  && (version_le "${CUDNN_VERSION}" "8.0.5.39") ; then
   CUDNN_VERSION="8.0.5.39"
-elif (is_ubuntu20 || is_ubuntu22 || is_debian12) && is_cudnn8 ; then
+elif (ge_ubuntu20 || ge_debian12) && is_cudnn8 ; then
   # cuDNN v8 is not distribution for ubuntu20+, debian12
   CUDNN_VERSION="9.1.0.70"
-
-elif (is_ubuntu18 || is_debian10 || is_debian11) && is_cudnn9 ; then
+elif (le_ubuntu18 || le_debian11) && is_cudnn9 ; then
   # cuDNN v9 is not distributed for ubuntu18, debian10, debian11 ; fall back to 8
   CUDNN_VERSION="8.8.0.121"
 fi
@@ -188,7 +194,7 @@ if is_ubuntu22  ; then
 
     nccl_shortname="ubuntu2004"
     shortname="$(os_id)$(os_vercat)"
-elif is_rocky9 ; then
+elif ge_rocky9 ; then
     # use packages from previous release until such time as nvidia
     # release rhel9 builds
 
@@ -227,14 +233,14 @@ readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_REPO_URL}/cuda-${shortname}.repo"
 
 CUDNN_TARBALL="cudnn-${CUDA_VERSION}-linux-x64-v${CUDNN_VERSION}.tgz"
 CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN_VERSION%.*}/${CUDNN_TARBALL}"
-if ( compare_versions_lte "8.3.1.22" "${CUDNN_VERSION}" ); then
+if ( version_ge "${CUDNN_VERSION}" "8.3.1.22" ); then
   CUDNN_TARBALL="cudnn-linux-x86_64-${CUDNN_VERSION}_cuda${CUDA_VERSION%.*}-archive.tar.xz"
-  if ( compare_versions_lte "${CUDNN_VERSION}" "8.4.1.50" ); then
+  if ( version_le "${CUDNN_VERSION}" "8.4.1.50" ); then
     CUDNN_TARBALL="cudnn-linux-x86_64-${CUDNN_VERSION}_cuda${CUDA_VERSION}-archive.tar.xz"
   fi
   CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN_VERSION%.*}/local_installers/${CUDA_VERSION}/${CUDNN_TARBALL}"
 fi
-if ( compare_versions_lte "12.0" "${CUDA_VERSION}" ); then
+if ( version_ge "${CUDA_VERSION}" "12.0" ); then
   # When cuda version is greater than 12.0
   CUDNN_TARBALL="cudnn-linux-x86_64-${CUDNN_VERSION}_cuda12-archive.tar.xz"
   CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/cudnn/redist/cudnn/linux-x86_64/${CUDNN_TARBALL}"
@@ -443,7 +449,7 @@ function install_nvidia_cudnn() {
       echo "Unsupported cudnn version: '${major_version}'"
     fi
   elif is_debuntu; then
-    if is_debian12 && is_src_os ; then
+    if ge_debian12 && is_src_os ; then
       apt-get -y install nvidia-cudnn
     else
       local CUDNN="${CUDNN_VERSION%.*}"
@@ -575,7 +581,7 @@ function clear_dkms_key {
 }
 
 function add_contrib_component() {
-  if is_debian12 ; then
+  if ge_debian12 ; then
       # Include in sources file components on which nvidia-kernel-open-dkms depends
       local -r debian_sources="/etc/apt/sources.list.d/debian.sources"
       local components="main contrib"
@@ -588,7 +594,7 @@ function add_contrib_component() {
 
 function add_nonfree_components() {
   if is_src_nvidia ; then return; fi
-  if is_debian12 ; then
+  if ge_debian12 ; then
       # Include in sources file components on which nvidia-open-kernel-dkms depends
       local -r debian_sources="/etc/apt/sources.list.d/debian.sources"
       local components="main contrib non-free non-free-firmware"
@@ -673,7 +679,7 @@ function build_driver_from_github() {
 }
 
 function build_driver_from_packages() {
-  if is_ubuntu || is_debian ; then
+  if is_debuntu ; then
     if [[ -n "$(apt-cache search -n "nvidia-driver-${DRIVER}-server-open")" ]] ; then
       local pkglist=("nvidia-driver-${DRIVER}-server-open") ; else
       local pkglist=("nvidia-driver-${DRIVER}-open") ; fi
@@ -729,7 +735,7 @@ function install_cuda_runfile() {
 
 function install_cuda_toolkit() {
   local cudatk_package=cuda-toolkit
-  if is_debian12 && is_src_os ; then
+  if ge_debian12 && is_src_os ; then
     cudatk_package="${cudatk_package}=${CUDA_FULL_VERSION}-1"
   elif [[ -n "${CUDA_VERSION}" ]]; then
     cudatk_package="${cudatk_package}-${CUDA_VERSION//./-}"
@@ -762,7 +768,7 @@ function load_kernel_module() {
 
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
-  if is_debian12 && is_src_os ; then
+  if ge_debian12 && is_src_os ; then
     add_nonfree_components
     add_repo_nvidia_container_toolkit
     apt-get update -qq
@@ -776,7 +782,7 @@ function install_nvidia_gpu_driver() {
           libglvnd0 \
           libcuda1
     #clear_dkms_key
-  elif is_ubuntu18 || is_debian10 || (is_debian12 && is_cuda11) ; then
+  elif le_ubuntu18 || le_debian10 || (ge_debian12 && le_cuda11) ; then
 
     install_nvidia_userspace_runfile
 
@@ -1257,7 +1263,7 @@ function exit_handler() {
     apt-get -y -qq clean
     apt-get -y -qq autoremove
     # re-hold systemd package
-    if is_debian12 ; then
+    if ge_debian12 ; then
     apt-mark hold systemd libsystemd0 ; fi
   else
     dnf clean all
@@ -1330,6 +1336,32 @@ function set_proxy(){
   export NO_PROXY=metadata.google.internal,169.254.169.254
 }
 
+function mount_ramdisk(){
+  local free_mem
+  free_mem="$(awk '/^MemFree/ {print $2}' /proc/meminfo)"
+  if [[ ${free_mem} -lt 10500000 ]]; then return 0 ; fi
+
+  # Write to a ramdisk instead of churning the persistent disk
+
+  tmpdir="/mnt/shm"
+  mkdir -p "${tmpdir}"
+  mount -t tmpfs tmpfs "${tmpdir}"
+
+  # Clear pip cache
+  # TODO: make this conditional on which OSs have pip without cache purge
+  pip cache purge || echo "unable to purge pip cache"
+
+  # Download pip packages to tmpfs
+  pip config set global.cache-dir "${tmpdir}" || echo "unable to set global.cache-dir"
+
+  # Download OS packages to tmpfs
+  if is_debuntu ; then
+    mount -t tmpfs tmpfs /var/cache/apt/archives
+  else
+    mount -t tmpfs tmpfs /var/cache/dnf
+  fi
+}
+
 function prepare_to_install(){
   nvsmi_works="0"
   readonly bdcfg="/usr/local/bin/bdconfig"
@@ -1343,38 +1375,8 @@ function prepare_to_install(){
 
   export DEBIAN_FRONTEND=noninteractive
 
-  local free_mem
   trap exit_handler EXIT
-  free_mem="$(awk '/^MemFree/ {print $2}' /proc/meminfo)"
-  # Write to a ramdisk instead of churning the persistent disk
-  if [[ ${free_mem} -ge 10500000 ]]; then
-
-    # Services might use /tmp for temporary files - if we see errors,
-    # consider uncommenting the following command to stop them during
-    # install
-
-    # systemctl list-units | perl -n -e 'qx(systemctl stop $1) if /^.*? ((hadoop|knox|hive|mapred|yarn|hdfs)\S*).service/'
-    sudo mount -t tmpfs tmpfs /tmp
-
-    tmpdir="/mnt/shm"
-    mkdir -p "${tmpdir}"
-    mount -t tmpfs tmpfs "${tmpdir}"
-
-    # Clear pip cache
-    pip cache purge || echo "unable to purge pip cache"
-
-    # Download pip packages to tmpfs
-    pip config set global.cache-dir "${tmpdir}" || echo "unable to set global.cache-dir"
-
-    # Download OS packages to tmpfs
-    if is_debuntu ; then
-      mount -t tmpfs tmpfs /var/cache/apt/archives
-    else
-      mount -t tmpfs tmpfs /var/cache/dnf
-    fi
-  else
-    tmpdir=/tmp
-  fi
+  mount_ramdisk
   install_log="${tmpdir}/install.log"
 
   set_proxy
@@ -1385,7 +1387,7 @@ function prepare_to_install(){
     apt-get -y clean
     sleep 5s
     apt-get -y -qq autoremove
-    if is_debian12 ; then
+    if ge_debian12 ; then
     apt-mark unhold systemd libsystemd0 ; fi
   else
     dnf clean all
