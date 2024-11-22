@@ -26,29 +26,30 @@ function version_le() ( set +x ;  [ "$1" = "$(echo -e "$1\n$2" | sort -V | head 
 function version_lt() ( set +x ;  [ "$1" = "$2" ] && return 1 || version_le $1 $2 ; )
 
 readonly -A supported_os=(
-  ['debian']=('10' '11' '12')
-  ['ubuntu']=('18.04' '20.04' '22.04')
-  ['rocky']=('8' '9')
+  ['debian']="10 11 12"
+  ['rocky']="8 9"
+  ['ubuntu']="18.04 20.04 22.04"
 )
 
 # dynamically define OS version test utility functions
 for os_id_val in 'rocky' 'ubuntu' 'debian' ; do
-  eval "function is_${os_id_val}() ( set +x ;  [[ \"\$(os_id)\" == '${os_id_val}' ]] ; )"
+  eval "function is_${os_id_val}() ( set +x ;  [[ \"$(os_id)\" == '${os_id_val}' ]] ; )"
 
-  supported_versions=${supported_os["${os_id_val}"]}
-  for osver in "${supported_versions[@]}"; do
-    eval "function is_${os_id_val}${osver}() ( set +x ; is_${os_id_val} && [[ \"\$(os_version)\" == '${osver}'* ]] ; )"
-    eval "function ge_${os_id_val}${osver}() ( set +x ; is_${os_id_val} && version_ge \"\$(os_version)\" '${osver}' ; )"
-    eval "function le_${os_id_val}${osver}() ( set +x ; is_${os_id_val} && version_le \"\$(os_version)\" '${osver}' ; )"
+  for osver in $(echo "${supported_os["${os_id_val}"]}") ; do
+    eval "function is_${os_id_val}${osver}() ( set +x ; is_${os_id_val} && [[ \"$(os_version)\" == ${osver}* ]] ; )"
+    eval "function ge_${os_id_val}${osver}() ( set +x ; is_${os_id_val} && version_ge \"$(os_version)\" ${osver} ; )"
+    eval "function le_${os_id_val}${osver}() ( set +x ; is_${os_id_val} && version_le \"$(os_version)\" ${osver} ; )"
   done
 done
+
+function is_debuntu()  ( set +x ;  is_debian || is_ubuntu ; )
 
 function os_vercat()   ( set +x
   if   is_ubuntu ; then os_version | sed -e 's/[^0-9]//g'
   elif is_rocky  ; then os_version | sed -e 's/[^0-9].*$//g'
                    else os_version ; fi ; )
 
-function remove_old_backports {
+function repair_old_backports {
   if ge_debian12 || ! is_debuntu ; then return ; fi
   # This script uses 'apt-get update' and is therefore potentially dependent on
   # backports repositories which have been archived.  In order to mitigate this
@@ -1371,7 +1372,7 @@ function prepare_to_install(){
     exit 1
   fi
 
-  remove_old_backports
+  repair_old_backports
 
   export DEBIAN_FRONTEND=noninteractive
 
