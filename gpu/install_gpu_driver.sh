@@ -38,6 +38,7 @@ function os_vercat()   ( set +x
                    else os_version ; fi ; )
 
 function remove_old_backports {
+  if ! is_debuntu ; then  return ; fi
   if is_debian12 ; then return ; fi
   # This script uses 'apt-get update' and is therefore potentially dependent on
   # backports repositories which have been archived.  In order to mitigate this
@@ -1016,20 +1017,11 @@ function nvsmi() {
   "${nvsmi}" $*
 }
 
-function main() {
-  if ! is_debian && ! is_ubuntu && ! is_rocky ; then
-    echo "Unsupported OS: '$(os_name)'"
-    exit 1
-  fi
-
-  remove_old_backports
-
+function install_dependencies() {
   if is_debuntu ; then
-    export DEBIAN_FRONTEND=noninteractive
-    execute_with_retries apt-get install -y -qq pciutils "linux-headers-${uname_r}"
+    execute_with_retries apt-get install -y -qq pciutils "linux-headers-${uname_r}" screen
   elif is_rocky ; then
-    execute_with_retries dnf -y -q update --exclude=systemd*,kernel*
-    execute_with_retries dnf -y -q install pciutils gcc
+    execute_with_retries dnf -y -q install pciutils gcc screen
 
     local dnf_cmd="dnf -y -q install kernel-devel-${uname_r}"
     local kernel_devel_pkg_out="$(eval "${dnf_cmd} 2>&1")"
@@ -1048,7 +1040,9 @@ function main() {
       execute_with_retries "${dnf_cmd}"
     fi
   fi
+}
 
+function main() {
   # This configuration should be run on all nodes
   # regardless if they have attached GPUs
   configure_yarn
@@ -1340,6 +1334,15 @@ function prepare_to_install(){
   nvsmi_works="0"
   readonly bdcfg="/usr/local/bin/bdconfig"
   tmpdir=/tmp/
+  if ! is_debuntu && ! is_rocky ; then
+    echo "Unsupported OS: '$(os_name)'"
+    exit 1
+  fi
+
+  remove_old_backports
+
+  export DEBIAN_FRONTEND=noninteractive
+
   local free_mem
   trap exit_handler EXIT
   free_mem="$(awk '/^MemFree/ {print $2}' /proc/meminfo)"
@@ -1395,12 +1398,9 @@ function prepare_to_install(){
 
   configure_dkms_certs
 
+  install_dependencies
+
   # Monitor disk usage in a screen session
-  if is_debuntu ; then
-      execute_with_retries apt-get install -y -qq screen
-  else
-      execute_with_retries dnf -y -q install screen
-  fi
   df / > "/run/disk-usage.log"
   touch "/run/keep-running-df"
   screen -d -m -US keep-running-df \
