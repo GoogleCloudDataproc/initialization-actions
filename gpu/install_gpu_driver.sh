@@ -1251,7 +1251,7 @@ function exit_handler() {
     pip config unset global.cache-dir || echo "unable to unset global pip cache"
 
     # Clean up shared memory mounts
-    for shmdir in /var/cache/apt/archives /var/cache/dnf /mnt/shm /tmp ; do
+    for shmdir in /var/cache/apt/archives /var/cache/dnf /mnt/shm ; do
       if grep -q "^tmpfs ${shmdir}" /proc/mounts ; then
         rm -rf ${shmdir}/*
         sync
