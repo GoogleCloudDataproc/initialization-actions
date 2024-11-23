@@ -38,7 +38,6 @@ else _os_version="$(os_version)"; fi
 for os_id_val in 'rocky' 'ubuntu' 'debian' ; do
   eval "function is_${os_id_val}() ( set +x ;  [[ \"$(os_id)\" == '${os_id_val}' ]] ; )"
 
-
   for osver in $(echo "${supported_os["${os_id_val}"]}") ; do
     eval "function is_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && [[ \"${_os_version}\" == \"${osver}\" ]] ; )"
     eval "function ge_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && version_ge \"${_os_version}\" \"${osver}\" ; )"
@@ -130,7 +129,7 @@ readonly ROLE
 # https://docs.nvidia.com/deeplearning/frameworks/support-matrix/index.html
 # https://developer.nvidia.com/cuda-downloads
 readonly -A DRIVER_FOR_CUDA=(
-          [11.8]="525.147.05" [12.4]="550.54.14"  [12.6]="560.35.03"
+          [11.8]="525.147.05" [12.4]="550.54.14"  [12.6]="560.35.06"
 )
 # https://developer.nvidia.com/cudnn-downloads
 readonly -A CUDNN_FOR_CUDA=(
@@ -147,6 +146,10 @@ readonly -A CUDA_SUBVER=(
 RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 readonly DEFAULT_CUDA_VERSION='12.4'
 CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
+# CUDA 11 no longer supported on debian12 - 2024-11-22
+if ge_debian12 && version_le "${CUDA_VERSION%%.*}" "11" ; then
+  CUDA_VERSION="12.4"
+fi
 readonly CUDA_VERSION
 readonly CUDA_FULL_VERSION="${CUDA_SUBVER["${CUDA_VERSION}"]}"
 
