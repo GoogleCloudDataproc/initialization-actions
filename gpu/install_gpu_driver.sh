@@ -32,13 +32,17 @@ readonly -A supported_os=(
 )
 
 # dynamically define OS version test utility functions
+if [[ "$(os_id)" == "rocky" ]];
+then _os_version=$(os_version | sed -e 's/[^0-9]//g')
+else _os_version="$(os_version)"; fi
 for os_id_val in 'rocky' 'ubuntu' 'debian' ; do
   eval "function is_${os_id_val}() ( set +x ;  [[ \"$(os_id)\" == '${os_id_val}' ]] ; )"
 
+
   for osver in $(echo "${supported_os["${os_id_val}"]}") ; do
-    eval "function is_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && [[ \"$(os_version)\" == \"${osver}\" ]] ; )"
-    eval "function ge_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && version_ge \"$(os_version)\" \"${osver}\" ; )"
-    eval "function le_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && version_le \"$(os_version)\" \"${osver}\" ; )"
+    eval "function is_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && [[ \"${_os_version}\" == \"${osver}\" ]] ; )"
+    eval "function ge_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && version_ge \"${_os_version}\" \"${osver}\" ; )"
+    eval "function le_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && version_le \"${_os_version}\" \"${osver}\" ; )"
   done
 done
 
