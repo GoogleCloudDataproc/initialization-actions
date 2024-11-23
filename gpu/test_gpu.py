@@ -145,6 +145,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_with_mig(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider, cuda_version):
+
     self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
 
     if self.getImageOs() == "debian" and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
@@ -174,7 +175,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   )
   def test_gpu_allocation(self, configuration, master_accelerator,
                           worker_accelerator, driver_provider):
-    self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
 
     metadata = None
     if driver_provider is not None:
@@ -192,14 +192,13 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
     get_gpu_resources_script="/usr/lib/spark/scripts/gpu/getGpusResources.sh"
     self.assert_dataproc_job(
-        self.getClusterName(),
-        "spark",
+      self.getClusterName(),
       "spark",
       "--jars=file:///usr/lib/spark/examples/jars/spark-examples.jar " \
       + "--class=org.apache.spark.examples.ml.JavaIndexToStringExample " \
       + "--properties=" \
       +   "spark.driver.resource.gpu.amount=1," \
-      +   "spark.driver.resource.gpu.discoveryScript=" + get_gpu_resources_script \
+      +   "spark.driver.resource.gpu.discoveryScript=" + get_gpu_resources_script + "," \
       +   "spark.executor.resource.gpu.amount=1," \
       +   "spark.executor.resource.gpu.discoveryScript=" + get_gpu_resources_script
     )
@@ -214,7 +213,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_cuda_nvidia_with_spark_job(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
-    self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
 
     if self.getImageOs() == "debian" and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
       self.skipTest("CUDA 11 not supported on debian12")
@@ -244,7 +242,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       + "--class=org.apache.spark.examples.ml.JavaIndexToStringExample " \
       + "--properties=" \
       +   "spark.driver.resource.gpu.amount=1," \
-      +   "spark.driver.resource.gpu.discoveryScript=" + get_gpu_resources_script \
+      +   "spark.driver.resource.gpu.discoveryScript=" + get_gpu_resources_script + "," \
       +   "spark.executor.resource.gpu.amount=1," \
       +   "spark.executor.resource.gpu.discoveryScript=" + get_gpu_resources_script
     )
