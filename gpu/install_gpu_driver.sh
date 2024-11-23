@@ -33,7 +33,7 @@ readonly -A supported_os=(
 
 # dynamically define OS version test utility functions
 if [[ "$(os_id)" == "rocky" ]];
-then _os_version=$(os_version | sed -e 's/[^0-9]//g')
+then _os_version=$(os_version | sed -e 's/[^0-9].*$//g')
 else _os_version="$(os_version)"; fi
 for os_id_val in 'rocky' 'ubuntu' 'debian' ; do
   eval "function is_${os_id_val}() ( set +x ;  [[ \"$(os_id)\" == '${os_id_val}' ]] ; )"
