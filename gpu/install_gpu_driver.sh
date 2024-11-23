@@ -35,10 +35,15 @@ readonly -A supported_os=(
 for os_id_val in 'rocky' 'ubuntu' 'debian' ; do
   eval "function is_${os_id_val}() ( set +x ;  [[ \"$(os_id)\" == '${os_id_val}' ]] ; )"
 
+  # os_vercat depends on is_ubuntu and is_rocky so re-implement here
+  if   [[ "${os_id_val}" == "ubuntu" ]] ; then vernum=$(os_version | sed -e 's/[^0-9]//g')
+  elif [[ "${os_id_val}" == "rocky" ]]  ; then vernum=$(os_version | sed -e 's/[^0-9].*$//g')
+  else vernum="$(os_version)" ; fi
+
   for osver in $(echo "${supported_os["${os_id_val}"]}") ; do
-    eval "function is_${os_id_val}${osver}() ( set +x ; is_${os_id_val} && [[ \"$(os_version)\" == ${osver}* ]] ; )"
-    eval "function ge_${os_id_val}${osver}() ( set +x ; is_${os_id_val} && version_ge \"$(os_version)\" ${osver} ; )"
-    eval "function le_${os_id_val}${osver}() ( set +x ; is_${os_id_val} && version_le \"$(os_version)\" ${osver} ; )"
+    eval "function is_${os_id_val}${osver}() ( set +x ; is_${os_id_val} && [[ \"${vernum}}\" == ${osver}* ]] ; )"
+    eval "function ge_${os_id_val}${osver}() ( set +x ; is_${os_id_val} && version_ge \"${vernum}\" ${osver} ; )"
+    eval "function le_${os_id_val}${osver}() ( set +x ; is_${os_id_val} && version_le \"${vernum}\" ${osver} ; )"
   done
 done
 
