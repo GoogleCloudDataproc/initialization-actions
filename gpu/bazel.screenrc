@@ -1,0 +1,17 @@
+#
+# For debugging, uncomment the following line
+#
+
+# screen -L -t monitor 0 /bin/bash
+
+screen -L -t 2.0-debian10 1 sh -c '/bin/bash -x rapids/run-bazel-tests.sh 2.0-debian10 ; exec /bin/bash'
+#screen -L -t 2.0-rocky8   2 sh -c '/bin/bash -x rapids/run-bazel-tests.sh 2.0-rocky8   ; exec /bin/bash'
+#screen -L -t 2.0-ubuntu18 3 sh -c '/bin/bash -x rapids/run-bazel-tests.sh 2.0-ubuntu18 ; exec /bin/bash'
+
+#screen -L -t 2.1-debian11 4 sh -c '/bin/bash -x rapids/run-bazel-tests.sh 2.1-debian11 ; exec /bin/bash'
+#screen -L -t 2.1-rocky8   5 sh -c '/bin/bash -x rapids/run-bazel-tests.sh 2.1-rocky8   ; exec /bin/bash'
+#screen -L -t 2.1-ubuntu20 6 sh -c '/bin/bash -x rapids/run-bazel-tests.sh 2.1-ubuntu20 ; exec /bin/bash'
+
+#screen -L -t 2.2-debian12 7 sh -c '/bin/bash -x rapids/run-bazel-tests.sh 2.2-debian12 ; exec /bin/bash'
+#screen -L -t 2.2-rocky9   8 sh -c '/bin/bash -x rapids/run-bazel-tests.sh 2.2-rocky9   ; exec /bin/bash'
+#screen -L -t 2.2-ubuntu22 9 sh -c '/bin/bash -x rapids/run-bazel-tests.sh 2.2-ubuntu22 ; exec /bin/bash'
