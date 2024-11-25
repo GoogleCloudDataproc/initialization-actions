@@ -214,8 +214,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
 
-    if self.getImageOs() == "debian" and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("CUDA 11 not supported on debian12")
+    if self.getImageOs() == "debian" \
+    and self.getImageVersion() >= pkg_resources.parse_version("2.2") \
+    and cuda_version < "12":
+      self.skipTest("CUDA < 12 not supported on debian12")
 
     metadata = "install-gpu-agent=true,gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
