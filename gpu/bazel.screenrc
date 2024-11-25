@@ -1,8 +1,8 @@
 #
-# For debugging, uncomment the following line
+# For debugging, leave the following line uncommented.  For end to end testing, comment it instead.
 #
 
-# screen -L -t monitor 0 /bin/bash
+screen -L -t monitor 0 /bin/bash
 
 screen -L -t 2.0-debian10 1 sh -c '/bin/bash -x rapids/run-bazel-tests.sh 2.0-debian10 ; exec /bin/bash'
 #screen -L -t 2.0-rocky8   2 sh -c '/bin/bash -x rapids/run-bazel-tests.sh 2.0-rocky8   ; exec /bin/bash'
