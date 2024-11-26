@@ -128,23 +128,40 @@ readonly ROLE
 # CUDA version and Driver version
 # https://docs.nvidia.com/deeplearning/frameworks/support-matrix/index.html
 # https://developer.nvidia.com/cuda-downloads
+# Rocky8: 12.0: 525.147.05
 readonly -A DRIVER_FOR_CUDA=(
-          [11.8]="560.35.03"
-          [12.0]="525.60.13"  [12.4]="560.35.03"  [12.6]="560.35.03"
+          ["11.8"]="560.35.03"
+          ["12.0"]="525.60.13"  ["12.4"]="560.35.03"  ["12.6"]="560.35.03"
 )
 # https://developer.nvidia.com/cudnn-downloads
+if is_debuntu ; then
 readonly -A CUDNN_FOR_CUDA=(
-          [11.8]="9.5.1.17"
-          [12.0]="9.5.1.17"   [12.4]="9.5.1.17"   [12.6]="9.5.1.17"
+          ["11.8"]="9.5.1.17"
+          ["12.0"]="9.5.1.17"   ["12.4"]="9.5.1.17"   ["12.6"]="9.5.1.17"
 )
+elif is_rocky ; then
+# rocky:
+#   12.0: 8.8.1.3
+#   12.1: 8.9.3.28
+#   12.2: 8.9.7.29
+#   12.3: 9.0.0.312
+#   12.4: 9.1.1.17
+#   12.5: 9.2.1.18
+#   12.6: 9.5.1.17
+readonly -A CUDNN_FOR_CUDA=(
+          ["11.8"]="9.5.1.17"
+          ["12.0"]="8.8.1.3"   ["12.4"]="9.1.1.17"   ["12.6"]="9.5.1.17"
+)
+fi
 # https://developer.nvidia.com/nccl/nccl-download
+# 12.2: 2.19.3, 12.5: 2.21.5
 readonly -A NCCL_FOR_CUDA=(
-          [11.8]="2.15.5"
-          [12.0]="2.23.4"  [12.4]="2.23.4"     [12.6]="2.23.4"
+          ["11.8"]="2.15.5"
+          ["12.0"]="2.16.5"  ["12.4"]="2.23.4"     ["12.6"]="2.23.4"
 )
 readonly -A CUDA_SUBVER=(
-          [11.8]="11.8.0"
-          [12.0]="12.0.0"  [12.4]="12.4.1"     [12.6]="12.6.2"
+          ["11.8"]="11.8.0"
+          ["12.0"]="12.0.0"  ["12.4"]="12.4.1"     ["12.6"]="12.6.2"
 )
 
 RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
@@ -170,10 +187,11 @@ function is_cuda11() ( set +x ; [[ "${CUDA_VERSION%%.*}" == "11" ]] ; )
 function le_cuda11() ( set +x ; version_le "${CUDA_VERSION}" "11" ; )
 function ge_cuda11() ( set +x ; version_ge "${CUDA_VERSION}" "11" ; )
 
-readonly DEFAULT_DRIVER=${DRIVER_FOR_CUDA["${CUDA_VERSION}"]}
+readonly DEFAULT_DRIVER="${DRIVER_FOR_CUDA[${CUDA_VERSION}]}"
 DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' "${DEFAULT_DRIVER}")
-if ( is_debian11 || ge_ubuntu20 ) ; then DRIVER_VERSION="560.28.03" ; fi
-if ( is_ubuntu20 && le_cuda11 )   ; then DRIVER_VERSION="535.183.06" ; fi
+if ( is_debian11 || ge_ubuntu20 )                                ; then DRIVER_VERSION="560.28.03"  ; fi
+if ( is_ubuntu20 && le_cuda11 )                                  ; then DRIVER_VERSION="535.183.06" ; fi
+if ( is_rocky8 && version_le "${DATAPROC_IMAGE_VERSION}" "2.0" ) ; then DRIVER_VERSION="525.147.05" ; fi #553.22.1
 
 readonly DRIVER_VERSION
 readonly DRIVER=${DRIVER_VERSION%%.*}
@@ -243,9 +261,14 @@ function set_cuda_runfile_url() {
   local RUNFILE_DRIVER_VERSION="${DRIVER_VERSION}"
   local RUNFILE_CUDA_VERSION="${CUDA_FULL_VERSION}"
 
-  if ( ge_cuda12 && (le_debian11 || le_ubuntu18) ) ; then
-    RUNFILE_DRIVER_VERSION="525.60.13"
-    RUNFILE_CUDA_VERSION="12.0.0"
+  if ge_cuda12 ; then
+    if ( le_debian11 || le_ubuntu18 ) ; then
+      RUNFILE_DRIVER_VERSION="525.60.13"
+      RUNFILE_CUDA_VERSION="12.0.0"
+    elif ( le_rocky8 && version_le "${DATAPROC_IMAGE_VERSION}" "2.0" ) ; then
+      RUNFILE_DRIVER_VERSION="525.147.05"
+      RUNFILE_CUDA_VERSION="12.0.0"
+    fi
   elif lt_cuda12 ; then
     RUNFILE_DRIVER_VERSION="520.61.05"
     RUNFILE_CUDA_VERSION="11.8.0"
@@ -1068,20 +1091,21 @@ function install_dependencies() {
 
     local dnf_cmd="dnf -y -q install kernel-devel-${uname_r}"
     local kernel_devel_pkg_out="$(eval "${dnf_cmd} 2>&1")"
+    if [[ "$?" == "0" ]] ; then return 0 ; fi
+
     if [[ "${kernel_devel_pkg_out}" =~ 'Unable to find a match: kernel-devel-' ]] ; then
       # this kernel-devel may have been migrated to the vault
       local os_ver="$(echo $uname_r | perl -pe 's/.*el(\d+_\d+)\..*/$1/; s/_/./')"
       local vault="https://download.rockylinux.org/vault/rocky/${os_ver}"
-      execute_with_retries dnf -y -q --setopt=localpkg_gpgcheck=1 install \
+      dnf_cmd="dnf -y -q --setopt=localpkg_gpgcheck=1 install" \
         "${vault}/BaseOS/x86_64/os/Packages/k/kernel-${uname_r}.rpm" \
         "${vault}/BaseOS/x86_64/os/Packages/k/kernel-core-${uname_r}.rpm" \
         "${vault}/BaseOS/x86_64/os/Packages/k/kernel-modules-${uname_r}.rpm" \
         "${vault}/BaseOS/x86_64/os/Packages/k/kernel-modules-core-${uname_r}.rpm" \
         "${vault}/AppStream/x86_64/os/Packages/k/kernel-devel-${uname_r}.rpm"
-      sync
-    else
-      execute_with_retries "${dnf_cmd}"
     fi
+
+    execute_with_retries "${dnf_cmd}"
   fi
 }
 
