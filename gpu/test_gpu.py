@@ -111,7 +111,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                                     machine_suffix))
 
   @parameterized.parameters(
-      ("SINGLE",   ["m"],               GPU_T4, None,   "12.4"),
+      ("SINGLE",   ["m"],               GPU_T4, None,   "12.0"),
       ("STANDARD", ["m"],               GPU_T4, None,   "11.8"),
       ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4"),
       ("STANDARD", ["w-0", "w-1"],      None,   GPU_T4, "11.8"),
@@ -120,10 +120,13 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
 
-    if self.getImageOs() == "debian" \
-    and self.getImageVersion() >= pkg_resources.parse_version("2.2") \
-    and cuda_version < "12":
-      self.skipTest("CUDA < 12 not supported on debian12")
+    if self.getImageVersion() <= pkg_resources.parse_version("2.0") \
+    and pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.0"):
+      self.skipTest("CUDA > 12.0 not supported on Dataproc <= 2.0")
+
+    if self.getImageVersion() >= pkg_resources.parse_version("2.2") \
+    and pkg_resources.parse_version(cuda_version) < pkg_resources.parse_version("12.0"):
+      self.skipTest("CUDA < 12 not supported on  Dataproc >= 2.2")
 
     metadata = "gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
@@ -150,8 +153,13 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
     self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
 
-    if self.getImageOs() == "debian" and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("CUDA 11 not supported on debian12")
+    if self.getImageVersion() <= pkg_resources.parse_version("2.0") \
+    and pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.0"):
+      self.skipTest("CUDA > 12.0 not supported on Dataproc <= 2.0")
+
+    if self.getImageVersion() >= pkg_resources.parse_version("2.2") \
+    and pkg_resources.parse_version(cuda_version) < pkg_resources.parse_version("12.0"):
+      self.skipTest("CUDA < 12 not supported on  Dataproc >= 2.2")
 
     metadata = "gpu-driver-provider={},cuda-version={}".format(driver_provider, cuda_version)
 
@@ -207,25 +215,22 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
   @parameterized.parameters(
     ("SINGLE", ["m"], GPU_T4, None, "11.8"),
-    ("STANDARD", ["m"], GPU_T4, None, "11.8"),
-    ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "11.8"),
+    ("STANDARD", ["m"], GPU_T4, None, "12.0"),
+    ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4"),
     ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.8"),
-    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "12.4"),
+    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "12.0"),
   )
   def test_install_gpu_cuda_nvidia_with_spark_job(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
 
-    if self.getImageOs() == "debian" \
-    and self.getImageVersion() >= pkg_resources.parse_version("2.2") \
-    and cuda_version < "12":
-      self.skipTest("CUDA < 12 not supported on debian12")
+    if self.getImageVersion() <= pkg_resources.parse_version("2.0") \
+    and pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.0"):
+      self.skipTest("CUDA > 12.0 not supported on Dataproc <= 2.0")
 
-    # 24/11/25 19:58:06 ERROR org.apache.spark.SparkContext: Error initializing SparkContext.
-    # org.apache.spark.SparkException: No executor resource configs were not specified for the following task configs: gpu
-    if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
-      self.skipTest("Dataproc 2.0 has problems with CUDA < 12 not supported on debian12")
-
+    if self.getImageVersion() >= pkg_resources.parse_version("2.2") \
+    and pkg_resources.parse_version(cuda_version) < pkg_resources.parse_version("12.0"):
+      self.skipTest("CUDA < 12 not supported on  Dataproc >= 2.2")
 
     metadata = "install-gpu-agent=true,gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
