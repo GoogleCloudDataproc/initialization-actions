@@ -129,26 +129,35 @@ readonly ROLE
 # https://docs.nvidia.com/deeplearning/frameworks/support-matrix/index.html
 # https://developer.nvidia.com/cuda-downloads
 readonly -A DRIVER_FOR_CUDA=(
-          [11.8]="560.35.03" [12.4]="560.35.03"  [12.6]="560.35.03"
+          [11.8]="560.35.03"
+          [12.0]="525.60.13"  [12.4]="560.35.03"  [12.6]="560.35.03"
 )
 # https://developer.nvidia.com/cudnn-downloads
 readonly -A CUDNN_FOR_CUDA=(
-          [11.8]="9.5.1.17"   [12.4]="9.5.1.17"   [12.6]="9.5.1.17"
+          [11.8]="9.5.1.17"
+          [12.0]="9.5.1.17"   [12.4]="9.5.1.17"   [12.6]="9.5.1.17"
 )
 # https://developer.nvidia.com/nccl/nccl-download
 readonly -A NCCL_FOR_CUDA=(
-          [11.8]="2.15.5"     [12.4]="2.23.4"     [12.6]="2.23.4"
+          [11.8]="2.15.5"
+          [12.0]="2.23.4"  [12.4]="2.23.4"     [12.6]="2.23.4"
 )
 readonly -A CUDA_SUBVER=(
-          [11.8]="11.8.0"     [12.4]="12.4.1"     [12.6]="12.6.2"
+          [11.8]="11.8.0"
+          [12.0]="12.0.0"  [12.4]="12.4.1"     [12.6]="12.6.2"
 )
 
 RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 readonly DEFAULT_CUDA_VERSION='12.4'
 CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
-# CUDA 11 no longer supported on debian12 - 2024-11-22
-if ge_debian12 && version_le "${CUDA_VERSION%%.*}" "11" ; then
+if ( ge_debian12 && version_le "${CUDA_VERSION%%.*}" "11" ) ; then
+  # CUDA 11 no longer supported on debian12 - 2024-11-22
   CUDA_VERSION="${DEFAULT_CUDA_VERSION}"
+fi
+
+if ( version_ge "${CUDA_VERSION}" "12" && (le_debian11 || le_ubuntu18) ) ; then
+  # Only CUDA 12.0 supported on older debuntu
+  CUDA_VERSION="12.0"
 fi
 readonly CUDA_VERSION
 readonly CUDA_FULL_VERSION="${CUDA_SUBVER["${CUDA_VERSION}"]}"
