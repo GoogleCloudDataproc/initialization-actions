@@ -231,7 +231,7 @@ readonly NCCL_REPO_URL
 readonly NCCL_REPO_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/${nccl_shortname}/x86_64/7fa2af80.pub" # 3bf863cc.pub
 
 if ge_cuda12 ; then
-  if le_debian11 || le_ubuntu18
+  if (le_debian11 || le_ubuntu18)
   then CUDA_DRIVER_VERSION="525.60.13"         ; CUDA_URL_VERSION="12.0.0"
   else CUDA_DRIVER_VERSION="${DRIVER_VERSION}" ; CUDA_URL_VERSION="${CUDA_FULL_VERSION}" ; fi
 
