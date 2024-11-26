@@ -172,8 +172,8 @@ function ge_cuda11() ( set +x ; version_ge "${CUDA_VERSION}" "11" ; )
 
 readonly DEFAULT_DRIVER=${DRIVER_FOR_CUDA["${CUDA_VERSION}"]}
 DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' "${DEFAULT_DRIVER}")
-if is_debian11 || ge_ubuntu20 ; then DRIVER_VERSION="560.28.03" ; fi
-if is_ubuntu20 && le_cuda11 ; then DRIVER_VERSION="535.183.06" ; fi
+if ( is_debian11 || ge_ubuntu20 ) ; then DRIVER_VERSION="560.28.03" ; fi
+if ( is_ubuntu20 && le_cuda11 )   ; then DRIVER_VERSION="535.183.06" ; fi
 
 readonly DRIVER_VERSION
 readonly DRIVER=${DRIVER_VERSION%%.*}
@@ -239,13 +239,14 @@ NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}
 readonly NCCL_REPO_URL
 readonly NCCL_REPO_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/${nccl_shortname}/x86_64/7fa2af80.pub" # 3bf863cc.pub
 
-function set_cuda_runfile_url() {_
+function set_cuda_runfile_url() {
   local RUNFILE_DRIVER_VERSION="${DRIVER_VERSION}"
   local RUNFILE_CUDA_VERSION="${CUDA_FULL_VERSION}"
+
   if ( ge_cuda12 && (le_debian11 || le_ubuntu18) ) ; then
     RUNFILE_DRIVER_VERSION="525.60.13"
     RUNFILE_CUDA_VERSION="12.0.0"
-  elif lt_cuda12
+  elif lt_cuda12 ; then
     RUNFILE_DRIVER_VERSION="520.61.05"
     RUNFILE_CUDA_VERSION="11.8.0"
   fi
