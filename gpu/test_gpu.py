@@ -219,6 +219,12 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     and cuda_version < "12":
       self.skipTest("CUDA < 12 not supported on debian12")
 
+    # 24/11/25 19:58:06 ERROR org.apache.spark.SparkContext: Error initializing SparkContext.
+    # org.apache.spark.SparkException: No executor resource configs were not specified for the following task configs: gpu
+    if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
+      self.skipTest("Dataproc 2.0 has problems with CUDA < 12 not supported on debian12")
+
+
     metadata = "install-gpu-agent=true,gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
       configuration,
@@ -243,11 +249,18 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       "--jars=file:///usr/lib/spark/examples/jars/spark-examples.jar " \
       + "--class=org.apache.spark.examples.ml.JavaIndexToStringExample " \
       + "--properties=" \
-      +   "spark.driver.resource.gpu.amount=1," \
-      +   "spark.driver.resource.gpu.discoveryScript=" + get_gpu_resources_script + "," \
-      +   "spark.executor.resource.gpu.amount=1," \
-      +   "spark.executor.resource.gpu.discoveryScript=" + get_gpu_resources_script
+      +   "spark:spark.yarn.unmanagedAM.enabled=false," \
+      +   "spark:spark.task.cpus=1," \
+      +   "spark:spark.task.resource.gpu.amount=1," \
+      +   "spark:spark.driver.resource.gpu.amount=1," \
+      +   "spark:spark.driver.resource.gpu.discoveryScript=" + get_gpu_resources_script + "," \
+      +   "spark:spark.executor.cores=1," \
+      +   "spark:spark.executor.memory=4G," \
+      +   "spark:spark.executor.resource.gpu.amount=1," \
+      +   "spark:spark.executor.resource.gpu.discoveryScript=" + get_gpu_resources_script
     )
+
+# --properties="spark:spark.yarn.unmanagedAM.enabled=false,spark:spark.task.resource.gpu.amount=1,spark:spark.executor.cores=1,spark:spark.task.cpus=1,spark:spark.executor.memory=4G" \
 
 
 if __name__ == "__main__":

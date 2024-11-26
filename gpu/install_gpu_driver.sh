@@ -129,7 +129,7 @@ readonly ROLE
 # https://docs.nvidia.com/deeplearning/frameworks/support-matrix/index.html
 # https://developer.nvidia.com/cuda-downloads
 readonly -A DRIVER_FOR_CUDA=(
-          [11.8]="525.147.05" [12.4]="550.54.14"  [12.6]="560.35.06"
+          [11.8]="560.35.03" [12.4]="560.35.03"  [12.6]="560.35.03"
 )
 # https://developer.nvidia.com/cudnn-downloads
 readonly -A CUDNN_FOR_CUDA=(
@@ -148,7 +148,7 @@ readonly DEFAULT_CUDA_VERSION='12.4'
 CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
 # CUDA 11 no longer supported on debian12 - 2024-11-22
 if ge_debian12 && version_le "${CUDA_VERSION%%.*}" "11" ; then
-  CUDA_VERSION="12.4"
+  CUDA_VERSION="${DEFAULT_CUDA_VERSION}"
 fi
 readonly CUDA_VERSION
 readonly CUDA_FULL_VERSION="${CUDA_SUBVER["${CUDA_VERSION}"]}"
@@ -169,16 +169,20 @@ if is_ubuntu20 && le_cuda11 ; then DRIVER_VERSION="535.183.06" ; fi
 readonly DRIVER_VERSION
 readonly DRIVER=${DRIVER_VERSION%%.*}
 
-# Parameters for NVIDIA-provided CUDNN library
+readonly DEFAULT_CUDNN8_VERSION="8.0.5.39"
+readonly DEFAULT_CUDNN9_VERSION="9.1.0.70"
+
+# Parameters for NVIDIA-provided cuDNN library
 readonly DEFAULT_CUDNN_VERSION=${CUDNN_FOR_CUDA["${CUDA_VERSION}"]}
 CUDNN_VERSION=$(get_metadata_attribute 'cudnn-version' "${DEFAULT_CUDNN_VERSION}")
 function is_cudnn8() ( set +x ; [[ "${CUDNN_VERSION%%.*}" == "8" ]] ; )
 function is_cudnn9() ( set +x ; [[ "${CUDNN_VERSION%%.*}" == "9" ]] ; )
-if is_rocky  && (version_le "${CUDNN_VERSION}" "8.0.5.39") ; then
-  CUDNN_VERSION="8.0.5.39"
+# The minimum cuDNN version supported by rocky is ${DEFAULT_CUDNN8_VERSION}
+if is_rocky  && (version_le "${CUDNN_VERSION}" "${DEFAULT_CUDNN8_VERSION}") ; then
+  CUDNN_VERSION="${DEFAULT_CUDNN8_VERSION}"
 elif (ge_ubuntu20 || ge_debian12) && is_cudnn8 ; then
   # cuDNN v8 is not distribution for ubuntu20+, debian12
-  CUDNN_VERSION="9.1.0.70"
+  CUDNN_VERSION="${DEFAULT_CUDNN9_VERSION}"
 elif (le_ubuntu18 || le_debian11) && is_cudnn9 ; then
   # cuDNN v9 is not distributed for ubuntu18, debian10, debian11 ; fall back to 8
   CUDNN_VERSION="8.8.0.121"
@@ -195,7 +199,7 @@ readonly USERSPACE_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_USER
 
 # Short name for urls
 if is_ubuntu22  ; then
-    # at the time of writing 20240721 there is no ubuntu2204 in the index of repos at
+    # at the time of writing 20241125 there is no ubuntu2204 in the index of repos at
     # https://developer.download.nvidia.com/compute/machine-learning/repos/
     # use packages from previous release until such time as nvidia
     # release ubuntu2204 builds
@@ -226,13 +230,16 @@ NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}
 readonly NCCL_REPO_URL
 readonly NCCL_REPO_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/${nccl_shortname}/x86_64/7fa2af80.pub" # 3bf863cc.pub
 
-readonly -A DEFAULT_NVIDIA_CUDA_URLS=(
-  [11.8]="${NVIDIA_BASE_DL_URL}/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run"
-  [12.1]="${NVIDIA_BASE_DL_URL}/cuda/12.1.0/local_installers/cuda_12.1.0_530.30.02_linux.run"
-  [12.4]="${NVIDIA_BASE_DL_URL}/cuda/12.4.0/local_installers/cuda_12.4.0_550.54.14_linux.run"
-  [12.6]="${NVIDIA_BASE_DL_URL}/cuda/12.6.2/local_installers/cuda_12.6.2_560.35.03_linux.run"
-)
-readonly DEFAULT_NVIDIA_CUDA_URL=${DEFAULT_NVIDIA_CUDA_URLS["${CUDA_VERSION}"]}
+if ge_cuda12 ; then
+  if le_debian11 || le_ubuntu18
+  then CUDA_DRIVER_VERSION="525.60.13"         ; CUDA_URL_VERSION="12.0.0"
+  else CUDA_DRIVER_VERSION="${DRIVER_VERSION}" ; CUDA_URL_VERSION="${CUDA_FULL_VERSION}" ; fi
+
+  readonly DEFAULT_NVIDIA_CUDA_URL="${NVIDIA_BASE_DL_URL}/cuda/${CUDA_URL_VERSION}/local_installers/cuda_${CUDA_URL_VERSION}_${CUDA_DRIVER_VERSION}_linux.run"
+else
+  readonly DEFAULT_NVIDIA_CUDA_URL="https://developer.download.nvidia.com/compute/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run"
+fi
+
 NVIDIA_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_CUDA_URL}")
 readonly NVIDIA_CUDA_URL
 
@@ -242,15 +249,18 @@ readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_REPO_URL}/cuda-${shortname}.repo"
 CUDNN_TARBALL="cudnn-${CUDA_VERSION}-linux-x64-v${CUDNN_VERSION}.tgz"
 CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN_VERSION%.*}/${CUDNN_TARBALL}"
 if ( version_ge "${CUDNN_VERSION}" "8.3.1.22" ); then
+  # When version is greater than or equal to 8.3.1.22 but less than 8.4.1.50 use this format
   CUDNN_TARBALL="cudnn-linux-x86_64-${CUDNN_VERSION}_cuda${CUDA_VERSION%.*}-archive.tar.xz"
   if ( version_le "${CUDNN_VERSION}" "8.4.1.50" ); then
+    # When cuDNN version is greater than or equal to 8.4.1.50 use this format
     CUDNN_TARBALL="cudnn-linux-x86_64-${CUDNN_VERSION}_cuda${CUDA_VERSION}-archive.tar.xz"
   fi
+  # Use legacy url format with one of the tarball name formats depending on version as above
   CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN_VERSION%.*}/local_installers/${CUDA_VERSION}/${CUDNN_TARBALL}"
 fi
 if ( version_ge "${CUDA_VERSION}" "12.0" ); then
-  # When cuda version is greater than 12.0
-  CUDNN_TARBALL="cudnn-linux-x86_64-${CUDNN_VERSION}_cuda12-archive.tar.xz"
+  # Use modern url format When cuda version is greater than or equal to 12.0
+  CUDNN_TARBALL="cudnn-linux-x86_64-${CUDNN_VERSION}_cuda${CUDA_VERSION%%.*}-archive.tar.xz"
   CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/cudnn/redist/cudnn/linux-x86_64/${CUDNN_TARBALL}"
 fi
 readonly CUDNN_TARBALL
