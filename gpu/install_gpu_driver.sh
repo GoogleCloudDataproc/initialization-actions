@@ -230,18 +230,27 @@ NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}
 readonly NCCL_REPO_URL
 readonly NCCL_REPO_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/${nccl_shortname}/x86_64/7fa2af80.pub" # 3bf863cc.pub
 
-if ge_cuda12 ; then
-  if (le_debian11 || le_ubuntu18)
-  then CUDA_DRIVER_VERSION="525.60.13"         ; CUDA_URL_VERSION="12.0.0"
-  else CUDA_DRIVER_VERSION="${DRIVER_VERSION}" ; CUDA_URL_VERSION="${CUDA_FULL_VERSION}" ; fi
+function set_cuda_runfile_url() {_
+  local RUNFILE_DRIVER_VERSION="${DRIVER_VERSION}"
+  local RUNFILE_CUDA_VERSION="${CUDA_FULL_VERSION}"
+  if ( ge_cuda12 && (le_debian11 || le_ubuntu18) ) ; then
+    RUNFILE_DRIVER_VERSION="525.60.13"
+    RUNFILE_CUDA_VERSION="12.0.0"
+  elif lt_cuda12
+    RUNFILE_DRIVER_VERSION="520.61.05"
+    RUNFILE_CUDA_VERSION="11.8.0"
+  fi
 
-  readonly DEFAULT_NVIDIA_CUDA_URL="${NVIDIA_BASE_DL_URL}/cuda/${CUDA_URL_VERSION}/local_installers/cuda_${CUDA_URL_VERSION}_${CUDA_DRIVER_VERSION}_linux.run"
-else
-  readonly DEFAULT_NVIDIA_CUDA_URL="https://developer.download.nvidia.com/compute/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run"
-fi
+  readonly RUNFILE_FILENAME="cuda_${RUNFILE_CUDA_VERSION}_${RUNFILE_DRIVER_VERSION}_linux.run"
+  CUDA_RELEASE_BASE_URL="${NVIDIA_BASE_DL_URL}/cuda/${RUNFILE_CUDA_VERSION}"
+  DEFAULT_NVIDIA_CUDA_URL="${CUDA_RELEASE_BASE_URL}/local_installers/${RUNFILE_FILENAME}"
+  readonly DEFAULT_NVIDIA_CUDA_URL
 
-NVIDIA_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_CUDA_URL}")
-readonly NVIDIA_CUDA_URL
+  NVIDIA_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_CUDA_URL}")
+  readonly NVIDIA_CUDA_URL
+}
+
+set_cuda_runfile_url
 
 # Parameter for NVIDIA-provided Rocky Linux GPU driver
 readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_REPO_URL}/cuda-${shortname}.repo"
