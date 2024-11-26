@@ -47,16 +47,15 @@ attached GPU adapters.
     CLUSTER_NAME=<cluster_name>
     gcloud dataproc clusters create ${CLUSTER_NAME} \
         --region ${REGION} \
-        --master-accelerator type=nvidia-tesla-v100 \
-        --worker-accelerator type=nvidia-tesla-v100,count=4 \
+        --master-accelerator type=nvidia-tesla-t4 \
+        --worker-accelerator type=nvidia-tesla-t4,count=4 \
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh
     ```
 
 1.  Use the `gcloud` command to create a new cluster with NVIDIA GPU drivers
     and CUDA installed by initialization action as well as the GPU
     monitoring service. The monitoring service is supported on Dataproc 2.0+ Debian
-    and Ubuntu images. Please create a Github issue if support is needed for other
-    Dataproc images.
+    and Ubuntu images.
 
     *Prerequisite:* Create GPU metrics in
     [Cloud Monitoring](https://cloud.google.com/monitoring/docs/) using Google
@@ -90,8 +89,8 @@ attached GPU adapters.
     CLUSTER_NAME=<cluster_name>
     gcloud dataproc clusters create ${CLUSTER_NAME} \
         --region ${REGION} \
-        --master-accelerator type=nvidia-tesla-v100 \
-        --worker-accelerator type=nvidia-tesla-v100,count=4 \
+        --master-accelerator type=nvidia-tesla-t4 \
+        --worker-accelerator type=nvidia-tesla-t4,count=4 \
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh \
         --metadata install-gpu-agent=true \
         --scopes https://www.googleapis.com/auth/monitoring.write
@@ -136,12 +135,12 @@ attached GPU adapters.
 #### GPU Scheduling in YARN:
 
 YARN is the default Resource Manager for Dataproc. To use GPU scheduling feature
-in Spark, it requires YARN version >= 2.10 or >=3.1.1. If intended to use Spark
+in Spark, it requires YARN version >= 2.10 or >= 3.1.1. If intended to use Spark
 with Deep Learning use case, it recommended to use YARN >= 3.1.3 to get support
-for [nvidia-docker version 2](https://github.com/NVIDIA/nvidia-docker).
+for [nvidia-container-toolkit](https://github.com/NVIDIA/nvidia-container-toolkit).
 
 In current Dataproc set up, we enable GPU resource isolation by initialization
-script without NVIDIA Docker, you can find more information at
+script with NVIDIA container toolkit.  You can find more information at
 [NVIDIA Spark RAPIDS getting started guide](https://nvidia.github.io/spark-rapids/).
 
 #### cuDNN
