@@ -805,7 +805,7 @@ function load_kernel_module() {
 
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
-  if ge_debian12 && is_src_os ; then
+  if ( ge_debian12 && is_src_os ) ; then
     add_nonfree_components
     add_repo_nvidia_container_toolkit
     apt-get update -qq
@@ -819,7 +819,7 @@ function install_nvidia_gpu_driver() {
           libglvnd0 \
           libcuda1
     #clear_dkms_key
-  elif le_ubuntu18 || le_debian10 || (ge_debian12 && le_cuda11) ; then
+  elif ( le_ubuntu18 || le_debian10 || (ge_debian12 && le_cuda11) ) ; then
 
     install_nvidia_userspace_runfile
 
