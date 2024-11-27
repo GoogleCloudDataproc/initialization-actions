@@ -1092,7 +1092,9 @@ function install_dependencies() {
 
     local dnf_cmd="dnf -y -q install kernel-devel-${uname_r}"
     local install_log="${tmpdir}/install.log"
+    set +e
     eval "${dnf_cmd}" > "${install_log}" 2>&1
+    set -e
     local retval="$?"
 
     if [[ "${retval}" == "0" ]] ; then return ; fi
