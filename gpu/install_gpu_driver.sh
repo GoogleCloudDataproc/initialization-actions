@@ -192,6 +192,7 @@ DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' "${DEFAULT_DRIVER}"
 if ( is_debian11 || is_ubuntu20 ) ; then DRIVER_VERSION="560.28.03"  ; fi
 if ( is_ubuntu20 && le_cuda11 )   ; then DRIVER_VERSION="535.183.06" ; fi
 if ( is_rocky && le_cuda11 )      ; then DRIVER_VERSION="525.147.05" ; fi #553.22.1
+if ( ge_ubuntu22 && version_le "${CUDA_VERSION}" "12.0" ) ; then DRIVER_VERSION="560.28.03"  ; fi
 
 readonly DRIVER_VERSION
 readonly DRIVER=${DRIVER_VERSION%%.*}
