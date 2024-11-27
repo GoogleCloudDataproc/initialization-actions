@@ -167,8 +167,8 @@ readonly -A CUDA_SUBVER=(
 RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 readonly DEFAULT_CUDA_VERSION='12.4'
 CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
-if ( ge_debian12 && version_le "${CUDA_VERSION%%.*}" "11" ) ; then
-  # CUDA 11 no longer supported on debian12 - 2024-11-22
+if ( ( ge_debian12 || ge_rocky9 ) && version_le "${CUDA_VERSION%%.*}" "11" ) ; then
+  # CUDA 11 no longer supported on debian12 - 2024-11-22, rocky9 - 2024-11-27
   CUDA_VERSION="${DEFAULT_CUDA_VERSION}"
 fi
 
@@ -180,18 +180,18 @@ readonly CUDA_VERSION
 readonly CUDA_FULL_VERSION="${CUDA_SUBVER["${CUDA_VERSION}"]}"
 
 function is_cuda12() ( set +x ; [[ "${CUDA_VERSION%%.*}" == "12" ]] ; )
-function le_cuda12() ( set +x ; version_le "${CUDA_VERSION}" "12" ; )
-function ge_cuda12() ( set +x ; version_ge "${CUDA_VERSION}" "12" ; )
+function le_cuda12() ( set +x ; version_le "${CUDA_VERSION%%.*}" "12" ; )
+function ge_cuda12() ( set +x ; version_ge "${CUDA_VERSION%%.*}" "12" ; )
 
 function is_cuda11() ( set +x ; [[ "${CUDA_VERSION%%.*}" == "11" ]] ; )
-function le_cuda11() ( set +x ; version_le "${CUDA_VERSION}" "11" ; )
-function ge_cuda11() ( set +x ; version_ge "${CUDA_VERSION}" "11" ; )
+function le_cuda11() ( set +x ; version_le "${CUDA_VERSION%%.*}" "11" ; )
+function ge_cuda11() ( set +x ; version_ge "${CUDA_VERSION%%.*}" "11" ; )
 
 readonly DEFAULT_DRIVER="${DRIVER_FOR_CUDA[${CUDA_VERSION}]}"
 DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' "${DEFAULT_DRIVER}")
-if ( is_debian11 || ge_ubuntu20 )                                ; then DRIVER_VERSION="560.28.03"  ; fi
-if ( is_ubuntu20 && le_cuda11 )                                  ; then DRIVER_VERSION="535.183.06" ; fi
-if ( is_rocky8 && version_le "${DATAPROC_IMAGE_VERSION}" "2.0" ) ; then DRIVER_VERSION="525.147.05" ; fi #553.22.1
+if ( is_debian11 || is_ubuntu20 ) ; then DRIVER_VERSION="560.28.03"  ; fi
+if ( is_ubuntu20 && le_cuda11 )   ; then DRIVER_VERSION="535.183.06" ; fi
+if ( is_rocky && le_cuda11 )      ; then DRIVER_VERSION="525.147.05" ; fi #553.22.1
 
 readonly DRIVER_VERSION
 readonly DRIVER=${DRIVER_VERSION%%.*}
