@@ -128,6 +128,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
       self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; image out of date")
 
+    if pkg_resources.parse_version(cuda_version) == pkg_resources.parse_version("12.0") \
+    and ( self.getImageOs() == 'debian' and self.getImageVersion() >= pkg_resources.parse_version("2.2") ):
+      self.skipTest("CUDA == 12.0 not supported on debian 12")
+
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.0") \
     and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
           ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
@@ -166,6 +170,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
     if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
       self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; image out of date")
+
+    if pkg_resources.parse_version(cuda_version) == pkg_resources.parse_version("12.0") \
+    and ( self.getImageOs() == 'debian' and self.getImageVersion() >= pkg_resources.parse_version("2.2") ):
+      self.skipTest("CUDA == 12.0 not supported on debian 12")
 
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.0") \
     and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
@@ -244,6 +252,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
     if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
       self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; image out of date")
+
+    if pkg_resources.parse_version(cuda_version) == pkg_resources.parse_version("12.0") \
+    and ( self.getImageOs() == 'debian' and self.getImageVersion() >= pkg_resources.parse_version("2.2") ):
+      self.skipTest("CUDA == 12.0 not supported on debian 12")
 
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.0") \
     and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
