@@ -42,6 +42,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_default_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
+    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; image out of date")
 
     metadata = None
     if driver_provider is not None:
@@ -65,6 +67,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_without_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
+    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; image out of date")
 
     metadata = "install-gpu-agent=false"
     if driver_provider is not None:
@@ -90,6 +94,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_with_agent(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider):
+    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; image out of date")
 
     metadata = "install-gpu-agent=true"
     if driver_provider is not None:
@@ -119,6 +125,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
+    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; image out of date")
 
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.0") \
     and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
@@ -156,6 +164,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
     self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
 
+    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; image out of date")
+
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.0") \
     and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
           ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
@@ -190,6 +201,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   )
   def test_gpu_allocation(self, configuration, master_accelerator,
                           worker_accelerator, driver_provider):
+    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; image out of date")
 
     metadata = None
     if driver_provider is not None:
@@ -228,6 +241,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_cuda_nvidia_with_spark_job(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
+
+    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; image out of date")
 
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.0") \
     and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \

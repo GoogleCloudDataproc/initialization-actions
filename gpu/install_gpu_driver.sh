@@ -187,12 +187,14 @@ function is_cuda11() ( set +x ; [[ "${CUDA_VERSION%%.*}" == "11" ]] ; )
 function le_cuda11() ( set +x ; version_le "${CUDA_VERSION%%.*}" "11" ; )
 function ge_cuda11() ( set +x ; version_ge "${CUDA_VERSION%%.*}" "11" ; )
 
-readonly DEFAULT_DRIVER="${DRIVER_FOR_CUDA[${CUDA_VERSION}]}"
+DEFAULT_DRIVER="${DRIVER_FOR_CUDA[${CUDA_VERSION}]}"
+if ( ge_ubuntu22 && version_le "${CUDA_VERSION}" "12.0" ) ; then
+                                         DEFAULT_DRIVER="560.28.03"  ; fi
+if ( is_debian11 || is_ubuntu20 ) ; then DEFAULT_DRIVER="560.28.03"  ; fi
+if ( is_rocky    && le_cuda11 )   ; then DEFAULT_DRIVER="525.147.05" ; fi
+if ( is_ubuntu20 && le_cuda11 )   ; then DEFAULT_DRIVER="535.183.06" ; fi
+if ( is_rocky9   && ge_cuda12 )   ; then DEFAULT_DRIVER="565.57.01"  ; fi
 DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' "${DEFAULT_DRIVER}")
-if ( is_debian11 || is_ubuntu20 ) ; then DRIVER_VERSION="560.28.03"  ; fi
-if ( is_ubuntu20 && le_cuda11 )   ; then DRIVER_VERSION="535.183.06" ; fi
-if ( is_rocky && le_cuda11 )      ; then DRIVER_VERSION="525.147.05" ; fi #553.22.1
-if ( ge_ubuntu22 && version_le "${CUDA_VERSION}" "12.0" ) ; then DRIVER_VERSION="560.28.03"  ; fi
 
 readonly DRIVER_VERSION
 readonly DRIVER=${DRIVER_VERSION%%.*}
