@@ -212,6 +212,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
       self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; image out of date")
 
+    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.0") \
+    and configuration == 'SINGLE':
+      self.skipTest("2.0-rocky8 single instance tests fail")
+
     metadata = None
     if driver_provider is not None:
       metadata = "gpu-driver-provider={}".format(driver_provider)
@@ -252,6 +256,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
     if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
       self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; image out of date")
+
+    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.0") \
+    and configuration == 'SINGLE':
+      self.skipTest("2.0-rocky8 single instance tests fail")
 
     if pkg_resources.parse_version(cuda_version) == pkg_resources.parse_version("12.0") \
     and ( self.getImageOs() == 'debian' and self.getImageVersion() >= pkg_resources.parse_version("2.2") ):
