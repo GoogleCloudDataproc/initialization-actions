@@ -269,7 +269,7 @@ function set_cuda_runfile_url() {
       RUNFILE_DRIVER_VERSION="525.147.05"
       RUNFILE_CUDA_VERSION="12.0.0"
     fi
-  elif lt_cuda12 ; then
+  else
     RUNFILE_DRIVER_VERSION="520.61.05"
     RUNFILE_CUDA_VERSION="11.8.0"
   fi
