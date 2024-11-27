@@ -805,8 +805,9 @@ function install_cuda_toolkit() {
   if is_debuntu ; then
 #    if is_ubuntu ; then execute_with_retries "apt-get install -y -qq --no-install-recommends cuda-drivers-${DRIVER}=${DRIVER_VERSION}-1" ; fi
     execute_with_retries apt-get install -y -qq --no-install-recommends ${cuda_package} ${cudatk_package}
-     sync
+    sync
   elif is_rocky ; then
+    # rocky9: cuda-11-[7,8], cuda-12-[1..6]
     execute_with_retries dnf -y -q install "${cudatk_package}"
     sync
   fi
@@ -1090,19 +1091,23 @@ function install_dependencies() {
     execute_with_retries dnf -y -q install pciutils gcc screen
 
     local dnf_cmd="dnf -y -q install kernel-devel-${uname_r}"
-    local kernel_devel_pkg_out="$(eval "${dnf_cmd} 2>&1")"
-    if [[ "$?" == "0" ]] ; then return 0 ; fi
+    local install_log="${tmpdir}/install.log"
+    eval "${dnf_cmd}" > "${install_log}" 2>&1
+    local retval="$?"
 
-    if [[ "${kernel_devel_pkg_out}" =~ 'Unable to find a match: kernel-devel-' ]] ; then
+    if [[ "${retval}" == "0" ]] ; then return ; fi
+
+    if grep -q 'Unable to find a match: kernel-devel-' "${install_log}" ; then
       # this kernel-devel may have been migrated to the vault
       local os_ver="$(echo $uname_r | perl -pe 's/.*el(\d+_\d+)\..*/$1/; s/_/./')"
       local vault="https://download.rockylinux.org/vault/rocky/${os_ver}"
-      dnf_cmd="dnf -y -q --setopt=localpkg_gpgcheck=1 install" \
+      dnf_cmd="$(echo dnf -y -q --setopt=localpkg_gpgcheck=1 install \
         "${vault}/BaseOS/x86_64/os/Packages/k/kernel-${uname_r}.rpm" \
         "${vault}/BaseOS/x86_64/os/Packages/k/kernel-core-${uname_r}.rpm" \
         "${vault}/BaseOS/x86_64/os/Packages/k/kernel-modules-${uname_r}.rpm" \
         "${vault}/BaseOS/x86_64/os/Packages/k/kernel-modules-core-${uname_r}.rpm" \
         "${vault}/AppStream/x86_64/os/Packages/k/kernel-devel-${uname_r}.rpm"
+       )"
     fi
 
     execute_with_retries "${dnf_cmd}"
