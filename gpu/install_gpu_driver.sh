@@ -994,7 +994,8 @@ function configure_gpu_script() {
   # need to update the getGpusResources.sh script to look for MIG devices since if multiple GPUs nvidia-smi still
   # lists those because we only disable the specific GIs via CGROUPs. Here we just create it based off of:
   # https://raw.githubusercontent.com/apache/spark/master/examples/src/main/scripts/getGpusResources.sh
-  cat > ${spark_gpu_script_dir}/getGpusResources.sh <<'EOF'
+  local -r gpus_resources_script="${spark_gpu_script_dir}/getGpusResources.sh"
+  cat > "${gpus_resources_script}" <<'EOF'
 #!/usr/bin/env bash
 
 #
@@ -1019,7 +1020,12 @@ ADDRS=$(nvidia-smi --query-gpu=index --format=csv,noheader | perl -e 'print(join
 echo {\"name\": \"gpu\", \"addresses\":[${ADDRS}]}
 EOF
 
-  chmod a+rx "${spark_gpu_script_dir}/getGpusResources.sh"
+  chmod a+rx "${gpus_resources_script}"
+
+  local spark_defaults_conf="/etc/spark/conf.dist/spark-defaults.conf"
+  if ! grep spark.executor.resource.gpu.discoveryScript "${spark_defaults_conf}" ; then
+    echo "spark.executor.resource.gpu.discoveryScript=${gpus_resources_script}" >> "${spark_defaults_conf}"
+  fi
 }
 
 function configure_gpu_isolation() {

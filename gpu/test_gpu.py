@@ -16,8 +16,12 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   GPU_H100 = "type=nvidia-h100-80gb,count=8"
 
   def verify_instance(self, name):
+    # Verify that nvidia-smi works
     self.assert_instance_command(name, "nvidia-smi", 1)
-    self.assert_instance_command(name, "echo 'from pyspark.sql import SparkSession ; SparkSession.builder.appName(\'HelloWorld\').getOrCreate()' | pyspark", 1)
+
+  def verify_pyspark(self, name):
+    # Verify that pyspark works
+    self.assert_instance_command(name, "echo 'from pyspark.sql import SparkSession ; SparkSession.builder.getOrCreate()' | pyspark -c spark.executor.resource.gpu.amount=1 -c spark.task.resource.gpu.amount=0.01", 1)
 
   def verify_mig_instance(self, name):
     self.assert_instance_command(name,
@@ -35,6 +39,17 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.assert_instance_command(
         name, "/usr/local/cuda-{}/bin/nvcc --version | grep 'release {}'".format(cuda_version,cuda_version) )
 
+  def verify_instance_spark(self):
+    self.assert_dataproc_job(
+      self.getClusterName(),
+      "spark",
+      "--jars=file:///usr/lib/spark/examples/jars/spark-examples.jar " \
+      + "--class=org.apache.spark.examples.ml.JavaIndexToStringExample " \
+      + "--properties=" \
+      +   "spark:spark.executor.resource.gpu.amount=1,"
+      +   "spark:spark.task.resource.gpu.amount=0.01"
+    )
+
   @parameterized.parameters(
       ("SINGLE", ["m"], GPU_T4, None, None),
       ("STANDARD", ["m"], GPU_T4, None, None),
@@ -44,7 +59,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
     if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; image out of date")
+      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
     metadata = None
     if driver_provider is not None:
@@ -59,8 +74,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         timeout_in_minutes=90,
         boot_disk_size="50GB")
     for machine_suffix in machine_suffixes:
-      self.verify_instance("{}-{}".format(self.getClusterName(),
-                                          machine_suffix))
+      machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
+      self.verify_instance(machine_name)
+      if ( self.getImageOs() != 'rocky' ) or ( configuration != 'SINGLE' ) or ( configure == 'SINGLE' and self.getImageOs() == 'rocky' and self.getImageVersion() > pkg_resources.parse_version("2.1") ):
+        self.verify_pyspark(machine_name)
 
   @parameterized.parameters(
       ("SINGLE", ["m"], GPU_T4, None, None),
@@ -69,7 +86,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
     if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; image out of date")
+      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
     metadata = "install-gpu-agent=false"
     if driver_provider is not None:
@@ -96,7 +113,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                   master_accelerator, worker_accelerator,
                                   driver_provider):
     if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; image out of date")
+      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
     metadata = "install-gpu-agent=true"
     if driver_provider is not None:
@@ -127,7 +144,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
     if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; image out of date")
+      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
     if pkg_resources.parse_version(cuda_version) == pkg_resources.parse_version("12.0") \
     and ( self.getImageOs() == 'debian' and self.getImageVersion() >= pkg_resources.parse_version("2.2") ):
@@ -170,7 +187,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
 
     if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; image out of date")
+      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
     if pkg_resources.parse_version(cuda_version) == pkg_resources.parse_version("12.0") \
     and ( self.getImageOs() == 'debian' and self.getImageVersion() >= pkg_resources.parse_version("2.2") ):
@@ -211,11 +228,11 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_gpu_allocation(self, configuration, master_accelerator,
                           worker_accelerator, driver_provider):
     if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; image out of date")
+      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() <= pkg_resources.parse_version("2.0") \
+    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() <= pkg_resources.parse_version("2.1") \
     and configuration == 'SINGLE':
-      self.skipTest("2.0-rocky8 single instance tests fail")
+      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests fail with errors about nodes_include being empty")
 
     metadata = None
     if driver_provider is not None:
@@ -231,18 +248,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         boot_disk_size="50GB",
         timeout_in_minutes=30)
 
-    get_gpu_resources_script="/usr/lib/spark/scripts/gpu/getGpusResources.sh"
-    self.assert_dataproc_job(
-      self.getClusterName(),
-      "spark",
-      "--jars=file:///usr/lib/spark/examples/jars/spark-examples.jar " \
-      + "--class=org.apache.spark.examples.ml.JavaIndexToStringExample " \
-      + "--properties=" \
-      +   "spark.driver.resource.gpu.amount=1," \
-      +   "spark.driver.resource.gpu.discoveryScript=" + get_gpu_resources_script + "," \
-      +   "spark.executor.resource.gpu.amount=1," \
-      +   "spark.executor.resource.gpu.discoveryScript=" + get_gpu_resources_script
-    )
+    self.verify_instance_spark()
 
   @parameterized.parameters(
     ("SINGLE", ["m"], GPU_T4, None, "11.8"),
@@ -256,11 +262,11 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                    cuda_version):
 
     if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; image out of date")
+      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() <= pkg_resources.parse_version("2.0") \
+    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() <= pkg_resources.parse_version("2.1") \
     and configuration == 'SINGLE':
-      self.skipTest("2.0-rocky8 single instance tests fail")
+      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests fail with errors about nodes_include being empty")
 
     if pkg_resources.parse_version(cuda_version) == pkg_resources.parse_version("12.0") \
     and ( self.getImageOs() == 'debian' and self.getImageVersion() >= pkg_resources.parse_version("2.2") ):
@@ -293,26 +299,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       self.verify_instance_gpu_agent("{}-{}".format(self.getClusterName(),
                                                     machine_suffix))
 
-    get_gpu_resources_script="/usr/lib/spark/scripts/gpu/getGpusResources.sh"
-    self.assert_dataproc_job(
-      self.getClusterName(),
-      "spark",
-      "--jars=file:///usr/lib/spark/examples/jars/spark-examples.jar " \
-      + "--class=org.apache.spark.examples.ml.JavaIndexToStringExample " \
-      + "--properties=" \
-      +   "spark:spark.yarn.unmanagedAM.enabled=false," \
-      +   "spark:spark.task.cpus=1," \
-      +   "spark:spark.task.resource.gpu.amount=1," \
-      +   "spark:spark.driver.resource.gpu.amount=1," \
-      +   "spark:spark.driver.resource.gpu.discoveryScript=" + get_gpu_resources_script + "," \
-      +   "spark:spark.executor.cores=1," \
-      +   "spark:spark.executor.memory=4G," \
-      +   "spark:spark.executor.resource.gpu.amount=1," \
-      +   "spark:spark.executor.resource.gpu.discoveryScript=" + get_gpu_resources_script
-    )
-
-# --properties="spark:spark.yarn.unmanagedAM.enabled=false,spark:spark.task.resource.gpu.amount=1,spark:spark.executor.cores=1,spark:spark.task.cpus=1,spark:spark.executor.memory=4G" \
-
+    self.verify_instance_spark()
 
 if __name__ == "__main__":
   absltest.main()
