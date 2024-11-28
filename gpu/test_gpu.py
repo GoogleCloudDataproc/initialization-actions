@@ -49,8 +49,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       +   "spark.executor.resource.gpu.amount=1," \
       +   "spark.executor.cores=6,"               \
       +   "spark.executor.memory=4G,"             \
-      +   "spark.task.resource.gpu.amount=0.166," \
-      +   "spark.task.cpus=1,"                    \
+      +   "spark.task.resource.gpu.amount=0.333," \
+      +   "spark.task.cpus=2,"                    \
       +   "spark.yarn.unmanagedAM.enabled=false"
     )
 
