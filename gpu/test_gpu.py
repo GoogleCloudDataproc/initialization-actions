@@ -47,10 +47,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       + "--class=org.apache.spark.examples.ml.JavaIndexToStringExample " \
       + "--properties="                           \
       +   "spark.executor.resource.gpu.amount=1," \
-      +   "spark.executor.cores=6"                \
-      +   "spark.executor.memory=4G"              \
-      +   "spark.task.resource.gpu.amount=0.166"  \
-      +   "spark.task.cpus=1"                     \
+      +   "spark.executor.cores=6,"               \
+      +   "spark.executor.memory=4G,"             \
+      +   "spark.task.resource.gpu.amount=0.166," \
+      +   "spark.task.cpus=1,"                    \
       +   "spark.yarn.unmanagedAM.enabled=false"
     )
 
