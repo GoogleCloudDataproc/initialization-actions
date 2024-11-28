@@ -1,4 +1,5 @@
 import pkg_resources
+import time
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -17,6 +18,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
   def verify_instance(self, name):
     # Verify that nvidia-smi works
+    time.sleep(3) # Many failed nvidia-smi attempts have been caused by impatience
     self.assert_instance_command(name, "nvidia-smi", 1)
 
   def verify_pyspark(self, name):
@@ -80,7 +82,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
       self.verify_instance(machine_name)
-      if ( self.getImageOs() != 'rocky' ) or ( configuration != 'SINGLE' ) or ( configure == 'SINGLE' and self.getImageOs() == 'rocky' and self.getImageVersion() > pkg_resources.parse_version("2.1") ):
+      if ( self.getImageOs() != 'rocky' ) or ( configuration != 'SINGLE' ) or ( configuration == 'SINGLE' and self.getImageOs() == 'rocky' and self.getImageVersion() > pkg_resources.parse_version("2.1") ):
         self.verify_pyspark(machine_name)
 
   @parameterized.parameters(
