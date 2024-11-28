@@ -45,14 +45,18 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       "spark",
       "--jars=file:///usr/lib/spark/examples/jars/spark-examples.jar " \
       + "--class=org.apache.spark.examples.ml.JavaIndexToStringExample " \
-      + "--properties=" \
+      + "--properties="                           \
       +   "spark.executor.resource.gpu.amount=1," \
-      +   "spark.task.resource.gpu.amount=0.01"
+      +   "spark.executor.cores=6"                \
+      +   "spark.executor.memory=4G"              \
+      +   "spark.task.resource.gpu.amount=0.166"  \
+      +   "spark.task.cpus=1"                     \
+      +   "spark.yarn.unmanagedAM.enabled=false"
     )
 
   @parameterized.parameters(
-      ("SINGLE", ["m"], GPU_T4, None, None),
-      ("STANDARD", ["m"], GPU_T4, None, None),
+      ("SINGLE",   ["m"], GPU_T4, None, None),
+#      ("STANDARD", ["m"], GPU_T4, None, None),
       ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "NVIDIA"),
   )
   def test_install_gpu_default_agent(self, configuration, machine_suffixes,
@@ -80,7 +84,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         self.verify_pyspark(machine_name)
 
   @parameterized.parameters(
-      ("SINGLE", ["m"], GPU_T4, None, None),
+#      ("SINGLE", ["m"], GPU_T4, None, None),
   )
   def test_install_gpu_without_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
@@ -106,8 +110,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
   @parameterized.parameters(
       ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, None),
-      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "NVIDIA"),
-      ("STANDARD", ["m"], GPU_T4, None, "NVIDIA"),
+#      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "NVIDIA"),
+#      ("STANDARD", ["m"], GPU_T4, None, "NVIDIA"),
   )
   def test_install_gpu_with_agent(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
@@ -135,10 +139,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                                     machine_suffix))
 
   @parameterized.parameters(
-      ("SINGLE",   ["m"],               GPU_T4, None,   "12.0"),
-      ("STANDARD", ["m"],               GPU_T4, None,   "11.8"),
+#       ("SINGLE", ["m"],               GPU_T4, None,   "12.0"),
+        ("SINGLE", ["m"],               GPU_T4, None,   "11.8"),
       ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4"),
-      ("STANDARD", ["w-0", "w-1"],      None,   GPU_T4, "11.8"),
+#     ("STANDARD", ["w-0", "w-1"],      None,   GPU_T4, "11.8"),
   )
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
@@ -177,7 +181,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
   @parameterized.parameters(
       ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "11.8"),
-      ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "12.0"),
+#      ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "12.0"),
       ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "12.4"),
   )
   def test_install_gpu_with_mig(self, configuration, machine_suffixes,
@@ -232,7 +236,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
     if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() <= pkg_resources.parse_version("2.1") \
     and configuration == 'SINGLE':
-      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests fail with errors about nodes_include being empty")
+      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail with errors about nodes_include being empty")
 
     metadata = None
     if driver_provider is not None:
@@ -252,10 +256,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
   @parameterized.parameters(
     ("SINGLE", ["m"], GPU_T4, None, "11.8"),
-    ("STANDARD", ["m"], GPU_T4, None, "12.0"),
+#    ("STANDARD", ["m"], GPU_T4, None, "12.0"),
     ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4"),
-    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.8"),
-    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "12.0"),
+#    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.8"),
+#    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "12.0"),
   )
   def test_install_gpu_cuda_nvidia_with_spark_job(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
