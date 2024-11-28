@@ -46,8 +46,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       "--jars=file:///usr/lib/spark/examples/jars/spark-examples.jar " \
       + "--class=org.apache.spark.examples.ml.JavaIndexToStringExample " \
       + "--properties=" \
-      +   "spark:spark.executor.resource.gpu.amount=1,"
-      +   "spark:spark.task.resource.gpu.amount=0.01"
+      +   "spark.executor.resource.gpu.amount=1," \
+      +   "spark.task.resource.gpu.amount=0.01"
     )
 
   @parameterized.parameters(
