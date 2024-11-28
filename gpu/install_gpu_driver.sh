@@ -1014,31 +1014,12 @@ function configure_gpu_script() {
 # limitations under the License.
 #
 
-CACHE_FILE="/var/run/nvidia-gpu-index.txt"
-if [[ -f "${CACHE_FILE}" ]]; then
-  cat "${CACHE_FILE}"
-  exit 0
-fi
-NV_SMI_L_CACHE_FILE="/var/run/nvidia-smi_-L.txt"
-if [[ -f "${NV_SMI_L_CACHE_FILE}" ]]; then
-  NVIDIA_SMI_L="$(cat "${NV_SMI_L_CACHE_FILE}")"
-else
-  NVIDIA_SMI_L="$(nvidia-smi -L | tee "${NV_SMI_L_CACHE_FILE}")"
-fi
+ADDRS=$(nvidia-smi --query-gpu=index --format=csv,noheader | perl -e 'print(join(q{,},map{chomp; qq{"$_"}}<STDIN>))')
 
-NUM_MIG_DEVICES=$(echo "${NVIDIA_SMI_L}" | grep -e MIG -e H100 -e A100 | wc -l || echo '0')
-
-if [[ "${NUM_MIG_DEVICES}" -gt "0" ]] ; then
-  MIG_INDEX=$(( $NUM_MIG_DEVICES - 1 ))
-  ADDRS="$(perl -e 'print(join(q{,},map{qq{"$_"}}(0..$ARGV[0])),$/)' "${MIG_INDEX}")"
-else
-  ADDRS=$(nvidia-smi --query-gpu=index --format=csv,noheader | perl -e 'print(join(q{,},map{chomp; qq{"$_"}}<STDIN>))')
-fi
-
-echo {\"name\": \"gpu\", \"addresses\":[$ADDRS]} | tee "${CACHE_FILE}"
+echo {\"name\": \"gpu\", \"addresses\":[${ADDRS}]}
 EOF
 
-  chmod a+rwx -R ${spark_gpu_script_dir}
+  chmod a+rx "${spark_gpu_script_dir}/getGpusResources.sh"
 }
 
 function configure_gpu_isolation() {

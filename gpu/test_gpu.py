@@ -17,6 +17,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
   def verify_instance(self, name):
     self.assert_instance_command(name, "nvidia-smi", 1)
+    self.assert_instance_command(name, "echo 'from pyspark.sql import SparkSession ; SparkSession.builder.appName(\'HelloWorld\').getOrCreate()' | pyspark", 1)
 
   def verify_mig_instance(self, name):
     self.assert_instance_command(name,
