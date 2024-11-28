@@ -14,12 +14,14 @@ for CUDA, the nvidia kernel driver, cuDNN, and NCCL.
 Specifying a supported value for the `cuda-version` metadata variable
 will select the following values for Driver, CuDNN and NCCL.  At the
 time of writing, the default value for cuda-version, if unspecified is
-12.4.  In addition to 12.4, we have also tested with 11.8.
+12.4.  In addition to 12.4, we have also tested with 11.8, 12.0 and 12.6.
 
-CUDA | Full Version | Driver    | CuDNN     | NCCL    | Supported OSs
+CUDA | Full Version | Driver    | CuDNN     | NCCL    | Tested Dataproc Image Versions
 -----| ------------ | --------- | --------- | ------- | -------------------
-11.8 | 11.8.0       | 525.147   | 8.6.0.163 | 2.15.5  | All
-12.4 | 12.4.1       | 550.90.07 | 9.1.0.70  | 2.21.5  | ALL
+11.8 | 11.8.0       | 560.35.03 | 8.6.0.163 | 2.15.5  | 2.0, 2.1, 2.2-ubuntu22
+12.0 | 12.0.0       | 550.90.07 | 8.8.1.3,  | 2.16.5  | 2.0, 2.1, 2.2-rocky9, 2.2-ubuntu22
+12.4 | 12.4.1       | 550.90.07 | 9.1.0.70  | 2.23.4  | 2.1-ubuntu20, 2.1-rocky8, 2.2
+12.6 | 12.6.2       | 560.35.03 | 9.5.1.17  | 2.23.4  | 2.1-ubuntu20, 2.1-rocky8, 2.2
 
 All variants in the preceeding table have been manually tested to work
 with the installer.  Supported OSs at the time of writing are:
@@ -27,7 +29,6 @@ with the installer.  Supported OSs at the time of writing are:
 * Debian 10, 11 and 12
 * Ubuntu 18.04, 20.04, and 22.04 LTS
 * Rocky 8 and 9
-
 
 ## Using this initialization action
 
@@ -47,16 +48,15 @@ attached GPU adapters.
     CLUSTER_NAME=<cluster_name>
     gcloud dataproc clusters create ${CLUSTER_NAME} \
         --region ${REGION} \
-        --master-accelerator type=nvidia-tesla-v100 \
-        --worker-accelerator type=nvidia-tesla-v100,count=4 \
+        --master-accelerator type=nvidia-tesla-t4 \
+        --worker-accelerator type=nvidia-tesla-t4,count=4 \
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh
     ```
 
 1.  Use the `gcloud` command to create a new cluster with NVIDIA GPU drivers
     and CUDA installed by initialization action as well as the GPU
     monitoring service. The monitoring service is supported on Dataproc 2.0+ Debian
-    and Ubuntu images. Please create a Github issue if support is needed for other
-    Dataproc images.
+    and Ubuntu images.
 
     *Prerequisite:* Create GPU metrics in
     [Cloud Monitoring](https://cloud.google.com/monitoring/docs/) using Google
@@ -90,8 +90,8 @@ attached GPU adapters.
     CLUSTER_NAME=<cluster_name>
     gcloud dataproc clusters create ${CLUSTER_NAME} \
         --region ${REGION} \
-        --master-accelerator type=nvidia-tesla-v100 \
-        --worker-accelerator type=nvidia-tesla-v100,count=4 \
+        --master-accelerator type=nvidia-tesla-t4 \
+        --worker-accelerator type=nvidia-tesla-t4,count=4 \
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh \
         --metadata install-gpu-agent=true \
         --scopes https://www.googleapis.com/auth/monitoring.write
@@ -136,12 +136,12 @@ attached GPU adapters.
 #### GPU Scheduling in YARN:
 
 YARN is the default Resource Manager for Dataproc. To use GPU scheduling feature
-in Spark, it requires YARN version >= 2.10 or >=3.1.1. If intended to use Spark
+in Spark, it requires YARN version >= 2.10 or >= 3.1.1. If intended to use Spark
 with Deep Learning use case, it recommended to use YARN >= 3.1.3 to get support
-for [nvidia-docker version 2](https://github.com/NVIDIA/nvidia-docker).
+for [nvidia-container-toolkit](https://github.com/NVIDIA/nvidia-container-toolkit).
 
 In current Dataproc set up, we enable GPU resource isolation by initialization
-script without NVIDIA Docker, you can find more information at
+script with NVIDIA container toolkit.  You can find more information at
 [NVIDIA Spark RAPIDS getting started guide](https://nvidia.github.io/spark-rapids/).
 
 #### cuDNN
