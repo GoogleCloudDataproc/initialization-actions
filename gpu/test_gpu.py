@@ -84,11 +84,14 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         self.verify_pyspark(machine_name)
 
   @parameterized.parameters(
-#      ("SINGLE", ["m"], GPU_T4, None, None),
+      ("SINGLE", ["m"], GPU_T4, None, None),
   )
   def test_install_gpu_without_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
+
+    self.skipTest("No need to regularly test not installing the agent")
+
     if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
       self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
