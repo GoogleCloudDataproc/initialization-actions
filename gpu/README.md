@@ -14,12 +14,14 @@ for CUDA, the nvidia kernel driver, cuDNN, and NCCL.
 Specifying a supported value for the `cuda-version` metadata variable
 will select the following values for Driver, CuDNN and NCCL.  At the
 time of writing, the default value for cuda-version, if unspecified is
-12.4.  In addition to 12.4, we have also tested with 11.8.
+12.4.  In addition to 12.4, we have also tested with 11.8, 12.0 and 12.6.
 
-CUDA | Full Version | Driver    | CuDNN     | NCCL    | Supported OSs
+CUDA | Full Version | Driver    | CuDNN     | NCCL    | Tested Dataproc Image Versions
 -----| ------------ | --------- | --------- | ------- | -------------------
-11.8 | 11.8.0       | 525.147   | 8.6.0.163 | 2.15.5  | All
-12.4 | 12.4.1       | 550.90.07 | 9.1.0.70  | 2.21.5  | ALL
+11.8 | 11.8.0       | 560.35.03 | 8.6.0.163 | 2.15.5  | 2.0, 2.1, 2.2-ubuntu22
+12.0 | 12.0.0       | 550.90.07 | 8.8.1.3,  | 2.16.5  | 2.0, 2.1, 2.2-rocky9, 2.2-ubuntu22
+12.4 | 12.4.1       | 550.90.07 | 9.1.0.70  | 2.23.4  | 2.1-ubuntu20, 2.1-rocky8, 2.2
+12.6 | 12.6.2       | 560.35.03 | 9.5.1.17  | 2.23.4  | 2.1-ubuntu20, 2.1-rocky8, 2.2
 
 All variants in the preceeding table have been manually tested to work
 with the installer.  Supported OSs at the time of writing are:
@@ -27,7 +29,6 @@ with the installer.  Supported OSs at the time of writing are:
 * Debian 10, 11 and 12
 * Ubuntu 18.04, 20.04, and 22.04 LTS
 * Rocky 8 and 9
-
 
 ## Using this initialization action
 
