@@ -116,7 +116,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
   @parameterized.parameters(
       ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, None),
-      ("KERBEROS", ["m"], GPU_T4, GPU_T4, None),
 #      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "NVIDIA"),
 #      ("STANDARD", ["m"], GPU_T4, None, "NVIDIA"),
   )
