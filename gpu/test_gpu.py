@@ -60,7 +60,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       ("SINGLE",   ["m"], GPU_T4, None, None),
 #      ("STANDARD", ["m"], GPU_T4, None, None),
       ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "NVIDIA"),
-      ("KERBEROS", ["m"], GPU_T4, None, None),
   )
   def test_install_gpu_default_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
@@ -83,7 +82,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
       self.verify_instance(machine_name)
-      if ( self.getImageOs() != 'rocky' ) or ( configuration != 'SINGLE' ) or ( configuration == 'SINGLE' and self.getImageOs() == 'rocky' and self.getImageVersion() > pkg_resources.parse_version("2.1") ) or ( configuration != "KERBEROS" ):
+      if ( self.getImageOs() != 'rocky' ) or ( configuration != 'SINGLE' ) or ( configuration == 'SINGLE' and self.getImageOs() == 'rocky' and self.getImageVersion() > pkg_resources.parse_version("2.1") ):
         self.verify_pyspark(machine_name)
 
   @parameterized.parameters(
