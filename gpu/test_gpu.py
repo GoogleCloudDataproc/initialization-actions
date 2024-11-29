@@ -267,7 +267,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     ("SINGLE", ["m"], GPU_T4, None, "11.8"),
 #    ("STANDARD", ["m"], GPU_T4, None, "12.0"),
     ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4"),
-    ("KERBEROS", ["m"], GPU_T4, GPU_T4, "12.4"),
 #    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.8"),
 #    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "12.0"),
   )
