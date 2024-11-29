@@ -60,6 +60,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       ("SINGLE",   ["m"], GPU_T4, None, None),
 #      ("STANDARD", ["m"], GPU_T4, None, None),
       ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "NVIDIA"),
+      ("KERBEROS", ["m"], GPU_T4, None, None),
   )
   def test_install_gpu_default_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
@@ -87,6 +88,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
   @parameterized.parameters(
       ("SINGLE", ["m"], GPU_T4, None, None),
+      ("KERBEROS", ["m"], GPU_T4, None, None),
   )
   def test_install_gpu_without_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
@@ -115,6 +117,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
   @parameterized.parameters(
       ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, None),
+      ("KERBEROS", ["m"], GPU_T4, GPU_T4, None),
 #      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "NVIDIA"),
 #      ("STANDARD", ["m"], GPU_T4, None, "NVIDIA"),
   )
@@ -147,6 +150,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 #       ("SINGLE", ["m"],               GPU_T4, None,   "12.0"),
         ("SINGLE", ["m"],               GPU_T4, None,   "11.8"),
       ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4"),
+      ("KERBEROS", ["m"],               GPU_T4, GPU_T4, "12.4"),
 #     ("STANDARD", ["w-0", "w-1"],      None,   GPU_T4, "11.8"),
   )
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
@@ -188,6 +192,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "11.8"),
 #      ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "12.0"),
       ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "12.4"),
+      ("KERBEROS", ["m"], GPU_H100, GPU_A100, "NVIDIA", "12.4"),
   )
   def test_install_gpu_with_mig(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
@@ -232,7 +237,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
   @parameterized.parameters(
       ("SINGLE", GPU_T4, None, None),
-      ("STANDARD", GPU_T4, GPU_T4, "NVIDIA")
+      ("STANDARD", GPU_T4, GPU_T4, "NVIDIA"),
+      ("KERBEROS", GPU_T4, GPU_T4, "NVIDIA"),
   )
   def test_gpu_allocation(self, configuration, master_accelerator,
                           worker_accelerator, driver_provider):
@@ -263,6 +269,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     ("SINGLE", ["m"], GPU_T4, None, "11.8"),
 #    ("STANDARD", ["m"], GPU_T4, None, "12.0"),
     ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4"),
+    ("KERBEROS", ["m"], GPU_T4, GPU_T4, "12.4"),
 #    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.8"),
 #    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "12.0"),
   )
