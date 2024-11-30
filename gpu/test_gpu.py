@@ -18,7 +18,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
   def verify_instance(self, name):
     # Verify that nvidia-smi works
-    time.sleep(3) # Many failed nvidia-smi attempts have been caused by impatience
+    time.sleep(6) # Many failed nvidia-smi attempts have been caused by impatience
     self.assert_instance_command(name, "nvidia-smi", 1)
 
   def verify_pyspark(self, name):
