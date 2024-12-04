@@ -52,30 +52,6 @@ function os_vercat()   ( set +x
   elif is_rocky  ; then os_version | sed -e 's/[^0-9].*$//g'
                    else os_version ; fi ; )
 
-# Verify if compatible linux distros and secure boot options are used
-function check_os_and_secure_boot() {
-  if is_debian && ( ! is_debian10 && ! is_debian11 && ! is_debian12 ) ; then
-      echo "Error: The Debian version ($(os_version)) is not supported. Please use a compatible Debian version."
-      exit 1
-  elif is_ubuntu && ( ! is_ubuntu18 && ! is_ubuntu20 && ! is_ubuntu22  ) ; then
-      echo "Error: The Ubuntu version ($(os_version)) is not supported. Please use a compatible Ubuntu version."
-      exit 1
-  elif is_rocky && ( ! is_rocky8 && ! is_rocky9 ) ; then
-      echo "Error: The Rocky Linux version ($(os_version)) is not supported. Please use a compatible Rocky Linux version."
-      exit 1
-  fi
-
-  if [[ "${SECURE_BOOT}" == "enabled" ]] && le_debian11 ; then
-    echo "Error: Secure Boot is not supported on Debian before image 2.2. Please disable Secure Boot while creating the cluster."
-    exit 1
-  elif [[ "${SECURE_BOOT}" == "enabled" ]] && [[ -z "${PSN}" ]]; then
-    echo "Secure boot is enabled, but no signing material provided."
-    echo "Please either disable secure boot or provide signing material as per"
-    echo "https://github.com/GoogleCloudDataproc/custom-images/tree/master/examples/secure-boot"
-    return 1
-  fi
-}
-
 function repair_old_backports {
   if ! is_debuntu ; then return ; fi
   # This script uses 'apt-get update' and is therefore potentially dependent on
@@ -189,13 +165,13 @@ readonly -A CUDA_SUBVER=(
 
 RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 
-function set_cuda_version(){
+function set_cuda_version() {
   local cuda_url
   cuda_url=$(get_metadata_attribute 'cuda-url' '')
 
   if [[ -n "${cuda_url}" ]] ; then
     local CUDA_URL_VERSION
-    CUDA_URL_VERSION="$(echo "${gpu_driver_url}" | perl -pe 's{^.*/cuda_(\d+\.\d+\.\d+)_\d+\.\d+\.\d+_linux.run$}{$1}')"
+    CUDA_URL_VERSION="$(echo "${cuda_url}" | perl -pe 's{^.*/cuda_(\d+\.\d+)\.\d+_\d+\.\d+\.\d+_linux.run$}{$1}')"
     if [[ "${CUDA_URL_VERSION}" =~ ^[0-9]+.*[0-9]$ ]] ; then
       DEFAULT_CUDA_VERSION="${CUDA_URL_VERSION}"
     fi
@@ -207,7 +183,7 @@ function set_cuda_version(){
   CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
   readonly CUDA_VERSION
 
-  if ( version_le "${CUDA_VERSION%%.*}" "11" && ( ge_debian12 || ge_rocky9 ) &&  ) ; then
+  if ( version_le "${CUDA_VERSION%%.*}" "11" && ( ge_debian12 || ge_rocky9 ) ) ; then
     echo "CUDA 11 no longer supported on debian12 - 2024-11-22 or rocky9 - 2024-11-27. Requested version: ${CUDA_VERSION}"
     exit 1
   fi
@@ -217,7 +193,7 @@ function set_cuda_version(){
     exit 1
   fi
 
-  readonly CUDA_FULL_VERSION="${CUDA_SUBVER["${CUDA_VERSION}"]}"
+  readonly CUDA_FULL_VERSION=${CUDA_SUBVER["${CUDA_VERSION}"]}
 }
 set_cuda_version
 
@@ -229,7 +205,7 @@ function is_cuda11() ( set +x ; [[ "${CUDA_VERSION%%.*}" == "11" ]] ; )
 function le_cuda11() ( set +x ; version_le "${CUDA_VERSION%%.*}" "11" ; )
 function ge_cuda11() ( set +x ; version_ge "${CUDA_VERSION%%.*}" "11" ; )
 
-function set_driver_version
+function set_driver_version() {
   local cuda_url
   cuda_url=$(get_metadata_attribute 'cuda-url' '')
   local gpu_driver_url
@@ -238,17 +214,17 @@ function set_driver_version
   local DEFAULT_DRIVER
   # Take default from gpu-driver-url metadata value
   if [[ -n "${gpu_driver_url}" ]] ; then
-    local DRIVER_URL_DRIVER_VERSION
     DRIVER_URL_DRIVER_VERSION="$(echo "${gpu_driver_url}" | perl -pe 's{^.*/NVIDIA-Linux-x86_64-(\d+\.\d+\.\d+).run$}{$1}')"
     if [[ "${DRIVER_URL_DRIVER_VERSION}" =~ ^[0-9]+.*[0-9]$ ]] ; then DEFAULT_DRIVER="${DRIVER_URL_DRIVER_VERSION}" ; fi
   # Take default from cuda-url metadata value as a backup
   elif [[ -n "${cuda_url}" ]] ; then
-    local CUDA_URL_DRIVER_VERSION
     CUDA_URL_DRIVER_VERSION="$(echo "${gpu_driver_url}" | perl -pe 's{^.*/cuda_\d+\.\d+\.\d+_(\d+\.\d+\.\d+)_linux.run$}{$1}')"
     if [[ "${CUDA_URL_DRIVER_VERSION}" =~ ^[0-9]+.*[0-9]$ ]] ; then DEFAULT_DRIVER="${CUDA_URL_DRIVER_VERSION}" ; fi
-  else
+  fi
+
+  if ( ! test -v DEFAULT_DRIVER ) ; then
   # Otherwise attempt to make an educated guess
-    local DEFAULT_DRIVER="${DRIVER_FOR_CUDA[${CUDA_VERSION}]}"
+    DEFAULT_DRIVER=${DRIVER_FOR_CUDA["${CUDA_VERSION}"]}
     if ( ge_ubuntu22 && version_le "${CUDA_VERSION}" "12.0" ) ; then
                                              DEFAULT_DRIVER="560.28.03"  ; fi
     if ( is_debian11 || is_ubuntu20 ) ; then DEFAULT_DRIVER="560.28.03"  ; fi
@@ -550,7 +526,7 @@ function install_nvidia_nccl() {
     mkdir -p "${workdir}"
     pushd "${workdir}"
 
-    local build_tarball="nccl-build.${nccl_version}.tar.gz"
+    local build_tarball="nccl-build-${shortname}.${nccl_version}.tar.gz"
 
     test -d "${workdir}/nccl" || {
       local tarball_fn="v${NCCL_VERSION}-1.tar.gz"
@@ -1119,7 +1095,7 @@ EOF
   chmod a+rx "${gpus_resources_script}"
 
   local spark_defaults_conf="/etc/spark/conf.dist/spark-defaults.conf"
-  if [[ version_ge "${SPARK_VERSION}" "3.0" ]]; then
+  if version_ge "${SPARK_VERSION}" "3.0" ; then
     local gpu_count
     gpu_count="$(lspci | grep NVIDIA | wc -l)"
     local executor_cores
@@ -1630,6 +1606,9 @@ function prepare_to_install(){
     DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
   fi
 
+# Verify Secure boot
+  SECURE_BOOT="disabled"
+  SECURE_BOOT=$(mokutil --sb-state|awk '{print $2}')
   check_os_and_secure_boot
 
   workdir=/opt/install-nvidia
@@ -1679,6 +1658,30 @@ function prepare_to_install(){
   touch "/run/keep-running-df"
   screen -d -m -US keep-running-df \
     bash -c "while [[ -f /run/keep-running-df ]] ; do df / | tee -a /run/disk-usage.log ; sleep 5s ; done"
+}
+
+# Verify if compatible linux distros and secure boot options are used
+function check_os_and_secure_boot() {
+  if is_debian && ( ! is_debian10 && ! is_debian11 && ! is_debian12 ) ; then
+      echo "Error: The Debian version ($(os_version)) is not supported. Please use a compatible Debian version."
+      exit 1
+  elif is_ubuntu && ( ! is_ubuntu18 && ! is_ubuntu20 && ! is_ubuntu22  ) ; then
+      echo "Error: The Ubuntu version ($(os_version)) is not supported. Please use a compatible Ubuntu version."
+      exit 1
+  elif is_rocky && ( ! is_rocky8 && ! is_rocky9 ) ; then
+      echo "Error: The Rocky Linux version ($(os_version)) is not supported. Please use a compatible Rocky Linux version."
+      exit 1
+  fi
+
+  if [[ "${SECURE_BOOT}" == "enabled" ]] && le_debian11 ; then
+    echo "Error: Secure Boot is not supported on Debian before image 2.2. Please disable Secure Boot while creating the cluster."
+    exit 1
+  elif [[ "${SECURE_BOOT}" == "enabled" ]] && [[ -z "${PSN}" ]]; then
+    echo "Secure boot is enabled, but no signing material provided."
+    echo "Please either disable secure boot or provide signing material as per"
+    echo "https://github.com/GoogleCloudDataproc/custom-images/tree/master/examples/secure-boot"
+    return 1
+  fi
 }
 
 prepare_to_install
