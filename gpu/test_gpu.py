@@ -64,6 +64,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_default_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
+
     if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
       self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
@@ -82,7 +83,13 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
       self.verify_instance(machine_name)
-      if ( self.getImageOs() != 'rocky' ) or ( configuration != 'SINGLE' ) or ( configuration == 'SINGLE' and self.getImageOs() == 'rocky' and self.getImageVersion() > pkg_resources.parse_version("2.1") ):
+      if ( configuration == 'SINGLE' and \
+           self.getImageOs() == 'rocky' and \
+           self.getImageVersion() > pkg_resources.parse_version("2.1") ):
+        # Do not attempt this on single instance rocky clusters
+        no_op=1
+      else:
+        # verify that pyspark from command prompt works
         self.verify_pyspark(machine_name)
 
   @parameterized.parameters(
@@ -239,8 +246,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
       self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() <= pkg_resources.parse_version("2.1") \
-    and configuration == 'SINGLE':
+    if configuration == 'SINGLE' \
+    and self.getImageOs() == 'rocky' \
+    and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail with errors about nodes_include being empty")
 
     metadata = None
@@ -273,8 +281,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
       self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() <= pkg_resources.parse_version("2.1") \
-    and configuration == 'SINGLE':
+    if configuration == 'SINGLE' \
+    and self.getImageOs() == 'rocky' \
+    and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests fail with errors about nodes_include being empty")
 
     if pkg_resources.parse_version(cuda_version) == pkg_resources.parse_version("12.0") \

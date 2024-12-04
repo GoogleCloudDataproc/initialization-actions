@@ -624,15 +624,14 @@ function prepare_to_install(){
   # Write to a ramdisk instead of churning the persistent disk
   if [[ ${free_mem} -ge 5250000 ]]; then
     tmpdir=/mnt/shm
-    mkdir -p /mnt/shm
-    mount -t tmpfs tmpfs /mnt/shm
+    mkdir -p "${tmpdir}"
+    mount -t tmpfs tmpfs "${tmpdir}"
 
     # Download conda packages to tmpfs
-    /opt/conda/miniconda3/bin/conda config --add pkgs_dirs /mnt/shm
-    mount -t tmpfs tmpfs /mnt/shm
+    /opt/conda/miniconda3/bin/conda config --add pkgs_dirs "${tmpdir}"
 
     # Download pip packages to tmpfs
-    pip config set global.cache-dir /mnt/shm || echo "unable to set global.cache-dir"
+    pip config set global.cache-dir "${tmpdir}" || echo "unable to set global.cache-dir"
 
     # Download OS packages to tmpfs
     if is_debuntu ; then
