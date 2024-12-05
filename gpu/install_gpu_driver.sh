@@ -120,6 +120,18 @@ function get_metadata_attribute() (
 OS_NAME="$(lsb_release -is | tr '[:upper:]' '[:lower:]')"
 readonly OS_NAME
 
+# Fetch SPARK config
+SPARK_VERSION_ENV="$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)"
+readonly SPARK_VERSION_ENV
+if version_ge "${SPARK_VERSION_ENV}" "3.0" && \
+   version_lt "${SPARK_VERSION_ENV}" "4.0" ; then
+  readonly DEFAULT_XGBOOST_VERSION="1.7.6" # try 2.1.1
+  readonly SPARK_VERSION="3.0"             # try ${SPARK_VERSION_ENV}
+else
+  echo "Error: Your Spark version is not supported. Please upgrade Spark to one of the supported versions."
+  exit 1
+fi
+
 # node role
 ROLE="$(get_metadata_attribute dataproc-role)"
 readonly ROLE
@@ -171,9 +183,10 @@ function set_cuda_version() {
 
   if [[ -n "${cuda_url}" ]] ; then
     local CUDA_URL_VERSION
-    CUDA_URL_VERSION="$(echo "${cuda_url}" | perl -pe 's{^.*/cuda_(\d+\.\d+)\.\d+_\d+\.\d+\.\d+_linux.run$}{$1}')"
-    if [[ "${CUDA_URL_VERSION}" =~ ^[0-9]+.*[0-9]$ ]] ; then
-      DEFAULT_CUDA_VERSION="${CUDA_URL_VERSION}"
+    CUDA_URL_VERSION="$(echo "${cuda_url}" | perl -pe 's{^.*/cuda_(\d+\.\d+\.\d+)_\d+\.\d+\.\d+_linux.run$}{$1}')"
+    if [[ "${CUDA_URL_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] ; then
+      DEFAULT_CUDA_VERSION="${CUDA_URL_VERSION%.*}"
+      CUDA_FULL_VERSION="${CUDA_URL_VERSION}"
     fi
   else
     DEFAULT_CUDA_VERSION='12.4'
@@ -182,6 +195,10 @@ function set_cuda_version() {
 
   CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
   readonly CUDA_VERSION
+  if ( ! test -v CUDA_FULL_VERSION ) ; then
+    CUDA_FULL_VERSION=${CUDA_SUBVER["${CUDA_VERSION}"]}
+  fi
+  readonly CUDA_FULL_VERSION
 
   if ( version_le "${CUDA_VERSION%%.*}" "11" && ( ge_debian12 || ge_rocky9 ) ) ; then
     echo "CUDA 11 no longer supported on debian12 - 2024-11-22 or rocky9 - 2024-11-27. Requested version: ${CUDA_VERSION}"
@@ -193,7 +210,6 @@ function set_cuda_version() {
     exit 1
   fi
 
-  readonly CUDA_FULL_VERSION=${CUDA_SUBVER["${CUDA_VERSION}"]}
 }
 set_cuda_version
 
@@ -526,8 +542,6 @@ function install_nvidia_nccl() {
     mkdir -p "${workdir}"
     pushd "${workdir}"
 
-    local build_tarball="nccl-build-${shortname}.${nccl_version}.tar.gz"
-
     test -d "${workdir}/nccl" || {
       local tarball_fn="v${NCCL_VERSION}-1.tar.gz"
       curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
@@ -537,10 +551,12 @@ function install_nvidia_nccl() {
     }
 
     test -d "${workdir}/nccl/build" || {
+      build_tarball="nccl-build-${shortname}.${nccl_version}.tar.gz"
       full_tarball_path="${workdir}/${build_tarball}"
       test -f "${full_tarball_path}" || {
         if gsutil ls "gs://${temp_bucket}/${build_tarball}" 2>&1 | grep -q "gs://${temp_bucket}/${build_tarball}" ; then
-          gsutil cp "gs://${temp_bucket}/${build_tarball}" "${full_tarball_path}"
+          gsutil cat "gs://${temp_bucket}/${build_tarball}" \
+          | tee "${full_tarball_path}" | tar xz
 	else
           pushd nccl
           # https://github.com/NVIDIA/nccl?tab=readme-ov-file#install
@@ -552,10 +568,11 @@ function install_nvidia_nccl() {
       }
       
       tar xzf "${full_tarball_path}"
+      rm "${full_tarball_path}"
     }
 
     NCCL_MAJ="$(echo $NCCL_VERSION | perl -pe 's/^(\d+)\D.*$/$1/a')"
-    dpkg -i "./build/pkg/deb/libnccl${NCCL_MAJ}_${nccl_version}_amd64.deb"
+    dpkg -i "./nccl/build/pkg/deb/libnccl${NCCL_MAJ}_${nccl_version}_amd64.deb"
 
     popd
   else
@@ -1492,7 +1509,7 @@ function exit_handler() {
   if is_debuntu ; then
     # Clean up OS package cache
     apt-get -y -qq clean
-    apt-get -y -qq autoremove
+    apt-get -y -qq -o DPkg::Lock::Timeout=60 autoremove
     # re-hold systemd package
     if ge_debian12 ; then
     apt-mark hold systemd libsystemd0 ; fi
