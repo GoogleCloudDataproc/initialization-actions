@@ -378,7 +378,7 @@ function execute_with_retries() (
 
   if [[ "$cmd" =~ "^apt-get install" ]] ; then
     apt-get -y clean
-    apt-get -y autoremove
+    apt-get -o DPkg::Lock::Timeout=60 -y autoremove
   fi
   for ((i = 0; i < 3; i++)); do
     set -x
@@ -555,7 +555,7 @@ function install_nvidia_nccl() {
     }
 
     NCCL_MAJ="$(echo $NCCL_VERSION | perl -pe 's/^(\d+)\D.*$/$1/a')"
-    dpkg -i "./build/pkg/deb/libnccl${NCCL_MAJ}_${nccl_version}}_amd64.deb"
+    dpkg -i "./build/pkg/deb/libnccl${NCCL_MAJ}_${nccl_version}_amd64.deb"
 
     popd
   else
