@@ -53,7 +53,7 @@ function os_vercat()   ( set +x
                    else os_version ; fi ; )
 
 function repair_old_backports {
-  if ge_debian12 || ! is_debuntu ; then return ; fi
+  if ! is_debuntu ; then return ; fi
   # This script uses 'apt-get update' and is therefore potentially dependent on
   # backports repositories which have been archived.  In order to mitigate this
   # problem, we will use archive.debian.org for the oldoldstable repo
@@ -94,6 +94,7 @@ function print_metadata_value_if_exists() {
   return ${return_code}
 }
 
+# replicates /usr/share/google/get_metadata_value
 function get_metadata_value() (
   set +x
   local readonly varname=$1
@@ -117,9 +118,20 @@ function get_metadata_attribute() (
   get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
 )
 
-OS_NAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
-distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+OS_NAME="$(lsb_release -is | tr '[:upper:]' '[:lower:]')"
 readonly OS_NAME
+
+# Fetch SPARK config
+SPARK_VERSION_ENV="$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)"
+readonly SPARK_VERSION_ENV
+if version_ge "${SPARK_VERSION_ENV}" "3.0" && \
+   version_lt "${SPARK_VERSION_ENV}" "4.0" ; then
+  readonly DEFAULT_XGBOOST_VERSION="1.7.6" # try 2.1.1
+  readonly SPARK_VERSION="3.0"             # try ${SPARK_VERSION_ENV}
+else
+  echo "Error: Your Spark version is not supported. Please upgrade Spark to one of the supported versions."
+  exit 1
+fi
 
 # node role
 ROLE="$(get_metadata_attribute dataproc-role)"
@@ -131,13 +143,13 @@ readonly ROLE
 # Rocky8: 12.0: 525.147.05
 readonly -A DRIVER_FOR_CUDA=(
           ["11.8"]="560.35.03"
-          ["12.0"]="525.60.13"  ["12.4"]="560.35.03"  ["12.6"]="560.35.03"
+          ["12.0"]="525.60.13"  ["12.1"]="530.30.02" ["12.4"]="560.35.03"  ["12.5"]="555.42.02"  ["12.6"]="560.35.03"
 )
 # https://developer.nvidia.com/cudnn-downloads
 if is_debuntu ; then
 readonly -A CUDNN_FOR_CUDA=(
           ["11.8"]="9.5.1.17"
-          ["12.0"]="9.5.1.17"   ["12.4"]="9.5.1.17"   ["12.6"]="9.5.1.17"
+          ["12.0"]="9.5.1.17"   ["12.1"]="9.5.1.17"  ["12.4"]="9.5.1.17"   ["12.5"]="9.5.1.17"  ["12.6"]="9.5.1.17"
 )
 elif is_rocky ; then
 # rocky:
@@ -150,34 +162,65 @@ elif is_rocky ; then
 #   12.6: 9.5.1.17
 readonly -A CUDNN_FOR_CUDA=(
           ["11.8"]="9.5.1.17"
-          ["12.0"]="8.8.1.3"   ["12.4"]="9.1.1.17"   ["12.6"]="9.5.1.17"
+          ["12.0"]="8.8.1.3"   ["12.1"]="8.9.3.28"   ["12.4"]="9.1.1.17"   ["12.5"]="9.2.1.18"  ["12.6"]="9.5.1.17"
 )
 fi
 # https://developer.nvidia.com/nccl/nccl-download
 # 12.2: 2.19.3, 12.5: 2.21.5
 readonly -A NCCL_FOR_CUDA=(
           ["11.8"]="2.15.5"
-          ["12.0"]="2.16.5"  ["12.4"]="2.23.4"     ["12.6"]="2.23.4"
+          ["12.0"]="2.16.5"    ["12.1"]="2.18.3"     ["12.4"]="2.23.4"     ["12.5"]="2.21.5"  ["12.6"]="2.23.4"
 )
 readonly -A CUDA_SUBVER=(
           ["11.8"]="11.8.0"
-          ["12.0"]="12.0.0"  ["12.4"]="12.4.1"     ["12.6"]="12.6.2"
+          ["12.0"]="12.0.0"    ["12.1"]="12.1.1"     ["12.4"]="12.4.1"     ["12.5"]="12.5.0"  ["12.6"]="12.6.2"
+)
+# Debian 12
+# 12.3.101, 12.3.52
+# 12.4.127, 12.4.99
+# 12.5.82, 12.5.39
+# 12.6.77, 12.6.68, 12.6.37
+
+readonly -A cuda_toolkit_config_version=(
+          ["12.4"]="12.4.127"     ["12.6"]="12.6.77"
 )
 
 RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
-readonly DEFAULT_CUDA_VERSION='12.4'
-CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
-if ( ( ge_debian12 || ge_rocky9 ) && version_le "${CUDA_VERSION%%.*}" "11" ) ; then
-  # CUDA 11 no longer supported on debian12 - 2024-11-22, rocky9 - 2024-11-27
-  CUDA_VERSION="${DEFAULT_CUDA_VERSION}"
-fi
 
-if ( version_ge "${CUDA_VERSION}" "12" && (le_debian11 || le_ubuntu18) ) ; then
-  # Only CUDA 12.0 supported on older debuntu
-  CUDA_VERSION="12.0"
-fi
-readonly CUDA_VERSION
-readonly CUDA_FULL_VERSION="${CUDA_SUBVER["${CUDA_VERSION}"]}"
+function set_cuda_version() {
+  local cuda_url
+  cuda_url=$(get_metadata_attribute 'cuda-url' '')
+
+  if [[ -n "${cuda_url}" ]] ; then
+    local CUDA_URL_VERSION
+    CUDA_URL_VERSION="$(echo "${cuda_url}" | perl -pe 's{^.*/cuda_(\d+\.\d+\.\d+)_\d+\.\d+\.\d+_linux.run$}{$1}')"
+    if [[ "${CUDA_URL_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] ; then
+      DEFAULT_CUDA_VERSION="${CUDA_URL_VERSION%.*}"
+      CUDA_FULL_VERSION="${CUDA_URL_VERSION}"
+    fi
+  else
+    DEFAULT_CUDA_VERSION='12.4'
+  fi
+  readonly DEFAULT_CUDA_VERSION
+
+  CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
+  readonly CUDA_VERSION
+  if ( ! test -v CUDA_FULL_VERSION ) ; then
+    CUDA_FULL_VERSION=${CUDA_SUBVER["${CUDA_VERSION}"]}
+  fi
+  readonly CUDA_FULL_VERSION
+
+  if ( version_lt "${CUDA_FULL_VERSION}" "12.3.0" && ge_debian12 ) ; then
+    echo "CUDA 12.3.0 is the minimum CUDA 12 version on Debian 12"
+  elif ( version_gt "${CUDA_VERSION}" "12.1.1" && is_ubuntu18 ) ; then
+    echo "CUDA 12.1.1 is the maximum CUDA version on ubuntu18.  Requested version: ${CUDA_VERSION}"
+  elif ( version_lt "${CUDA_VERSION%%.*}" "12" && ge_debian12 ) ; then
+    echo "CUDA 11 not supported on Debian 12. Requested version: ${CUDA_VERSION}"
+  elif ( version_lt "${CUDA_VERSION}" "11.8" && is_rocky9 ) ; then
+    echo "CUDA 11.8.0 is the minimum version for Rocky 9. Requested version: ${CUDA_VERSION}"
+  fi
+}
+set_cuda_version
 
 function is_cuda12() ( set +x ; [[ "${CUDA_VERSION%%.*}" == "12" ]] ; )
 function le_cuda12() ( set +x ; version_le "${CUDA_VERSION%%.*}" "12" ; )
@@ -187,17 +230,58 @@ function is_cuda11() ( set +x ; [[ "${CUDA_VERSION%%.*}" == "11" ]] ; )
 function le_cuda11() ( set +x ; version_le "${CUDA_VERSION%%.*}" "11" ; )
 function ge_cuda11() ( set +x ; version_ge "${CUDA_VERSION%%.*}" "11" ; )
 
-DEFAULT_DRIVER="${DRIVER_FOR_CUDA[${CUDA_VERSION}]}"
-if ( ge_ubuntu22 && version_le "${CUDA_VERSION}" "12.0" ) ; then
-                                         DEFAULT_DRIVER="560.28.03"  ; fi
-if ( is_debian11 || is_ubuntu20 ) ; then DEFAULT_DRIVER="560.28.03"  ; fi
-if ( is_rocky    && le_cuda11 )   ; then DEFAULT_DRIVER="525.147.05" ; fi
-if ( is_ubuntu20 && le_cuda11 )   ; then DEFAULT_DRIVER="535.183.06" ; fi
-if ( is_rocky9   && ge_cuda12 )   ; then DEFAULT_DRIVER="565.57.01"  ; fi
-DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' "${DEFAULT_DRIVER}")
+function set_driver_version() {
+  local gpu_driver_url
+  gpu_driver_url=$(get_metadata_attribute 'gpu-driver-url' '')
 
-readonly DRIVER_VERSION
-readonly DRIVER=${DRIVER_VERSION%%.*}
+  local cuda_url
+  cuda_url=$(get_metadata_attribute 'cuda-url' '')
+
+  local DEFAULT_DRIVER
+  # Take default from gpu-driver-url metadata value
+  if [[ -n "${gpu_driver_url}" ]] ; then
+    DRIVER_URL_DRIVER_VERSION="$(echo "${gpu_driver_url}" | perl -pe 's{^.*/NVIDIA-Linux-x86_64-(\d+\.\d+\.\d+).run$}{$1}')"
+    if [[ "${DRIVER_URL_DRIVER_VERSION}" =~ ^[0-9]+.*[0-9]$ ]] ; then DEFAULT_DRIVER="${DRIVER_URL_DRIVER_VERSION}" ; fi
+  # Take default from cuda-url metadata value as a backup
+  elif [[ -n "${cuda_url}" ]] ; then
+    CUDA_URL_DRIVER_VERSION="$(echo "${cuda_url}" | perl -pe 's{^.*/cuda_\d+\.\d+\.\d+_(\d+\.\d+\.\d+)_linux.run$}{$1}')"
+    if [[ "${CUDA_URL_DRIVER_VERSION}" =~ ^[0-9]+.*[0-9]$ ]] ; then DEFAULT_DRIVER="${CUDA_URL_DRIVER_VERSION}" ; fi
+  fi
+
+  if ( ! test -v DEFAULT_DRIVER ) ; then
+  # Otherwise attempt to make an educated guess
+    DEFAULT_DRIVER=${DRIVER_FOR_CUDA["${CUDA_VERSION}"]}
+#    if ( ge_ubuntu22 && version_le "${CUDA_VERSION}" "12.0" ) ; then
+#                                             DEFAULT_DRIVER="560.28.03"  ; fi
+#    if ( is_debian11 || is_ubuntu20 ) ; then DEFAULT_DRIVER="560.28.03"  ; fi
+#    if ( is_rocky    && le_cuda11 )   ; then DEFAULT_DRIVER="525.147.05" ; fi
+#    if ( is_ubuntu20 && le_cuda11 )   ; then DEFAULT_DRIVER="535.183.06" ; fi
+#    if ( is_rocky9   && ge_cuda12 )   ; then DEFAULT_DRIVER="565.57.01"  ; fi
+  fi
+
+  DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' "${DEFAULT_DRIVER}")
+
+  readonly DRIVER_VERSION
+  readonly DRIVER="${DRIVER_VERSION%%.*}"
+
+  export DRIVER_VERSION DRIVER
+
+  gpu_driver_url="https://download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
+  if ! curl -s --head "${gpu_driver_url}" | grep -E -q '^HTTP.*200\s*$' ; then
+    echo "No NVIDIA driver exists for DRIVER_VERSION=${DRIVER_VERSION}"
+    exit 1
+  fi
+
+  # Verify that the requested combination is supported
+  readonly CUDA_RUNFILE="cuda_${CUDA_FULL_VERSION}_${DRIVER_VERSION}_linux.run"
+  cuda_url="https://developer.download.nvidia.com/compute/cuda/${CUDA_FULL_VERSION}/local_installers/${CUDA_RUNFILE}"
+  if ! curl -s --head "${cuda_url}" | grep -E -q '^HTTP.*200\s*$' ; then
+    echo "No CUDA distribution exists for this combination of DRIVER_VERSION=${DRIVER_VERSION}, CUDA_VERSION=${CUDA_FULL_VERSION}"
+    exit 1
+  fi
+}
+
+set_driver_version
 
 readonly DEFAULT_CUDNN8_VERSION="8.0.5.39"
 readonly DEFAULT_CUDNN9_VERSION="9.1.0.70"
@@ -227,6 +311,11 @@ readonly DEFAULT_USERSPACE_URL="https://download.nvidia.com/XFree86/Linux-x86_64
 
 readonly USERSPACE_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_USERSPACE_URL}")
 
+USERSPACE_FILENAME="$(echo ${USERSPACE_URL} | perl -pe 's{^.+/}{}')"
+readonly USERSPACE_FILENAME
+
+readonly _shortname="$(os_id)$(os_version|perl -pe 's/(\d+).*/$1/')"
+
 # Short name for urls
 if is_ubuntu22  ; then
     # at the time of writing 20241125 there is no ubuntu2204 in the index of repos at
@@ -234,14 +323,14 @@ if is_ubuntu22  ; then
     # use packages from previous release until such time as nvidia
     # release ubuntu2204 builds
 
-    nccl_shortname="ubuntu2004"
     shortname="$(os_id)$(os_vercat)"
+    nccl_shortname="ubuntu2004"
 elif ge_rocky9 ; then
     # use packages from previous release until such time as nvidia
     # release rhel9 builds
 
-    nccl_shortname="rhel8"
     shortname="rhel9"
+    nccl_shortname="rhel8"
 elif is_rocky ; then
     shortname="$(os_id | sed -e 's/rocky/rhel/')$(os_vercat)"
     nccl_shortname="${shortname}"
@@ -261,29 +350,55 @@ readonly NCCL_REPO_URL
 readonly NCCL_REPO_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/${nccl_shortname}/x86_64/7fa2af80.pub" # 3bf863cc.pub
 
 function set_cuda_runfile_url() {
-  local RUNFILE_DRIVER_VERSION="${DRIVER_VERSION}"
-  local RUNFILE_CUDA_VERSION="${CUDA_FULL_VERSION}"
+  local MAX_DRIVER_VERSION
+  local MAX_CUDA_VERSION
 
-  if ge_cuda12 ; then
-    if ( le_debian11 || le_ubuntu18 ) ; then
-      RUNFILE_DRIVER_VERSION="525.60.13"
-      RUNFILE_CUDA_VERSION="12.0.0"
-    elif ( le_rocky8 && version_le "${DATAPROC_IMAGE_VERSION}" "2.0" ) ; then
-      RUNFILE_DRIVER_VERSION="525.147.05"
-      RUNFILE_CUDA_VERSION="12.0.0"
+  local MIN_OPEN_DRIVER_VER="515.48.07"
+  local MIN_DRIVER_VERSION="${MIN_OPEN_DRIVER_VER}"
+  local MIN_CUDA_VERSION="11.7.1" # matches MIN_OPEN_DRIVER_VER
+
+  if is_cuda12 ; then
+    if is_debian12 ; then
+      MIN_DRIVER_VERSION="545.23.06"
+      MIN_CUDA_VERSION="12.3.0"
+    elif is_debian10 ; then
+      MAX_DRIVER_VERSION="555.42.02"
+      MAX_CUDA_VERSION="12.5.0"
+    elif is_ubuntu18 ; then
+      MAX_DRIVER_VERSION="530.30.02"
+      MAX_CUDA_VERSION="12.1.1"
+    fi
+  elif ge_version "${CUDA_VERSION}" "${MIN_CUDA_VERSION}" ; then
+    if le_debian10 ; then
+      # cuda 11 is not supported for <= debian10
+      MAX_CUDA_VERSION="0"
+      MAX_DRIVER_VERSION="0"
     fi
   else
-    RUNFILE_DRIVER_VERSION="520.61.05"
-    RUNFILE_CUDA_VERSION="11.8.0"
+    echo "Minimum CUDA version supported is ${MIN_CUDA_VERSION}.  Specified: ${CUDA_VERSION}"
   fi
 
-  readonly RUNFILE_FILENAME="cuda_${RUNFILE_CUDA_VERSION}_${RUNFILE_DRIVER_VERSION}_linux.run"
-  CUDA_RELEASE_BASE_URL="${NVIDIA_BASE_DL_URL}/cuda/${RUNFILE_CUDA_VERSION}"
-  DEFAULT_NVIDIA_CUDA_URL="${CUDA_RELEASE_BASE_URL}/local_installers/${RUNFILE_FILENAME}"
+  if version_lt "${CUDA_VERSION}" "${MIN_CUDA_VERSION}" ; then
+    echo "Minimum CUDA version for ${shortname} is ${MIN_CUDA_VERSION}.  Specified: ${CUDA_VERSION}"
+  elif ( test -v MAX_CUDA_VERSION && version_gt "${CUDA_VERSION}" "${MAX_CUDA_VERSION}" ) ; then
+    echo "Maximum CUDA version for ${shortname} is ${MAX_CUDA_VERSION}.  Specified: ${CUDA_VERSION}"
+  fi
+  if version_lt "${DRIVER_VERSION}" "${MIN_DRIVER_VERSION}" ; then
+    echo "Minimum kernel driver version for ${shortname} is ${MIN_DRIVER_VERSION}.  Specified: ${DRIVER_VERSION}"
+  elif ( test -v MAX_DRIVER_VERSION && version_gt "${DRIVER_VERSION}" "${MAX_DRIVER_VERSION}" ) ; then
+    echo "Maximum kernel driver version for ${shortname} is ${MAX_DRIVER_VERSION}.  Specified: ${DRIVER_VERSION}"
+  fi
+
+  CUDA_FILENAME="cuda_${CUDA_FULL_VERSION}_${DRIVER_VERSION}_linux.run"
+  local CUDA_RELEASE_BASE_URL="${NVIDIA_BASE_DL_URL}/cuda/${CUDA_FULL_VERSION}"
+  local DEFAULT_NVIDIA_CUDA_URL="${CUDA_RELEASE_BASE_URL}/local_installers/${CUDA_FILENAME}"
   readonly DEFAULT_NVIDIA_CUDA_URL
 
   NVIDIA_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_CUDA_URL}")
   readonly NVIDIA_CUDA_URL
+
+  CUDA_FILENAME="$(echo ${NVIDIA_CUDA_URL} | perl -pe 's{^.+/}{}')"
+  readonly CUDA_FILENAME
 }
 
 set_cuda_runfile_url
@@ -315,8 +430,6 @@ readonly CUDNN_TARBALL_URL
 GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'NVIDIA')
 readonly GPU_DRIVER_PROVIDER
 
-# Stackdriver GPU agent parameters
-readonly GPU_AGENT_REPO_URL='https://raw.githubusercontent.com/GoogleCloudPlatform/ml-on-gcp/master/dlvm/gcp-gpu-utilization-metrics'
 # Whether to install GPU monitoring agent that sends GPU metrics to Stackdriver
 INSTALL_GPU_AGENT=$(get_metadata_attribute 'install-gpu-agent' 'false')
 readonly INSTALL_GPU_AGENT
@@ -336,7 +449,7 @@ function execute_with_retries() (
 
   if [[ "$cmd" =~ "^apt-get install" ]] ; then
     apt-get -y clean
-    apt-get -y autoremove
+    apt-get -o DPkg::Lock::Timeout=60 -y autoremove
   fi
   for ((i = 0; i < 3; i++)); do
     set -x
@@ -455,43 +568,92 @@ function uninstall_local_cudnn8_repo() {
 }
 
 function install_nvidia_nccl() {
+  if test -f "${workdir}/nccl-complete" ; then return ; fi
+
   local -r nccl_version="${NCCL_VERSION}-1+cuda${CUDA_VERSION}"
 
-  if is_rocky ; then
-    execute_with_retries \
-      dnf -y -q install \
-        "libnccl-${nccl_version}" "libnccl-devel-${nccl_version}" "libnccl-static-${nccl_version}"
-    sync
-  elif is_ubuntu ; then
-    install_cuda_keyring_pkg
+  # https://github.com/NVIDIA/nccl/blob/master/README.md
+  # https://arnon.dk/matching-sm-architectures-arch-and-gencode-for-various-nvidia-cards/
+  # Fermi:     SM_20,             compute_30
+  # Kepler:    SM_30,SM_35,SM_37, compute_30,compute_35,compute_37
+  # Maxwell:   SM_50,SM_52,SM_53, compute_50,compute_52,compute_53
+  # Pascal:    SM_60,SM_61,SM_62, compute_60,compute_61,compute_62
+  # Volta:     SM_70,SM_72,       compute_70,compute_72
+  # Ampere:    SM_80,SM_86,SM_87, compute_80,compute_86,compute_87
+  # Ada:       SM_89,             compute_89
+  # Hopper:    SM_90,SM_90a       compute_90,compute_90a
+  # Blackwell: SM_100,            compute_100
+                  NVCC_GENCODE="-gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_72,code=sm_72"
+  NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_87,code=sm_87"
+  NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_89,code=sm_89"
+  NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_90a,code=compute_90a"
 
-    apt-get update -qq
+  mkdir -p "${workdir}"
+  pushd "${workdir}"
 
-    if is_ubuntu18 ; then
-      execute_with_retries \
-        apt-get install -q -y \
-          libnccl2 libnccl-dev
-      sync
+  test -d "${workdir}/nccl" || {
+    local tarball_fn="v${NCCL_VERSION}-1.tar.gz"
+    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+      "https://github.com/NVIDIA/nccl/archive/refs/tags/${tarball_fn}" \
+      | tar xz
+    mv "nccl-${NCCL_VERSION}-1" nccl
+  }
+
+  local build_path
+  if is_debuntu ; then build_path="nccl/build/pkg/deb" ; else
+                       build_path="nccl/build/pkg/rpm/x86_64" ; fi
+
+  test -d "${workdir}/nccl/build" || {
+    local build_tarball="nccl-build_${_shortname}_${nccl_version}.tar.gz"
+    local local_tarball="${workdir}/${build_tarball}"
+    local gcs_tarball="${pkg_bucket}/${_shortname}/${build_tarball}"
+
+    output=$(gsutil ls "${gcs_tarball}" 2>&1 || echo '')
+    if echo "${output}" | grep -q "${gcs_tarball}" ; then
+      # cache hit - unpack from cache
+      echo "cache hit"
     else
-      execute_with_retries \
-        apt-get install -q -y \
-          "libnccl2=${nccl_version}" "libnccl-dev=${nccl_version}"
-      sync
+      # build and cache
+      pushd nccl
+      # https://github.com/NVIDIA/nccl?tab=readme-ov-file#install
+      if is_debuntu ; then
+        # These packages are required to build .deb packages from source
+        execute_with_retries \
+          apt-get install -y -qq build-essential devscripts debhelper fakeroot
+        export NVCC_GENCODE
+        execute_with_retries make -j$(nproc) pkg.debian.build
+      elif is_rocky ; then
+        # These packages are required to build .rpm packages from source
+        execute_with_retries \
+          dnf -y -q install rpm-build rpmdevtools
+        export NVCC_GENCODE
+        execute_with_retries make -j$(nproc) pkg.redhat.build
+      fi
+      tar czvf "/${local_tarball}" "../${build_path}"
+      gcloud storage cp "${local_tarball}" "${gcs_tarball}"
+      rm "${local_tarball}"
+      make clean
+      popd
     fi
-  else
-    echo "Unsupported OS: '${OS_NAME}'"
-    # NB: this tarball is 10GB in size, but can be used to install NCCL on non-ubuntu systems
-    # wget https://developer.download.nvidia.com/hpc-sdk/24.7/nvhpc_2024_247_Linux_x86_64_cuda_multi.tar.gz
-    # tar xpzf nvhpc_2024_247_Linux_x86_64_cuda_multi.tar.gz
-    # nvhpc_2024_247_Linux_x86_64_cuda_multi/install
-    return
+    gcloud storage cat "${gcs_tarball}" | tar xz
+  }
+
+  if is_debuntu ; then
+    dpkg -i "${build_path}/libnccl${NCCL_VERSION%%.*}_${nccl_version}_amd64.deb" "${build_path}/libnccl-dev_${nccl_version}_amd64.deb"
+  elif is_rocky ; then
+    rpm -ivh "${build_path}/libnccl-${nccl_version}.x86_64.rpm" "${build_path}/libnccl-devel-${nccl_version}.x86_64.rpm"
   fi
+
+  popd
+  touch "${workdir}/nccl-complete"
 }
 
 function is_src_nvidia() ( set +x ; [[ "${GPU_DRIVER_PROVIDER}" == "NVIDIA" ]] ; )
 function is_src_os()     ( set +x ; [[ "${GPU_DRIVER_PROVIDER}" == "OS" ]] ; )
 
 function install_nvidia_cudnn() {
+  if test -f "${workdir}/cudnn-complete" ; then return ; fi
+
   local major_version
   major_version="${CUDNN_VERSION%%.*}"
   local cudnn_pkg_version
@@ -557,6 +719,7 @@ function install_nvidia_cudnn() {
   ldconfig
 
   echo "NVIDIA cuDNN successfully installed for ${OS_NAME}."
+  touch "${workdir}/cudnn-complete"
 }
 
 CA_TMPDIR="$(mktemp -u -d -p /run/tmp -t ca_dir-XXXX)"
@@ -686,19 +849,12 @@ function add_repo_nvidia_container_toolkit() {
 
 function add_repo_cuda() {
   if is_debuntu ; then
-    local kr_path=/usr/share/keyrings/cuda-archive-keyring.gpg
-    local sources_list_path="/etc/apt/sources.list.d/cuda-${shortname}-x86_64.list"
-    echo "deb [signed-by=${kr_path}] https://developer.download.nvidia.com/compute/cuda/repos/${shortname}/x86_64/ /" \
-    | sudo tee "${sources_list_path}"
-    curl "${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64/cuda-archive-keyring.gpg" \
-      -o "${kr_path}"
+    install_cuda_keyring_pkg # 11.7+, 12.0+
   elif is_rocky ; then
     execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPO_URL}"
-    execute_with_retries "dnf clean all"
   fi
 }
 
-readonly uname_r=$(uname -r)
 function build_driver_from_github() {
   if is_ubuntu ; then
     mok_key=/var/lib/shim-signed/mok/MOK.priv
@@ -707,37 +863,58 @@ function build_driver_from_github() {
     mok_key=/var/lib/dkms/mok.key
     mok_der=/var/lib/dkms/mok.pub
   fi
-  workdir=/opt/install-nvidia-driver
-  mkdir -p "${workdir}"
   pushd "${workdir}"
+
   test -d "${workdir}/open-gpu-kernel-modules" || {
-    tarball_fn="${DRIVER_VERSION}.tar.gz"
+    local tarball_fn="${DRIVER_VERSION}.tar.gz"
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "https://github.com/NVIDIA/open-gpu-kernel-modules/archive/refs/tags/${tarball_fn}" \
       | tar xz
     mv "open-gpu-kernel-modules-${DRIVER_VERSION}" open-gpu-kernel-modules
   }
-  cd open-gpu-kernel-modules
 
-  time make -j$(nproc) modules \
-    >  /var/log/open-gpu-kernel-modules-build.log \
-    2> /var/log/open-gpu-kernel-modules-build_error.log
-  sync
+  test -f "${workdir}/open-gpu-kernel-modules/kernel-open/nvidia.ko" || {
+    local build_tarball="kmod-build_${_shortname}_${DRIVER_VERSION}.tar.gz"
+    local local_tarball="${workdir}/${build_tarball}"
+    local gcs_tarball="${pkg_bucket}/${_shortname}/${build_tarball}"
 
+    if gsutil ls "${gcs_tarball}" 2>&1 | grep -q "${gcs_tarball}" ; then
+      echo "cache hit"
+    else
+      # build and cache kernel modules
+      pushd open-gpu-kernel-modules
+      execute_with_retries make -j$(nproc) modules \
+        >  kernel-open/build.log \
+        2> kernel-open/build_error.log
+      tar czvf "${local_tarball}" ../open-gpu-kernel-modules/kernel-open
+      gcloud storage cp "${local_tarball}" "${gcs_tarball}"
+      rm "${local_tarball}"
+      make clean
+      popd
+    fi
+    gcloud storage cat "${gcs_tarball}" | tar xzv
+  }
+
+  # Sign kernel modules
   if [[ -n "${PSN}" ]]; then
-    #configure_dkms_certs
-    for module in $(find kernel-open -name '*.ko'); do
+    for module in $(find open-gpu-kernel-modules/kernel-open -name '*.ko'); do
       "/lib/modules/${uname_r}/build/scripts/sign-file" sha256 \
       "${mok_key}" \
       "${mok_der}" \
       "${module}"
     done
-    #clear_dkms_key
   fi
 
-  make modules_install \
-    >> /var/log/open-gpu-kernel-modules-build.log \
-    2>> /var/log/open-gpu-kernel-modules-build_error.log
+  # install kernel modules
+  modinfo nvidia > /dev/null 2>&1 || {
+    pushd open-gpu-kernel-modules
+    make modules_install \
+        >>  kernel-open/build.log \
+        2>> kernel-open/build_error.log
+    depmod -a
+    popd
+  }
+
   popd
 }
 
@@ -776,23 +953,44 @@ function build_driver_from_packages() {
   #clear_dkms_key
 }
 
+function cache_fetched_package() {
+  local src_url="$1"
+  local gcs_fn="$2"
+  local local_fn="$3"
+
+  if gsutil ls "${gcs_fn}" 2>&1 | grep -q "${gcs_fn}" ; then
+    time gcloud storage cp "${gcs_fn}" "${local_fn}"
+  else
+    time ( curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 "${src_url}" -o "${local_fn}" && \
+           gcloud storage cp "${local_fn}" "${gcs_fn}" ; )
+  fi
+}
+
 function install_nvidia_userspace_runfile() {
-  if test -f "${tmpdir}/userspace-complete" ; then return ; fi
-  curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-    "${USERSPACE_URL}" -o "${tmpdir}/userspace.run"
-  execute_with_retries bash "${tmpdir}/userspace.run" --no-kernel-modules --silent --install-libglvnd --tmpdir="${tmpdir}"
-  rm -f "${tmpdir}/userspace.run"
-  touch "${tmpdir}/userspace-complete"
+  if test -f "${workdir}/userspace-complete" ; then return ; fi
+  local local_fn="${tmpdir}/userspace.run"
+
+  cache_fetched_package "${USERSPACE_URL}" \
+                        "${pkg_bucket}/${USERSPACE_FILENAME}" \
+                        "${local_fn}"
+
+  execute_with_retries bash "${local_fn}" --no-kernel-modules --install-libglvnd --silent --tmpdir="${tmpdir}"
+  rm -f "${local_fn}"
+  touch "${workdir}/userspace-complete"
   sync
 }
 
 function install_cuda_runfile() {
-  if test -f "${tmpdir}/cuda-complete" ; then return ; fi
-  time curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-    "${NVIDIA_CUDA_URL}" -o "${tmpdir}/cuda.run"
-  execute_with_retries bash "${tmpdir}/cuda.run" --silent --toolkit --no-opengl-libs --tmpdir="${tmpdir}"
-  rm -f "${tmpdir}/cuda.run"
-  touch "${tmpdir}/cuda-complete"
+  if test -f "${workdir}/cuda-complete" ; then return ; fi
+  local local_fn="${tmpdir}/cuda.run"
+
+  cache_fetched_package "${NVIDIA_CUDA_URL}" \
+			"${pkg_bucket}/${CUDA_FILENAME}" \
+                        "${local_fn}"
+
+  execute_with_retries bash "${local_fn}" --toolkit --no-opengl-libs --silent --tmpdir="${tmpdir}"
+  rm -f "${local_fn}"
+  touch "${workdir}/cuda-complete"
   sync
 }
 
@@ -808,12 +1006,11 @@ function install_cuda_toolkit() {
   if is_debuntu ; then
 #    if is_ubuntu ; then execute_with_retries "apt-get install -y -qq --no-install-recommends cuda-drivers-${DRIVER}=${DRIVER_VERSION}-1" ; fi
     execute_with_retries apt-get install -y -qq --no-install-recommends ${cuda_package} ${cudatk_package}
-    sync
   elif is_rocky ; then
     # rocky9: cuda-11-[7,8], cuda-12-[1..6]
     execute_with_retries dnf -y -q install "${cudatk_package}"
-    sync
   fi
+  sync
 }
 
 function load_kernel_module() {
@@ -830,13 +1027,30 @@ function load_kernel_module() {
   # TODO: if peermem is available, also modprobe nvidia-peermem
 }
 
+function install_cuda(){
+  if test -f "${workdir}/cuda-repo-complete" ; then return ; fi
+
+  if ( ge_debian12 && is_src_os ) ; then
+    echo "installed with the driver on ${OS_NAME}"
+    return 0
+  fi
+
+  # The OS package distributions are unreliable
+  install_cuda_runfile
+
+  # Includes cudNN packages
+  add_repo_cuda
+
+  touch "${workdir}/cuda-repo-complete"
+}
+
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
+  if test -f "${workdir}/gpu-driver-complete" ; then return ; fi
   if ( ge_debian12 && is_src_os ) ; then
     add_nonfree_components
     add_repo_nvidia_container_toolkit
     apt-get update -qq
-    #configure_dkms_certs
     apt-get -yq install \
           nvidia-container-toolkit \
           dkms \
@@ -845,42 +1059,38 @@ function install_nvidia_gpu_driver() {
           nvidia-smi \
           libglvnd0 \
           libcuda1
-    #clear_dkms_key
-  elif ( le_ubuntu18 || le_debian10 || (ge_debian12 && le_cuda11) ) ; then
-
-    install_nvidia_userspace_runfile
-
-    build_driver_from_github
-
-    install_cuda_runfile
-  elif is_debuntu ; then
-    install_cuda_keyring_pkg
-
-    build_driver_from_packages
-
-    install_cuda_toolkit
-  elif is_rocky ; then
-    add_repo_cuda
-
-    build_driver_from_packages
-
-    install_cuda_toolkit
-  else
-    echo "Unsupported OS: '${OS_NAME}'"
-    exit 1
-  fi
-  ldconfig
-  if is_src_os ; then
     echo "NVIDIA GPU driver provided by ${OS_NAME} was installed successfully"
-  else
-    echo "NVIDIA GPU driver provided by NVIDIA was installed successfully"
+    return 0
   fi
+
+  # OS driver packages do not produce reliable driver ; use runfile
+  install_nvidia_userspace_runfile
+
+  build_driver_from_github
+
+  echo "NVIDIA GPU driver provided by NVIDIA was installed successfully"
+  touch "${workdir}/gpu-driver-complete"
+}
+
+function install_ops_agent(){
+  if test -f "${workdir}/ops-agent-complete" ; then return ; fi
+
+  mkdir -p /opt/google
+  cd /opt/google
+  # https://cloud.google.com/stackdriver/docs/solutions/agents/ops-agent/installation
+  curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
+  execute_with_retries bash add-google-cloud-ops-agent-repo.sh --also-install
+
+  touch "${workdir}/ops-agent-complete"
 }
 
 # Collects 'gpu_utilization' and 'gpu_memory_utilization' metrics
 function install_gpu_agent() {
-  if ! command -v pip; then
-    execute_with_retries "apt-get install -y -qq python-pip"
+  # Stackdriver GPU agent parameters
+#  local -r GPU_AGENT_REPO_URL='https://raw.githubusercontent.com/GoogleCloudPlatform/ml-on-gcp/master/dlvm/gcp-gpu-utilization-metrics'
+  local -r GPU_AGENT_REPO_URL='https://raw.githubusercontent.com/GoogleCloudPlatform/ml-on-gcp/refs/heads/master/dlvm/gcp-gpu-utilization-metrics'
+  if ( ! command -v pip && is_debuntu ) ; then
+    execute_with_retries "apt-get install -y -qq python3-pip"
   fi
   local install_dir=/opt/gpu-utilization-agent
   mkdir -p "${install_dir}"
@@ -890,7 +1100,13 @@ function install_gpu_agent() {
     "${GPU_AGENT_REPO_URL}/report_gpu_metrics.py" \
     | sed -e 's/-u --format=/--format=/' \
     | dd status=none of="${install_dir}/report_gpu_metrics.py"
-  execute_with_retries pip install -r "${install_dir}/requirements.txt"
+  local venv="${install_dir}/venv"
+  python3 -m venv "${venv}"
+(
+  source "${venv}/bin/activate"
+  python3 -m pip install --upgrade pip
+  execute_with_retries python3 -m pip install -r "${install_dir}/requirements.txt"
+)
   sync
 
   # Generate GPU service.
@@ -901,7 +1117,7 @@ Description=GPU Utilization Metric Agent
 [Service]
 Type=simple
 PIDFile=/run/gpu_agent.pid
-ExecStart=/bin/bash --login -c 'python "${install_dir}/report_gpu_metrics.py"'
+ExecStart=/bin/bash --login -c '. ${venv}/bin/activate ; python3 "${install_dir}/report_gpu_metrics.py"'
 User=root
 Group=root
 WorkingDirectory=/
@@ -926,8 +1142,9 @@ function set_hadoop_property() {
     --clobber
 }
 
-function configure_yarn() {
-  if [[ -d "${HADOOP_CONF_DIR}" && ! -f "${HADOOP_CONF_DIR}/resource-types.xml" ]]; then
+function configure_yarn_resources() {
+  if [[ ! -d "${HADOOP_CONF_DIR}" ]] ; then return 0 ; fi # pre-init scripts
+  if [[ ! -f "${HADOOP_CONF_DIR}/resource-types.xml" ]]; then
     printf '<?xml version="1.0" ?>\n<configuration/>' >"${HADOOP_CONF_DIR}/resource-types.xml"
   fi
   set_hadoop_property 'resource-types.xml' 'yarn.resource-types' 'yarn.io/gpu'
@@ -975,7 +1192,7 @@ function configure_gpu_exclusive_mode() {
   spark_version=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
   if [[ ${spark_version} != 3.* ]]; then
     # include exclusive mode on GPU
-    nvsmi -c EXCLUSIVE_PROCESS
+    nvidia-smi -c EXCLUSIVE_PROCESS
   fi
 }
 
@@ -1023,8 +1240,34 @@ EOF
   chmod a+rx "${gpus_resources_script}"
 
   local spark_defaults_conf="/etc/spark/conf.dist/spark-defaults.conf"
-  if ! grep spark.executor.resource.gpu.discoveryScript "${spark_defaults_conf}" ; then
-    echo "spark.executor.resource.gpu.discoveryScript=${gpus_resources_script}" >> "${spark_defaults_conf}"
+  if version_ge "${SPARK_VERSION}" "3.0" ; then
+    local gpu_count
+    gpu_count="$(lspci | grep NVIDIA | wc -l)"
+    local executor_cores
+    executor_cores="$(nproc | perl -MPOSIX -pe '$_ = POSIX::floor( $_ * 0.75 ); $_-- if $_ % 2')"
+    local executor_memory
+    executor_memory_gb="$(awk '/^MemFree/ {print $2}' /proc/meminfo | perl -MPOSIX -pe '$_ *= 0.75; $_ = POSIX::floor( $_ / (1024*1024) )')"
+    local task_cpus=2
+    local gpu_amount
+    gpu_amount="$(echo $executor_cores | perl -pe "\$_ = ( ${gpu_count} / (\$_ / ${task_cpus}) )")"
+
+    cat >>"${spark_defaults_conf}" <<EOF
+###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
+# Rapids Accelerator for Spark can utilize AQE, but when the plan is not finalized,
+# query explain output won't show GPU operator, if the user has doubts
+# they can uncomment the line before seeing the GPU plan explain;
+# having AQE enabled gives user the best performance.
+spark.executor.resource.gpu.discoveryScript=${gpus_resources_script}
+spark.executor.resource.gpu.amount=${gpu_count}
+spark.executor.cores=${executor_cores}
+spark.executor.memory=${executor_memory_gb}G
+spark.dynamicAllocation.enabled=false
+# please update this config according to your application
+spark.task.resource.gpu.amount=${gpu_amount}
+spark.task.cpus=2
+spark.yarn.unmanagedAM.enabled=false
+###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
+EOF
   fi
 }
 
@@ -1058,7 +1301,7 @@ EOF
 
 function nvsmi() {
   local nvsmi="/usr/bin/nvidia-smi"
-  if   [[ "${nvsmi_works}" == "1" ]] ; then echo "nvidia-smi is working" >&2
+  if   [[ "${nvsmi_works}" == "1" ]] ; then echo -n ''
   elif [[ ! -f "${nvsmi}" ]]         ; then echo "nvidia-smi not installed" >&2 ; return 0
   elif ! eval "${nvsmi} > /dev/null" ; then echo "nvidia-smi fails" >&2 ; return 0
   else nvsmi_works="1" ; fi
@@ -1077,11 +1320,18 @@ function nvsmi() {
 function install_dependencies() {
   if is_debuntu ; then
     execute_with_retries apt-get install -y -qq pciutils "linux-headers-${uname_r}" screen
+    if is_ubuntu22 ; then
+      # On ubuntu22, the default compiler does not build some kernel module versions
+      # https://forums.developer.nvidia.com/t/linux-new-kernel-6-5-0-14-ubuntu-22-04-can-not-compile-nvidia-display-card-driver/278553/11
+      execute_with_retries apt-get install -y -qq gcc-12
+      update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 11
+      update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
+      update-alternatives --set gcc /usr/bin/gcc-12
+    fi
   elif is_rocky ; then
     execute_with_retries dnf -y -q install pciutils gcc screen
 
     local dnf_cmd="dnf -y -q install kernel-devel-${uname_r}"
-    local install_log="${tmpdir}/install.log"
     set +e
     eval "${dnf_cmd}" > "${install_log}" 2>&1
     local retval="$?"
@@ -1109,7 +1359,7 @@ function install_dependencies() {
 function main() {
   # This configuration should be run on all nodes
   # regardless if they have attached GPUs
-  configure_yarn
+  configure_yarn_resources
 
   # Detect NVIDIA GPU
   if (lspci | grep -q NVIDIA); then
@@ -1133,6 +1383,8 @@ function main() {
     if [[ $IS_MIG_ENABLED -eq 0 ]]; then
       install_nvidia_gpu_driver
 
+      install_cuda
+
       load_kernel_module
 
       if [[ -n ${CUDNN_VERSION} ]]; then
@@ -1141,7 +1393,8 @@ function main() {
       fi
       #Install GPU metrics collection in Stackdriver if needed
       if [[ "${INSTALL_GPU_AGENT}" == "true" ]]; then
-        install_gpu_agent
+        #install_ops_agent
+	install_gpu_agent
         echo 'GPU metrics agent successfully deployed.'
       else
         echo 'GPU metrics agent will not be installed.'
@@ -1316,7 +1569,7 @@ function exit_handler() {
   if is_debuntu ; then
     # Clean up OS package cache
     apt-get -y -qq clean
-    apt-get -y -qq autoremove
+    apt-get -y -qq -o DPkg::Lock::Timeout=60 autoremove
     # re-hold systemd package
     if ge_debian12 ; then
     apt-mark hold systemd libsystemd0 ; fi
@@ -1333,11 +1586,17 @@ function exit_handler() {
       /usr/local/cuda-1?.? \
       /opt/conda/miniconda3 | sort -h
   elif is_debian ; then
-    du -hs \
+    du -x -hs \
       /usr/lib/{pig,hive,hadoop,jvm,spark,google-cloud-sdk,x86_64-linux-gnu} \
+      /var/lib/{docker,mysql,} \
       /usr/lib \
+      /opt/nvidia/* \
       /usr/local/cuda-1?.? \
-      /opt/conda/miniconda3 | sort -h
+      /opt/{conda,google-cloud-ops-agent,install-nvidia,} \
+      /usr/bin \
+      /usr \
+      /var \
+      / 2>/dev/null | sort -h
   else
     du -hs \
       /var/lib/docker \
@@ -1382,7 +1641,11 @@ print( "    samples-taken: ", scalar @siz, $/,
 }
 
 function set_proxy(){
-  export METADATA_HTTP_PROXY="$(get_metadata_attribute http-proxy)"
+  METADATA_HTTP_PROXY="$(get_metadata_attribute http-proxy '')"
+
+  if [[ -z "${METADATA_HTTP_PROXY}" ]] ; then return ; fi
+
+  export METADATA_HTTP_PROXY
   export http_proxy="${METADATA_HTTP_PROXY}"
   export https_proxy="${METADATA_HTTP_PROXY}"
   export HTTP_PROXY="${METADATA_HTTP_PROXY}"
@@ -1402,6 +1665,9 @@ function mount_ramdisk(){
   mkdir -p "${tmpdir}"
   mount -t tmpfs tmpfs "${tmpdir}"
 
+  # Download conda packages to tmpfs
+  /opt/conda/miniconda3/bin/conda config --add pkgs_dirs "${tmpdir}"
+
   # Clear pip cache
   # TODO: make this conditional on which OSs have pip without cache purge
   pip cache purge || echo "unable to purge pip cache"
@@ -1418,30 +1684,47 @@ function mount_ramdisk(){
 }
 
 function prepare_to_install(){
+  # Verify OS compatability and Secure boot state
+  check_os_and_secure_boot
+
+  workdir=/opt/install-dpgce
   nvsmi_works="0"
-  readonly bdcfg="/usr/local/bin/bdconfig"
   tmpdir=/tmp/
-  if ! is_debuntu && ! is_rocky ; then
-    echo "Unsupported OS: '$(os_name)'"
-    exit 1
-  fi
-
-  repair_old_backports
-
+  readonly temp_bucket="$(get_metadata_attribute dataproc-temp-bucket)"
+  readonly pkg_bucket="gs://${temp_bucket}/dpgce-packages"
+  readonly uname_r=$(uname -r)
+  readonly bdcfg="/usr/local/bin/bdconfig"
   export DEBIAN_FRONTEND=noninteractive
 
+  mkdir -p "${workdir}"
   trap exit_handler EXIT
-  mount_ramdisk
-  install_log="${tmpdir}/install.log"
-
   set_proxy
+  mount_ramdisk
+  configure_dkms_certs
+
+  readonly install_log="${tmpdir}/install.log"
+
+  # Detect dataproc image version
+  if (! test -v DATAPROC_IMAGE_VERSION) ; then
+    if test -v DATAPROC_VERSION ; then
+      DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
+    else
+      if   version_lt "${SPARK_VERSION_ENV}" "3.2" ; then DATAPROC_IMAGE_VERSION="2.0"
+      elif version_lt "${SPARK_VERSION_ENV}" "3.4" ; then DATAPROC_IMAGE_VERSION="2.1"
+      elif version_lt "${SPARK_VERSION_ENV}" "3.6" ; then DATAPROC_IMAGE_VERSION="2.2"
+      else echo "Unknown dataproc image version" ; exit 1 ; fi
+    fi
+  fi
+
+  if test -f "${workdir}/prepare-complete" ; then return ; fi
+
+  repair_old_backports
 
   if is_debuntu ; then
     clean_up_sources_lists
     apt-get update -qq
     apt-get -y clean
-    sleep 5s
-    apt-get -y -qq autoremove
+    apt-get -o DPkg::Lock::Timeout=60 -y autoremove
     if ge_debian12 ; then
     apt-mark unhold systemd libsystemd0 ; fi
   else
@@ -1453,15 +1736,41 @@ function prepare_to_install(){
     time dd if=/dev/zero of=/zero status=none ; sync ; sleep 3s ; rm -f /zero
   ) fi
 
-  configure_dkms_certs
-
   install_dependencies
 
   # Monitor disk usage in a screen session
   df / > "/run/disk-usage.log"
   touch "/run/keep-running-df"
-  screen -d -m -US keep-running-df \
+  screen -d -m -LUS keep-running-df \
     bash -c "while [[ -f /run/keep-running-df ]] ; do df / | tee -a /run/disk-usage.log ; sleep 5s ; done"
+
+  touch "${workdir}/prepare-complete"
+}
+
+# Verify if compatible linux distros and secure boot options are used
+function check_os_and_secure_boot() {
+  local SECURE_BOOT="disabled"
+  SECURE_BOOT=$(mokutil --sb-state|awk '{print $2}')
+  if is_debian && ( ! is_debian10 && ! is_debian11 && ! is_debian12 ) ; then
+      echo "Error: The Debian version ($(os_version)) is not supported. Please use a compatible Debian version."
+      exit 1
+  elif is_ubuntu && ( ! is_ubuntu18 && ! is_ubuntu20 && ! is_ubuntu22  ) ; then
+      echo "Error: The Ubuntu version ($(os_version)) is not supported. Please use a compatible Ubuntu version."
+      exit 1
+  elif is_rocky && ( ! is_rocky8 && ! is_rocky9 ) ; then
+      echo "Error: The Rocky Linux version ($(os_version)) is not supported. Please use a compatible Rocky Linux version."
+      exit 1
+  fi
+
+  if [[ "${SECURE_BOOT}" == "enabled" ]] && le_debian11 ; then
+    echo "Error: Secure Boot is not supported on Debian before image 2.2. Please disable Secure Boot while creating the cluster."
+    exit 1
+  elif [[ "${SECURE_BOOT}" == "enabled" ]] && [[ -z "${PSN}" ]]; then
+    echo "Secure boot is enabled, but no signing material provided."
+    echo "Please either disable secure boot or provide signing material as per"
+    echo "https://github.com/GoogleCloudDataproc/custom-images/tree/master/examples/secure-boot"
+    return 1
+  fi
 }
 
 prepare_to_install
