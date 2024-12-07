@@ -25,6 +25,12 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     # Verify that pyspark works
     self.assert_instance_command(name, "echo 'from pyspark.sql import SparkSession ; SparkSession.builder.getOrCreate()' | pyspark -c spark.executor.resource.gpu.amount=1 -c spark.task.resource.gpu.amount=0.01", 1)
 
+  def verify_pytorch(self, name):
+    # Verify that pytorch works
+    self.assert_instance_command(name, "echo 0 | dd of=/sys/module/nvidia/drivers/pci:nvidia/*/numa_node", 1)
+    #echo 0 | dd of=/sys/module/nvidia/drivers/pci:nvidia/*/numa_node
+    #echo 0 | dd of=/sys/module/nvidia/drivers/pci:nvidia/*/numa_node ; /opt/conda/miniconda3/envs/pytorch/bin/python /tmp/prakasha-spark-test.py
+
   def verify_mig_instance(self, name):
     self.assert_instance_command(name,
         "/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | xargs -I % test % = 'Enabled'")
