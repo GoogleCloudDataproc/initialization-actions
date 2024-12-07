@@ -314,6 +314,8 @@ readonly USERSPACE_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_USER
 USERSPACE_FILENAME="$(echo ${USERSPACE_URL} | perl -pe 's{^.+/}{}')"
 readonly USERSPACE_FILENAME
 
+readonly _shortname="$(os_id)$(os_vercat)"
+
 # Short name for urls
 if is_ubuntu22  ; then
     # at the time of writing 20241125 there is no ubuntu2204 in the index of repos at
@@ -321,20 +323,20 @@ if is_ubuntu22  ; then
     # use packages from previous release until such time as nvidia
     # release ubuntu2204 builds
 
+    shortname="${_shortname}"
     nccl_shortname="ubuntu2004"
-    shortname="$(os_id)$(os_vercat)"
 elif ge_rocky9 ; then
     # use packages from previous release until such time as nvidia
     # release rhel9 builds
 
-    nccl_shortname="rhel8"
     shortname="rhel9"
+    nccl_shortname="rhel8"
 elif is_rocky ; then
     shortname="$(os_id | sed -e 's/rocky/rhel/')$(os_vercat)"
     nccl_shortname="${shortname}"
 else
-    shortname="$(os_id)$(os_vercat)"
-    nccl_shortname="${shortname}"
+    shortname="${_shortname}"
+    nccl_shortname="${_shortname}"
 fi
 
 # Parameters for NVIDIA-provided package repositories
@@ -428,8 +430,6 @@ readonly CUDNN_TARBALL_URL
 GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'NVIDIA')
 readonly GPU_DRIVER_PROVIDER
 
-# Stackdriver GPU agent parameters
-readonly GPU_AGENT_REPO_URL='https://raw.githubusercontent.com/GoogleCloudPlatform/ml-on-gcp/master/dlvm/gcp-gpu-utilization-metrics'
 # Whether to install GPU monitoring agent that sends GPU metrics to Stackdriver
 INSTALL_GPU_AGENT=$(get_metadata_attribute 'install-gpu-agent' 'false')
 readonly INSTALL_GPU_AGENT
@@ -604,13 +604,14 @@ function install_nvidia_nccl() {
                        build_path="nccl/build/pkg/rpm/x86_64" ; fi
 
   test -d "${workdir}/nccl/build" || {
-    local build_tarball="nccl-build_$(os_id)$(os_vercat)_${nccl_version}.tar.gz"
-    local full_tarball_path="${workdir}/${build_tarball}"
+    local build_tarball="nccl-build_${_shortname}_${nccl_version}.tar.gz"
+    local local_tarball="${workdir}/${build_tarball}"
+    local gcs_tarball="${pkg_bucket}/${_shortname}/${build_tarball}"
 
-    output=$(gsutil ls "${pkg_bucket}/${build_tarball}" 2>&1 || echo '')
-    if echo "${output}" | grep -q "${pkg_bucket}/${build_tarball}" ; then
+    output=$(gsutil ls "${gcs_tarball}" 2>&1 || echo '')
+    if echo "${output}" | grep -q "${gcs_tarball}" ; then
       # cache hit - unpack from cache
-      gcloud storage cat "${pkg_bucket}/${build_tarball}" | tar xz
+      gcloud storage cat "${gcs_tarball}" | tar xz
     else
       # build and cache
       pushd nccl
@@ -629,9 +630,9 @@ function install_nvidia_nccl() {
         execute_with_retries make -j$(nproc) pkg.redhat.build
       fi
       popd
-      tar czf "${full_tarball_path}" "${build_path}"
-      gcloud storage cp "${full_tarball_path}" "${pkg_bucket}/${build_tarball}" || echo "could not publish cached results"
-      rm "${full_tarball_path}"
+      tar czf "${local_tarball}" "${build_path}"
+      gcloud storage cp "${local_tarball}" "${gcs_tarball}" || echo "could not publish cached results"
+      rm "${local_tarball}"
     fi
   }
 
@@ -649,6 +650,8 @@ function is_src_nvidia() ( set +x ; [[ "${GPU_DRIVER_PROVIDER}" == "NVIDIA" ]] ;
 function is_src_os()     ( set +x ; [[ "${GPU_DRIVER_PROVIDER}" == "OS" ]] ; )
 
 function install_nvidia_cudnn() {
+  if test -f "${workdir}/cudnn-complete" ; then return ; fi
+
   local major_version
   major_version="${CUDNN_VERSION%%.*}"
   local cudnn_pkg_version
@@ -714,6 +717,7 @@ function install_nvidia_cudnn() {
   ldconfig
 
   echo "NVIDIA cuDNN successfully installed for ${OS_NAME}."
+  touch "${workdir}/cudnn-complete"
 }
 
 CA_TMPDIR="$(mktemp -u -d -p /run/tmp -t ca_dir-XXXX)"
@@ -877,12 +881,13 @@ function build_driver_from_github() {
   }
 
   test -f "${workdir}/open-gpu-kernel-modules/kernel-open/nvidia.ko" || {
-    local build_tarball="kmod-build_$(os_id)_${DRIVER_VERSION}.tar.gz"
-    local full_tarball_path="${workdir}/${build_tarball}"
+    local build_tarball="kmod-build_${_shortname}_${DRIVER_VERSION}.tar.gz"
+    local local_tarball="${workdir}/${build_tarball}"
+    local gcs_tarball="${pkg_bucket}/${_shortname}/${build_tarball}"
 
-    if gsutil ls "${pkg_bucket}/${build_tarball}" 2>&1 | grep -q "${pkg_bucket}/${build_tarball}" ; then
+    if gsutil ls "${gcs_tarball}" 2>&1 | grep -q "${gcs_tarball}" ; then
       # fetch and unpack kernel modules from cache
-      gcloud storage cat "${pkg_bucket}/${build_tarball}" | tar xz
+      gcloud storage cat "${gcs_tarball}" | tar xz
     else
       # build and cache kernel modules
       pushd open-gpu-kernel-modules
@@ -890,9 +895,9 @@ function build_driver_from_github() {
         >  kernel-open/build.log \
         2> kernel-open/build_error.log
       popd
-      tar czf "${full_tarball_path}" open-gpu-kernel-modules/kernel-open
-      gcloud storage cp "${full_tarball_path}" "${pkg_bucket}/${build_tarball}" || echo "could not publish cached results"
-      rm "${full_tarball_path}"
+      tar czf "${local_tarball}" open-gpu-kernel-modules/kernel-open
+      gcloud storage cp "${local_tarball}" "${gcs_tarball}" || echo "could not publish cached results"
+      rm "${local_tarball}"
     fi
   }
 
@@ -1159,11 +1164,65 @@ function install_nvidia_gpu_driver() {
 }
 
 function install_ops_agent(){
+  if test -f "${workdir}/ops-agent-complete" ; then return ; fi
+
   mkdir -p /opt/google
   cd /opt/google
   # https://cloud.google.com/stackdriver/docs/solutions/agents/ops-agent/installation
   curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
   execute_with_retries bash add-google-cloud-ops-agent-repo.sh --also-install
+
+  touch "${workdir}/ops-agent-complete"
+}
+
+# Collects 'gpu_utilization' and 'gpu_memory_utilization' metrics
+function install_gpu_agent() {
+  # Stackdriver GPU agent parameters
+#  local -r GPU_AGENT_REPO_URL='https://raw.githubusercontent.com/GoogleCloudPlatform/ml-on-gcp/master/dlvm/gcp-gpu-utilization-metrics'
+  local -r GPU_AGENT_REPO_URL='https://raw.githubusercontent.com/GoogleCloudPlatform/ml-on-gcp/refs/heads/master/dlvm/gcp-gpu-utilization-metrics'
+  echo "gpu agent installation is currently unsupported"
+  return 0
+  if ! command -v pip; then
+    execute_with_retries "apt-get install -y -qq python-pip"
+  fi
+  local install_dir=/opt/gpu-utilization-agent
+  mkdir -p "${install_dir}"
+  curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    "${GPU_AGENT_REPO_URL}/requirements.txt" -o "${install_dir}/requirements.txt"
+  curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    "${GPU_AGENT_REPO_URL}/report_gpu_metrics.py" \
+    | sed -e 's/-u --format=/--format=/' \
+    | dd status=none of="${install_dir}/report_gpu_metrics.py"
+  local venv="${install_dir}/venv"
+  python3 -m venv "${venv}"
+(
+  source "${venv}/bin/activate"
+  python3 -m pip install --upgrade pip
+  execute_with_retries python3 -m pip install -r "${install_dir}/requirements.txt"
+)
+  sync
+
+  # Generate GPU service.
+  cat <<EOF >/lib/systemd/system/gpu-utilization-agent.service
+[Unit]
+Description=GPU Utilization Metric Agent
+
+[Service]
+Type=simple
+PIDFile=/run/gpu_agent.pid
+ExecStart=/bin/bash --login -c '. ${venv}/bin/activate ; python3 "${install_dir}/report_gpu_metrics.py"'
+User=root
+Group=root
+WorkingDirectory=/
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  # Reload systemd manager configuration
+  systemctl daemon-reload
+  # Enable gpu-utilization-agent service
+  systemctl --no-reload --now enable gpu-utilization-agent.service
 }
 
 function set_hadoop_property() {
@@ -1398,7 +1457,8 @@ function setup_gpu_yarn() {
 
       #Install GPU metrics collection in Stackdriver if needed
       if [[ ${INSTALL_GPU_AGENT} == true ]]; then
-        install_ops_agent
+        #install_ops_agent
+	install_gpu_agent
         echo 'GPU metrics agent successfully deployed.'
       else
         echo 'GPU metrics agent will not be installed.'
@@ -1490,7 +1550,8 @@ function main() {
       fi
       #Install GPU metrics collection in Stackdriver if needed
       if [[ "${INSTALL_GPU_AGENT}" == "true" ]]; then
-        install_ops_agent
+        #install_ops_agent
+	install_gpu_agent
         echo 'GPU metrics agent successfully deployed.'
       else
         echo 'GPU metrics agent will not be installed.'
