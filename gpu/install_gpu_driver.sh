@@ -1180,10 +1180,8 @@ function install_gpu_agent() {
   # Stackdriver GPU agent parameters
 #  local -r GPU_AGENT_REPO_URL='https://raw.githubusercontent.com/GoogleCloudPlatform/ml-on-gcp/master/dlvm/gcp-gpu-utilization-metrics'
   local -r GPU_AGENT_REPO_URL='https://raw.githubusercontent.com/GoogleCloudPlatform/ml-on-gcp/refs/heads/master/dlvm/gcp-gpu-utilization-metrics'
-  echo "gpu agent installation is currently unsupported"
-  return 0
-  if ! command -v pip; then
-    execute_with_retries "apt-get install -y -qq python-pip"
+  if ( ! command -v pip && is_debuntu ) ; then
+    execute_with_retries "apt-get install -y -qq python3-pip"
   fi
   local install_dir=/opt/gpu-utilization-agent
   mkdir -p "${install_dir}"
