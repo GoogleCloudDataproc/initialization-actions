@@ -5,8 +5,8 @@
 # To run the script, the following will bootstrap
 #
 # git clone git@github.com:LLC-Technologies-Collier/initialization-actions
-# git checkout gpu-20241121
 # cd initialization-actions
+# git checkout gpu-20241121
 # cp gpu/env.json.sample env.json
 # vi env.json
 # docker build -f gpu/Dockerfile -t gpu-init-actions-runner:latest .
@@ -16,9 +16,7 @@
 #  To see a list of screen windows, press ^a "
 # Num Name
 #
-#   0 monitor
 #   1 2.0-debian10
-#   2 sh
 
 
 readonly timestamp="$(date +%F-%H-%M)"
