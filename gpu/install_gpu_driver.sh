@@ -314,7 +314,7 @@ readonly USERSPACE_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_USER
 USERSPACE_FILENAME="$(echo ${USERSPACE_URL} | perl -pe 's{^.+/}{}')"
 readonly USERSPACE_FILENAME
 
-readonly _shortname="$(os_id)$(os_vercat|perl -pe 's/(\d+).*/$1/')"
+readonly _shortname="$(os_id)$(os_version|perl -pe 's/(\d+).*/$1/')"
 
 # Short name for urls
 if is_ubuntu22  ; then
@@ -323,7 +323,7 @@ if is_ubuntu22  ; then
     # use packages from previous release until such time as nvidia
     # release ubuntu2204 builds
 
-    shortname="${_shortname}"
+    shortname="$(os_id)$(os_vercat)"
     nccl_shortname="ubuntu2004"
 elif ge_rocky9 ; then
     # use packages from previous release until such time as nvidia
@@ -335,8 +335,8 @@ elif is_rocky ; then
     shortname="$(os_id | sed -e 's/rocky/rhel/')$(os_vercat)"
     nccl_shortname="${shortname}"
 else
-    shortname="${_shortname}"
-    nccl_shortname="${_shortname}"
+    shortname="$(os_id)$(os_vercat)"
+    nccl_shortname="${shortname}"
 fi
 
 # Parameters for NVIDIA-provided package repositories
@@ -611,7 +611,7 @@ function install_nvidia_nccl() {
     output=$(gsutil ls "${gcs_tarball}" 2>&1 || echo '')
     if echo "${output}" | grep -q "${gcs_tarball}" ; then
       # cache hit - unpack from cache
-      gcloud storage cat "${gcs_tarball}" | tar xz
+      echo "cache hit"
     else
       # build and cache
       pushd nccl
@@ -629,11 +629,13 @@ function install_nvidia_nccl() {
         export NVCC_GENCODE
         execute_with_retries make -j$(nproc) pkg.redhat.build
       fi
-      popd
-      tar czvf "${local_tarball}" "${build_path}"
-      gcloud storage cp "${local_tarball}" "${gcs_tarball}" || echo "could not publish cached results"
+      tar czvf "/${local_tarball}" "../${build_path}"
+      gcloud storage cp "${local_tarball}" "${gcs_tarball}"
       rm "${local_tarball}"
+      make clean
+      popd
     fi
+    gcloud storage cat "${gcs_tarball}" | tar xz
   }
 
   if is_debuntu ; then
@@ -1413,6 +1415,7 @@ function install_dependencies() {
     execute_with_retries apt-get install -y -qq pciutils "linux-headers-${uname_r}" screen
     if is_ubuntu22 ; then
       # On ubuntu22, the default compiler does not build some kernel module versions
+      # https://forums.developer.nvidia.com/t/linux-new-kernel-6-5-0-14-ubuntu-22-04-can-not-compile-nvidia-display-card-driver/278553/11
       execute_with_retries apt-get install -y -qq gcc-12
       update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 11
       update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
