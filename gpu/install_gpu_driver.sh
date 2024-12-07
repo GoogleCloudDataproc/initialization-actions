@@ -314,7 +314,7 @@ readonly USERSPACE_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_USER
 USERSPACE_FILENAME="$(echo ${USERSPACE_URL} | perl -pe 's{^.+/}{}')"
 readonly USERSPACE_FILENAME
 
-readonly _shortname="$(os_id)$(os_vercat)"
+readonly _shortname="$(os_id)$(os_vercat|perl -pe 's/(\d+).*/$1/')"
 
 # Short name for urls
 if is_ubuntu22  ; then
@@ -630,14 +630,14 @@ function install_nvidia_nccl() {
         execute_with_retries make -j$(nproc) pkg.redhat.build
       fi
       popd
-      tar czf "${local_tarball}" "${build_path}"
+      tar czvf "${local_tarball}" "${build_path}"
       gcloud storage cp "${local_tarball}" "${gcs_tarball}" || echo "could not publish cached results"
       rm "${local_tarball}"
     fi
   }
 
   if is_debuntu ; then
-    dpkg -i "${build_path}/libnccl${NCCL_VERSION%%.*}_${nccl_version}_amd64.deb" "${build_path}/libnccl${NCCL_VERSION%%.*}-dev_${nccl_version}_amd64.deb"
+    dpkg -i "${build_path}/libnccl${NCCL_VERSION%%.*}_${nccl_version}_amd64.deb" "${build_path}/libnccl-dev_${nccl_version}_amd64.deb"
   elif is_rocky ; then
     rpm -ivh "${build_path}/libnccl-${nccl_version}.x86_64.rpm" "${build_path}/libnccl-devel-${nccl_version}.x86_64.rpm"
   fi
@@ -895,7 +895,7 @@ function build_driver_from_github() {
         >  kernel-open/build.log \
         2> kernel-open/build_error.log
       popd
-      tar czf "${local_tarball}" open-gpu-kernel-modules/kernel-open
+      tar czvf "${local_tarball}" open-gpu-kernel-modules/kernel-open
       gcloud storage cp "${local_tarball}" "${gcs_tarball}" || echo "could not publish cached results"
       rm "${local_tarball}"
     fi
@@ -1392,7 +1392,7 @@ EOF
 
 function nvsmi() {
   local nvsmi="/usr/bin/nvidia-smi"
-  if   [[ "${nvsmi_works}" == "1" ]] ; then echo "nvidia-smi is working" >&2
+  if   [[ "${nvsmi_works}" == "1" ]] ; then echo -n ''
   elif [[ ! -f "${nvsmi}" ]]         ; then echo "nvidia-smi not installed" >&2 ; return 0
   elif ! eval "${nvsmi} > /dev/null" ; then echo "nvidia-smi fails" >&2 ; return 0
   else nvsmi_works="1" ; fi
@@ -1408,81 +1408,16 @@ function nvsmi() {
   "${nvsmi}" $*
 }
 
-function setup_gpu_yarn() {
-
-  if [[ ${OS_NAME} == debian ]] || [[ ${OS_NAME} == ubuntu ]]; then
-    export DEBIAN_FRONTEND=noninteractive
-    execute_with_retries "apt-get --allow-releaseinfo-change update"
-    execute_with_retries "apt-get install -y -q pciutils"
-  elif [[ ${OS_NAME} == rocky ]] ; then
-    execute_with_retries "dnf -y -q install pciutils"
-  else
-    echo "Unsupported OS: '${OS_NAME}'"
-    exit 1
-  fi
-
-  # This configuration should be run on all nodes
-  # regardless if they have attached GPUs
-  configure_yarn
-
-  # Detect NVIDIA GPU
-  if (lspci | grep -q NVIDIA); then
-    # if this is called without the MIG script then the drivers are not installed
-    nv_smi="/usr/bin/nvidia-smi"
-    if (test -f "${nv_smi}" && "${nv_smi}" --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l); then
-      NUM_MIG_GPUS="$($nv_smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l)"
-      if [[ $NUM_MIG_GPUS -eq 1 ]]; then
-        if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
-          IS_MIG_ENABLED=1
-          NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
-          MIG_MAJOR_CAPS=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
-          fetch_mig_scripts
-        fi
-      fi
-    fi
-
-    if is_debian || is_ubuntu ; then
-      execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
-    elif is_rocky ; then
-      echo "kernel devel and headers not required on rocky.  installing from binary"
-    fi
-
-    # if mig is enabled drivers would have already been installed
-    if [[ $IS_MIG_ENABLED -eq 0 ]]; then
-      install_nvidia_gpu_driver
-
-      install_cuda
-
-      #Install GPU metrics collection in Stackdriver if needed
-      if [[ ${INSTALL_GPU_AGENT} == true ]]; then
-        #install_ops_agent
-	install_gpu_agent
-        echo 'GPU metrics agent successfully deployed.'
-      else
-        echo 'GPU metrics agent will not be installed.'
-      fi
-      configure_gpu_exclusive_mode
-    fi
-
-    configure_yarn_nodemanager
-    configure_gpu_script
-    configure_gpu_isolation
-  elif [[ "${ROLE}" == "Master" ]]; then
-    configure_yarn_nodemanager
-    configure_gpu_script
-  fi
-
-  # Restart YARN services if they are running already
-  for svc in resourcemanager nodemanager; do
-    if [[ $(systemctl show hadoop-yarn-${svc}.service -p SubState --value) == 'running' ]]; then
-      systemctl restart hadoop-yarn-${svc}.service
-    fi
-  done
-}
-
 function install_dependencies() {
   if is_debuntu ; then
     execute_with_retries apt-get install -y -qq pciutils "linux-headers-${uname_r}" screen
+    if is_ubuntu22 ; then
+      # On ubuntu22, the default compiler does not build some kernel module versions
+      execute_with_retries apt-get install -y -qq gcc-12
+      update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 11
+      update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
+      update-alternatives --set gcc /usr/bin/gcc-12
+    fi
   elif is_rocky ; then
     execute_with_retries dnf -y -q install pciutils gcc screen
 
