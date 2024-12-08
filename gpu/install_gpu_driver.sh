@@ -142,7 +142,7 @@ readonly ROLE
 # https://developer.nvidia.com/cuda-downloads
 # Rocky8: 12.0: 525.147.05
 readonly -A DRIVER_FOR_CUDA=(
-          ["11.8"]="560.35.03"
+          ["11.8"]="520.61.05"
           ["12.0"]="525.60.13"  ["12.1"]="530.30.02" ["12.4"]="550.54.14"  ["12.5"]="555.42.02"  ["12.6"]="560.35.03"
 )
 # https://developer.nvidia.com/cudnn-downloads
@@ -174,15 +174,6 @@ readonly -A NCCL_FOR_CUDA=(
 readonly -A CUDA_SUBVER=(
           ["11.8"]="11.8.0"
           ["12.0"]="12.0.0"    ["12.1"]="12.1.1"     ["12.4"]="12.4.0"     ["12.5"]="12.5.0"  ["12.6"]="12.6.2"
-)
-# Debian 12
-# 12.3.101, 12.3.52
-# 12.4.127, 12.4.99
-# 12.5.82, 12.5.39
-# 12.6.77, 12.6.68, 12.6.37
-
-readonly -A cuda_toolkit_config_version=(
-          ["12.4"]="12.4.127"     ["12.6"]="12.6.77"
 )
 
 RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
@@ -967,6 +958,17 @@ function cache_fetched_package() {
 }
 
 function install_nvidia_userspace_runfile() {
+
+  # This .run file contains NV's OpenGL implementation as well as
+  # nvidia optimized implementations of the gtk+ 2,3 stack(s) not
+  # including glib (https://docs.gtk.org/glib/), and what appears to
+  # be a copy of the source from the kernel-open directory of for
+  # example DRIVER_VERSION=560.35.03
+  #
+  # https://github.com/NVIDIA/open-gpu-kernel-modules/archive/refs/tags/560.35.03.tar.gz
+  #
+  # wget https://us.download.nvidia.com/XFree86/Linux-x86_64/560.35.03/NVIDIA-Linux-x86_64-560.35.03.run
+  # sh ./NVIDIA-Linux-x86_64-560.35.03.run -x # this will allow you to review the contents of the package without installing it.
   if test -f "${workdir}/userspace-complete" ; then return ; fi
   local local_fn="${tmpdir}/userspace.run"
 
