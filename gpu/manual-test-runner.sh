@@ -6,7 +6,7 @@
 #
 # git clone git@github.com:LLC-Technologies-Collier/initialization-actions
 # cd initialization-actions
-# git checkout gpu-20241121
+# git checkout gpu-20241207
 # cp gpu/env.json.sample env.json
 # vi env.json
 # docker build -f gpu/Dockerfile -t gpu-init-actions-runner:latest .
@@ -33,7 +33,7 @@ export PROJECT_ID="$(jq    -r .PROJECT_ID           env.json)"
 export REGION="$(jq        -r .REGION               env.json)"
 export BUCKET="$(jq        -r .BUCKET               env.json)"
 
-gcs_log_dir="gs://${BUCKET}/${BUILD_ID}/logs"
+gcs_log_dir="gs://${BUCKET}/gpu-dpgce/builds/${BUILD_ID}/logs"
 
 function exit_handler() {
   RED='\\e[0;31m'
@@ -44,8 +44,11 @@ function exit_handler() {
   # TODO: list clusters which match our BUILD_ID and clean them up
   # TODO: remove any test related resources in the project
 
-  echo 'Uploading local logs to GCS bucket.'
-  gsutil -m rsync -r "${log_dir}/" "${gcs_log_dir}/"
+  # We allow the user to monitor the logs from within screen session.
+  # Logs can be archived if necessary, but won't be unless needed.
+
+#  echo 'Uploading local logs to GCS bucket.'
+#  gsutil -m rsync -r "${log_dir}/" "${gcs_log_dir}/"
 
   if [[ -f "${tmp_dir}/tests_success" ]]; then
     echo -e "${GREEN}Workflow succeeded${NC}, check logs at ${log_dir}/ or ${gcs_log_dir}/"
