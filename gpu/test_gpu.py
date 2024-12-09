@@ -189,7 +189,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
-        machine_type="n1-highmem-64",
+        machine_type="n1-highmem-32",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
