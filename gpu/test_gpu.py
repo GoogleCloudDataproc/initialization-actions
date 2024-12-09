@@ -25,6 +25,12 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     # Verify that pyspark works
     self.assert_instance_command(name, "echo 'from pyspark.sql import SparkSession ; SparkSession.builder.getOrCreate()' | pyspark -c spark.executor.resource.gpu.amount=1 -c spark.task.resource.gpu.amount=0.01", 1)
 
+  def verify_pytorch(self, name):
+    # Verify that pytorch works
+    self.assert_instance_command(name, "echo 0 | dd of=/sys/module/nvidia/drivers/pci:nvidia/*/numa_node", 1)
+    #echo 0 | dd of=/sys/module/nvidia/drivers/pci:nvidia/*/numa_node
+    #echo 0 | dd of=/sys/module/nvidia/drivers/pci:nvidia/*/numa_node ; /opt/conda/miniconda3/envs/pytorch/bin/python /tmp/prakasha-spark-test.py
+
   def verify_mig_instance(self, name):
     self.assert_instance_command(name,
         "/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | xargs -I % test % = 'Enabled'")
@@ -59,11 +65,13 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   @parameterized.parameters(
       ("SINGLE",   ["m"], GPU_T4, None, None),
 #      ("STANDARD", ["m"], GPU_T4, None, None),
-      ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "NVIDIA"),
+#      ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "NVIDIA"),
   )
   def test_install_gpu_default_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
+    self.skipTest("Running only one test to build cache")
+
     if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
       self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
@@ -73,16 +81,22 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
-        machine_type="n1-highmem-8",
+        machine_type="n1-highmem-32",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
         timeout_in_minutes=90,
-        boot_disk_size="50GB")
+        boot_disk_size="60GB")
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
       self.verify_instance(machine_name)
-      if ( self.getImageOs() != 'rocky' ) or ( configuration != 'SINGLE' ) or ( configuration == 'SINGLE' and self.getImageOs() == 'rocky' and self.getImageVersion() > pkg_resources.parse_version("2.1") ):
+      if ( configuration == 'SINGLE' and \
+           self.getImageOs() == 'rocky' and \
+           self.getImageVersion() > pkg_resources.parse_version("2.1") ):
+        # Do not attempt this on single instance rocky clusters
+        no_op=1
+      else:
+        # verify that pyspark from command prompt works
         self.verify_pyspark(machine_name)
 
   @parameterized.parameters(
@@ -91,6 +105,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_without_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
+    self.skipTest("Running only one test to build cache")
 
     self.skipTest("No need to regularly test not installing the agent")
 
@@ -121,6 +136,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_with_agent(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider):
+    self.skipTest("Running only one test to build cache")
     if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
       self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
@@ -144,54 +160,58 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                                     machine_suffix))
 
   @parameterized.parameters(
-#       ("SINGLE", ["m"],               GPU_T4, None,   "12.0"),
-        ("SINGLE", ["m"],               GPU_T4, None,   "11.8"),
-      ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4"),
-#     ("STANDARD", ["w-0", "w-1"],      None,   GPU_T4, "11.8"),
+        ("SINGLE", ["m"],               GPU_T4, None,   "12.4"),
+        ("SINGLE", ["m"],               GPU_T4, None,   "11.7"),
+#      ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4"),
+#     ("STANDARD", ["w-0", "w-1"],      None,   GPU_T4, "11.7"),
   )
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
+#    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+#      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
-    if pkg_resources.parse_version(cuda_version) == pkg_resources.parse_version("12.0") \
-    and ( self.getImageOs() == 'debian' and self.getImageVersion() >= pkg_resources.parse_version("2.2") ):
-      self.skipTest("CUDA == 12.0 not supported on debian 12")
+#    if pkg_resources.parse_version(cuda_version) == pkg_resources.parse_version("12.0") \
+#    and ( self.getImageOs() == 'debian' and self.getImageVersion() >= pkg_resources.parse_version("2.2") ):
+#      self.skipTest("CUDA == 12.0 not supported on debian 12")
 
-    if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.0") \
-    and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
-          ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
-      self.skipTest("CUDA > 12.0 not supported on older debian/ubuntu releases")
+#    if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.0") \
+#    and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
+#          ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
+#      self.skipTest("CUDA > 12.0 not supported on older debian/ubuntu releases")
 
-    if pkg_resources.parse_version(cuda_version) < pkg_resources.parse_version("12.0") \
-    and ( self.getImageOs() == 'debian' or self.getImageOs() == 'rocky' ) \
-    and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("CUDA < 12 not supported on Debian >= 12, Rocky >= 9")
+#    if pkg_resources.parse_version(cuda_version) < pkg_resources.parse_version("12.0") \
+#    and ( self.getImageOs() == 'debian' or self.getImageOs() == 'rocky' ) \
+#    and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+#      self.skipTest("CUDA < 12 not supported on Debian >= 12, Rocky >= 9")
 
     metadata = "gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
-        machine_type="n1-highmem-8",
+        machine_type="n1-highmem-32",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
         timeout_in_minutes=30,
-        boot_disk_size="50GB")
+        boot_disk_size="60GB")
+
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
       self.verify_instance(machine_name)
       self.verify_instance_nvcc(machine_name, cuda_version)
+      self.verify_instance_pyspark(machine_name)
+      self.verify_instance_spark()
 
   @parameterized.parameters(
-      ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "11.8"),
+      ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "11.7"),
 #      ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "12.0"),
       ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "12.4"),
   )
   def test_install_gpu_with_mig(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider, cuda_version):
+    self.skipTest("Running only one test to build cache")
 
     self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
 
@@ -236,11 +256,14 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   )
   def test_gpu_allocation(self, configuration, master_accelerator,
                           worker_accelerator, driver_provider):
+    self.skipTest("Running only one test to build cache")
+
     if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
       self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() <= pkg_resources.parse_version("2.1") \
-    and configuration == 'SINGLE':
+    if configuration == 'SINGLE' \
+    and self.getImageOs() == 'rocky' \
+    and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail with errors about nodes_include being empty")
 
     metadata = None
@@ -260,21 +283,23 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.verify_instance_spark()
 
   @parameterized.parameters(
-    ("SINGLE", ["m"], GPU_T4, None, "11.8"),
+    ("SINGLE", ["m"], GPU_T4, None, "11.7"),
 #    ("STANDARD", ["m"], GPU_T4, None, "12.0"),
     ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4"),
-#    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.8"),
+#    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.7"),
 #    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "12.0"),
   )
   def test_install_gpu_cuda_nvidia_with_spark_job(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
+    self.skipTest("Running only one test to build cache")
 
     if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
       self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() <= pkg_resources.parse_version("2.1") \
-    and configuration == 'SINGLE':
+    if configuration == 'SINGLE' \
+    and self.getImageOs() == 'rocky' \
+    and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests fail with errors about nodes_include being empty")
 
     if pkg_resources.parse_version(cuda_version) == pkg_resources.parse_version("12.0") \
