@@ -359,7 +359,7 @@ function set_cuda_runfile_url() {
       MAX_DRIVER_VERSION="530.30.02"
       MAX_CUDA_VERSION="12.1.1"
     fi
-  elif ge_version "${CUDA_VERSION}" "${MIN_CUDA_VERSION}" ; then
+  elif version_ge "${CUDA_VERSION}" "${MIN_CUDA_VERSION}" ; then
     if le_debian10 ; then
       # cuda 11 is not supported for <= debian10
       MAX_CUDA_VERSION="0"
@@ -576,8 +576,12 @@ function install_nvidia_nccl() {
   # Blackwell: SM_100,            compute_100
                   NVCC_GENCODE="-gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_72,code=sm_72"
   NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_87,code=sm_87"
-  NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_89,code=sm_89"
-  NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_90a,code=compute_90a"
+  if version_ge "${CUDA_VERSION}" "11.8" ; then
+    NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_89,code=sm_89"
+  fi
+  if version_ge "${CUDA_VERSION}" "12.0" ; then
+    NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_90a,code=compute_90a"
+  fi
 
   mkdir -p "${workdir}"
   pushd "${workdir}"
