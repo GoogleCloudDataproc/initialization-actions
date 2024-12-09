@@ -195,10 +195,13 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         metadata=metadata,
         timeout_in_minutes=30,
         boot_disk_size="60GB")
+
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
       self.verify_instance(machine_name)
       self.verify_instance_nvcc(machine_name, cuda_version)
+      self.verify_instance_pyspark(machine_name)
+      self.verify_instance_spark()
 
   @parameterized.parameters(
       ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "11.7"),
