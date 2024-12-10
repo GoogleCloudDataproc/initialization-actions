@@ -22,10 +22,10 @@ set -euxo pipefail
 
 readonly DEFAULT_HOROVOD_VERSION="0.21.2"
 readonly DEFAULT_TENSORFLOW_VERSION="2.4.1"
-readonly DEFAULT_PYTORCH_VERSION="1.11.0"
+readonly DEFAULT_PYTORCH_VERSION="1.7.1"
 readonly DEFAULT_TORCHVISION_VERSION="0.8.2"
 readonly DEFAULT_MXNET_VERSION="1.7.0.post1"
-readonly DEFAULT_CUDA_VERSION="11.0"
+readonly DEFAULT_CUDA_VERSION="12.4"
 
 HOROVOD_VERSION="$(/usr/share/google/get_metadata_value attributes/horovod-version || echo ${DEFAULT_HOROVOD_VERSION})"
 readonly HOROVOD_VERSION

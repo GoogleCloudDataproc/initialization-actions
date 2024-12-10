@@ -5,10 +5,9 @@ from pysparkling import *
 spark = SparkSession.builder.appName("SparklingWaterApp").getOrCreate()
 hc = H2OContext.getOrCreate()
 
-bucket = "h2o-bq-large-dataset"
-train_path = "demos/cc_train.csv"
-test_path = "demos/cc_test.csv"
-y = "DEFAULT_PAYMENT_NEXT_MONTH"
+bucket = "h2o-bq-large-dataset-1"
+train_path = "demos/prostate.csv"
+y = "CAPSULE"
 is_classification = True
 
 drop_cols = []
@@ -17,13 +16,9 @@ aml_args = {"max_runtime_secs": 120}
 train_data = spark.read\
                   .options(header='true', inferSchema='true')\
                   .csv("gs://{}/{}".format(bucket, train_path))
-test_data = spark.read\
-                 .options(header='true', inferSchema='true')\
-                 .csv("gs://{}/{}".format(bucket, test_path))
 
 print("CREATING H2O FRAME")
 training_frame = hc.asH2OFrame(train_data)
-test_frame = hc.asH2OFrame(test_data)
 
 x = training_frame.columns
 x.remove(y)
