@@ -123,11 +123,8 @@ class MLVMTestCase(DataprocTestCase):
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0 images")
 
-    metadata = ("init-actions-repo={},include-gpus=true"
-                ",gpu-driver-provider=NVIDIA").format(self.INIT_ACTIONS_REPO)
-
-    cudnn_version = "8.1.1.33"
-    cuda_version = "11.2"
+    cudnn_version = "9.1.0.70"
+    cuda_version = "12.4"
 
     metadata = ("init-actions-repo={},include-gpus=true"
                 ",gpu-driver-provider=NVIDIA,"
@@ -143,7 +140,7 @@ class MLVMTestCase(DataprocTestCase):
         configuration,
         self.INIT_ACTIONS,
         optional_components=self.OPTIONAL_COMPONENTS,
-        machine_type="n1-standard-4",
+        machine_type="n1-highmem-8",
         master_accelerator="type=nvidia-tesla-t4",
         worker_accelerator="type=nvidia-tesla-t4",
         timeout_in_minutes=60,
