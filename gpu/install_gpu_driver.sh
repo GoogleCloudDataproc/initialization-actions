@@ -1379,6 +1379,12 @@ function install_dependencies() {
       update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 11
       update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
       update-alternatives --set gcc /usr/bin/gcc-12
+    elif is_debian12 && is_cuda11 ; then
+      # On debian12, the default compiler does not build NCCL
+      execute_with_retries apt-get install -y -qq gcc-11
+      update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 11
+      update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
+      update-alternatives --set gcc /usr/bin/gcc-11
     fi
   elif is_rocky ; then
     execute_with_retries dnf -y -q install pciutils gcc screen
