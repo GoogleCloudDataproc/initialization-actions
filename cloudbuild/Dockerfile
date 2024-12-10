@@ -10,6 +10,7 @@ COPY --chown=ia-tests:ia-tests . /init-actions
 # Install Bazel:
 # https://docs.bazel.build/versions/master/install-ubuntu.html
 ENV bazel_kr_path=/usr/share/keyrings/bazel-keyring.gpg
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get install -y -qq curl >/dev/null 2>&1 && \
     apt-get clean
 RUN /usr/bin/curl https://bazel.build/bazel-release.pub.gpg | \
@@ -18,7 +19,12 @@ RUN echo "deb [arch=amd64 signed-by=${bazel_kr_path}] http://storage.googleapis.
     dd of=/etc/apt/sources.list.d/bazel.list status=none && \
     apt-get update -qq
 RUN apt-get autoremove -y -qq && \
-    apt-get install -y -qq openjdk-8-jdk python3-setuptools bazel >/dev/null 2>&1 && \
+    apt-get install -y -qq openjdk-8-jdk python3-setuptools unzip g++ zlib1g-dev >/dev/null 2>&1 && \
     apt-get clean
+
+RUN curl -Lo /tmp/bazel_7.4.1-linux-x86_64.deb https://github.com/bazelbuild/bazel/releases/download/7.4.1/bazel_7.4.1-linux-x86_64.deb
+RUN dpkg -i /tmp/bazel_7.4.1-linux-x86_64.deb \
+    && apt-get install -f -y \
+    && rm /tmp/bazel_7.4.1-linux-x86_64.deb
 
 USER ia-tests
