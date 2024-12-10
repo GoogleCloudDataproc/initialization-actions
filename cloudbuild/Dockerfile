@@ -10,7 +10,7 @@ COPY --chown=ia-tests:ia-tests . /init-actions
 # Install Bazel:
 # https://docs.bazel.build/versions/master/install-ubuntu.html
 ENV bazel_kr_path=/usr/share/keyrings/bazel-keyring.gpg
-RUN apt-get install -y -qq wget gnupg unzip curl >/dev/null 2>&1 && \
+RUN apt-get install -y -qq curl >/dev/null 2>&1 && \
     apt-get clean
 RUN /usr/bin/curl https://bazel.build/bazel-release.pub.gpg | \
     gpg --dearmor -o "${bazel_kr_path}"
@@ -21,7 +21,7 @@ RUN apt-get autoremove -y -qq && \
     apt-get install -y -qq openjdk-8-jdk python3-setuptools >/dev/null 2>&1 && \
     apt-get clean
 
-RUN wget -qO- https://github.com/bazelbuild/bazel/releases/download/7.4.1/bazel-7.4.1-installer-linux-x86_64.sh -O /tmp/bazel-installer.sh && \
+RUN curl -fsSL https://github.com/bazelbuild/bazel/releases/download/7.4.1/bazel-7.4.1-installer-linux-x86_64.sh -O /tmp/bazel-installer.sh && \
     chmod +x /tmp/bazel-installer.sh && \
     /tmp/bazel-installer.sh --user && \
     rm -f /tmp/bazel-installer.sh
