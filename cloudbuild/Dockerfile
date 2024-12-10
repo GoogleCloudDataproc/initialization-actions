@@ -21,11 +21,15 @@ RUN apt-get autoremove -y -qq && \
     apt-get install -y -qq unzip openjdk-8-jdk python3-setuptools >/dev/null 2>&1 && \
     apt-get clean
 
-RUN apt-get update -y && \
-    apt-get install -y bazel-7.4.1
+RUN wget -qO- https://github.com/bazelbuild/bazel/releases/download/7.4.1/bazel-7.4.1-installer-linux-x86_64.sh -O /tmp/bazel-installer.sh && \
+    chmod +x /tmp/bazel-installer.sh && \
+    /tmp/bazel-installer.sh --user && \
+    rm -f /tmp/bazel-installer.sh
 
-RUN export PATH="$PATH:/usr/local/bin" && \
-    echo $PATH && \
-    bazel --version
+ENV PATH="$PATH:$HOME/bin"
+
+RUN echo "Bazel version:" && \
+    bazel --version && \
+    which bazel
 
 USER ia-tests
