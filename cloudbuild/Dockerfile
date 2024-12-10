@@ -11,7 +11,7 @@ COPY --chown=ia-tests:ia-tests . /init-actions
 # https://docs.bazel.build/versions/master/install-ubuntu.html
 ENV bazel_kr_path=/usr/share/keyrings/bazel-keyring.gpg
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get install -y -qq curl >/dev/null 2>&1 && \
+RUN apt-get install -y -qq curl g++ zlib1g-dev unzip >/dev/null 2>&1 && \
     apt-get clean
 RUN /usr/bin/curl https://bazel.build/bazel-release.pub.gpg | \
     gpg --dearmor -o "${bazel_kr_path}"
