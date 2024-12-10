@@ -16,6 +16,7 @@ class HorovodTestCase(DataprocTestCase):
   TENSORFLOW_TEST_SCRIPT = "scripts/verify_tensorflow.py"
   PYTORCH_TEST_SCRIPT = "scripts/verify_pytorch.py"
   MXNET_TEST_SCRIPT = "scripts/verify_mxnet.py"
+  # dummy
 
   def _submit_spark_job(self, script):
     self.assert_dataproc_job(
