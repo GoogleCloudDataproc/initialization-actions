@@ -6,15 +6,45 @@ from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
+DEFAULT_TIMEOUT = 15  # minutes
 
 class NvidiaGpuDriverTestCase(DataprocTestCase):
   COMPONENT = "gpu"
   INIT_ACTIONS = ["gpu/install_gpu_driver.sh"]
   GPU_L4   = "type=nvidia-l4"
   GPU_T4   = "type=nvidia-tesla-t4"
-  GPU_V100 = "type=nvidia-tesla-v100" # not available in us-central1-a
+  GPU_V100 = "type=nvidia-tesla-v100"
   GPU_A100 = "type=nvidia-tesla-a100"
   GPU_H100 = "type=nvidia-h100-80gb,count=8"
+
+  # Tests for PyTorch
+  TORCH_TEST_SCRIPT_FILE_NAME = "verify_pytorch.py"
+
+  # Tests for TensorFlow
+  TF_TEST_SCRIPT_FILE_NAME = "verify_tensorflow.py"
+
+  def assert_instance_command(self,
+                            instance,
+                            cmd,
+                            timeout_in_minutes=DEFAULT_TIMEOUT):
+
+    retry_count = 5
+
+    ssh_cmd='gcloud compute ssh {} --zone={} --command="{}"'.format(
+      instance, self.cluster_zone, cmd)
+
+    while retry_count > 0:
+      try:
+        ret_code, stdout, stderr = self.assert_command( ssh_cmd, timeout_in_minutes )
+        return ret_code, stdout, stderr
+      except Exception as e:
+        print("An error occurred: ", e)
+        retry_count -= 1
+        if retry_count > 0:
+          time.sleep(10)
+          continue
+        else:
+          raise
 
   def verify_instance(self, name):
     # Verify that nvidia-smi works
@@ -26,10 +56,24 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.assert_instance_command(name, "echo 'from pyspark.sql import SparkSession ; SparkSession.builder.getOrCreate()' | pyspark -c spark.executor.resource.gpu.amount=1 -c spark.task.resource.gpu.amount=0.01", 1)
 
   def verify_pytorch(self, name):
-    # Verify that pytorch works
-    self.assert_instance_command(name, "echo 0 | dd of=/sys/module/nvidia/drivers/pci:nvidia/*/numa_node", 1)
-    #echo 0 | dd of=/sys/module/nvidia/drivers/pci:nvidia/*/numa_node
-    #echo 0 | dd of=/sys/module/nvidia/drivers/pci:nvidia/*/numa_node ; /opt/conda/miniconda3/envs/pytorch/bin/python /tmp/prakasha-spark-test.py
+    test_filename=os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               self.TORCH_TEST_SCRIPT_FILE_NAME)
+    self.upload_test_file(test_filename, name)
+
+    verify_cmd = "echo 0 | dd of=/sys/module/nvidia/drivers/pci:nvidia/*/numa_node ; /opt/conda/miniconda3/envs/pytorch/bin/python {}".format(
+        self.TORCH_TEST_SCRIPT_FILE_NAME)
+    self.assert_instance_command(name, verify_cmd)
+    self.remove_test_script(self.TORCH_TEST_SCRIPT_FILE_NAME, name)
+
+  def verify_tensorflow(self, name):
+    test_filename=os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               self.TF_TEST_SCRIPT_FILE_NAME)
+    self.upload_test_file(test_filename, name)
+
+    verify_cmd = "echo 0 | dd of=/sys/module/nvidia/drivers/pci:nvidia/*/numa_node ; /opt/conda/miniconda3/envs/pytorch/bin/python {}".format(
+        self.TF_TEST_SCRIPT_FILE_NAME)
+    self.assert_instance_command(name, verify_cmd)
+    self.remove_test_script(self.TF_TEST_SCRIPT_FILE_NAME, name)
 
   def verify_mig_instance(self, name):
     self.assert_instance_command(name,
@@ -46,6 +90,14 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def verify_instance_nvcc(self, name, cuda_version):
     self.assert_instance_command(
         name, "/usr/local/cuda-{}/bin/nvcc --version | grep 'release {}'".format(cuda_version,cuda_version) )
+
+  def verify_instance_cuda_version(self, name, cuda_version):
+    self.assert_instance_command(
+        name, "nvidia-smi -q -x | /opt/conda/default/bin/xmllint --xpath '//nvidia_smi_log/cuda_version/text()' - | grep {}".format(cuda_version) )
+
+  def verify_instance_driver_version(self, name, driver_version):
+    self.assert_instance_command(
+        name, "nvidia-smi -q -x | /opt/conda/default/bin/xmllint --xpath '//nvidia_smi_log/driver_version/text()' - | grep {}".format(driver_version) )
 
   def verify_instance_spark(self):
     self.assert_dataproc_job(
@@ -161,9 +213,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
   @parameterized.parameters(
         ("SINGLE", ["m"],               GPU_T4, None,   "12.4"),
-        ("SINGLE", ["m"],               GPU_T4, None,   "11.7"),
+        ("SINGLE", ["m"],               GPU_T4, None,   "11.8"),
 #      ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4"),
-#     ("STANDARD", ["w-0", "w-1"],      None,   GPU_T4, "11.7"),
+#     ("STANDARD", ["w-0", "w-1"],      None,   GPU_T4, "11.8"),
   )
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
@@ -204,7 +256,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       self.verify_instance_spark()
 
   @parameterized.parameters(
-      ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "11.7"),
+      ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "11.8"),
 #      ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "12.0"),
       ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "12.4"),
   )
@@ -283,10 +335,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.verify_instance_spark()
 
   @parameterized.parameters(
-    ("SINGLE", ["m"], GPU_T4, None, "11.7"),
+    ("SINGLE", ["m"], GPU_T4, None, "11.8"),
 #    ("STANDARD", ["m"], GPU_T4, None, "12.0"),
     ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4"),
-#    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.7"),
+#    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.8"),
 #    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "12.0"),
   )
   def test_install_gpu_cuda_nvidia_with_spark_job(self, configuration, machine_suffixes,
