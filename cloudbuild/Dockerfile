@@ -17,8 +17,13 @@ RUN /usr/bin/curl https://bazel.build/bazel-release.pub.gpg | \
 RUN echo "deb [arch=amd64 signed-by=${bazel_kr_path}] http://storage.googleapis.com/bazel-apt stable jdk1.8" | \
     dd of=/etc/apt/sources.list.d/bazel.list status=none && \
     apt-get update -qq
-RUN apt-get autoremove -y -qq && \
-    apt-get install -y -qq openjdk-8-jdk python3-setuptools bazel >/dev/null 2>&1 && \
+RUN apt-get update -y -qq && \
+    apt-get autoremove -y -qq && \
+    apt-get install -y -qq default-jdk python3-setuptools bazel-7.4.0 >/dev/null 2>&1 && \
     apt-get clean
+
+# Set bazel-7.4.0 as the default bazel alternative in this container
+RUN update-alternatives --install /usr/bin/bazel bazel /usr/bin/bazel-7.4.0 7 && \
+    update-alternatives --set bazel /usr/bin/bazel-7.4.0
 
 USER ia-tests
