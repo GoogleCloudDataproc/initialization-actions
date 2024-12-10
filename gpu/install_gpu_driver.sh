@@ -138,18 +138,26 @@ ROLE="$(get_metadata_attribute dataproc-role)"
 readonly ROLE
 
 # CUDA version and Driver version
+# https://docs.nvidia.com/deploy/cuda-compatibility/
 # https://docs.nvidia.com/deeplearning/frameworks/support-matrix/index.html
 # https://developer.nvidia.com/cuda-downloads
+
+# Minimum supported version for open kernel driver is 515.43.04
+# https://github.com/NVIDIA/open-gpu-kernel-modules/tags
 # Rocky8: 12.0: 525.147.05
 readonly -A DRIVER_FOR_CUDA=(
-          ["11.7"]="515.65.01"  ["11.8"]="520.61.05"
-          ["12.0"]="525.60.13"  ["12.1"]="530.30.02" ["12.4"]="550.54.14"  ["12.5"]="555.42.02"  ["12.6"]="560.35.03"
+          ["11.7"]="515.65.01"  ["11.8"]="525.60.13"
+          ["12.0"]="525.60.13"  ["12.1"]="530.30.02" ["12.4"]="550.67"  ["12.5"]="555.42.02"  ["12.6"]="560.35.03"
+)
+readonly -A DRIVER_SUBVER=(
+          ["515"]="515.48.07"   ["520"]="520.56.06"  ["525"]="525.147.05"  ["530"]="530.41.03"   ["535"]="535.216.01"
+          ["545"]="545.29.06"   ["550"]="550.127.05" ["555"]="555.58.02"   ["560"]="560.35.03"   ["565"]="565.57.01"
 )
 # https://developer.nvidia.com/cudnn-downloads
 if is_debuntu ; then
 readonly -A CUDNN_FOR_CUDA=(
-          ["11.7"]="9.5.1.17"  ["11.8"]="9.5.1.17"
-          ["12.0"]="9.5.1.17"   ["12.1"]="9.5.1.17"  ["12.4"]="9.5.1.17"   ["12.5"]="9.5.1.17"  ["12.6"]="9.5.1.17"
+          ["11.7"]="9.5.1.17"   ["11.8"]="9.5.1.17"
+          ["12.0"]="9.5.1.17"   ["12.1"]="9.5.1.17"  ["12.4"]="9.5.1.17"   ["12.5"]="9.5.1.17"   ["12.6"]="9.5.1.17"
 )
 elif is_rocky ; then
 # rocky:
@@ -161,19 +169,19 @@ elif is_rocky ; then
 #   12.5: 9.2.1.18
 #   12.6: 9.5.1.17
 readonly -A CUDNN_FOR_CUDA=(
-          ["11.7"]="9.5.1.17"  ["11.8"]="9.5.1.17"
-          ["12.0"]="8.8.1.3"    ["12.1"]="8.9.3.28"   ["12.4"]="9.1.1.17"   ["12.5"]="9.2.1.18"  ["12.6"]="9.5.1.17"
+          ["11.7"]="9.5.1.17"   ["11.8"]="9.5.1.17"
+          ["12.0"]="8.8.1.3"    ["12.1"]="8.9.3.28"  ["12.4"]="9.1.1.17"   ["12.5"]="9.2.1.18"   ["12.6"]="9.5.1.17"
 )
 fi
 # https://developer.nvidia.com/nccl/nccl-download
 # 12.2: 2.19.3, 12.5: 2.21.5
 readonly -A NCCL_FOR_CUDA=(
-          ["11.7"]="2.21.5"    ["11.8"]="2.21.5"
-          ["12.0"]="2.16.5"    ["12.1"]="2.18.3"     ["12.4"]="2.23.4"     ["12.5"]="2.21.5"  ["12.6"]="2.23.4"
+          ["11.7"]="2.21.5"     ["11.8"]="2.21.5"
+          ["12.0"]="2.16.5"     ["12.1"]="2.18.3"    ["12.4"]="2.23.4"     ["12.5"]="2.21.5"     ["12.6"]="2.23.4"
 )
 readonly -A CUDA_SUBVER=(
-          ["11.7"]="11.7.1"    ["11.8"]="11.8.0"
-          ["12.0"]="12.0.0"    ["12.1"]="12.1.1"     ["12.4"]="12.4.0"     ["12.5"]="12.5.0"  ["12.6"]="12.6.2"
+          ["11.7"]="11.7.1"     ["11.8"]="11.8.0"
+          ["12.0"]="12.0.1"     ["12.1"]="12.1.1"    ["12.2"]="12.2.2"     ["12.3"]="12.3.2"     ["12.4"]="12.4.1"     ["12.5"]="12.5.1"     ["12.6"]="12.6.2"
 )
 
 RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
@@ -181,15 +189,17 @@ RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 function set_cuda_version() {
   local cuda_url
   cuda_url=$(get_metadata_attribute 'cuda-url' '')
-
   if [[ -n "${cuda_url}" ]] ; then
+    # if cuda-url metadata variable has been passed, extract default version from url
     local CUDA_URL_VERSION
     CUDA_URL_VERSION="$(echo "${cuda_url}" | perl -pe 's{^.*/cuda_(\d+\.\d+\.\d+)_\d+\.\d+\.\d+_linux.run$}{$1}')"
     if [[ "${CUDA_URL_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] ; then
       DEFAULT_CUDA_VERSION="${CUDA_URL_VERSION%.*}"
       CUDA_FULL_VERSION="${CUDA_URL_VERSION}"
     fi
-  else
+  fi
+
+  if ( ! test -v DEFAULT_CUDA_VERSION ) ; then
     DEFAULT_CUDA_VERSION='12.4'
   fi
   readonly DEFAULT_CUDA_VERSION
@@ -200,17 +210,8 @@ function set_cuda_version() {
     CUDA_FULL_VERSION=${CUDA_SUBVER["${CUDA_VERSION}"]}
   fi
   readonly CUDA_FULL_VERSION
-
-  if ( version_lt "${CUDA_FULL_VERSION}" "12.3.0" && ge_debian12 ) ; then
-    echo "CUDA 12.3.0 is the minimum CUDA 12 version on Debian 12"
-  elif ( version_gt "${CUDA_VERSION}" "12.1.1" && is_ubuntu18 ) ; then
-    echo "CUDA 12.1.1 is the maximum CUDA version on ubuntu18.  Requested version: ${CUDA_VERSION}"
-  elif ( version_lt "${CUDA_VERSION%%.*}" "12" && ge_debian12 ) ; then
-    echo "CUDA 11 not supported on Debian 12. Requested version: ${CUDA_VERSION}"
-  elif ( version_lt "${CUDA_VERSION}" "11.8" && is_rocky9 ) ; then
-    echo "CUDA 11.8.0 is the minimum version for Rocky 9. Requested version: ${CUDA_VERSION}"
-  fi
 }
+
 set_cuda_version
 
 function is_cuda12() ( set +x ; [[ "${CUDA_VERSION%%.*}" == "12" ]] ; )
@@ -235,19 +236,23 @@ function set_driver_version() {
     if [[ "${DRIVER_URL_DRIVER_VERSION}" =~ ^[0-9]+.*[0-9]$ ]] ; then DEFAULT_DRIVER="${DRIVER_URL_DRIVER_VERSION}" ; fi
   # Take default from cuda-url metadata value as a backup
   elif [[ -n "${cuda_url}" ]] ; then
-    CUDA_URL_DRIVER_VERSION="$(echo "${cuda_url}" | perl -pe 's{^.*/cuda_\d+\.\d+\.\d+_(\d+\.\d+\.\d+)_linux.run$}{$1}')"
-    if [[ "${CUDA_URL_DRIVER_VERSION}" =~ ^[0-9]+.*[0-9]$ ]] ; then DEFAULT_DRIVER="${CUDA_URL_DRIVER_VERSION}" ; fi
+    local CUDA_URL_DRIVER_VERSION="$(echo "${cuda_url}" | perl -pe 's{^.*/cuda_\d+\.\d+\.\d+_(\d+\.\d+\.\d+)_linux.run$}{$1}')"
+    if [[ "${CUDA_URL_DRIVER_VERSION}" =~ ^[0-9]+.*[0-9]$ ]] ; then
+      major_driver_version="${CUDA_URL_DRIVER_VERSION%%.*}"
+      driver_max_maj_version=${DRIVER_SUBVER["${major_driver_version}"]}
+      if curl -s --head "https://download.nvidia.com/XFree86/Linux-x86_64/${CUDA_URL_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${CUDA_URL_DRIVER_VERSION}.run" | grep -E -q '^HTTP.*200\s*$' ; then
+        # use the version indicated by the cuda url as the default if it exists
+	DEFAULT_DRIVER="${CUDA_URL_DRIVER_VERSION}"
+      elif curl -s --head "https://download.nvidia.com/XFree86/Linux-x86_64/${driver_max_maj_version}/NVIDIA-Linux-x86_64-${driver_max_maj_version}.run" | grep -E -q '^HTTP.*200\s*$' ; then
+        # use the maximum sub-version available for the major version indicated in cuda url as the default
+	DEFAULT_DRIVER="${driver_max_maj_version}"
+      fi
+    fi
   fi
 
   if ( ! test -v DEFAULT_DRIVER ) ; then
-  # Otherwise attempt to make an educated guess
+    # If a default driver version has not been extracted, use the default for this version of CUDA
     DEFAULT_DRIVER=${DRIVER_FOR_CUDA["${CUDA_VERSION}"]}
-#    if ( ge_ubuntu22 && version_le "${CUDA_VERSION}" "12.0" ) ; then
-#                                             DEFAULT_DRIVER="560.28.03"  ; fi
-#    if ( is_debian11 || is_ubuntu20 ) ; then DEFAULT_DRIVER="560.28.03"  ; fi
-#    if ( is_rocky    && le_cuda11 )   ; then DEFAULT_DRIVER="525.147.05" ; fi
-#    if ( is_ubuntu20 && le_cuda11 )   ; then DEFAULT_DRIVER="535.183.06" ; fi
-#    if ( is_rocky9   && ge_cuda12 )   ; then DEFAULT_DRIVER="565.57.01"  ; fi
   fi
 
   DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' "${DEFAULT_DRIVER}")
@@ -260,14 +265,6 @@ function set_driver_version() {
   gpu_driver_url="https://download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
   if ! curl -s --head "${gpu_driver_url}" | grep -E -q '^HTTP.*200\s*$' ; then
     echo "No NVIDIA driver exists for DRIVER_VERSION=${DRIVER_VERSION}"
-    exit 1
-  fi
-
-  # Verify that the requested combination is supported
-  readonly CUDA_RUNFILE="cuda_${CUDA_FULL_VERSION}_${DRIVER_VERSION}_linux.run"
-  cuda_url="https://developer.download.nvidia.com/compute/cuda/${CUDA_FULL_VERSION}/local_installers/${CUDA_RUNFILE}"
-  if ! curl -s --head "${cuda_url}" | grep -E -q '^HTTP.*200\s*$' ; then
-    echo "No CUDA distribution exists for this combination of DRIVER_VERSION=${DRIVER_VERSION}, CUDA_VERSION=${CUDA_FULL_VERSION}"
     exit 1
   fi
 }
@@ -380,16 +377,46 @@ function set_cuda_runfile_url() {
     echo "Maximum kernel driver version for ${shortname} is ${MAX_DRIVER_VERSION}.  Specified: ${DRIVER_VERSION}"
   fi
 
-  CUDA_FILENAME="cuda_${CUDA_FULL_VERSION}_${DRIVER_VERSION}_linux.run"
+  # driver version named in cuda runfile filename
+  # (these may not be actual driver versions - see https://download.nvidia.com/XFree86/Linux-x86_64/)
+  readonly -A drv_for_cuda=(
+          ["11.7.0"]="515.43.04" ["11.7.1"]="515.65.01"
+          ["11.8.0"]="520.61.05"
+          ["12.0.0"]="525.60.13" ["12.0.1"]="525.85.12"
+          ["12.1.0"]="530.30.02" ["12.1.1"]="530.30.02"
+          ["12.2.0"]="535.54.03" ["12.2.1"]="535.86.10" ["12.2.2"]="535.104.05"
+          ["12.3.0"]="545.23.06" ["12.3.1"]="545.23.08" ["12.3.2"]="545.23.08"
+          ["12.4.0"]="550.54.15" ["12.4.1"]="550.54.15" # 550.54.15 is not a driver indexed at https://download.nvidia.com/XFree86/Linux-x86_64/
+          ["12.5.0"]="555.42.02" ["12.5.1"]="555.42.06" # 555.42.02 is indexed, 555.41.06 is not
+          ["12.6.0"]="560.28.03" ["12.6.1"]="560.35.03" ["12.6.2"]="560.35.03"
+  )
+
+  # Verify that the file with the indicated combination exists
+  local drv_ver=${drv_for_cuda["${CUDA_FULL_VERSION}"]}
+  CUDA_RUNFILE="cuda_${CUDA_FULL_VERSION}_${drv_ver}_linux.run"
   local CUDA_RELEASE_BASE_URL="${NVIDIA_BASE_DL_URL}/cuda/${CUDA_FULL_VERSION}"
-  local DEFAULT_NVIDIA_CUDA_URL="${CUDA_RELEASE_BASE_URL}/local_installers/${CUDA_FILENAME}"
-  readonly DEFAULT_NVIDIA_CUDA_URL
+  local DEFAULT_NVIDIA_CUDA_URL="${CUDA_RELEASE_BASE_URL}/local_installers/${CUDA_RUNFILE}"
 
   NVIDIA_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_CUDA_URL}")
   readonly NVIDIA_CUDA_URL
 
-  CUDA_FILENAME="$(echo ${NVIDIA_CUDA_URL} | perl -pe 's{^.+/}{}')"
-  readonly CUDA_FILENAME
+  CUDA_RUNFILE="$(echo ${NVIDIA_CUDA_URL} | perl -pe 's{^.+/}{}')"
+  readonly CUDA_RUNFILE
+
+  if ! curl -s --head "${NVIDIA_CUDA_URL}" | grep -E -q '^HTTP.*200\s*$' ; then
+    echo "No CUDA distribution exists for this combination of DRIVER_VERSION=${drv_ver}, CUDA_VERSION=${CUDA_FULL_VERSION}"
+    exit 1
+  fi
+
+  if ( version_lt "${CUDA_FULL_VERSION}" "12.3.0" && ge_debian12 ) ; then
+    echo "CUDA 12.3.0 is the minimum CUDA 12 version supported on Debian 12"
+  elif ( version_gt "${CUDA_VERSION}" "12.1.1" && is_ubuntu18 ) ; then
+    echo "CUDA 12.1.1 is the maximum CUDA version supported on ubuntu18.  Requested version: ${CUDA_VERSION}"
+  elif ( version_lt "${CUDA_VERSION%%.*}" "12" && ge_debian12 ) ; then
+    echo "CUDA 11 not supported on Debian 12. Requested version: ${CUDA_VERSION}"
+  elif ( version_lt "${CUDA_VERSION}" "11.8" && is_rocky9 ) ; then
+    echo "CUDA 11.8.0 is the minimum version for Rocky 9. Requested version: ${CUDA_VERSION}"
+  fi
 }
 
 set_cuda_runfile_url
@@ -469,8 +496,23 @@ function uninstall_cuda_keyring_pkg() {
   CUDA_KEYRING_PKG_INSTALLED="0"
 }
 
-CUDA_LOCAL_REPO_INSTALLED="0"
+function cache_fetched_package() {
+  local src_url="$1"
+  local gcs_fn="$2"
+  local local_fn="$3"
+
+  if gsutil ls "${gcs_fn}" 2>&1 | grep -q "${gcs_fn}" ; then
+    time gcloud storage cp "${gcs_fn}" "${local_fn}"
+  else
+    time ( curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 "${src_url}" -o "${local_fn}" && \
+           gcloud storage cp "${local_fn}" "${gcs_fn}" ; )
+  fi
+}
+
+
 function install_local_cuda_repo() {
+  if test -f "${workdir}/install-local-cuda-repo-complete" ; then return ; fi
+
   if [[ "${CUDA_LOCAL_REPO_INSTALLED}" == "1" ]]; then return ; fi
   CUDA_LOCAL_REPO_INSTALLED="1"
   pkgname="cuda-repo-${shortname}-${CUDA_VERSION//./-}-local"
@@ -491,20 +533,21 @@ function install_local_cuda_repo() {
       "${NVIDIA_REPO_URL}/cuda-${shortname}.pin" \
       -o /etc/apt/preferences.d/cuda-repository-pin-600
   fi
+
+  touch "${workdir}/install-local-cuda-repo-complete"
 }
 function uninstall_local_cuda_repo(){
   apt-get purge -yq "${CUDA_LOCAL_REPO_PKG_NAME}"
-  CUDA_LOCAL_REPO_INSTALLED="0"
+  rm -f "${workdir}/install-local-cuda-repo-complete"
 }
 
-CUDNN_LOCAL_REPO_INSTALLED="0"
 CUDNN_PKG_NAME=""
 function install_local_cudnn_repo() {
-  if [[ "${CUDNN_LOCAL_REPO_INSTALLED}" == "1" ]]; then return ; fi
-  pkgname="cudnn-local-repo-${shortname}-${CUDNN}"
+  if test -f "${workdir}/install-local-cudnn-repo-complete" ; then return ; fi
+  pkgname="cudnn-local-repo-${shortname}-${CUDNN_VERSION%.*}"
   CUDNN_PKG_NAME="${pkgname}"
   local_deb_fn="${pkgname}_1.0-1_amd64.deb"
-  local_deb_url="${NVIDIA_BASE_DL_URL}/cudnn/${CUDNN}/local_installers/${local_deb_fn}"
+  local_deb_url="${NVIDIA_BASE_DL_URL}/cudnn/${CUDNN_VERSION%.*}/local_installers/${local_deb_fn}"
 
   # ${NVIDIA_BASE_DL_URL}/redist/cudnn/v8.6.0/local_installers/11.8/cudnn-linux-x86_64-8.6.0.163_cuda11-archive.tar.xz
   curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
@@ -514,20 +557,21 @@ function install_local_cudnn_repo() {
 
   rm -f "${tmpdir}/local-installer.deb"
 
-  cp /var/cudnn-local-repo-*-${CUDNN}*/cudnn-local-*-keyring.gpg /usr/share/keyrings
+  cp /var/cudnn-local-repo-*-${CUDNN_VERSION%.*}*/cudnn-local-*-keyring.gpg /usr/share/keyrings
 
-  CUDNN_LOCAL_REPO_INSTALLED="1"
+  touch "${workdir}/install-local-cudnn-repo-complete"
 }
 
 function uninstall_local_cudnn_repo() {
   apt-get purge -yq "${CUDNN_PKG_NAME}"
-  CUDNN_LOCAL_REPO_INSTALLED="0"
+  rm -f "${workdir}/install-local-cudnn-repo-complete"
 }
 
 CUDNN8_LOCAL_REPO_INSTALLED="0"
 CUDNN8_PKG_NAME=""
 function install_local_cudnn8_repo() {
-  if [[ "${CUDNN8_LOCAL_REPO_INSTALLED}" == "1" ]]; then return ; fi
+  if test -f "${workdir}/install-local-cudnn8-repo-complete" ; then return ; fi
+
   if   is_ubuntu ; then cudnn8_shortname="ubuntu2004"
   elif is_debian ; then cudnn8_shortname="debian11"
   else return 0 ; fi
@@ -541,21 +585,31 @@ function install_local_cudnn8_repo() {
 
   deb_fn="${pkgname}_1.0-1_amd64.deb"
   local_deb_fn="${tmpdir}/${deb_fn}"
-  local_deb_url="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN}/local_installers/${CUDNN8_CUDA_VER}/${deb_fn}"
-  curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
-      "${local_deb_url}" -o "${local_deb_fn}"
+  local_deb_url="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN_VERSION%.*}/local_installers/${CUDNN8_CUDA_VER}/${deb_fn}"
+
+  # cache the cudnn package
+  cache_fetched_package "${local_deb_url}" \
+                        "${pkg_bucket}/${CUDNN8_CUDA_VER}/${deb_fn}" \
+                        "${local_deb_fn}"
+
+  local cudnn_path="$(dpkg -c ${local_deb_fn} | perl -ne 'if(m{(/var/cudnn-local-repo-.*)/\s*$}){print $1}')"
+  # If we are using a ram disk, mount another where we will unpack the cudnn local installer
+  if [[ "${tmpdir}" == "/mnt/shm" ]] && ! grep -q '/var/cudnn-local-repo' /proc/mounts ; then
+    mkdir -p "${cudnn_path}"
+    mount -t tmpfs tmpfs "${cudnn_path}"
+  fi
 
   dpkg -i "${local_deb_fn}"
 
   rm -f "${local_deb_fn}"
 
-  cp /var/cudnn-local-repo-*-${CUDNN}*/cudnn-local-*-keyring.gpg /usr/share/keyrings
-  CUDNN8_LOCAL_REPO_INSTALLED="1"
+  cp "${cudnn_path}"/cudnn-local-*-keyring.gpg /usr/share/keyrings
+  touch "${workdir}/install-local-cudnn8-repo-complete"
 }
 
 function uninstall_local_cudnn8_repo() {
   apt-get purge -yq "${CUDNN8_PKG_NAME}"
-  CUDNN8_LOCAL_REPO_INSTALLED="0"
+  rm -f "${workdir}/install-local-cudnn8-repo-complete"
 }
 
 function install_nvidia_nccl() {
@@ -569,8 +623,12 @@ function install_nvidia_nccl() {
   # Kepler:    SM_30,SM_35,SM_37, compute_30,compute_35,compute_37
   # Maxwell:   SM_50,SM_52,SM_53, compute_50,compute_52,compute_53
   # Pascal:    SM_60,SM_61,SM_62, compute_60,compute_61,compute_62
+
+  # The following architectures are suppored by open kernel driver
   # Volta:     SM_70,SM_72,       compute_70,compute_72
   # Ampere:    SM_80,SM_86,SM_87, compute_80,compute_86,compute_87
+
+  # The following architectures are supported by CUDA v11.8+
   # Ada:       SM_89,             compute_89
   # Hopper:    SM_90,SM_90a       compute_90,compute_90a
   # Blackwell: SM_100,            compute_100
@@ -672,7 +730,6 @@ function install_nvidia_cudnn() {
     if ge_debian12 && is_src_os ; then
       apt-get -y install nvidia-cudnn
     else
-      local CUDNN="${CUDNN_VERSION%.*}"
       if is_cudnn8 ; then
         install_local_cudnn8_repo
 
@@ -682,6 +739,8 @@ function install_nvidia_cudnn() {
           apt-get -y install --no-install-recommends \
             "libcudnn8=${cudnn_pkg_version}" \
             "libcudnn8-dev=${cudnn_pkg_version}"
+
+        uninstall_local_cudnn8_repo
 	sync
       elif is_cudnn9 ; then
 	install_cuda_keyring_pkg
@@ -948,19 +1007,6 @@ function build_driver_from_packages() {
   #clear_dkms_key
 }
 
-function cache_fetched_package() {
-  local src_url="$1"
-  local gcs_fn="$2"
-  local local_fn="$3"
-
-  if gsutil ls "${gcs_fn}" 2>&1 | grep -q "${gcs_fn}" ; then
-    time gcloud storage cp "${gcs_fn}" "${local_fn}"
-  else
-    time ( curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 "${src_url}" -o "${local_fn}" && \
-           gcloud storage cp "${local_fn}" "${gcs_fn}" ; )
-  fi
-}
-
 function install_nvidia_userspace_runfile() {
 
   # This .run file contains NV's OpenGL implementation as well as
@@ -991,7 +1037,7 @@ function install_cuda_runfile() {
   local local_fn="${tmpdir}/cuda.run"
 
   cache_fetched_package "${NVIDIA_CUDA_URL}" \
-			"${pkg_bucket}/${CUDA_FILENAME}" \
+			"${pkg_bucket}/${CUDA_RUNFILE}" \
                         "${local_fn}"
 
   execute_with_retries bash "${local_fn}" --toolkit --no-opengl-libs --silent --tmpdir="${tmpdir}"
@@ -1562,8 +1608,8 @@ function exit_handler() {
     pip config unset global.cache-dir || echo "unable to unset global pip cache"
 
     # Clean up shared memory mounts
-    for shmdir in /var/cache/apt/archives /var/cache/dnf /mnt/shm /tmp ; do
-      if grep -q "^tmpfs ${shmdir}" /proc/mounts && ! grep -q "^tmpfs ${shmdir}" /etc/fstab ; then
+    for shmdir in /var/cache/apt/archives /var/cache/dnf /mnt/shm /tmp /var/cudnn-local ; do
+      if ( grep -q "^tmpfs ${shmdir}" /proc/mounts && ! grep -q "^tmpfs ${shmdir}" /etc/fstab ) ; then
         umount -f ${shmdir}
       fi
     done
