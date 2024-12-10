@@ -24,9 +24,14 @@ RUN /usr/bin/curl -s https://bazel.build/bazel-release.pub.gpg \
       | dd of=/etc/apt/sources.list.d/bazel.list status=none \
     && apt-get update -qq
 
-RUN apt-get autoremove -y -qq && \
-    apt-get install -y -qq default-jdk python3-setuptools bazel > /dev/null 2>&1 && \
+RUN apt-get update -y -qq && \
+    apt-get autoremove -y -qq && \
+    apt-get install -y -qq default-jdk python3-setuptools bazel-7.4.0 > /dev/null 2>&1 && \
     apt-get clean
+
+# Set bazel-7.4.0 as the default bazel alternative in this container
+RUN update-alternatives --install /usr/bin/bazel bazel /usr/bin/bazel-7.4.0 7 && \
+    update-alternatives --set bazel /usr/bin/bazel-7.4.0
 
 # Install here any utilities you find useful when troubleshooting
 RUN apt-get -y -qq install emacs-nox vim uuid-runtime > /dev/null 2>&1 && apt-get clean
