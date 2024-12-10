@@ -19,7 +19,7 @@ RUN apt-get install -y -qq curl >/dev/null 2>&1 && \
 #    dd of=/etc/apt/sources.list.d/bazel.list status=none && \
 #    apt-get update -qq
 RUN apt-get autoremove -y -qq && \
-    apt-get install -y -qq openjdk-8-jdk python3-setuptools bazel-7.4.1 >/dev/null 2>&1 && \
+    apt-get install -y -qq openjdk-8-jdk python3-setuptools >/dev/null 2>&1 && \
     apt-get clean
 
 RUN curl -Lo /tmp/bazel_7.4.1-linux-x86_64.deb https://github.com/bazelbuild/bazel/releases/download/7.4.1/bazel_7.4.1-linux-x86_64.deb
