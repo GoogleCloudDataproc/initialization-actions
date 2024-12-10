@@ -18,7 +18,9 @@ RUN echo "deb [arch=amd64 signed-by=${bazel_kr_path}] http://storage.googleapis.
     dd of=/etc/apt/sources.list.d/bazel.list status=none && \
     apt-get update -qq
 RUN apt-get autoremove -y -qq && \
-    apt-get install -y -qq unzip openjdk-8-jdk python3-setuptools bazel-7.4.1 >/dev/null 2>&1 && \
-    apt-get clean
+    apt-get install -y -qq unzip openjdk-8-jdk python3-setuptools >/dev/null 2>&1 && \
+    apt-get clean \
+RUN apt-get update -y && \
+    apt-get install -y bazel-7.4.1
 
 USER ia-tests
