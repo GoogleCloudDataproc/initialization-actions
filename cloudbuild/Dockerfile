@@ -19,7 +19,7 @@ RUN echo "deb [arch=amd64 signed-by=${bazel_kr_path}] http://storage.googleapis.
     dd of=/etc/apt/sources.list.d/bazel.list status=none && \
     apt-get update -qq
 RUN apt-get update -y -qq && \
-    apt-get autoremove -y -qq && \
+    apt-get autoremove -y -qq > /dev/null 2>&1 && \
     apt-get install -y -qq default-jdk python3-setuptools bazel-${bazel_version} > /dev/null 2>&1 && \
     apt-get clean
 
