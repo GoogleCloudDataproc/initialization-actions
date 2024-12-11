@@ -147,7 +147,7 @@ readonly ROLE
 # Rocky8: 12.0: 525.147.05
 readonly -A DRIVER_FOR_CUDA=(
           ["11.7"]="515.65.01"  ["11.8"]="525.60.13"
-          ["12.0"]="525.60.13"  ["12.1"]="530.30.02" ["12.4"]="550.67"     ["12.5"]="555.42.02"  ["12.6"]="560.35.03"
+          ["12.0"]="525.60.13"  ["12.1"]="530.30.02" ["12.4"]="550.127.05" ["12.5"]="555.42.02"  ["12.6"]="560.35.03"
 )
 readonly -A DRIVER_SUBVER=(
           ["515"]="515.48.07"   ["520"]="525.147.05" ["525"]="525.147.05"  ["530"]="530.41.03"   ["535"]="535.216.01"
@@ -905,7 +905,7 @@ function add_repo_cuda() {
 }
 
 function build_driver_from_github() {
-  # closed driver will have been built on rocky8
+  # non-GPL driver will have been built on rocky8
   if is_rocky8 ; then return 0 ; fi
   pushd "${workdir}"
 
@@ -917,8 +917,9 @@ function build_driver_from_github() {
     mv "open-gpu-kernel-modules-${DRIVER_VERSION}" open-gpu-kernel-modules
   }
 
-  test -f "${workdir}/open-gpu-kernel-modules/kernel-open/nvidia.ko" || {
-    local build_tarball="kmod-build_${_shortname}_${DRIVER_VERSION}.tar.gz"
+  local nvidia_ko_path="$(find /lib/modules/$(uname -r)/ -name 'nvidia.ko')"
+  test -n "${nvidia_ko_path}" && test -f "${nvidia_ko_path}" || {
+    local build_tarball="kmod_${_shortname}_${DRIVER_VERSION}.tar.gz"
     local local_tarball="${workdir}/${build_tarball}"
     local build_dir
     if test -v modulus_md5sum && [[ -n "${modulus_md5sum}" ]]
@@ -930,7 +931,7 @@ function build_driver_from_github() {
     if gsutil ls "${gcs_tarball}" 2>&1 | grep -q "${gcs_tarball}" ; then
       echo "cache hit"
     else
-      # build and cache kernel modules
+      # build the kernel modules
       pushd open-gpu-kernel-modules
       install_build_dependencies
       execute_with_retries make -j$(nproc) modules \
@@ -945,26 +946,23 @@ function build_driver_from_github() {
           "${module}"
         done
       fi
-      tar czvf "${local_tarball}" ../open-gpu-kernel-modules/kernel-open
+      make modules_install \
+        >>  kernel-open/build.log \
+        2>> kernel-open/build_error.log
+      depmod -a
+      # Collect build logs and installed binaries
+      tar czvf "${local_tarball}" \
+        "${workdir}/open-gpu-kernel-modules/kernel-open/"*.log \
+        $(find /lib/modules/${uname_r}/ -iname 'nvidia*.ko')
       gcloud storage cp "${local_tarball}" "${gcs_tarball}"
       rm "${local_tarball}"
       make clean
       popd
     fi
-    gcloud storage cat "${gcs_tarball}" | tar xzv
+    gcloud storage cat "${gcs_tarball}" | tar -C / -xzv
   }
 
-  # install kernel modules
-  modinfo nvidia > /dev/null 2>&1 || {
-    pushd open-gpu-kernel-modules
-    install_build_dependencies
-    make modules_install \
-        >>  kernel-open/build.log \
-        2>> kernel-open/build_error.log
-    depmod -a
-    popd
-  }
-
+  install_kernel_modules
   popd
 }
 
