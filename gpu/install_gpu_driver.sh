@@ -793,27 +793,26 @@ function configure_dkms_certs() {
     echo "Private key material exists"
 
     local expected_modulus_md5sum
-    expected_modulus_md5sum=$(get_metadata_attribute cert_modulus_md5sum)
-    if [[ -n "${expected_modulus_md5sum}" ]]; then
+    expected_modulus_md5sum=$(get_metadata_attribute modulus_md5sum)
+
       modulus_md5sum="${expected_modulus_md5sum}"
-    else
-      modulus_md5sum="bd40cf5905c7bba4225d330136fdbfd3"
-    fi
 
-    # Verify that cert md5sum matches expected md5sum
-    if [[ "${modulus_md5sum}" != "$(openssl rsa -noout -modulus -in \"${CA_TMPDIR}/db.rsa\" | openssl md5 | awk '{print $2}')" ]]; then
+      # Verify that cert md5sum matches expected md5sum
+      if [[ "${modulus_md5sum}" != "$(openssl rsa -noout -modulus -in "${CA_TMPDIR}/db.rsa" | openssl md5 | awk '{print $2}')" ]]; then
         echo "unmatched rsa key modulus"
-    fi
-    ln -sf "${CA_TMPDIR}/db.rsa" /var/lib/dkms/mok.key
+      fi
+      ln -sf "${CA_TMPDIR}/db.rsa" "${mok_key}"
 
-    # Verify that key md5sum matches expected md5sum
-    if [[ "${modulus_md5sum}" != "$(openssl x509 -noout -modulus -in /var/lib/dkms/mok.pub | openssl md5 | awk '{print $2}')" ]]; then
+      # Verify that key md5sum matches expected md5sum
+      if [[ "${modulus_md5sum}" != "$(openssl x509 -noout -modulus -in ${mok_der} | openssl md5 | awk '{print $2}')" ]]; then
         echo "unmatched x509 cert modulus"
+      fi
+    else
+      modulus_md5sum="$(openssl rsa -noout -modulus -in "${CA_TMPDIR}/db.rsa" | openssl md5 | awk '{print $2}')"
     fi
 
     return
   fi
-
 
   # Retrieve cloud secrets keys
   local sig_priv_secret_name
@@ -841,16 +840,14 @@ function configure_dkms_certs() {
       | base64 --decode \
       | dd status=none of="${CA_TMPDIR}/db.der"
 
-  # symlink private key and copy public cert from volatile storage for DKMS
-  if is_ubuntu ; then
-    mkdir -p /var/lib/shim-signed/mok
-    ln -sf "${CA_TMPDIR}/db.rsa" /var/lib/shim-signed/mok/MOK.priv
-    cp -f "${CA_TMPDIR}/db.der" /var/lib/shim-signed/mok/MOK.der
-  else
-    mkdir -p /var/lib/dkms/
-    ln -sf "${CA_TMPDIR}/db.rsa" /var/lib/dkms/mok.key
-    cp -f "${CA_TMPDIR}/db.der" /var/lib/dkms/mok.pub
-  fi
+  local mok_directory="$(dirname "${mok_key}")"
+  mkdir -p "${mok_directory}"
+
+  # symlink private key and copy public cert from volatile storage to DKMS directory
+  ln -sf "${CA_TMPDIR}/db.rsa" "${mok_key}"
+  cp  -f "${CA_TMPDIR}/db.der" "${mok_der}"
+
+  modulus_md5sum="$(openssl rsa -noout -modulus -in "${mok_key}" | openssl md5 | awk '{print $2}')"
 }
 
 function clear_dkms_key {
@@ -858,7 +855,7 @@ function clear_dkms_key {
       echo "No signing secret provided.  skipping" >&2
       return 0
   fi
-  rm -rf "${CA_TMPDIR}" /var/lib/dkms/mok.key /var/lib/shim-signed/mok/MOK.priv
+  rm -rf "${CA_TMPDIR}" "${mok_key}"
 }
 
 function add_contrib_component() {
@@ -926,7 +923,11 @@ function build_driver_from_github() {
   test -f "${workdir}/open-gpu-kernel-modules/kernel-open/nvidia.ko" || {
     local build_tarball="kmod-build_${_shortname}_${DRIVER_VERSION}.tar.gz"
     local local_tarball="${workdir}/${build_tarball}"
-    local gcs_tarball="${pkg_bucket}/${_shortname}/${build_tarball}"
+    local build_dir
+    if [[ -n "${modulus_md5sum}" ]] ; then build_dir="${modulus_md5sum}"
+                                      else build_dir="unsigned" ; fi
+
+    local gcs_tarball="${pkg_bucket}/${_shortname}/${build_dir}/${build_tarball}"
 
     if gsutil ls "${gcs_tarball}" 2>&1 | grep -q "${gcs_tarball}" ; then
       echo "cache hit"
@@ -959,6 +960,7 @@ function build_driver_from_github() {
   # install kernel modules
   modinfo nvidia > /dev/null 2>&1 || {
     pushd open-gpu-kernel-modules
+    install_build_dependencies
     make modules_install \
         >>  kernel-open/build.log \
         2>> kernel-open/build_error.log
