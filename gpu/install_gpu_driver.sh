@@ -147,10 +147,10 @@ readonly ROLE
 # Rocky8: 12.0: 525.147.05
 readonly -A DRIVER_FOR_CUDA=(
           ["11.7"]="515.65.01"  ["11.8"]="525.60.13"
-          ["12.0"]="525.60.13"  ["12.1"]="530.30.02" ["12.4"]="550.67"  ["12.5"]="555.42.02"  ["12.6"]="560.35.03"
+          ["12.0"]="525.60.13"  ["12.1"]="530.30.02" ["12.4"]="550.67"     ["12.5"]="555.42.02"  ["12.6"]="560.35.03"
 )
 readonly -A DRIVER_SUBVER=(
-          ["515"]="515.48.07"   ["520"]="520.56.06"  ["525"]="525.147.05"  ["530"]="530.41.03"   ["535"]="535.216.01"
+          ["515"]="515.48.07"   ["520"]="525.147.05" ["525"]="525.147.05"  ["530"]="530.41.03"   ["535"]="535.216.01"
           ["545"]="545.29.06"   ["550"]="550.127.05" ["555"]="555.58.02"   ["560"]="560.35.03"   ["565"]="565.57.01"
 )
 # https://developer.nvidia.com/cudnn-downloads
@@ -669,6 +669,7 @@ function install_nvidia_nccl() {
       # build and cache
       pushd nccl
       # https://github.com/NVIDIA/nccl?tab=readme-ov-file#install
+      install_build_dependencies
       if is_debuntu ; then
         # These packages are required to build .deb packages from source
         execute_with_retries \
@@ -910,13 +911,8 @@ function add_repo_cuda() {
 }
 
 function build_driver_from_github() {
-  if is_ubuntu ; then
-    mok_key=/var/lib/shim-signed/mok/MOK.priv
-    mok_der=/var/lib/shim-signed/mok/MOK.der
-  else
-    mok_key=/var/lib/dkms/mok.key
-    mok_der=/var/lib/dkms/mok.pub
-  fi
+  # closed driver will have been built on rocky8
+  if is_rocky8 ; then return 0 ; fi
   pushd "${workdir}"
 
   test -d "${workdir}/open-gpu-kernel-modules" || {
@@ -937,6 +933,7 @@ function build_driver_from_github() {
     else
       # build and cache kernel modules
       pushd open-gpu-kernel-modules
+      install_build_dependencies
       execute_with_retries make -j$(nproc) modules \
         >  kernel-open/build.log \
         2> kernel-open/build_error.log
@@ -1026,7 +1023,22 @@ function install_nvidia_userspace_runfile() {
                         "${pkg_bucket}/${USERSPACE_FILENAME}" \
                         "${local_fn}"
 
-  execute_with_retries bash "${local_fn}" --no-kernel-modules --install-libglvnd --silent --tmpdir="${tmpdir}"
+  if is_rocky8 ; then
+    install_build_dependencies
+
+    # build non-open driver
+    execute_with_retries bash "${local_fn}" \
+      --module-signing-hash sha256 \
+      --module-signing-x509-hash sha256 \
+      --module-signing-secret-key "${mok_key}" \
+      --module-signing-public-key "${mok_der}" \
+      --module-signing-script "/lib/modules/${uname_r}/build/scripts/sign-file" \
+      --no-dkms \
+      --install-libglvnd --silent --tmpdir="${tmpdir}"
+  else
+    # prepare to build from github
+    execute_with_retries bash "${local_fn}" --no-kernel-modules --install-libglvnd --silent --tmpdir="${tmpdir}"
+  fi
   rm -f "${local_fn}"
   touch "${workdir}/userspace-complete"
   sync
@@ -1369,25 +1381,17 @@ function nvsmi() {
   "${nvsmi}" $*
 }
 
-function install_dependencies() {
+function install_build_dependencies() {
+  if test -f "${workdir}/build-dependencies-complete" ; then return ; fi
+
   if is_debuntu ; then
-    execute_with_retries apt-get install -y -qq pciutils "linux-headers-${uname_r}" screen
-    if is_ubuntu22 ; then
-      # On ubuntu22, the default compiler does not build some kernel module versions
-      # https://forums.developer.nvidia.com/t/linux-new-kernel-6-5-0-14-ubuntu-22-04-can-not-compile-nvidia-display-card-driver/278553/11
-      execute_with_retries apt-get install -y -qq gcc-12
-      update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 11
-      update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
-      update-alternatives --set gcc /usr/bin/gcc-12
-    elif is_debian12 && is_cuda11 ; then
-      # On debian12, the default compiler does not build NCCL
-      execute_with_retries apt-get install -y -qq gcc-11
-      update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 11
-      update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
-      update-alternatives --set gcc /usr/bin/gcc-11
-    fi
+    execute_with_retries apt-get install -y -qq pciutils "linux-headers-${uname_r}" "gcc-${gcc_ver}" screen
+
+    update-alternatives --install /usr/bin/gcc gcc "/usr/bin/gcc-${gcc_ver}" "${gcc_ver}"
+    update-alternatives --set gcc "/usr/bin/gcc-${gcc_ver}"
+
   elif is_rocky ; then
-    execute_with_retries dnf -y -q install pciutils gcc screen
+    execute_with_retries dnf -y -q install gcc
 
     local dnf_cmd="dnf -y -q install kernel-devel-${uname_r}"
     set +e
@@ -1412,6 +1416,13 @@ function install_dependencies() {
 
     execute_with_retries "${dnf_cmd}"
   fi
+  touch "${workdir}/build-dependencies-complete"
+}
+
+function install_dependencies() {
+  pkg_list="pciutils screen"
+  if is_debuntu ; then execute_with_retries apt-get -y -q install ${pkg_list}
+  elif is_rocky ; then execute_with_retries dnf     -y -q install ${pkg_list} ; fi
 }
 
 function main() {
@@ -1753,6 +1764,14 @@ function prepare_to_install(){
   readonly uname_r=$(uname -r)
   readonly bdcfg="/usr/local/bin/bdconfig"
   export DEBIAN_FRONTEND=noninteractive
+
+  if is_ubuntu ; then mok_key=/var/lib/shim-signed/mok/MOK.priv
+                      mok_der=/var/lib/shim-signed/mok/MOK.der
+                 else mok_key=/var/lib/dkms/mok.key
+                      mok_der=/var/lib/dkms/mok.pub ; fi
+
+  if   is_cuda11 ; then gcc_ver="11"
+  elif is_cuda12 ; then gcc_ver="12" ; fi
 
   mkdir -p "${workdir}"
   trap exit_handler EXIT
