@@ -777,9 +777,6 @@ function install_nvidia_cudnn() {
   touch "${workdir}/cudnn-complete"
 }
 
-CA_TMPDIR="$(mktemp -u -d -p /run/tmp -t ca_dir-XXXX)"
-PSN="$(get_metadata_attribute private_secret_name)"
-readonly PSN
 function configure_dkms_certs() {
   if [[ -z "${PSN}" ]]; then
       echo "No signing secret provided.  skipping";
@@ -794,22 +791,22 @@ function configure_dkms_certs() {
 
     local expected_modulus_md5sum
     expected_modulus_md5sum=$(get_metadata_attribute modulus_md5sum)
-
+    if [[ -n "${expected_modulus_md5sum}" ]]; then
       modulus_md5sum="${expected_modulus_md5sum}"
 
       # Verify that cert md5sum matches expected md5sum
       if [[ "${modulus_md5sum}" != "$(openssl rsa -noout -modulus -in "${CA_TMPDIR}/db.rsa" | openssl md5 | awk '{print $2}')" ]]; then
-        echo "unmatched rsa key modulus"
+        echo "unmatched rsa key"
       fi
-      ln -sf "${CA_TMPDIR}/db.rsa" "${mok_key}"
 
       # Verify that key md5sum matches expected md5sum
       if [[ "${modulus_md5sum}" != "$(openssl x509 -noout -modulus -in ${mok_der} | openssl md5 | awk '{print $2}')" ]]; then
-        echo "unmatched x509 cert modulus"
+        echo "unmatched x509 cert"
       fi
     else
       modulus_md5sum="$(openssl rsa -noout -modulus -in "${CA_TMPDIR}/db.rsa" | openssl md5 | awk '{print $2}')"
     fi
+    ln -sf "${CA_TMPDIR}/db.rsa" "${mok_key}"
 
     return
   fi
@@ -938,6 +935,15 @@ function build_driver_from_github() {
       execute_with_retries make -j$(nproc) modules \
         >  kernel-open/build.log \
         2> kernel-open/build_error.log
+      # Sign kernel modules
+      if [[ -n "${PSN}" ]]; then
+        for module in $(find open-gpu-kernel-modules/kernel-open -name '*.ko'); do
+          "/lib/modules/${uname_r}/build/scripts/sign-file" sha256 \
+          "${mok_key}" \
+          "${mok_der}" \
+          "${module}"
+        done
+      fi
       tar czvf "${local_tarball}" ../open-gpu-kernel-modules/kernel-open
       gcloud storage cp "${local_tarball}" "${gcs_tarball}"
       rm "${local_tarball}"
@@ -946,16 +952,6 @@ function build_driver_from_github() {
     fi
     gcloud storage cat "${gcs_tarball}" | tar xzv
   }
-
-  # Sign kernel modules
-  if [[ -n "${PSN}" ]]; then
-    for module in $(find open-gpu-kernel-modules/kernel-open -name '*.ko'); do
-      "/lib/modules/${uname_r}/build/scripts/sign-file" sha256 \
-      "${mok_key}" \
-      "${mok_der}" \
-      "${module}"
-    done
-  fi
 
   # install kernel modules
   modinfo nvidia > /dev/null 2>&1 || {
@@ -1771,11 +1767,17 @@ function prepare_to_install(){
   workdir=/opt/install-dpgce
   nvsmi_works="0"
   tmpdir=/tmp/
-  readonly temp_bucket="$(get_metadata_attribute dataproc-temp-bucket)"
+  temp_bucket="$(get_metadata_attribute dataproc-temp-bucket)"
+  readonly temp_bucket
   readonly pkg_bucket="gs://${temp_bucket}/dpgce-packages"
-  readonly uname_r=$(uname -r)
+  uname_r=$(uname -r)
+  readonly uname_r
   readonly bdcfg="/usr/local/bin/bdconfig"
   export DEBIAN_FRONTEND=noninteractive
+  CA_TMPDIR="$(mktemp -u -d -p /run/tmp -t ca_dir-XXXX)"
+  readonly CA_TMPDIR
+  PSN="$(get_metadata_attribute private_secret_name)"
+  readonly PSN
 
   if is_ubuntu ; then mok_key=/var/lib/shim-signed/mok/MOK.priv
                       mok_der=/var/lib/shim-signed/mok/MOK.der
