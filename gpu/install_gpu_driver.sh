@@ -778,7 +778,7 @@ function install_nvidia_cudnn() {
 }
 
 function configure_dkms_certs() {
-  if [[ -z "${PSN}" ]]; then
+  if test -v PSN && [[ -z "${PSN}" ]]; then
       echo "No signing secret provided.  skipping";
       return 0
   fi
@@ -921,8 +921,9 @@ function build_driver_from_github() {
     local build_tarball="kmod-build_${_shortname}_${DRIVER_VERSION}.tar.gz"
     local local_tarball="${workdir}/${build_tarball}"
     local build_dir
-    if [[ -n "${modulus_md5sum}" ]] ; then build_dir="${modulus_md5sum}"
-                                      else build_dir="unsigned" ; fi
+    if test -v modulus_md5sum && [[ -n "${modulus_md5sum}" ]]
+      then build_dir="${modulus_md5sum}"
+      else build_dir="unsigned" ; fi
 
     local gcs_tarball="${pkg_bucket}/${_shortname}/${build_dir}/${build_tarball}"
 
