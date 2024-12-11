@@ -1385,10 +1385,20 @@ function install_build_dependencies() {
   if test -f "${workdir}/build-dependencies-complete" ; then return ; fi
 
   if is_debuntu ; then
-    execute_with_retries apt-get install -y -qq pciutils "linux-headers-${uname_r}" "gcc-${gcc_ver}" screen
-
-    update-alternatives --install /usr/bin/gcc gcc "/usr/bin/gcc-${gcc_ver}" "${gcc_ver}"
-    update-alternatives --set gcc "/usr/bin/gcc-${gcc_ver}"
+    if is_ubuntu22 && is_cuda12 ; then
+      # On ubuntu22, the default compiler does not build some kernel module versions
+      # https://forums.developer.nvidia.com/t/linux-new-kernel-6-5-0-14-ubuntu-22-04-can-not-compile-nvidia-display-card-driver/278553/11
+      execute_with_retries apt-get install -y -qq gcc-12
+      update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 11
+      update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
+      update-alternatives --set gcc /usr/bin/gcc-12
+    elif is_debian12 && is_cuda11 ; then
+      # On debian12, the default compiler does not build NCCL
+      execute_with_retries apt-get install -y -qq gcc-11
+      update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 11
+      update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
+      update-alternatives --set gcc /usr/bin/gcc-11
+    fi
 
   elif is_rocky ; then
     execute_with_retries dnf -y -q install gcc
