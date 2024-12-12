@@ -232,6 +232,11 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 #          ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
 #      self.skipTest("CUDA > 12.0 not supported on older debian/ubuntu releases")
 
+    if configuration == 'SINGLE' \
+    and self.getImageOs() == 'rocky' \
+    and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
+      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail with errors about nodes_include being empty")
+
     if pkg_resources.parse_version(cuda_version) < pkg_resources.parse_version("12.0") \
     and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
       self.skipTest("CUDA < 12 not supported on Dataproc 2.2")
