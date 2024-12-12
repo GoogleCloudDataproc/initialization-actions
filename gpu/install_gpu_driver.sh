@@ -210,6 +210,7 @@ function set_cuda_version() {
     CUDA_FULL_VERSION=${CUDA_SUBVER["${CUDA_VERSION}"]}
   fi
   readonly CUDA_FULL_VERSION
+
 }
 
 set_cuda_version
@@ -614,6 +615,11 @@ function uninstall_local_cudnn8_repo() {
 
 function install_nvidia_nccl() {
   if test -f "${workdir}/nccl-complete" ; then return ; fi
+
+  if is_cuda11 && is_debian12 ; then
+    echo "NCCL cannot be compiled for CUDA 11 on ${OS_NAME}"
+    return
+  fi
 
   local -r nccl_version="${NCCL_VERSION}-1+cuda${CUDA_VERSION}"
 
@@ -1388,12 +1394,6 @@ function install_build_dependencies() {
       update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 11
       update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
       update-alternatives --set gcc /usr/bin/gcc-12
-    elif is_debian12 && is_cuda11 ; then
-      # On debian12, the default compiler does not build NCCL
-      execute_with_retries apt-get install -y -qq gcc-11
-      update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 11
-      update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
-      update-alternatives --set gcc /usr/bin/gcc-11
     fi
 
   elif is_rocky ; then
