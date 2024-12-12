@@ -960,9 +960,9 @@ function build_driver_from_github() {
       popd
     fi
     gcloud storage cat "${gcs_tarball}" | tar -C / -xzv
+    depmod -a
   }
 
-  install_kernel_modules
   popd
 }
 
