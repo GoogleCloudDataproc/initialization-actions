@@ -51,10 +51,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     time.sleep(3) # Many failed nvidia-smi attempts have been caused by impatience
     self.assert_instance_command(name, "nvidia-smi", 1)
 
-  def verify_pyspark(self, name):
-    # Verify that pyspark works
-    self.assert_instance_command(name, "echo 'from pyspark.sql import SparkSession ; SparkSession.builder.getOrCreate()' | pyspark -c spark.executor.resource.gpu.amount=1 -c spark.task.resource.gpu.amount=0.01", 1)
-
   def verify_pytorch(self, name):
     test_filename=os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                self.TORCH_TEST_SCRIPT_FILE_NAME)
@@ -90,6 +86,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def verify_instance_nvcc(self, name, cuda_version):
     self.assert_instance_command(
         name, "/usr/local/cuda-{}/bin/nvcc --version | grep 'release {}'".format(cuda_version,cuda_version) )
+
+  def verify_instance_pyspark(self, name):
+    # Verify that pyspark works
+    self.assert_instance_command(name, "echo 'from pyspark.sql import SparkSession ; SparkSession.builder.getOrCreate()' | pyspark -c spark.executor.resource.gpu.amount=1 -c spark.task.resource.gpu.amount=0.01", 1)
 
   def verify_instance_cuda_version(self, name, cuda_version):
     self.assert_instance_command(
@@ -148,8 +148,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         # Do not attempt this on single instance rocky clusters
         no_op=1
       else:
-        # verify that pyspark from command prompt works
-        self.verify_pyspark(machine_name)
+        # verify that pyspark works from command prompt
+        self.verify_instance_pyspark(machine_name)
 
   @parameterized.parameters(
       ("SINGLE", ["m"], GPU_T4, None, None),
