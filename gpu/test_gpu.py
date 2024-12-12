@@ -142,8 +142,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
       self.verify_instance(machine_name)
-        # verify that pyspark works from command prompt
-        self.verify_instance_pyspark(machine_name)
+      self.verify_instance_nvcc(machine_name, cuda_version)
+      self.verify_instance_pyspark(machine_name)
+      self.verify_instance_spark()
 
   @parameterized.parameters(
       ("SINGLE", ["m"], GPU_T4, None, None),
@@ -177,6 +178,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_with_agent(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider):
+    self.skipTest("No need to regularly installing the agent on its own cluster ; this is exercised elsewhere")
 
     metadata = "install-gpu-agent=true"
     if driver_provider is not None:
