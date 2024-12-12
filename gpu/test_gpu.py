@@ -122,11 +122,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_default_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
-    self.skipTest("Running only one test to build cache")
-
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
-
     metadata = None
     if driver_provider is not None:
       metadata = "gpu-driver-provider={}".format(driver_provider)
@@ -157,12 +152,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_without_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
-    self.skipTest("Running only one test to build cache")
-
     self.skipTest("No need to regularly test not installing the agent")
-
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
     metadata = "install-gpu-agent=false"
     if driver_provider is not None:
@@ -188,9 +178,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_with_agent(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider):
-    self.skipTest("Running only one test to build cache")
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
     metadata = "install-gpu-agent=true"
     if driver_provider is not None:
@@ -220,8 +207,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
-#    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-#      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
 #    if pkg_resources.parse_version(cuda_version) == pkg_resources.parse_version("12.0") \
 #    and ( self.getImageOs() == 'debian' and self.getImageVersion() >= pkg_resources.parse_version("2.2") ):
@@ -267,12 +252,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_with_mig(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider, cuda_version):
-    self.skipTest("Running only one test to build cache")
 
     self.skipTest("Test is known to fail.  Skipping so that we can exercise others")
-
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
     if pkg_resources.parse_version(cuda_version) == pkg_resources.parse_version("12.0") \
     and ( self.getImageOs() == 'debian' and self.getImageVersion() >= pkg_resources.parse_version("2.2") ):
@@ -312,10 +293,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   )
   def test_gpu_allocation(self, configuration, master_accelerator,
                           worker_accelerator, driver_provider):
-    self.skipTest("Running only one test to build cache")
-
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
     if configuration == 'SINGLE' \
     and self.getImageOs() == 'rocky' \
@@ -348,10 +325,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_cuda_nvidia_with_spark_job(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
-    self.skipTest("Running only one test to build cache")
-
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
     if configuration == 'SINGLE' \
     and self.getImageOs() == 'rocky' \
