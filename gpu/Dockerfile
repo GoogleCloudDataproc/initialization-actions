@@ -15,8 +15,10 @@ RUN apt-get -qq update \
      curl jq less screen > /dev/null 2>&1  && apt-get clean
 
 # Install bazel signing key, repo and package
-ENV bazel_kr_path=/usr/share/keyrings/bazel-release.pub.gpg
-ENV bazel_repo_data="http://storage.googleapis.com/bazel-apt stable jdk1.8"
+ENV bazel_kr_path=/usr/share/keyrings/bazel-keyring.gpg \
+    bazel_version=7.4.0 \
+    bazel_repo_data="http://storage.googleapis.com/bazel-apt stable jdk1.8" \
+    DEBIAN_FRONTEND=noninteractive
 
 RUN /usr/bin/curl -s https://bazel.build/bazel-release.pub.gpg \
       | gpg --dearmor -o "${bazel_kr_path}" \
@@ -24,14 +26,13 @@ RUN /usr/bin/curl -s https://bazel.build/bazel-release.pub.gpg \
       | dd of=/etc/apt/sources.list.d/bazel.list status=none \
     && apt-get update -qq
 
-RUN apt-get update -y -qq && \
-    apt-get autoremove -y -qq && \
-    apt-get install -y -qq default-jdk python3-setuptools bazel-7.4.0 > /dev/null 2>&1 && \
+RUN apt-get autoremove -y -qq > /dev/null 2>&1 && \
+    apt-get install -y -qq default-jdk python3-setuptools bazel-${bazel_version} > /dev/null 2>&1 && \
     apt-get clean
 
-# Set bazel-7.4.0 as the default bazel alternative in this container
-RUN update-alternatives --install /usr/bin/bazel bazel /usr/bin/bazel-7.4.0 7 && \
-    update-alternatives --set bazel /usr/bin/bazel-7.4.0
+# Set bazel-${bazel_version} as the default bazel alternative in this container
+RUN update-alternatives --install /usr/bin/bazel bazel /usr/bin/bazel-${bazel_version} 1 && \
+    update-alternatives --set bazel /usr/bin/bazel-${bazel_version}
 
 # Install here any utilities you find useful when troubleshooting
 RUN apt-get -y -qq install emacs-nox vim uuid-runtime > /dev/null 2>&1 && apt-get clean
