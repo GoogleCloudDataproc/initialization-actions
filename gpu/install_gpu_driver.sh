@@ -137,52 +137,58 @@ fi
 ROLE="$(get_metadata_attribute dataproc-role)"
 readonly ROLE
 
-# CUDA version and Driver version
-# https://docs.nvidia.com/deploy/cuda-compatibility/
-# https://docs.nvidia.com/deeplearning/frameworks/support-matrix/index.html
-# https://developer.nvidia.com/cuda-downloads
+function set_support_matrix() {
+  # CUDA version and Driver version
+  # https://docs.nvidia.com/deploy/cuda-compatibility/
+  # https://docs.nvidia.com/deeplearning/frameworks/support-matrix/index.html
+  # https://developer.nvidia.com/cuda-downloads
 
-# Minimum supported version for open kernel driver is 515.43.04
-# https://github.com/NVIDIA/open-gpu-kernel-modules/tags
-# Rocky8: 12.0: 525.147.05
-readonly -A DRIVER_FOR_CUDA=(
+  # Minimum supported version for open kernel driver is 515.43.04
+  # https://github.com/NVIDIA/open-gpu-kernel-modules/tags
+  # Rocky8: 12.0: 525.147.05
+  local latest
+  latest="$(curl -s https://download.nvidia.com/XFree86/Linux-x86_64/latest.txt | awk '{print $1}')"
+  readonly -A DRIVER_FOR_CUDA=(
           ["11.7"]="515.65.01"  ["11.8"]="525.60.13"
-          ["12.0"]="525.60.13"  ["12.1"]="530.30.02" ["12.4"]="550.127.05" ["12.5"]="555.42.02"  ["12.6"]="560.35.03"
-)
-readonly -A DRIVER_SUBVER=(
+          ["12.0"]="525.60.13"  ["12.1"]="530.30.02" ["12.4"]="550.135"    ["12.5"]="555.42.02"  ["12.6"]="560.35.03"
+  )
+  readonly -A DRIVER_SUBVER=(
           ["515"]="515.48.07"   ["520"]="525.147.05" ["525"]="525.147.05"  ["530"]="530.41.03"   ["535"]="535.216.01"
-          ["545"]="545.29.06"   ["550"]="550.127.05" ["555"]="555.58.02"   ["560"]="560.35.03"   ["565"]="565.57.01"
-)
-# https://developer.nvidia.com/cudnn-downloads
-if is_debuntu ; then
-readonly -A CUDNN_FOR_CUDA=(
+          ["545"]="545.29.06"   ["550"]="550.135"    ["555"]="555.58.02"   ["560"]="560.35.03"   ["565"]="565.57.01"
+  )
+  # https://developer.nvidia.com/cudnn-downloads
+  if is_debuntu ; then
+  readonly -A CUDNN_FOR_CUDA=(
           ["11.7"]="9.5.1.17"   ["11.8"]="9.5.1.17"
           ["12.0"]="9.5.1.17"   ["12.1"]="9.5.1.17"  ["12.4"]="9.5.1.17"   ["12.5"]="9.5.1.17"   ["12.6"]="9.5.1.17"
-)
-elif is_rocky ; then
-# rocky:
-#   12.0: 8.8.1.3
-#   12.1: 8.9.3.28
-#   12.2: 8.9.7.29
-#   12.3: 9.0.0.312
-#   12.4: 9.1.1.17
-#   12.5: 9.2.1.18
-#   12.6: 9.5.1.17
-readonly -A CUDNN_FOR_CUDA=(
+  )
+  elif is_rocky ; then
+  # rocky:
+  #   12.0: 8.8.1.3
+  #   12.1: 8.9.3.28
+  #   12.2: 8.9.7.29
+  #   12.3: 9.0.0.312
+  #   12.4: 9.1.1.17
+  #   12.5: 9.2.1.18
+  #   12.6: 9.5.1.17
+  readonly -A CUDNN_FOR_CUDA=(
           ["11.7"]="8.9.7.29"   ["11.8"]="9.5.1.17"
           ["12.0"]="8.8.1.3"    ["12.1"]="8.9.3.28"  ["12.4"]="9.1.1.17"   ["12.5"]="9.2.1.18"   ["12.6"]="9.5.1.17"
-)
-fi
-# https://developer.nvidia.com/nccl/nccl-download
-# 12.2: 2.19.3, 12.5: 2.21.5
-readonly -A NCCL_FOR_CUDA=(
+  )
+  fi
+  # https://developer.nvidia.com/nccl/nccl-download
+  # 12.2: 2.19.3, 12.5: 2.21.5
+  readonly -A NCCL_FOR_CUDA=(
           ["11.7"]="2.21.5"     ["11.8"]="2.21.5"
           ["12.0"]="2.16.5"     ["12.1"]="2.18.3"    ["12.4"]="2.23.4"     ["12.5"]="2.21.5"     ["12.6"]="2.23.4"
-)
-readonly -A CUDA_SUBVER=(
+  )
+  readonly -A CUDA_SUBVER=(
           ["11.7"]="11.7.1"     ["11.8"]="11.8.0"
           ["12.0"]="12.0.1"     ["12.1"]="12.1.1"    ["12.2"]="12.2.2"     ["12.3"]="12.3.2"     ["12.4"]="12.4.1"     ["12.5"]="12.5.1"     ["12.6"]="12.6.2"
-)
+  )
+}
+
+set_support_matrix
 
 RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 
