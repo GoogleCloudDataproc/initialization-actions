@@ -617,7 +617,7 @@ function install_nvidia_nccl() {
   if test -f "${workdir}/nccl-complete" ; then return ; fi
 
   if is_cuda11 && is_debian12 ; then
-    echo "NCCL cannot be compiled for CUDA 11 on ${OS_NAME}"
+    echo "NCCL cannot be compiled for CUDA 11 on ${_shortname}"
     return
   fi
 
@@ -764,22 +764,14 @@ function install_nvidia_cudnn() {
         echo "Unsupported cudnn version: [${CUDNN_VERSION}]"
       fi
     fi
-  elif is_ubuntu ; then
-    local -a packages
-    packages=(
-      "libcudnn${major_version}=${cudnn_pkg_version}"
-      "libcudnn${major_version}-dev=${cudnn_pkg_version}")
-    execute_with_retries \
-      apt-get install -q -y --no-install-recommends "${packages[*]}"
-    sync
   else
-    echo "Unsupported OS: '${OS_NAME}'"
+    echo "Unsupported OS: '${_shortname}'"
     exit 1
   fi
 
   ldconfig
 
-  echo "NVIDIA cuDNN successfully installed for ${OS_NAME}."
+  echo "NVIDIA cuDNN successfully installed for ${_shortname}."
   touch "${workdir}/cudnn-complete"
 }
 
@@ -941,7 +933,7 @@ function build_driver_from_github() {
       pushd open-gpu-kernel-modules
       install_build_dependencies
       if is_cuda11 && is_ubuntu22 ; then
-        echo "Kernel modules cannot be compiled for CUDA 11 on ${OS_NAME}"
+        echo "Kernel modules cannot be compiled for CUDA 11 on ${_shortname}"
         exit 1
       fi
       execute_with_retries make -j$(nproc) modules \
@@ -1101,7 +1093,7 @@ function install_cuda(){
   if test -f "${workdir}/cuda-repo-complete" ; then return ; fi
 
   if ( ge_debian12 && is_src_os ) ; then
-    echo "installed with the driver on ${OS_NAME}"
+    echo "installed with the driver on ${_shortname}"
     return 0
   fi
 
@@ -1129,7 +1121,7 @@ function install_nvidia_gpu_driver() {
           nvidia-smi \
           libglvnd0 \
           libcuda1
-    echo "NVIDIA GPU driver provided by ${OS_NAME} was installed successfully"
+    echo "NVIDIA GPU driver provided by ${_shortname} was installed successfully"
     return 0
   fi
 
