@@ -949,7 +949,6 @@ function build_driver_from_github() {
       make modules_install \
         >>  kernel-open/build.log \
         2>> kernel-open/build_error.log
-      depmod -a
       # Collect build logs and installed binaries
       tar czvf "${local_tarball}" \
         "${workdir}/open-gpu-kernel-modules/kernel-open/"*.log \
