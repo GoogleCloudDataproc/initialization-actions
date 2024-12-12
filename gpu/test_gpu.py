@@ -10,6 +10,7 @@ DEFAULT_TIMEOUT = 15  # minutes
 
 class NvidiaGpuDriverTestCase(DataprocTestCase):
   COMPONENT = "gpu"
+  DEFAULT_CUDA_VERSION = "12.4"
   INIT_ACTIONS = ["gpu/install_gpu_driver.sh"]
   GPU_L4   = "type=nvidia-l4"
   GPU_T4   = "type=nvidia-tesla-t4"
@@ -142,7 +143,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
       self.verify_instance(machine_name)
-      self.verify_instance_nvcc(machine_name, cuda_version)
+      self.verify_instance_nvcc(machine_name, DEFAULT_CUDA_VERSION)
       self.verify_instance_pyspark(machine_name)
       self.verify_instance_spark()
 
