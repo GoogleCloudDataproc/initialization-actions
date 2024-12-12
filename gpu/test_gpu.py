@@ -122,6 +122,11 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_default_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
+    if configuration == 'SINGLE' \
+    and self.getImageOs() == 'rocky' \
+    and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
+      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail with errors about nodes_include being empty")
+
     metadata = None
     if driver_provider is not None:
       metadata = "gpu-driver-provider={}".format(driver_provider)
@@ -137,12 +142,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
       self.verify_instance(machine_name)
-      if ( configuration == 'SINGLE' and \
-           self.getImageOs() == 'rocky' and \
-           self.getImageVersion() > pkg_resources.parse_version("2.1") ):
-        # Do not attempt this on single instance rocky clusters
-        no_op=1
-      else:
         # verify that pyspark works from command prompt
         self.verify_instance_pyspark(machine_name)
 
