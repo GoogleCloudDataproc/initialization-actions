@@ -940,6 +940,10 @@ function build_driver_from_github() {
       # build the kernel modules
       pushd open-gpu-kernel-modules
       install_build_dependencies
+      if is_cuda11 && is_ubuntu22 ; then
+        echo "Kernel modules cannot be compiled for CUDA 11 on ${OS_NAME}"
+        exit 1
+      fi
       execute_with_retries make -j$(nproc) modules \
         >  kernel-open/build.log \
         2> kernel-open/build_error.log
