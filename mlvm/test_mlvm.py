@@ -35,7 +35,9 @@ class MLVMTestCase(DataprocTestCase):
 
   def verify_spark_bigquery_connector(self):
     self.assert_dataproc_job(
-        self.name, "pyspark", "{}/{}".format(self.INIT_ACTIONS_REPO,
+        self.name, "pyspark", "{}/{} --properties=spark.executor.resource.gpu.amount=1,"
+                              "spark.task.resource.gpu.amount=1,spark.executor.cores=4,"
+                              "spark.executor.memory=8g".format(self.INIT_ACTIONS_REPO,
                                              self.SPARK_BQ_SCRIPT))
 
   def verify_gpu(self):
@@ -103,6 +105,8 @@ class MLVMTestCase(DataprocTestCase):
         self.INIT_ACTIONS,
         optional_components=self.OPTIONAL_COMPONENTS,
         machine_type="n1-standard-4",
+        master_accelerator="type=nvidia-tesla-t4",
+        worker_accelerator="type=nvidia-tesla-t4",
         timeout_in_minutes=60,
         metadata=metadata)
 
