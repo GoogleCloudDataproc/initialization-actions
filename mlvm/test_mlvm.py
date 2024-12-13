@@ -35,10 +35,7 @@ class MLVMTestCase(DataprocTestCase):
 
   def verify_spark_bigquery_connector(self):
     self.assert_dataproc_job(
-        self.name, "pyspark", "{}/{} --properties=spark.executor.resource.gpu.amount=1,"
-                              "spark.task.resource.gpu.amount=1,spark.executor.cores=4,"
-                              "spark.executor.memory=8g".format(self.INIT_ACTIONS_REPO,
-                                             self.SPARK_BQ_SCRIPT))
+        self.name, "pyspark", "{}/{}".format(self.INIT_ACTIONS_REPO, self.SPARK_BQ_SCRIPT))
 
   def verify_gpu(self):
     for machine_suffix in ["m", "w-0", "w-1"]:
@@ -81,7 +78,6 @@ class MLVMTestCase(DataprocTestCase):
   def verify_all(self):
     self.verify_python()
     self.verify_r()
-    self.verify_spark_bigquery_connector()
 
   @parameterized.parameters(
       ("STANDARD", None),
@@ -147,8 +143,9 @@ class MLVMTestCase(DataprocTestCase):
         metadata=metadata)
 
     self.verify_all()
-
+    self.verify_spark_bigquery_connector()
     self.verify_gpu()
+
     if rapids_runtime == "SPARK":
       self.verify_rapids_spark()
     elif rapids_runtime == "DASK":
