@@ -244,7 +244,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       self.verify_instance(machine_name)
       self.verify_instance_nvcc(machine_name, cuda_version)
       self.verify_instance_pyspark(machine_name)
-      self.verify_instance_spark()
+    self.verify_instance_spark()
 
   @parameterized.parameters(
       ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "11.8"),
@@ -346,6 +346,39 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail with errors about nodes_include being empty")
 
     metadata = "install-gpu-agent=true,gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
+    self.createCluster(
+      configuration,
+      self.INIT_ACTIONS,
+      machine_type="n1-highmem-8",
+      master_accelerator=master_accelerator,
+      worker_accelerator=worker_accelerator,
+      metadata=metadata,
+      timeout_in_minutes=30,
+      boot_disk_size="50GB",
+      scopes="https://www.googleapis.com/auth/monitoring.write")
+
+    for machine_suffix in machine_suffixes:
+      self.verify_instance("{}-{}".format(self.getClusterName(),machine_suffix))
+      self.verify_instance_gpu_agent("{}-{}".format(self.getClusterName(),machine_suffix))
+
+    self.verify_instance_spark()
+
+  @parameterized.parameters(
+#    ("SINGLE", ["m"], GPU_T4, GPU_T4, "11.8", ''),
+#    ("STANDARD", ["m"], GPU_T4, None, "12.0"),
+    ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4", 'rocky', '2.1'),
+#    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.8"),
+#    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "12.0"),
+  )
+  def tests_driver_signing(self, configuration, machine_suffixes,
+                           master_accelerator, worker_accelerator,
+                           cuda_version, image_os, image_version):
+
+    if self.getImageOs() != image_os:
+      self.skipTest("This test is only run on os {}".format(image_os))
+    if self.getImageVersion() != image_version:
+      self.skipTest("This test is only run on Dataproc Image Version {}".format(image_os))
+
     self.createCluster(
       configuration,
       self.INIT_ACTIONS,
