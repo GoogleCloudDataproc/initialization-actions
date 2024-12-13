@@ -7,10 +7,10 @@ from absl.testing import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 DEFAULT_TIMEOUT = 15  # minutes
+DEFAULT_CUDA_VERSION = "12.4"
 
 class NvidiaGpuDriverTestCase(DataprocTestCase):
   COMPONENT = "gpu"
-  DEFAULT_CUDA_VERSION = "12.4"
   INIT_ACTIONS = ["gpu/install_gpu_driver.sh"]
   GPU_L4   = "type=nvidia-l4"
   GPU_T4   = "type=nvidia-tesla-t4"
@@ -138,7 +138,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
-        timeout_in_minutes=90,
+        timeout_in_minutes=90, # This cluster is sized and timed correctly to build the driver and nccl
         boot_disk_size="60GB")
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
@@ -366,7 +366,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   @parameterized.parameters(
 #    ("SINGLE", ["m"], GPU_T4, GPU_T4, "11.8", ''),
 #    ("STANDARD", ["m"], GPU_T4, None, "12.0"),
+    ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "11.8", 'rocky', '2.0'),
     ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4", 'rocky', '2.1'),
+    ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.0", 'rocky', '2.2'),
+    ("KERBEROS", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.6", 'rocky', '2.2'),
 #    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.8"),
 #    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "12.0"),
   )
@@ -386,7 +389,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       master_accelerator=master_accelerator,
       worker_accelerator=worker_accelerator,
       metadata=metadata,
-      timeout_in_minutes=30,
+      timeout_in_minutes=30, # this test expects driver and nccl cache to be built and stashed before its run
       boot_disk_size="50GB",
       scopes="https://www.googleapis.com/auth/monitoring.write")
     for machine_suffix in machine_suffixes:
