@@ -136,7 +136,7 @@ function install_conda_packages() {
   # Mamba provides significant decreases in installation times.
   conda create -y -n ${mamba_env_name} mamba
 
-  execute_with_retries "${mamba_env}/bin/mamba install -y ${CONDA_PACKAGES[*]} -p ${base}"
+  execute_with_retries "opt/conda/miniconda3/bin/mamba install -y ${CONDA_PACKAGES[*]} -p ${base}"
 
   if [[ -n "${extra_channels}" ]]; then
     for channel in ${extra_channels}; do
