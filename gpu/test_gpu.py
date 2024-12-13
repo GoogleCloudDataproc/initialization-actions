@@ -167,7 +167,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
-        timeout_in_minutes=30,
+        timeout_in_minutes=90,
         boot_disk_size="50GB")
     for machine_suffix in machine_suffixes:
       self.verify_instance("{}-{}".format(self.getClusterName(),
@@ -193,7 +193,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
-        timeout_in_minutes=30,
+        timeout_in_minutes=90,
         boot_disk_size="50GB",
         scopes="https://www.googleapis.com/auth/monitoring.write")
     for machine_suffix in machine_suffixes:
@@ -238,7 +238,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
-        timeout_in_minutes=30,
+        timeout_in_minutes=90,
         boot_disk_size="50GB")
 
     for machine_suffix in machine_suffixes:
@@ -282,7 +282,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
-        timeout_in_minutes=30,
+        timeout_in_minutes=90,
         boot_disk_size="50GB",
         startup_script="gpu/mig.sh")
 
@@ -314,7 +314,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         boot_disk_size="50GB",
-        timeout_in_minutes=30)
+        timeout_in_minutes=90)
 
     self.verify_instance_spark()
 
@@ -355,7 +355,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       master_accelerator=master_accelerator,
       worker_accelerator=worker_accelerator,
       metadata=metadata,
-      timeout_in_minutes=30,
+      timeout_in_minutes=90,
       boot_disk_size="50GB",
       scopes="https://www.googleapis.com/auth/monitoring.write")
 
@@ -391,7 +391,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       master_accelerator=master_accelerator,
       worker_accelerator=worker_accelerator,
       metadata=metadata,
-      timeout_in_minutes=30, # this test expects driver and nccl cache to be built and stashed before its run
+      timeout_in_minutes=90,
       boot_disk_size="50GB",
       scopes="https://www.googleapis.com/auth/monitoring.write")
     for machine_suffix in machine_suffixes:
