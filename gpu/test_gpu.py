@@ -31,7 +31,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
     retry_count = 5
 
-    ssh_cmd='gcloud compute -q ssh {} --zone={} --command="{}"'.format(
+    ssh_cmd='gcloud compute ssh -q {} --zone={} --command="{}" -- -o ConnectTimeout=60'.format(
       instance, self.cluster_zone, cmd)
 
     while retry_count > 0:
