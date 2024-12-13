@@ -1035,9 +1035,9 @@ function install_nvidia_userspace_runfile() {
     if [[ -n "${PSN}" ]]; then
       signing_options="--module-signing-hash sha256 \
       --module-signing-x509-hash sha256 \
-      --module-signing-secret-key "${mok_key}" \
-      --module-signing-public-key "${mok_der}" \
-      --module-signing-script "/lib/modules/${uname_r}/build/scripts/sign-file" \
+      --module-signing-secret-key \"${mok_key}\" \
+      --module-signing-public-key \"${mok_der}\" \
+      --module-signing-script \"/lib/modules/${uname_r}/build/scripts/sign-file\" \
       "
     fi
 
@@ -1045,8 +1045,8 @@ function install_nvidia_userspace_runfile() {
     execute_with_retries bash "${local_fn}" -e -q \
       ${signing_options} \
       --no-dkms \
-      --install-libglvnd \
       --ui=none \
+      --install-libglvnd \
       --tmpdir="${tmpdir}" \
     || {
       cat /var/log/nvidia-installer.log
@@ -1055,7 +1055,11 @@ function install_nvidia_userspace_runfile() {
     }
   else
     # prepare to build from github
-    execute_with_retries bash "${local_fn}" --no-kernel-modules --install-libglvnd --tmpdir="${tmpdir}"
+    execute_with_retries bash "${local_fn}" -e -q \
+      --no-kernel-modules \
+      --ui=none \
+      --install-libglvnd \
+      --tmpdir="${tmpdir}"
   fi
   rm -f "${local_fn}"
   touch "${workdir}/userspace-complete"
