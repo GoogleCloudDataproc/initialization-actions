@@ -109,6 +109,16 @@ function install_gpu_drivers() {
   "${INIT_ACTIONS_DIR}/gpu/install_gpu_driver.sh"
 }
 
+function install_torch_packages() {
+  if [[ $(echo "${DATAPROC_IMAGE_VERSION} == 2.0" | bc -l) == 1 ]]; then
+    pip install torch==1.9.0 torchvision==0.10.0 torchaudio==0.9.0
+  elif [[ $(echo "${DATAPROC_IMAGE_VERSION} == 2.1" | bc -l) == 1 ]]; then
+    pip install torch==1.11.0 torchvision==0.12.0 torchaudio==0.11.0
+  elif [[ $(echo "${DATAPROC_IMAGE_VERSION} == 2.2" | bc -l) == 1 ]]; then
+    pip install torch==2.0.0 torchvision==0.15.1 torchaudio==2.0.1
+  fi
+}
+
 function install_conda_packages() {
   local base
   base=$(conda info --base)
@@ -120,7 +130,7 @@ function install_conda_packages() {
   conda config --add channels pytorch
   conda config --add channels conda-forge
 
-  pip install torch==1.9.0 torchvision==0.10.0 torchaudio==0.9.0
+  install_torch_packages
 
   # Create a separate environment with mamba.
   # Mamba provides significant decreases in installation times.
