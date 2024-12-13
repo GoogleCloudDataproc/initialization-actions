@@ -1030,18 +1030,32 @@ function install_nvidia_userspace_runfile() {
   if is_rocky8 ; then
     install_build_dependencies
 
-    # build non-open driver
-    execute_with_retries bash "${local_fn}" \
-      --module-signing-hash sha256 \
+    local signing_options
+    signing_options=""
+    if [[ -n "${PSN}" ]]; then
+      signing_options="--module-signing-hash sha256 \
       --module-signing-x509-hash sha256 \
       --module-signing-secret-key "${mok_key}" \
       --module-signing-public-key "${mok_der}" \
       --module-signing-script "/lib/modules/${uname_r}/build/scripts/sign-file" \
+      "
+    fi
+
+    # build non-open driver
+    execute_with_retries bash "${local_fn}" -e -q \
+      ${signing_options} \
       --no-dkms \
-      --install-libglvnd --silent --tmpdir="${tmpdir}"
+      --install-libglvnd \
+      --ui=none \
+      --tmpdir="${tmpdir}" \
+    || {
+      cat /var/log/nvidia-installer.log
+      echo "unable to build kernel modules from runfile"
+      exit 1
+    }
   else
     # prepare to build from github
-    execute_with_retries bash "${local_fn}" --no-kernel-modules --install-libglvnd --silent --tmpdir="${tmpdir}"
+    execute_with_retries bash "${local_fn}" --no-kernel-modules --install-libglvnd --tmpdir="${tmpdir}"
   fi
   rm -f "${local_fn}"
   touch "${workdir}/userspace-complete"
@@ -1618,11 +1632,11 @@ function clean_up_sources_lists() {
 }
 
 function exit_handler() {
-  set +ex
-  echo "Exit handler invoked"
-
   # Purge private key material until next grant
   clear_dkms_key
+
+  set +ex
+  echo "Exit handler invoked"
 
   # Clear pip cache
   pip cache purge || echo "unable to purge pip cache"
