@@ -59,6 +59,7 @@ PIP_PACKAGES=(
   "sparksql-magic==0.0.*"
   "tensorflow-datasets==4.4.*"
   "tensorflow-hub==0.12.*"
+  "regex==2024.11.*"
 )
 
 PIP_PACKAGES+=(
@@ -119,7 +120,7 @@ function install_conda_packages() {
   conda config --add channels pytorch
   conda config --add channels conda-forge
 
-  conda install pytorch==1.9.0 torchvision==0.10.0 torchaudio==0.9.0 -c pytorch -c conda-forge
+  pip install torch==1.9.0 torchvision==0.10.0 torchaudio==0.9.0
 
   # Create a separate environment with mamba.
   # Mamba provides significant decreases in installation times.
