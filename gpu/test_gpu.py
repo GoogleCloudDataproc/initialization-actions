@@ -49,7 +49,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
   def verify_instance(self, name):
     # Verify that nvidia-smi works
-    time.sleep(3) # Many failed nvidia-smi attempts have been caused by impatience
+    import random
+    # Many failed nvidia-smi attempts have been caused by impatience and temporal collisions
+    time.sleep( 3 + random.randint(1, 10) )
     self.assert_instance_command(name, "nvidia-smi", 1)
 
   def verify_pytorch(self, name):
