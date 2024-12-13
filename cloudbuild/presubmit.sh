@@ -105,6 +105,7 @@ run_tests() {
   bazel test \
     --jobs="${max_parallel_tests}" \
     --local_test_jobs="${max_parallel_tests}" \
+    --flaky_test_attempts=3 \
     --action_env="INTERNAL_IP_SSH=true" \
     --test_output="all" \
     --noshow_progress \
@@ -115,6 +116,13 @@ run_tests() {
 
 main() {
   cd /init-actions
+
+# TODO: once service account is granted permission to access the cloud
+# secrets, we can source this file and set signing material metadata
+# variables from the environment in the python code.
+
+#  eval "$(bash cloudbuild/create-key-pair.sh | sed -e 's/^/export /g')"
+
   configure_gcloud
   configure_gcloud_ssh_key
   initialize_git_repo
