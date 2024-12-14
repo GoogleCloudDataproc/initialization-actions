@@ -51,7 +51,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     # Verify that nvidia-smi works
     import random
     # Many failed nvidia-smi attempts have been caused by impatience and temporal collisions
-    time.sleep( 3 + random.randint(1, 10) )
+    time.sleep( 3 + random.randint(1, 30) )
     self.assert_instance_command(name, "nvidia-smi", 1)
 
   def verify_pytorch(self, name):
@@ -179,8 +179,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         timeout_in_minutes=90,
         boot_disk_size="50GB")
     for machine_suffix in machine_suffixes:
-      self.verify_instance("{}-{}".format(self.getClusterName(),
-                                          machine_suffix))
+      machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
+      self.verify_instance(machine_name)
 
   @parameterized.parameters(
       ("KERBEROS", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, None),
@@ -212,10 +212,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         boot_disk_size="50GB",
         scopes="https://www.googleapis.com/auth/monitoring.write")
     for machine_suffix in machine_suffixes:
-      self.verify_instance("{}-{}".format(self.getClusterName(),
-                                          machine_suffix))
-      self.verify_instance_gpu_agent("{}-{}".format(self.getClusterName(),
-                                                    machine_suffix))
+      machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
+      self.verify_instance(machine_name)
+      self.verify_instance_gpu_agent(machine_name)
 
   @parameterized.parameters(
         ("SINGLE", ["m"],               GPU_T4, None,   "12.0"),
