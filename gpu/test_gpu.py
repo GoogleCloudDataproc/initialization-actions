@@ -186,9 +186,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.skipTest("No need to regularly test installing the agent on its own cluster ; this is exercised elsewhere")
 
     if configuration == 'KERBEROS' \
-    and self.getImageOs() == 'debian' \
+    and ( self.getImageOs() == 'debian' or self.getImageOs() == 'ubuntu' ) \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
-      self.skipTest("KERBEROS fails on debian11")
+      self.skipTest("KERBEROS fails on 2.1 aside from rocky")
 
     metadata = "install-gpu-agent=true"
     if driver_provider is not None:
@@ -220,9 +220,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                    cuda_version):
 
     if configuration == 'KERBEROS' \
-    and self.getImageOs() == 'debian' \
+    and ( self.getImageOs() == 'debian' or self.getImageOs() == 'ubuntu' ) \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
-      self.skipTest("KERBEROS fails on debian11")
+      self.skipTest("KERBEROS fails on 2.1 aside from rocky")
 
 #    if pkg_resources.parse_version(cuda_version) == pkg_resources.parse_version("12.0") \
 #    and ( self.getImageOs() == 'debian' and self.getImageVersion() >= pkg_resources.parse_version("2.2") ):
@@ -392,9 +392,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                            cuda_version, image_os, image_version):
 
     if configuration == 'KERBEROS' \
-    and self.getImageOs() == 'debian' \
+    and ( self.getImageOs() == 'debian' or self.getImageOs() == 'ubuntu' ) \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
-      self.skipTest("KERBEROS fails on debian11")
+      self.skipTest("KERBEROS fails on 2.1 aside from rocky")
 
     if self.getImageOs() != image_os:
       self.skipTest("This test is only run on os {}".format(image_os))
