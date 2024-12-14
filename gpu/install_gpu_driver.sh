@@ -1027,40 +1027,66 @@ function install_nvidia_userspace_runfile() {
                         "${pkg_bucket}/${USERSPACE_FILENAME}" \
                         "${local_fn}"
 
+  local runfile_args
+  runfile_args=""
+  local cache_hit="0"
+  local local_tarball
+
   if is_rocky8 ; then
-    install_build_dependencies
+    local nvidia_ko_path="$(find /lib/modules/$(uname -r)/ -name 'nvidia.ko')"
+    test -n "${nvidia_ko_path}" && test -f "${nvidia_ko_path}" || {
+      local build_tarball="kmod_${_shortname}_${DRIVER_VERSION}.tar.gz"
+      local_tarball="${workdir}/${build_tarball}"
+      local build_dir
+      if test -v modulus_md5sum && [[ -n "${modulus_md5sum}" ]]
+        then build_dir="${modulus_md5sum}"
+        else build_dir="unsigned" ; fi
 
-    local signing_options
-    signing_options=""
-    if [[ -n "${PSN}" ]]; then
-      signing_options="--module-signing-hash sha256 \
-      --module-signing-x509-hash sha256 \
-      --module-signing-secret-key \"${mok_key}\" \
-      --module-signing-public-key \"${mok_der}\" \
-      --module-signing-script \"/lib/modules/${uname_r}/build/scripts/sign-file\" \
-      "
-    fi
+      local gcs_tarball="${pkg_bucket}/${_shortname}/${build_dir}/${build_tarball}"
 
-    # build non-open driver
-    execute_with_retries bash "${local_fn}" -e -q \
-      ${signing_options} \
-      --no-dkms \
-      --ui=none \
-      --install-libglvnd \
-      --tmpdir="${tmpdir}" \
-    || {
-      cat /var/log/nvidia-installer.log
-      echo "unable to build kernel modules from runfile"
-      exit 1
+      if gsutil ls "${gcs_tarball}" 2>&1 | grep -q "${gcs_tarball}" ; then
+        cache_hit="1"
+        runfile_args="--no-kernel-modules"
+        echo "cache hit"
+      else
+        install_build_dependencies
+
+        local signing_options
+        signing_options=""
+        if [[ -n "${PSN}" ]]; then
+          signing_options="--module-signing-hash sha256 \
+          --module-signing-x509-hash sha256 \
+          --module-signing-secret-key \"${mok_key}\" \
+          --module-signing-public-key \"${mok_der}\" \
+          --module-signing-script \"/lib/modules/${uname_r}/build/scripts/sign-file\" \
+          "
+        fi
+
+        runfile_args="--no-dkms ${signing_options}"
+      fi
     }
   else
-    # prepare to build from github
-    execute_with_retries bash "${local_fn}" -e -q \
-      --no-kernel-modules \
-      --ui=none \
-      --install-libglvnd \
-      --tmpdir="${tmpdir}"
+    runfile_args="--no-kernel-modules"
   fi
+
+  execute_with_retries bash "${local_fn}" -e -q \
+    ${runfile_args} \
+    --ui=none \
+    --install-libglvnd \
+    --tmpdir="${tmpdir}"
+
+  if is_rocky8 ; then
+    if [[ "${cache_hit}" == "1" ]] ; then
+      gcloud storage cat "${gcs_tarball}" | tar -C / -xzv
+      depmod -a
+    else
+      tar czvf "${local_tarball}" \
+        /var/log/nvidia-installer.log \
+        $(find /lib/modules/${uname_r}/ -iname 'nvidia*.ko')
+      gcloud storage cp "${local_tarball}" "${gcs_tarball}"
+    fi
+  fi
+
   rm -f "${local_fn}"
   touch "${workdir}/userspace-complete"
   sync
