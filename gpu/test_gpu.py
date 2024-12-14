@@ -362,7 +362,16 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
     if pkg_resources.parse_version(cuda_version) < pkg_resources.parse_version("12.0") \
     and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+      # CUDA < 12 not supported on Dataproc 2.2
       self.skipTest("CUDA < 12 not supported on Dataproc 2.2")
+#      cuda_version="12.0" # consider this instead
+
+    if pkg_resources.parse_version(cuda_version) <= pkg_resources.parse_version("12.0") \
+    and self.getImageOs() == 'ubuntu':
+      # CUDA <= 12 not supported on Dataproc 2.2 with ubuntu
+      self.skipTest("CUDA <= 12 not supported on Dataproc 2.2 with ubuntu")
+#      cuda_version="12.1" # consider this instead
+
 
     if configuration == 'SINGLE' \
     and self.getImageOs() == 'rocky' \
