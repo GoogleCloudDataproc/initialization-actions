@@ -244,18 +244,14 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       # KERBEROS fails on 2.0 with rocky
       configuration="STANDARD"
 
-#    if pkg_resources.parse_version(cuda_version) == pkg_resources.parse_version("12.0") \
-#    and ( self.getImageOs() == 'debian' and self.getImageVersion() >= pkg_resources.parse_version("2.2") ):
-#      self.skipTest("CUDA == 12.0 not supported on debian 12")
-
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.4") \
     and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
           ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
       self.skipTest("CUDA > 12.4 not supported on older debian/ubuntu releases")
 
-    if pkg_resources.parse_version(cuda_version) < pkg_resources.parse_version("12.0") \
+    if pkg_resources.parse_version(cuda_version) <= pkg_resources.parse_version("12.0") \
     and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("CUDA < 12 not supported on Dataproc 2.2")
+      self.skipTest("CUDA <= 12.0 not supported on Dataproc 2.2")
 
     if configuration == 'SINGLE' \
     and self.getImageOs() == 'rocky' \
@@ -301,9 +297,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
           ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
       self.skipTest("CUDA > 12.4 not supported on older debian/ubuntu releases")
 
-    if pkg_resources.parse_version(cuda_version) < pkg_resources.parse_version("12.0") \
+    if pkg_resources.parse_version(cuda_version) <= pkg_resources.parse_version("12.0") \
     and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("CUDA < 12 not supported on Dataproc 2.2")
+      self.skipTest("CUDA <= 12.0 not supported on Dataproc 2.2")
 
     metadata = "gpu-driver-provider={},cuda-version={}".format(driver_provider, cuda_version)
 
@@ -372,16 +368,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
           ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
       self.skipTest("CUDA > 12.4 not supported on older debian/ubuntu releases")
 
-    if pkg_resources.parse_version(cuda_version) < pkg_resources.parse_version("12.0") \
-    and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      # CUDA < 12 not supported on Dataproc 2.2
-      self.skipTest("CUDA < 12 not supported on Dataproc 2.2")
-#      cuda_version="12.0" # consider this instead
-
     if pkg_resources.parse_version(cuda_version) <= pkg_resources.parse_version("12.0") \
-    and self.getImageOs() == 'ubuntu':
-      # CUDA <= 12 not supported on Dataproc 2.2 with ubuntu
-      self.skipTest("CUDA <= 12 not supported on Dataproc 2.2 with ubuntu")
+    and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+      self.skipTest("CUDA <= 12.0 not supported on Dataproc 2.2")
 #      cuda_version="12.1" # consider this instead
 
 
