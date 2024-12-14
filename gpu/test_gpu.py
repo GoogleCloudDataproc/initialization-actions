@@ -198,6 +198,12 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       # KERBEROS fails on 2.1 aside from rocky
       configuration="STANDARD"
 
+    if configuration == 'KERBEROS' \
+    and self.getImageOs() == 'rocky' \
+    and self.getImageVersion() <= pkg_resources.parse_version("2.0"):
+      # KERBEROS fails on 2.0 with rocky
+      configuration="STANDARD"
+
     metadata = "install-gpu-agent=true"
     if driver_provider is not None:
       metadata += ",gpu-driver-provider={}".format(driver_provider)
@@ -230,6 +236,12 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     and ( self.getImageOs() == 'debian' or self.getImageOs() == 'ubuntu' ) \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # KERBEROS fails on 2.1 aside from rocky
+      configuration="STANDARD"
+
+    if configuration == 'KERBEROS' \
+    and self.getImageOs() == 'rocky' \
+    and self.getImageVersion() <= pkg_resources.parse_version("2.0"):
+      # KERBEROS fails on 2.0 with rocky
       configuration="STANDARD"
 
 #    if pkg_resources.parse_version(cuda_version) == pkg_resources.parse_version("12.0") \
@@ -415,6 +427,12 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     and ( self.getImageOs() == 'debian' or self.getImageOs() == 'ubuntu' ) \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # KERBEROS fails on 2.1 aside from rocky
+      configuration="STANDARD"
+
+    if configuration == 'KERBEROS' \
+    and self.getImageOs() == 'rocky' \
+    and self.getImageVersion() <= pkg_resources.parse_version("2.0"):
+      # KERBEROS fails on 2.0 with rocky
       configuration="STANDARD"
 
     if self.getImageOs() != image_os:
