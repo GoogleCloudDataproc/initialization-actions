@@ -181,7 +181,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_with_agent(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider):
-    self.skipTest("No need to regularly installing the agent on its own cluster ; this is exercised elsewhere")
+    self.skipTest("No need to regularly test installing the agent on its own cluster ; this is exercised elsewhere")
 
     metadata = "install-gpu-agent=true"
     if driver_provider is not None:
