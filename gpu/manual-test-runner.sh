@@ -4,9 +4,9 @@
 #
 # To run the script, the following will bootstrap
 #
-# git clone git@github.com:LLC-Technologies-Collier/initialization-actions
+# git clone git@github.com:GoogleCloudDataproc/initialization-actions
 # cd initialization-actions
-# git checkout gpu-20241207
+# git checkout 2024.11
 # cp gpu/env.json.sample env.json
 # vi env.json
 # docker build -f gpu/Dockerfile -t gpu-init-actions-runner:latest .
