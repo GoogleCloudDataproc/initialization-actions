@@ -130,7 +130,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     if configuration == 'SINGLE' \
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
-      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail with errors about nodes_include being empty")
+      # 2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail in SINGLE configuration with errors about nodes_include being empty
+      configuration='STANDARD'
 
     metadata = None
     if driver_provider is not None:
@@ -160,6 +161,12 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.skipTest("No need to regularly test not installing the agent")
 
     metadata = "install-gpu-agent=false"
+    if configuration == 'SINGLE' \
+    and self.getImageOs() == 'rocky' \
+    and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
+      # 2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail in SINGLE configuration with errors about nodes_include being empty
+      configuration='STANDARD'
+
     if driver_provider is not None:
       metadata += ",gpu-driver-provider={}".format(driver_provider)
     self.createCluster(
@@ -188,7 +195,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     if configuration == 'KERBEROS' \
     and ( self.getImageOs() == 'debian' or self.getImageOs() == 'ubuntu' ) \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
-      self.skipTest("KERBEROS fails on 2.1 aside from rocky")
+      # KERBEROS fails on 2.1 aside from rocky
+      configuration="STANDARD"
 
     metadata = "install-gpu-agent=true"
     if driver_provider is not None:
@@ -210,7 +218,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                                     machine_suffix))
 
   @parameterized.parameters(
-        ("SINGLE", ["m"],               GPU_T4, None,   "12.4"),
+        ("SINGLE", ["m"],               GPU_T4, None,   "12.0"),
 #        ("SINGLE", ["m"],               GPU_T4, None,   "11.8"),
 #      ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4"),
       ("KERBEROS", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "11.8"),
@@ -222,7 +230,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     if configuration == 'KERBEROS' \
     and ( self.getImageOs() == 'debian' or self.getImageOs() == 'ubuntu' ) \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
-      self.skipTest("KERBEROS fails on 2.1 aside from rocky")
+      # KERBEROS fails on 2.1 aside from rocky
+      configuration="STANDARD"
 
 #    if pkg_resources.parse_version(cuda_version) == pkg_resources.parse_version("12.0") \
 #    and ( self.getImageOs() == 'debian' and self.getImageVersion() >= pkg_resources.parse_version("2.2") ):
@@ -240,7 +249,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     if configuration == 'SINGLE' \
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
-      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail with errors about nodes_include being empty")
+      # 2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail in SINGLE configuration with errors about nodes_include being empty
+      configuration='STANDARD'
 
     metadata = "gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
@@ -312,7 +322,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     if configuration == 'SINGLE' \
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
-      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail with errors about nodes_include being empty")
+      # 2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail in SINGLE configuration with errors about nodes_include being empty
+      configuration='STANDARD'
 
     metadata = None
     if driver_provider is not None:
@@ -357,7 +368,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     if configuration == 'SINGLE' \
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
-      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail with errors about nodes_include being empty")
+      # 2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail in SINGLE configuration with errors about nodes_include being empty
+      configuration='STANDARD'
 
     metadata = "install-gpu-agent=true,gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
@@ -394,7 +406,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     if configuration == 'KERBEROS' \
     and ( self.getImageOs() == 'debian' or self.getImageOs() == 'ubuntu' ) \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
-      self.skipTest("KERBEROS fails on 2.1 aside from rocky")
+      # KERBEROS fails on 2.1 aside from rocky
+      configuration="STANDARD"
 
     if self.getImageOs() != image_os:
       self.skipTest("This test is only run on os {}".format(image_os))
