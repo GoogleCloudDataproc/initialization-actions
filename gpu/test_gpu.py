@@ -59,7 +59,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                self.TORCH_TEST_SCRIPT_FILE_NAME)
     self.upload_test_file(test_filename, name)
 
-    verify_cmd = "echo 0 | dd of=/sys/module/nvidia/drivers/pci:nvidia/*/numa_node ; /opt/conda/miniconda3/envs/pytorch/bin/python {}".format(
+    verify_cmd = "for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node) ; do echo 0 | dd of=${f} ; done ; /opt/conda/miniconda3/envs/pytorch/bin/python {}".format(
         self.TORCH_TEST_SCRIPT_FILE_NAME)
     self.assert_instance_command(name, verify_cmd)
     self.remove_test_script(self.TORCH_TEST_SCRIPT_FILE_NAME, name)
@@ -69,7 +69,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                self.TF_TEST_SCRIPT_FILE_NAME)
     self.upload_test_file(test_filename, name)
 
-    verify_cmd = "echo 0 | dd of=/sys/module/nvidia/drivers/pci:nvidia/*/numa_node ; /opt/conda/miniconda3/envs/pytorch/bin/python {}".format(
+    verify_cmd = "for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node) ; do echo 0 | dd of=${f} ; done ; /opt/conda/miniconda3/envs/pytorch/bin/python {}".format(
         self.TF_TEST_SCRIPT_FILE_NAME)
     self.assert_instance_command(name, verify_cmd)
     self.remove_test_script(self.TF_TEST_SCRIPT_FILE_NAME, name)
