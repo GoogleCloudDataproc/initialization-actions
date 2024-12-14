@@ -206,7 +206,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         ("SINGLE", ["m"],               GPU_T4, None,   "12.4"),
 #        ("SINGLE", ["m"],               GPU_T4, None,   "11.8"),
 #      ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4"),
-      ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "11.8"),
+      ("KERBEROS", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "11.8"),
   )
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
