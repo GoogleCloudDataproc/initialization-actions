@@ -930,7 +930,7 @@ function build_driver_from_github() {
       then build_dir="${modulus_md5sum}"
       else build_dir="unsigned" ; fi
 
-    local gcs_tarball="${pkg_bucket}/${_shortname}/${build_dir}/${build_tarball}"
+    local gcs_tarball="${pkg_bucket}/${_shortname}/${uname_r}/${build_dir}/${build_tarball}"
 
     if gsutil ls "${gcs_tarball}" 2>&1 | grep -q "${gcs_tarball}" ; then
       echo "cache hit"
@@ -1042,7 +1042,7 @@ function install_nvidia_userspace_runfile() {
         then build_dir="${modulus_md5sum}"
         else build_dir="unsigned" ; fi
 
-      local gcs_tarball="${pkg_bucket}/${_shortname}/${build_dir}/${build_tarball}"
+      local gcs_tarball="${pkg_bucket}/${_shortname}/${uname_r}/${build_dir}/${build_tarball}"
 
       if gsutil ls "${gcs_tarball}" 2>&1 | grep -q "${gcs_tarball}" ; then
         cache_hit="1"
