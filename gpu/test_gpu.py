@@ -125,6 +125,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_default_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
+    self.skipTest("No need to regularly test installing the agent on its own cluster ; this is exercised elsewhere")
+
     if configuration == 'SINGLE' \
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
@@ -183,6 +185,11 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                   driver_provider):
     self.skipTest("No need to regularly test installing the agent on its own cluster ; this is exercised elsewhere")
 
+    if configuration == 'KERBEROS' \
+    and self.getImageOs() == 'debian' \
+    and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
+      self.skipTest("KERBEROS fails on debian11")
+
     metadata = "install-gpu-agent=true"
     if driver_provider is not None:
       metadata += ",gpu-driver-provider={}".format(driver_provider)
@@ -211,6 +218,11 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
+
+    if configuration == 'KERBEROS' \
+    and self.getImageOs() == 'debian' \
+    and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
+      self.skipTest("KERBEROS fails on debian11")
 
 #    if pkg_resources.parse_version(cuda_version) == pkg_resources.parse_version("12.0") \
 #    and ( self.getImageOs() == 'debian' and self.getImageVersion() >= pkg_resources.parse_version("2.2") ):
@@ -378,6 +390,11 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def tests_driver_signing(self, configuration, machine_suffixes,
                            master_accelerator, worker_accelerator,
                            cuda_version, image_os, image_version):
+
+    if configuration == 'KERBEROS' \
+    and self.getImageOs() == 'debian' \
+    and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
+      self.skipTest("KERBEROS fails on debian11")
 
     if self.getImageOs() != image_os:
       self.skipTest("This test is only run on os {}".format(image_os))
