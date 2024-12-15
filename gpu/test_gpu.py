@@ -233,18 +233,19 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.4") \
     and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
           ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
-      self.skipTest("CUDA > 12.4 not supported on older debian/ubuntu releases")
+      # CUDA > 12.4 not supported on older debian/ubuntu releases
+      self.expectedFailure()
 
     if pkg_resources.parse_version(cuda_version) <= pkg_resources.parse_version("12.0") \
     and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("CUDA <= 12.0 not supported on Dataproc 2.2")
+      # CUDA <= 12.0 not supported on Dataproc 2.2
+      self.expectedFailure()
 
     if configuration == 'SINGLE' \
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # 2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail in SINGLE configuration with errors about nodes_include being empty
-      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail in SINGLE configuration with errors about nodes_include being empty")
-
+      self.expectedFailure()
 
     metadata = "gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
@@ -282,11 +283,13 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.4") \
     and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
           ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
-      self.skipTest("CUDA > 12.4 not supported on older debian/ubuntu releases")
+      # CUDA > 12.4 not supported on older debian/ubuntu releases
+      self.expectedFailure()
 
     if pkg_resources.parse_version(cuda_version) <= pkg_resources.parse_version("12.0") \
     and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("CUDA <= 12.0 not supported on Dataproc 2.2")
+      self.expectedFailure()
+      # CUDA <= 12.0 not supported on Dataproc 2.2
 
     metadata = "gpu-driver-provider={},cuda-version={}".format(driver_provider, cuda_version)
 
@@ -317,7 +320,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # 2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail in SINGLE configuration with errors about nodes_include being empty
-      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail in SINGLE configuration with errors about nodes_include being empty")
+      self.expectedFailure()
 
     metadata = None
     if driver_provider is not None:
@@ -348,24 +351,25 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
 #    if pkg_resources.parse_version(cuda_version) == pkg_resources.parse_version("12.0") \
 #    and ( self.getImageOs() == 'debian' and self.getImageVersion() >= pkg_resources.parse_version("2.2") ):
-#      self.skipTest("CUDA == 12.0 not supported on debian 12")
+#      # CUDA == 12.0 not supported on debian 12
+#      self.expectedFailure()
 
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.4") \
     and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
           ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
-      self.skipTest("CUDA > 12.4 not supported on older debian/ubuntu releases")
+      # CUDA > 12.4 not supported on older debian/ubuntu releases
+      self.expectedFailure()
 
     if pkg_resources.parse_version(cuda_version) <= pkg_resources.parse_version("12.0") \
     and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("CUDA <= 12.0 not supported on Dataproc 2.2")
-#      cuda_version="12.1" # consider this instead
-
+      # CUDA <= 12.0 not supported on Dataproc 2.2
+      self.expectedFailure()
 
     if configuration == 'SINGLE' \
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # 2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail in SINGLE configuration with errors about nodes_include being empty
-      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail in SINGLE configuration with errors about nodes_include being empty")
+      self.expectedFailure()
 
     metadata = "install-gpu-agent=true,gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
