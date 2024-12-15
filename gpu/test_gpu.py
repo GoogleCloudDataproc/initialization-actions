@@ -257,7 +257,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # 2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail in SINGLE configuration with errors about nodes_include being empty
-      configuration='STANDARD'
+      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail in SINGLE configuration with errors about nodes_include being empty")
+
 
     metadata = "gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
@@ -330,7 +331,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # 2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail in SINGLE configuration with errors about nodes_include being empty
-      configuration='STANDARD'
+      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail in SINGLE configuration with errors about nodes_include being empty")
 
     metadata = None
     if driver_provider is not None:
@@ -378,7 +379,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # 2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail in SINGLE configuration with errors about nodes_include being empty
-      configuration='STANDARD'
+      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail in SINGLE configuration with errors about nodes_include being empty")
 
     metadata = "install-gpu-agent=true,gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
