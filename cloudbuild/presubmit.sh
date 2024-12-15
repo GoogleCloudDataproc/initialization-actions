@@ -105,7 +105,6 @@ run_tests() {
   bazel test \
     --jobs="${max_parallel_tests}" \
     --local_test_jobs="${max_parallel_tests}" \
-    --flaky_test_attempts=3 \
     --action_env="INTERNAL_IP_SSH=true" \
     --test_output="all" \
     --noshow_progress \
