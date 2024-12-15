@@ -223,7 +223,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       self.verify_instance_gpu_agent(machine_name)
 
   @parameterized.parameters(
-        ("SINGLE", ["m"],               GPU_T4, None,   "12.0"),
+        ("SINGLE", ["m"],               GPU_T4, None,   "12.4"),
 #        ("SINGLE", ["m"],               GPU_T4, None,   "11.8"),
 #      ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4"),
       ("KERBEROS", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "11.8"),
@@ -394,9 +394,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       scopes="https://www.googleapis.com/auth/monitoring.write")
 
     for machine_suffix in machine_suffixes:
-      self.verify_instance("{}-{}".format(self.getClusterName(),machine_suffix))
-      self.verify_instance_gpu_agent("{}-{}".format(self.getClusterName(),machine_suffix))
-
+      machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
+      self.verify_instance(machine_name)
+      self.verify_instance_gpu_agent(machine_name)
     self.verify_instance_spark()
 
   @parameterized.parameters(
@@ -441,10 +441,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       boot_disk_size="50GB",
       scopes="https://www.googleapis.com/auth/monitoring.write")
     for machine_suffix in machine_suffixes:
-      self.verify_instance("{}-{}".format(self.getClusterName(),
-                                          machine_suffix))
-      self.verify_instance_gpu_agent("{}-{}".format(self.getClusterName(),
-                                                    machine_suffix))
+      machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
+      self.verify_instance(machine_name)
+      self.verify_instance_gpu_agent(machine_name)
 
     self.verify_instance_spark()
 
