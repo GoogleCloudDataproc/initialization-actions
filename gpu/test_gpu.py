@@ -193,15 +193,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.skipTest("No need to regularly test installing the agent on its own cluster ; this is exercised elsewhere")
 
     if configuration == 'KERBEROS' \
-    and ( self.getImageOs() == 'debian' or self.getImageOs() == 'ubuntu' ) \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
-      # KERBEROS fails on 2.1 aside from rocky
-      configuration="STANDARD"
-
-    if configuration == 'KERBEROS' \
-    and self.getImageOs() == 'rocky' \
-    and self.getImageVersion() <= pkg_resources.parse_version("2.0"):
-      # KERBEROS fails on 2.0 with rocky
+      # KERBEROS fails on 2.1
       configuration="STANDARD"
 
     metadata = "install-gpu-agent=true"
@@ -233,15 +226,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                    cuda_version):
 
     if configuration == 'KERBEROS' \
-    and ( self.getImageOs() == 'debian' or self.getImageOs() == 'ubuntu' ) \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
-      # KERBEROS fails on 2.1 aside from rocky
-      configuration="STANDARD"
-
-    if configuration == 'KERBEROS' \
-    and self.getImageOs() == 'rocky' \
-    and self.getImageVersion() <= pkg_resources.parse_version("2.0"):
-      # KERBEROS fails on 2.0 with rocky
+      # KERBEROS fails on 2.1
       configuration="STANDARD"
 
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.4") \
@@ -414,15 +400,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                            cuda_version, image_os, image_version):
 
     if configuration == 'KERBEROS' \
-    and ( self.getImageOs() == 'debian' or self.getImageOs() == 'ubuntu' ) \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
-      # KERBEROS fails on 2.1 aside from rocky
-      configuration="STANDARD"
-
-    if configuration == 'KERBEROS' \
-    and self.getImageOs() == 'rocky' \
-    and self.getImageVersion() <= pkg_resources.parse_version("2.0"):
-      # KERBEROS fails on 2.0 with rocky
+      # KERBEROS fails on 2.1
       configuration="STANDARD"
 
     if self.getImageOs() != image_os:
