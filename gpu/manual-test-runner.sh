@@ -6,7 +6,7 @@
 #
 # git clone git@github.com:GoogleCloudDataproc/initialization-actions
 # cd initialization-actions
-# git checkout 2024.11
+# git checkout 2024.12
 # cp gpu/env.json.sample env.json
 # vi env.json
 # docker build -f gpu/Dockerfile -t gpu-init-actions-runner:latest .
