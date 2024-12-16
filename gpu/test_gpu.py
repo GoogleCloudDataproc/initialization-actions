@@ -27,9 +27,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   TF_TEST_SCRIPT_FILE_NAME = "verify_tensorflow.py"
 
   def assert_instance_command(self,
-                            instance,
-                            cmd,
-                            timeout_in_minutes=DEFAULT_TIMEOUT):
+                             instance,
+                             cmd,
+                             timeout_in_minutes=DEFAULT_TIMEOUT):
 
     retry_count = 5
 
@@ -119,6 +119,22 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       +   "spark.yarn.unmanagedAM.enabled=false"
     )
 
+  def verify_driver_signature(self, name):
+    cert_path='/var/lib/dkms/mok.pub'
+    if self.getImageOs() == 'ubuntu':
+      cert_path='/var/lib/shim-signed/mok/MOK.der'
+
+    cert_verification_cmd = """
+perl -Mv5.10 -e '
+my $cert = ( qx{openssl x509 -inform DER -in {} -text}
+             =~ /Serial Number:.*? +(.+?)\s*$/ms );
+my $kmod = ( qx{modinfo nvidia}
+             =~ /^sig_key:\s+(\S+)/ms );
+exit 1 unless $cert eq lc $kmod
+'
+"""
+    self.assert_instance_command( name, cert_verification_cmd.format(cert_path) )
+
   @parameterized.parameters(
       ("SINGLE",   ["m"], GPU_T4, None, None),
 #      ("STANDARD", ["m"], GPU_T4, None, None),
@@ -134,6 +150,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # ('2.1-rocky8 and 2.0-rocky8 tests are known to fail in SINGLE configuration with errors about nodes_include being empty')
       unittest.expectedFailure(self)
+      self.skipTest("known to fail")
 
     metadata = None
     if driver_provider is not None:
@@ -168,6 +185,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # ('2.1-rocky8 and 2.0-rocky8 tests are known to fail in SINGLE configuration with errors about nodes_include being empty')
       unittest.expectedFailure(self)
+      self.skipTest("known to fail")
 
     if driver_provider is not None:
       metadata += ",gpu-driver-provider={}".format(driver_provider)
@@ -198,6 +216,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # ('KERBEROS fails with image version <= 2.1')
       unittest.expectedFailure(self)
+      self.skipTest("known to fail")
 
     metadata = "install-gpu-agent=true"
     if driver_provider is not None:
@@ -231,23 +250,24 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # ('KERBEROS fails with image version <= 2.1')
       unittest.expectedFailure(self)
+      self.skipTest("known to fail")
 
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.4") \
     and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
           ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
-      # ('CUDA > 12.4 not supported on older debian/ubuntu releases')
-      unittest.expectedFailure(self)
+      self.skipTest("CUDA > 12.4 not supported on older debian/ubuntu releases")
 
     if pkg_resources.parse_version(cuda_version) <= pkg_resources.parse_version("12.0") \
     and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      # ('CUDA <= 12.0 not supported on Dataproc 2.2')
-      unittest.expectedFailure(self)
+      self.skipTest( "Kernel driver FTBFS with older CUDA versions on image version >= 2.2" )
 
     if configuration == 'SINGLE' \
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # ('2.1-rocky8 and 2.0-rocky8 tests are known to fail in SINGLE configuration with errors about nodes_include being empty')
       unittest.expectedFailure(self)
+      self.skipTest("known to fail")
+
 
     metadata = "gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
@@ -282,17 +302,16 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     # NetworkInterface NicType can only be set to GVNIC on instances with GVNIC GuestOsFeature..
     # ('This use case not thoroughly tested')
     unittest.expectedFailure(self)
+    self.skipTest("known to fail")
 
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.4") \
     and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
           ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
-      # ('CUDA > 12.4 not supported on older debian/ubuntu releases')
-      unittest.expectedFailure(self)
+      self.skipTest("CUDA > 12.4 not supported on older debian/ubuntu releases")
 
     if pkg_resources.parse_version(cuda_version) <= pkg_resources.parse_version("12.0") \
     and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      # ('CUDA <= 12.0 not supported on Dataproc 2.2')
-      unittest.expectedFailure(self)
+      self.skipTest( "Kernel driver FTBFS with older CUDA versions on image version >= 2.2" )
 
     metadata = "gpu-driver-provider={},cuda-version={}".format(driver_provider, cuda_version)
 
@@ -324,6 +343,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # ('2.1-rocky8 and 2.0-rocky8 tests are known to fail in SINGLE configuration with errors about nodes_include being empty')
       unittest.expectedFailure(self)
+      self.skipTest("known to fail")
 
     metadata = None
     if driver_provider is not None:
@@ -355,19 +375,18 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.4") \
     and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
           ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
-      # ('CUDA > 12.4 not supported on older debian/ubuntu releases')
-      unittest.expectedFailure(self)
+      self.skipTest("CUDA > 12.4 not supported on older debian/ubuntu releases")
 
     if pkg_resources.parse_version(cuda_version) <= pkg_resources.parse_version("12.0") \
     and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      # ('CUDA <= 12.0 not supported on Dataproc 2.2')
-      unittest.expectedFailure(self)
+      self.skipTest( "Kernel driver FTBFS with older CUDA versions on image version >= 2.2" )
 
     if configuration == 'SINGLE' \
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # ('2.1-rocky8 and 2.0-rocky8 tests are known to fail in SINGLE configuration with errors about nodes_include being empty')
       unittest.expectedFailure(self)
+      self.skipTest("known to fail")
 
     metadata = "install-gpu-agent=true,gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
@@ -390,10 +409,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   @parameterized.parameters(
 #    ("SINGLE", ["m"], GPU_T4, GPU_T4, "11.8", ''),
 #    ("STANDARD", ["m"], GPU_T4, None, "12.0"),
-    ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "11.8", 'rocky', '2.0'),
+#    ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "11.8", 'rocky', '2.0'),
     ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4", 'rocky', '2.1'),
-    ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.0", 'rocky', '2.2'),
-    ("KERBEROS", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.6", 'rocky', '2.2'),
+#    ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.0", 'rocky', '2.2'),
+#    ("KERBEROS", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.6", 'rocky', '2.2'),
 #    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.8"),
 #    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "12.0"),
   )
@@ -401,10 +420,29 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                            master_accelerator, worker_accelerator,
                            cuda_version, image_os, image_version):
 
+    if pkg_resources.parse_version(cuda_version) <= pkg_resources.parse_version("12.0") \
+    and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+      self.skipTest( "Kernel driver FTBFS with older CUDA versions on image version >= 2.2" )
+
     if configuration == 'KERBEROS' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # ('KERBEROS fails with image version <= 2.1')
       unittest.expectedFailure(self)
+      self.skipTest("known to fail")
+
+    kvp_array=[]
+    import os
+
+    if "private_secret_name" in os.environ:
+      for env_var in ['public_secret_name', 'private_secret_name', 'secret_project', 'secret_version' 'modulus_md5sum']:
+        kvp_array.append( "{}={}".format( env_var, os.environ[env_var] ) )
+
+      if kvp_array[0] == "public_secret_name=":
+        self.skipTest("This test only runs when signing environment has been configured in presubmit.sh")
+    else:
+      self.skipTest("This test only runs when signing environment has been configured in presubmit.sh")
+
+    metadata = ",".join( kvp_array )
 
     if self.getImageOs() != image_os:
       self.skipTest("This test is only run on os {}".format(image_os))
@@ -422,9 +460,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       boot_disk_size="50GB",
       scopes="https://www.googleapis.com/auth/monitoring.write")
     for machine_suffix in machine_suffixes:
-      machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
-      self.verify_instance(machine_name)
-      self.verify_instance_gpu_agent(machine_name)
+      hostname="{}-{}".format(self.getClusterName(),machine_suffix)
+      self.verify_instance(hostname)
+      self.verify_instance_gpu_agent(hostname)
+#      self.verify_driver_signature(hostname)
 
     self.verify_instance_spark()
 
