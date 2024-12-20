@@ -70,6 +70,10 @@ function set_cuda_version() {
   readonly DEFAULT_CUDA_VERSION
 
   CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
+  if test -n "$(echo "${CUDA_VERSION}" | perl -ne 'print if /\d+\.\d+\.\d+/')" ; then
+    CUDA_FULL_VERSION="${CUDA_VERSION}"
+    CUDA_VERSION="${CUDA_VERSION%.*}"
+  fi
   readonly CUDA_VERSION
   if ( ! test -v CUDA_FULL_VERSION ) ; then
     CUDA_FULL_VERSION=${CUDA_SUBVER["${CUDA_VERSION}"]}
@@ -614,23 +618,17 @@ function add_nonfree_components() {
 }
 
 function add_repo_nvidia_container_toolkit() {
-  if is_debuntu ; then
-      local kr_path=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
-      local sources_list_path=/etc/apt/sources.list.d/nvidia-container-toolkit.list
-      # https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
-      test -f "${kr_path}" ||
-        curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \
-          | gpg --dearmor -o "${kr_path}"
+  local nvctk_root="https://nvidia.github.io/libnvidia-container"
+  local signing_key_url="${nvctk_root}/gpgkey"
+  local repo_data
 
-      test -f "${sources_list_path}" ||
-        curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list \
-          | perl -pe "s#deb https://#deb [signed-by=${kr_path}] https://#g" \
-          | tee "${sources_list_path}"
-      apt-get update
-  else
-    curl -s -L https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo | \
-      tee /etc/yum.repos.d/nvidia-container-toolkit.repo
-  fi
+  if is_debuntu ; then repo_data="${nvctk_root}/stable/deb/\$(ARCH) /"
+                  else repo_data="${nvctk_root}/stable/rpm/nvidia-container-toolkit.repo" ; fi
+
+  os_add_repo nvidia-container-toolkit \
+              "${signing_key_url}" \
+              "${repo_data}" \
+              "no"
 }
 
 function add_repo_cuda() {
