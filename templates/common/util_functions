@@ -1,0 +1,365 @@
+function os_id()       ( set +x ;  grep '^ID=' /etc/os-release | cut -d= -f2 | xargs ; )
+function os_version()  ( set +x ;  grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs ; )
+function os_codename() ( set +x ;  grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs ; )
+
+function version_ge() ( set +x ;  [ "$1" = "$(echo -e "$1\n$2" | sort -V | tail -n1)" ] ; )
+function version_gt() ( set +x ;  [ "$1" = "$2" ] && return 1 || version_ge $1 $2 ; )
+function version_le() ( set +x ;  [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ] ; )
+function version_lt() ( set +x ;  [ "$1" = "$2" ] && return 1 || version_le $1 $2 ; )
+
+readonly -A supported_os=(
+  ['debian']="10 11 12"
+  ['rocky']="8 9"
+  ['ubuntu']="18.04 20.04 22.04"
+)
+
+# dynamically define OS version test utility functions
+if [[ "$(os_id)" == "rocky" ]];
+then _os_version=$(os_version | sed -e 's/[^0-9].*$//g')
+else _os_version="$(os_version)"; fi
+for os_id_val in 'rocky' 'ubuntu' 'debian' ; do
+  eval "function is_${os_id_val}() ( set +x ;  [[ \"$(os_id)\" == '${os_id_val}' ]] ; )"
+
+  for osver in $(echo "${supported_os["${os_id_val}"]}") ; do
+    eval "function is_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && [[ \"${_os_version}\" == \"${osver}\" ]] ; )"
+    eval "function ge_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && version_ge \"${_os_version}\" \"${osver}\" ; )"
+    eval "function le_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && version_le \"${_os_version}\" \"${osver}\" ; )"
+  done
+done
+
+function is_debuntu()  ( set +x ;  is_debian || is_ubuntu ; )
+
+function os_vercat()   ( set +x
+  if   is_ubuntu ; then os_version | sed -e 's/[^0-9]//g'
+  elif is_rocky  ; then os_version | sed -e 's/[^0-9].*$//g'
+                   else os_version ; fi ; )
+
+function repair_old_backports {
+  if ! is_debuntu ; then return ; fi
+  # This script uses 'apt-get update' and is therefore potentially dependent on
+  # backports repositories which have been archived.  In order to mitigate this
+  # problem, we will use archive.debian.org for the oldoldstable repo
+
+  # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
+  debdists="https://deb.debian.org/debian/dists"
+  oldoldstable=$(curl -s "${debdists}/oldoldstable/Release" | awk '/^Codename/ {print $2}');
+  oldstable=$(   curl -s "${debdists}/oldstable/Release"    | awk '/^Codename/ {print $2}');
+  stable=$(      curl -s "${debdists}/stable/Release"       | awk '/^Codename/ {print $2}');
+
+  matched_files=( $(test -d /etc/apt && grep -rsil '\-backports' /etc/apt/sources.list*||:) )
+
+  for filename in "${matched_files[@]}"; do
+    # Fetch from archive.debian.org for ${oldoldstable}-backports
+    perl -pi -e "s{^(deb[^\s]*) https?://[^/]+/debian ${oldoldstable}-backports }
+                  {\$1 https://archive.debian.org/debian ${oldoldstable}-backports }g" "${filename}"
+  done
+}
+
+function print_metadata_value() {
+  local readonly tmpfile=$(mktemp)
+  http_code=$(curl -f "${1}" -H "Metadata-Flavor: Google" -w "%{http_code}" \
+    -s -o ${tmpfile} 2>/dev/null)
+  local readonly return_code=$?
+  # If the command completed successfully, print the metadata value to stdout.
+  if [[ ${return_code} == 0 && ${http_code} == 200 ]]; then
+    cat ${tmpfile}
+  fi
+  rm -f ${tmpfile}
+  return ${return_code}
+}
+
+function print_metadata_value_if_exists() {
+  local return_code=1
+  local readonly url=$1
+  print_metadata_value ${url}
+  return_code=$?
+  return ${return_code}
+}
+
+# replicates /usr/share/google/get_metadata_value
+function get_metadata_value() (
+  set +x
+  local readonly varname=$1
+  local -r MDS_PREFIX=http://metadata.google.internal/computeMetadata/v1
+  # Print the instance metadata value.
+  print_metadata_value_if_exists ${MDS_PREFIX}/instance/${varname}
+  return_code=$?
+  # If the instance doesn't have the value, try the project.
+  if [[ ${return_code} != 0 ]]; then
+    print_metadata_value_if_exists ${MDS_PREFIX}/project/${varname}
+    return_code=$?
+  fi
+
+  return ${return_code}
+)
+
+function get_metadata_attribute() (
+  set +x
+  local -r attribute_name="$1"
+  local -r default_value="${2:-}"
+  get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
+)
+
+function execute_with_retries() (
+  set +x
+  local -r cmd="$*"
+
+  if [[ "$cmd" =~ "^apt-get install" ]] ; then
+    apt-get -y clean
+    apt-get -o DPkg::Lock::Timeout=60 -y autoremove
+  fi
+  for ((i = 0; i < 3; i++)); do
+    set -x
+    time eval "$cmd" > "${install_log}" 2>&1 && retval=$? || { retval=$? ; cat "${install_log}" ; }
+    set +x
+    if [[ $retval == 0 ]] ; then return 0 ; fi
+    sleep 5
+  done
+  return 1
+)
+
+function cache_fetched_package() {
+  local src_url="$1"
+  local gcs_fn="$2"
+  local local_fn="$3"
+
+  if gsutil ls "${gcs_fn}" 2>&1 | grep -q "${gcs_fn}" ; then
+    time gcloud storage cp "${gcs_fn}" "${local_fn}"
+  else
+    time ( curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 "${src_url}" -o "${local_fn}" && \
+           gcloud storage cp "${local_fn}" "${gcs_fn}" ; )
+  fi
+}
+
+function add_contrib_component() {
+  if ge_debian12 ; then
+      # Include in sources file components on which nvidia-kernel-open-dkms depends
+      local -r debian_sources="/etc/apt/sources.list.d/debian.sources"
+      local components="main contrib"
+
+      sed -i -e "s/Components: .*$/Components: ${components}/" "${debian_sources}"
+  elif is_debian ; then
+      sed -i -e 's/ main$/ main contrib/' /etc/apt/sources.list
+  fi
+}
+
+function set_hadoop_property() {
+  local -r config_file=$1
+  local -r property=$2
+  local -r value=$3
+  "${bdcfg}" set_property \
+    --configuration_file "${HADOOP_CONF_DIR}/${config_file}" \
+    --name "${property}" --value "${value}" \
+    --clobber
+}
+
+function configure_yarn_resources() {
+  if [[ ! -d "${HADOOP_CONF_DIR}" ]] ; then return 0 ; fi # pre-init scripts
+  if [[ ! -f "${HADOOP_CONF_DIR}/resource-types.xml" ]]; then
+    printf '<?xml version="1.0" ?>\n<configuration/>' >"${HADOOP_CONF_DIR}/resource-types.xml"
+  fi
+  set_hadoop_property 'resource-types.xml' 'yarn.resource-types' 'yarn.io/gpu'
+
+  set_hadoop_property 'capacity-scheduler.xml' \
+    'yarn.scheduler.capacity.resource-calculator' \
+    'org.apache.hadoop.yarn.util.resource.DominantResourceCalculator'
+
+  set_hadoop_property 'yarn-site.xml' 'yarn.resource-types' 'yarn.io/gpu'
+}
+
+# This configuration should be applied only if GPU is attached to the node
+function configure_yarn_nodemanager() {
+  set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.resource-plugins.gpu.allowed-gpu-devices' 'auto'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.resource-plugins.gpu.path-to-discovery-executables' $NVIDIA_SMI_PATH
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.linux-container-executor.cgroups.mount' 'true'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.linux-container-executor.cgroups.mount-path' '/sys/fs/cgroup'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.linux-container-executor.cgroups.hierarchy' 'yarn'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.container-executor.class' \
+    'org.apache.hadoop.yarn.server.nodemanager.LinuxContainerExecutor'
+  set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.linux-container-executor.group' 'yarn'
+
+  # Fix local dirs access permissions
+  local yarn_local_dirs=()
+
+  readarray -d ',' yarn_local_dirs < <("${bdcfg}" get_property_value \
+    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
+    --name "yarn.nodemanager.local-dirs" 2>/dev/null | tr -d '\n')
+
+  if [[ "${#yarn_local_dirs[@]}" -ne "0" && "${yarn_local_dirs[@]}" != "None" ]]; then
+    chown yarn:yarn -R "${yarn_local_dirs[@]/,/}"
+  fi
+}
+
+function clean_up_sources_lists() {
+  #
+  # bigtop (primary)
+  #
+  local -r dataproc_repo_file="/etc/apt/sources.list.d/dataproc.list"
+
+  if [[ -f "${dataproc_repo_file}" ]] && ! grep -q signed-by "${dataproc_repo_file}" ; then
+    region="$(get_metadata_value zone | perl -p -e 's:.*/:: ; s:-[a-z]+$::')"
+
+    local regional_bigtop_repo_uri
+    regional_bigtop_repo_uri=$(cat ${dataproc_repo_file} |
+      sed "s#/dataproc-bigtop-repo/#/goog-dataproc-bigtop-repo-${region}/#" |
+      grep "deb .*goog-dataproc-bigtop-repo-${region}.* dataproc contrib" |
+      cut -d ' ' -f 2 |
+      head -1)
+
+    if [[ "${regional_bigtop_repo_uri}" == */ ]]; then
+      local -r bigtop_key_uri="${regional_bigtop_repo_uri}archive.key"
+    else
+      local -r bigtop_key_uri="${regional_bigtop_repo_uri}/archive.key"
+    fi
+
+    local -r bigtop_kr_path="/usr/share/keyrings/bigtop-keyring.gpg"
+    rm -f "${bigtop_kr_path}"
+    curl -fsS --retry-connrefused --retry 10 --retry-max-time 30 \
+      "${bigtop_key_uri}" | gpg --dearmor -o "${bigtop_kr_path}"
+
+    sed -i -e "s:deb https:deb [signed-by=${bigtop_kr_path}] https:g" "${dataproc_repo_file}"
+    sed -i -e "s:deb-src https:deb-src [signed-by=${bigtop_kr_path}] https:g" "${dataproc_repo_file}"
+  fi
+
+  #
+  # adoptium
+  #
+  # https://adoptium.net/installation/linux/#_deb_installation_on_debian_or_ubuntu
+  local -r key_url="https://packages.adoptium.net/artifactory/api/gpg/key/public"
+  local -r adoptium_kr_path="/usr/share/keyrings/adoptium.gpg"
+  rm -f "${adoptium_kr_path}"
+  curl -fsS --retry-connrefused --retry 10 --retry-max-time 30 "${key_url}" \
+   | gpg --dearmor -o "${adoptium_kr_path}"
+  echo "deb [signed-by=${adoptium_kr_path}] https://packages.adoptium.net/artifactory/deb/ $(os_codename) main" \
+   > /etc/apt/sources.list.d/adoptium.list
+
+
+  #
+  # docker
+  #
+  local docker_kr_path="/usr/share/keyrings/docker-keyring.gpg"
+  local docker_repo_file="/etc/apt/sources.list.d/docker.list"
+  local -r docker_key_url="https://download.docker.com/linux/$(os_id)/gpg"
+
+  rm -f "${docker_kr_path}"
+  curl -fsS --retry-connrefused --retry 10 --retry-max-time 30 "${docker_key_url}" \
+    | gpg --dearmor -o "${docker_kr_path}"
+  echo "deb [signed-by=${docker_kr_path}] https://download.docker.com/linux/$(os_id) $(os_codename) stable" \
+    > ${docker_repo_file}
+
+  #
+  # google cloud + logging/monitoring
+  #
+  if ls /etc/apt/sources.list.d/google-cloud*.list ; then
+    rm -f /usr/share/keyrings/cloud.google.gpg
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+    for list in google-cloud google-cloud-logging google-cloud-monitoring ; do
+      list_file="/etc/apt/sources.list.d/${list}.list"
+      if [[ -f "${list_file}" ]]; then
+        sed -i -e 's:deb https:deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https:g' "${list_file}"
+      fi
+    done
+  fi
+
+  #
+  # cran-r
+  #
+  if [[ -f /etc/apt/sources.list.d/cran-r.list ]]; then
+    keyid="0x95c0faf38db3ccad0c080a7bdc78b2ddeabc47b7"
+    if is_ubuntu18 ; then keyid="0x51716619E084DAB9"; fi
+    rm -f /usr/share/keyrings/cran-r.gpg
+    curl "https://keyserver.ubuntu.com/pks/lookup?op=get&search=${keyid}" | \
+      gpg --dearmor -o /usr/share/keyrings/cran-r.gpg
+    sed -i -e 's:deb http:deb [signed-by=/usr/share/keyrings/cran-r.gpg] http:g' /etc/apt/sources.list.d/cran-r.list
+  fi
+
+  #
+  # mysql
+  #
+  if [[ -f /etc/apt/sources.list.d/mysql.list ]]; then
+    rm -f /usr/share/keyrings/mysql.gpg
+    curl 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xBCA43417C3B485DD128EC6D4B7B3B788A8D3785C' | \
+      gpg --dearmor -o /usr/share/keyrings/mysql.gpg
+    sed -i -e 's:deb https:deb [signed-by=/usr/share/keyrings/mysql.gpg] https:g' /etc/apt/sources.list.d/mysql.list
+  fi
+
+  if [[ -f /etc/apt/trusted.gpg ]] ; then mv /etc/apt/trusted.gpg /etc/apt/old-trusted.gpg ; fi
+
+}
+
+function set_proxy(){
+  METADATA_HTTP_PROXY="$(get_metadata_attribute http-proxy '')"
+
+  if [[ -z "${METADATA_HTTP_PROXY}" ]] ; then return ; fi
+
+  export METADATA_HTTP_PROXY
+  export http_proxy="${METADATA_HTTP_PROXY}"
+  export https_proxy="${METADATA_HTTP_PROXY}"
+  export HTTP_PROXY="${METADATA_HTTP_PROXY}"
+  export HTTPS_PROXY="${METADATA_HTTP_PROXY}"
+  no_proxy="localhost,127.0.0.0/8,::1,metadata.google.internal,169.254.169.254"
+  local no_proxy_svc
+  for no_proxy_svc in compute  secretmanager dns    servicedirectory     logging  \
+                      bigquery composer      pubsub bigquerydatatransfer dataflow \
+                      storage  datafusion    ; do
+    no_proxy="${no_proxy},${no_proxy_svc}.googleapis.com"
+  done
+
+  export NO_PROXY="${no_proxy}"
+}
+
+function mount_ramdisk(){
+  local free_mem
+  free_mem="$(awk '/^MemFree/ {print $2}' /proc/meminfo)"
+  if [[ ${free_mem} -lt 10500000 ]]; then return 0 ; fi
+
+  # Write to a ramdisk instead of churning the persistent disk
+
+  tmpdir="/mnt/shm"
+  mkdir -p "${tmpdir}"
+  mount -t tmpfs tmpfs "${tmpdir}"
+
+  # Download conda packages to tmpfs
+  /opt/conda/miniconda3/bin/conda config --add pkgs_dirs "${tmpdir}"
+
+  # Clear pip cache
+  # TODO: make this conditional on which OSs have pip without cache purge
+  pip cache purge || echo "unable to purge pip cache"
+
+  # Download pip packages to tmpfs
+  pip config set global.cache-dir "${tmpdir}" || echo "unable to set global.cache-dir"
+
+  # Download OS packages to tmpfs
+  if is_debuntu ; then
+    mount -t tmpfs tmpfs /var/cache/apt/archives
+  else
+    mount -t tmpfs tmpfs /var/cache/dnf
+  fi
+}
+
+function check_os() {
+  if is_debian && ( ! is_debian10 && ! is_debian11 && ! is_debian12 ) ; then
+      echo "Error: The Debian version ($(os_version)) is not supported. Please use a compatible Debian version."
+      exit 1
+  elif is_ubuntu && ( ! is_ubuntu18 && ! is_ubuntu20 && ! is_ubuntu22  ) ; then
+      echo "Error: The Ubuntu version ($(os_version)) is not supported. Please use a compatible Ubuntu version."
+      exit 1
+  elif is_rocky && ( ! is_rocky8 && ! is_rocky9 ) ; then
+      echo "Error: The Rocky Linux version ($(os_version)) is not supported. Please use a compatible Rocky Linux version."
+      exit 1
+  fi
+}
+
+readonly _shortname="$(os_id)$(os_version|perl -pe 's/(\d+).*/$1/')"
+
+# Dataproc configurations
+readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
+readonly HIVE_CONF_DIR='/etc/hive/conf'
+readonly SPARK_CONF_DIR='/etc/spark/conf'
