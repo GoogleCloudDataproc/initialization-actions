@@ -1,0 +1,280 @@
+#!/bin/bash
+#
+[% template_path="gpu/install_gpu_driver.sh.in" %]
+[% INSERT legal/license_header %]
+#
+[% PROCESS common/template_disclaimer %]
+#
+# This script installs NVIDIA GPU drivers and collects GPU utilization metrics.
+
+set -euxo pipefail
+
+[% INSERT common/util_functions %]
+
+[% INSERT gpu/util_functions %]
+
+[% INSERT 'secure-boot/util_functions' %]
+
+function main() {
+  # This configuration should be run on all nodes
+  # regardless if they have attached GPUs
+  configure_yarn_resources
+
+  # Detect NVIDIA GPU
+  if (lspci | grep -q NVIDIA); then
+    # if this is called without the MIG script then the drivers are not installed
+    migquery_result="$(nvsmi --query-gpu=mig.mode.current --format=csv,noheader)"
+    if [[ "${migquery_result}" == "[N/A]" ]] ; then migquery_result="" ; fi
+    NUM_MIG_GPUS="$(echo ${migquery_result} | uniq | wc -l)"
+
+    if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
+      if [[ "${NUM_MIG_GPUS}" -eq "1" ]]; then
+        if (echo "${migquery_result}" | grep Enabled); then
+          IS_MIG_ENABLED=1
+          NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
+          MIG_MAJOR_CAPS=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
+          fetch_mig_scripts
+        fi
+      fi
+    fi
+
+    # if mig is enabled drivers would have already been installed
+    if [[ $IS_MIG_ENABLED -eq 0 ]]; then
+      install_nvidia_gpu_driver
+      install_nvidia_container_toolkit
+      install_cuda
+      load_kernel_module
+
+      if [[ -n ${CUDNN_VERSION} ]]; then
+        install_nvidia_nccl
+        install_nvidia_cudnn
+      fi
+      #Install GPU metrics collection in Stackdriver if needed
+      if [[ "${INSTALL_GPU_AGENT}" == "true" ]]; then
+        #install_ops_agent
+	install_gpu_agent
+        echo 'GPU metrics agent successfully deployed.'
+      else
+        echo 'GPU metrics agent will not be installed.'
+      fi
+
+      # for some use cases, the kernel module needs to be removed before first use of nvidia-smi
+      for module in nvidia_uvm nvidia_drm nvidia_modeset nvidia ; do
+        rmmod ${module} > /dev/null 2>&1 || echo "unable to rmmod ${module}"
+      done
+
+      MIG_GPU_LIST="$(nvsmi -L | grep -e MIG -e P100 -e H100 -e A100 || echo -n "")"
+      if test -n "$(nvsmi -L)" ; then
+	# cache the result of the gpu query
+        ADDRS=$(nvsmi --query-gpu=index --format=csv,noheader | perl -e 'print(join(q{,},map{chomp; qq{"$_"}}<STDIN>))')
+        echo "{\"name\": \"gpu\", \"addresses\":[$ADDRS]}" | tee "/var/run/nvidia-gpu-index.txt"
+      fi
+      NUM_MIG_GPUS="$(test -n "${MIG_GPU_LIST}" && echo "${MIG_GPU_LIST}" | wc -l || echo "0")"
+      if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
+        # enable MIG on every GPU
+	for GPU_ID in $(echo ${MIG_GPU_LIST} | awk -F'[: ]' -e '{print $2}') ; do
+	  nvsmi -i "${GPU_ID}" --multi-instance-gpu 1
+	done
+
+        NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
+        MIG_MAJOR_CAPS="$(grep nvidia-caps /proc/devices | cut -d ' ' -f 1)"
+        fetch_mig_scripts
+      else
+        configure_gpu_exclusive_mode
+      fi
+    fi
+
+    configure_yarn_nodemanager
+    configure_gpu_script
+    configure_gpu_isolation
+  elif [[ "${ROLE}" == "Master" ]]; then
+    configure_yarn_nodemanager
+    configure_gpu_script
+  fi
+
+  # Restart YARN services if they are running already
+  if [[ $(systemctl show hadoop-yarn-resourcemanager.service -p SubState --value) == 'running' ]]; then
+    systemctl restart hadoop-yarn-resourcemanager.service
+  fi
+  if [[ $(systemctl show hadoop-yarn-nodemanager.service -p SubState --value) == 'running' ]]; then
+    systemctl restart hadoop-yarn-nodemanager.service
+  fi
+}
+
+function exit_handler() {
+  # Purge private key material until next grant
+  clear_dkms_key
+
+  set +ex
+  echo "Exit handler invoked"
+
+  # Clear pip cache
+  pip cache purge || echo "unable to purge pip cache"
+
+  # If system memory was sufficient to mount memory-backed filesystems
+  if [[ "${tmpdir}" == "/mnt/shm" ]] ; then
+    # remove the tmpfs pip cache-dir
+    pip config unset global.cache-dir || echo "unable to unset global pip cache"
+
+    # Clean up shared memory mounts
+    for shmdir in /var/cache/apt/archives /var/cache/dnf /mnt/shm /tmp /var/cudnn-local ; do
+      if ( grep -q "^tmpfs ${shmdir}" /proc/mounts && ! grep -q "^tmpfs ${shmdir}" /etc/fstab ) ; then
+        umount -f ${shmdir}
+      fi
+    done
+
+    # restart services stopped during preparation stage
+    # systemctl list-units | perl -n -e 'qx(systemctl start $1) if /^.*? ((hadoop|knox|hive|mapred|yarn|hdfs)\S*).service/'
+  fi
+
+  if is_debuntu ; then
+    # Clean up OS package cache
+    apt-get -y -qq clean
+    apt-get -y -qq -o DPkg::Lock::Timeout=60 autoremove
+    # re-hold systemd package
+    if ge_debian12 ; then
+    apt-mark hold systemd libsystemd0 ; fi
+  else
+    dnf clean all
+  fi
+
+  # print disk usage statistics for large components
+  if is_ubuntu ; then
+    du -hs \
+      /usr/lib/{pig,hive,hadoop,jvm,spark,google-cloud-sdk,x86_64-linux-gnu} \
+      /usr/lib \
+      /opt/nvidia/* \
+      /usr/local/cuda-1?.? \
+      /opt/conda/miniconda3 | sort -h
+  elif is_debian ; then
+    du -x -hs \
+      /usr/lib/{pig,hive,hadoop,jvm,spark,google-cloud-sdk,x86_64-linux-gnu} \
+      /var/lib/{docker,mysql,} \
+      /usr/lib \
+      /opt/nvidia/* \
+      /usr/local/cuda-1?.? \
+      /opt/{conda,google-cloud-ops-agent,install-nvidia,} \
+      /usr/bin \
+      /usr \
+      /var \
+      / 2>/dev/null | sort -h
+  else
+    du -hs \
+      /var/lib/docker \
+      /usr/lib/{pig,hive,hadoop,firmware,jvm,spark,atlas} \
+      /usr/lib64/google-cloud-sdk \
+      /usr/lib \
+      /opt/nvidia/* \
+      /usr/local/cuda-1?.? \
+      /opt/conda/miniconda3
+  fi
+
+  # Process disk usage logs from installation period
+  rm -f /run/keep-running-df
+  sync
+  sleep 5.01s
+  # compute maximum size of disk during installation
+  # Log file contains logs like the following (minus the preceeding #):
+#Filesystem     1K-blocks    Used Available Use% Mounted on
+#/dev/vda2        7096908 2611344   4182932  39% /
+  df / | tee -a "/run/disk-usage.log"
+
+  perl -e '@siz=( sort { $a => $b }
+                   map { (split)[2] =~ /^(\d+)/ }
+                  grep { m:^/: } <STDIN> );
+$max=$siz[0]; $min=$siz[-1]; $inc=$max-$min;
+print( "    samples-taken: ", scalar @siz, $/,
+       "maximum-disk-used: $max", $/,
+       "minimum-disk-used: $min", $/,
+       "     increased-by: $inc", $/ )' < "/run/disk-usage.log"
+
+  echo "exit_handler has completed"
+
+  # zero free disk space
+  if [[ -n "$(get_metadata_attribute creating-image)" ]]; then
+    dd if=/dev/zero of=/zero
+    sync
+    sleep 3s
+    rm -f /zero
+  fi
+
+  return 0
+}
+
+function prepare_to_install(){
+  # Verify OS compatability and Secure boot state
+  check_os
+  check_secure_boot
+
+  prepare_gpu_env
+
+  OS_NAME="$(lsb_release -is | tr '[:upper:]' '[:lower:]')"
+  readonly OS_NAME
+
+  # node role
+  ROLE="$(get_metadata_attribute dataproc-role)"
+  readonly ROLE
+
+  workdir=/opt/install-dpgce
+  tmpdir=/tmp/
+  temp_bucket="$(get_metadata_attribute dataproc-temp-bucket)"
+  readonly temp_bucket
+  readonly pkg_bucket="gs://${temp_bucket}/dpgce-packages"
+  uname_r=$(uname -r)
+  readonly uname_r
+  readonly bdcfg="/usr/local/bin/bdconfig"
+  export DEBIAN_FRONTEND=noninteractive
+
+  mkdir -p "${workdir}"
+  trap exit_handler EXIT
+  set_proxy
+  mount_ramdisk
+
+  readonly install_log="${tmpdir}/install.log"
+
+  # Detect dataproc image version
+  if (! test -v DATAPROC_IMAGE_VERSION) ; then
+    if test -v DATAPROC_VERSION ; then
+      DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
+    else
+      if   version_lt "${SPARK_VERSION}" "3.2" ; then DATAPROC_IMAGE_VERSION="2.0"
+      elif version_lt "${SPARK_VERSION}" "3.4" ; then DATAPROC_IMAGE_VERSION="2.1"
+      elif version_lt "${SPARK_VERSION}" "3.6" ; then DATAPROC_IMAGE_VERSION="2.2"
+      else echo "Unknown dataproc image version" ; exit 1 ; fi
+    fi
+  fi
+
+  if test -f "${workdir}/prepare-complete" ; then return ; fi
+
+  repair_old_backports
+
+  if is_debuntu ; then
+    clean_up_sources_lists
+    apt-get update -qq
+    apt-get -y clean
+    apt-get -o DPkg::Lock::Timeout=60 -y autoremove
+    if ge_debian12 ; then
+    apt-mark unhold systemd libsystemd0 ; fi
+  else
+    dnf clean all
+  fi
+
+  # zero free disk space
+  if [[ -n "$(get_metadata_attribute creating-image)" ]]; then ( set +e
+    time dd if=/dev/zero of=/zero status=none ; sync ; sleep 3s ; rm -f /zero
+  ) fi
+
+  install_dependencies
+
+  # Monitor disk usage in a screen session
+  df / > "/run/disk-usage.log"
+  touch "/run/keep-running-df"
+  screen -d -m -LUS keep-running-df \
+    bash -c "while [[ -f /run/keep-running-df ]] ; do df / | tee -a /run/disk-usage.log ; sleep 5s ; done"
+
+  touch "${workdir}/prepare-complete"
+}
+
+prepare_to_install
+
+main
