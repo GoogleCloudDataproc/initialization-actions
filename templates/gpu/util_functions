@@ -1176,17 +1176,20 @@ function install_dependencies() {
 function prepare_gpu_env(){
   # Verify SPARK compatability
   RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
-  SPARK_VERSION="$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)"
-  readonly SPARK_VERSION
-  if version_lt "${SPARK_VERSION}" "3.1" || \
-     version_ge "${SPARK_VERSION}" "4.0" ; then
-    echo "Error: Your Spark version is not supported. Please upgrade Spark to one of the supported versions."
-    exit 1
-  fi
 
   readonly DEFAULT_XGBOOST_VERSION="1.7.6" # try 2.1.1
   nvsmi_works="0"
 
   if   is_cuda11 ; then gcc_ver="11"
   elif is_cuda12 ; then gcc_ver="12" ; fi
+}
+
+# Hold all NVIDIA-related packages from upgrading unintenionally or services like unattended-upgrades
+# Users should run apt-mark unhold before they wish to upgrade these packages
+function hold_nvidia_packages() {
+  apt-mark hold nvidia-*
+  apt-mark hold libnvidia-*
+  if dpkg -l | grep -q "xserver-xorg-video-nvidia"; then
+    apt-mark hold xserver-xorg-video-nvidia*
+  fi
 }
