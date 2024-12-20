@@ -2,6 +2,7 @@
 #
 [% template_path="spark-rapids/mig.sh.in" %]
 [% INSERT legal/license_header %]
+# This script installs NVIDIA GPU drivers and enables MIG on Amphere GPU architectures.
 #
 # This script should be specified in --metadata=startup-script-url= option and
 # --metadata=ENABLE_MIG can be used to enable or disable MIG. The default is to enable it.
@@ -12,8 +13,6 @@
 # YARN setup to fully utilize the MIG instances on YARN.
 #
 [% PROCESS common/template_disclaimer %]
-#
-# This script installs NVIDIA GPU drivers and collects GPU utilization metrics.
 
 set -euxo pipefail
 
