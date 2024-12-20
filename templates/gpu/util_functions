@@ -1193,3 +1193,17 @@ function hold_nvidia_packages() {
     apt-mark hold xserver-xorg-video-nvidia*
   fi
 }
+
+function configure_mig_cgi() {
+  if (/usr/share/google/get_metadata_value attributes/MIG_CGI); then
+    META_MIG_CGI_VALUE=$(/usr/share/google/get_metadata_value attributes/MIG_CGI)
+    nvidia-smi mig -cgi $META_MIG_CGI_VALUE -C
+  else
+    # Dataproc only supports A100's right now split in 2 if not specified
+    nvidia-smi mig -cgi 9,9  -C
+  fi
+}
+
+function enable_mig() {
+  nvidia-smi -mig 1
+}
