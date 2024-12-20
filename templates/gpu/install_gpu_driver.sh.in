@@ -134,6 +134,7 @@ function exit_handler() {
     # re-hold systemd package
     if ge_debian12 ; then
     apt-mark hold systemd libsystemd0 ; fi
+    hold_nvidia_packages
   else
     dnf clean all
   fi
@@ -231,18 +232,6 @@ function prepare_to_install(){
   mount_ramdisk
 
   readonly install_log="${tmpdir}/install.log"
-
-  # Detect dataproc image version
-  if (! test -v DATAPROC_IMAGE_VERSION) ; then
-    if test -v DATAPROC_VERSION ; then
-      DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
-    else
-      if   version_lt "${SPARK_VERSION}" "3.2" ; then DATAPROC_IMAGE_VERSION="2.0"
-      elif version_lt "${SPARK_VERSION}" "3.4" ; then DATAPROC_IMAGE_VERSION="2.1"
-      elif version_lt "${SPARK_VERSION}" "3.6" ; then DATAPROC_IMAGE_VERSION="2.2"
-      else echo "Unknown dataproc image version" ; exit 1 ; fi
-    fi
-  fi
 
   if test -f "${workdir}/prepare-complete" ; then return ; fi
 
