@@ -7,25 +7,30 @@ function version_gt() ( set +x ;  [ "$1" = "$2" ] && return 1 || version_ge $1 $
 function version_le() ( set +x ;  [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ] ; )
 function version_lt() ( set +x ;  [ "$1" = "$2" ] && return 1 || version_le $1 $2 ; )
 
-readonly -A supported_os=(
-  ['debian']="10 11 12"
-  ['rocky']="8 9"
-  ['ubuntu']="18.04 20.04 22.04"
-)
+function define_os_comparison_functions() {
 
-# dynamically define OS version test utility functions
-if [[ "$(os_id)" == "rocky" ]];
-then _os_version=$(os_version | sed -e 's/[^0-9].*$//g')
-else _os_version="$(os_version)"; fi
-for os_id_val in 'rocky' 'ubuntu' 'debian' ; do
-  eval "function is_${os_id_val}() ( set +x ;  [[ \"$(os_id)\" == '${os_id_val}' ]] ; )"
+  readonly -A supported_os=(
+    ['debian']="10 11 12"
+    ['rocky']="8 9"
+    ['ubuntu']="18.04 20.04 22.04"
+  )
 
-  for osver in $(echo "${supported_os["${os_id_val}"]}") ; do
-    eval "function is_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && [[ \"${_os_version}\" == \"${osver}\" ]] ; )"
-    eval "function ge_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && version_ge \"${_os_version}\" \"${osver}\" ; )"
-    eval "function le_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && version_le \"${_os_version}\" \"${osver}\" ; )"
+  # dynamically define OS version test utility functions
+  if [[ "$(os_id)" == "rocky" ]];
+  then _os_version=$(os_version | sed -e 's/[^0-9].*$//g')
+  else _os_version="$(os_version)"; fi
+  for os_id_val in 'rocky' 'ubuntu' 'debian' ; do
+    eval "function is_${os_id_val}() ( set +x ;  [[ \"$(os_id)\" == '${os_id_val}' ]] ; )"
+
+    for osver in $(echo "${supported_os["${os_id_val}"]}") ; do
+      eval "function is_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && [[ \"${_os_version}\" == \"${osver}\" ]] ; )"
+      eval "function ge_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && version_ge \"${_os_version}\" \"${osver}\" ; )"
+      eval "function le_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && version_le \"${_os_version}\" \"${osver}\" ; )"
+    done
   done
-done
+}
+
+define_os_comparison_functions
 
 function is_debuntu()  ( set +x ;  is_debian || is_ubuntu ; )
 
@@ -132,6 +137,7 @@ function cache_fetched_package() {
 }
 
 function add_contrib_component() {
+  if ! is_debuntu ; then return ; fi
   if ge_debian12 ; then
       # Include in sources file components on which nvidia-kernel-open-dkms depends
       local -r debian_sources="/etc/apt/sources.list.d/debian.sources"
@@ -376,6 +382,61 @@ function check_os() {
     fi
   fi
 }
+
+#
+# Generate repo file under /etc/apt/sources.list.d/
+#
+function apt_add_repo() {
+  local -r repo_name="$1"
+  local -r repo_data="$3" # "http(s)://host/path/uri argument0 .. argumentN"
+  local -r include_src="${4:-yes}"
+  local -r kr_path="${5:-/usr/share/keyrings/${repo_name}.gpg}"
+  local -r repo_path="${6:-/etc/apt/sources.list.d/${repo_name}.list}"
+
+  echo "deb [signed-by=${kr_path}] ${repo_data}" > "${repo_path}"
+  if [[ "${include_src}" == "yes" ]] ; then
+    echo "deb-src [signed-by=${kr_path}] ${repo_data}" >> "${repo_path}"
+  fi
+}
+
+#
+# Generate repo file under /etc/yum.repos.d/
+#
+function dnf_add_repo() {
+  local -r repo_name="$1"
+  local -r repo_url="$3" # "http(s)://host/path/filename.repo"
+  local -r kr_path="${5:-/etc/pki/rpm-gpg/${repo_name}.gpg}"
+  local -r repo_path="${6:-/etc/yum.repos.d/${repo_name}.repo}"
+
+  curl -s -L "${repo_url}" \
+    | perl -p -e "s{^gpgkey=.*$}{gpgkey=file://${kr_path}}" \
+    | dd of="${repo_path}" status=progress
+}
+
+#
+# Install package signing key and add corresponding repository
+# https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
+#
+# Keyrings default to
+# /usr/share/keyrings/${repo_name}.gpg (debian/ubuntu) or
+# /etc/pki/rpm-gpg/${repo_name}.gpg    (rocky/RHEL)
+#
+function os_add_repo() {
+  local -r repo_name="$1"
+  local -r signing_key_url="$2"
+  local kr_path
+  if is_debuntu ; then kr_path="${5:-/usr/share/keyrings/${repo_name}.gpg}"
+                  else kr_path="${5:-/etc/pki/rpm-gpg/${repo_name}.gpg}" ; fi
+
+  mkdir -p "$(dirname "${kr_path}")"
+
+  curl -fsS --retry-connrefused --retry 10 --retry-max-time 30 "${signing_key_url}" \
+    | gpg --import --no-default-keyring --keyring "${kr_path}"
+
+  if is_debuntu ; then apt_add_repo $*
+                  else dnf_add_repo $* ; fi
+}
+
 
 readonly _shortname="$(os_id)$(os_version|perl -pe 's/(\d+).*/$1/')"
 
