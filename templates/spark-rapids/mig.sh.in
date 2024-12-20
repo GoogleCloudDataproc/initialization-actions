@@ -1,0 +1,240 @@
+#!/bin/bash
+#
+[% template_path="spark-rapids/mig.sh.in" %]
+[% INSERT legal/license_header %]
+#
+# This script should be specified in --metadata=startup-script-url= option and
+# --metadata=ENABLE_MIG can be used to enable or disable MIG. The default is to enable it.
+# The script does a reboot to fully enable MIG and then configures the MIG device based on the
+# user specified MIG_CGI profiles specified via: --metadata=^:^MIG_CGI='9,9'. If MIG_CGI
+# is not specified it assumes it's using an A100 and configures 2 instances with profile id 9.
+# It is assumed this script is used in conjuntion with install_gpu_driver.sh, which does the
+# YARN setup to fully utilize the MIG instances on YARN.
+#
+[% PROCESS common/template_disclaimer %]
+#
+# This script installs NVIDIA GPU drivers and collects GPU utilization metrics.
+
+set -euxo pipefail
+
+[% INSERT common/util_functions %]
+
+[% INSERT gpu/util_functions %]
+
+[% INSERT 'secure-boot/util_functions' %]
+
+function exit_handler() {
+  # Purge private key material until next grant
+  clear_dkms_key
+
+  set +ex
+  echo "Exit handler invoked"
+
+  # Clear pip cache
+  pip cache purge || echo "unable to purge pip cache"
+
+  # If system memory was sufficient to mount memory-backed filesystems
+  if [[ "${tmpdir}" == "/mnt/shm" ]] ; then
+    # remove the tmpfs pip cache-dir
+    pip config unset global.cache-dir || echo "unable to unset global pip cache"
+
+    # Clean up shared memory mounts
+    for shmdir in /var/cache/apt/archives /var/cache/dnf /mnt/shm /tmp /var/cudnn-local ; do
+      if ( grep -q "^tmpfs ${shmdir}" /proc/mounts && ! grep -q "^tmpfs ${shmdir}" /etc/fstab ) ; then
+        umount -f ${shmdir}
+      fi
+    done
+
+    # restart services stopped during preparation stage
+    # systemctl list-units | perl -n -e 'qx(systemctl start $1) if /^.*? ((hadoop|knox|hive|mapred|yarn|hdfs)\S*).service/'
+  fi
+
+  if is_debuntu ; then
+    # Clean up OS package cache
+    apt-get -y -qq clean
+    apt-get -y -qq -o DPkg::Lock::Timeout=60 autoremove
+    # re-hold systemd package
+    if ge_debian12 ; then
+    apt-mark hold systemd libsystemd0 ; fi
+    hold_nvidia_packages
+  else
+    dnf clean all
+  fi
+
+  # print disk usage statistics for large components
+  if is_ubuntu ; then
+    du -hs \
+      /usr/lib/{pig,hive,hadoop,jvm,spark,google-cloud-sdk,x86_64-linux-gnu} \
+      /usr/lib \
+      /opt/nvidia/* \
+      /usr/local/cuda-1?.? \
+      /opt/conda/miniconda3 | sort -h
+  elif is_debian ; then
+    du -x -hs \
+      /usr/lib/{pig,hive,hadoop,jvm,spark,google-cloud-sdk,x86_64-linux-gnu} \
+      /var/lib/{docker,mysql,} \
+      /usr/lib \
+      /opt/nvidia/* \
+      /usr/local/cuda-1?.? \
+      /opt/{conda,google-cloud-ops-agent,install-nvidia,} \
+      /usr/bin \
+      /usr \
+      /var \
+      / 2>/dev/null | sort -h
+  else
+    du -hs \
+      /var/lib/docker \
+      /usr/lib/{pig,hive,hadoop,firmware,jvm,spark,atlas} \
+      /usr/lib64/google-cloud-sdk \
+      /usr/lib \
+      /opt/nvidia/* \
+      /usr/local/cuda-1?.? \
+      /opt/conda/miniconda3
+  fi
+
+  # Process disk usage logs from installation period
+  rm -f /run/keep-running-df
+  sync
+  sleep 5.01s
+  # compute maximum size of disk during installation
+  # Log file contains logs like the following (minus the preceeding #):
+#Filesystem     1K-blocks    Used Available Use% Mounted on
+#/dev/vda2        7096908 2611344   4182932  39% /
+  df / | tee -a "/run/disk-usage.log"
+
+  perl -e '@siz=( sort { $a => $b }
+                   map { (split)[2] =~ /^(\d+)/ }
+                  grep { m:^/: } <STDIN> );
+$max=$siz[0]; $min=$siz[-1]; $inc=$max-$min;
+print( "    samples-taken: ", scalar @siz, $/,
+       "maximum-disk-used: $max", $/,
+       "minimum-disk-used: $min", $/,
+       "     increased-by: $inc", $/ )' < "/run/disk-usage.log"
+
+  echo "exit_handler has completed"
+
+  # zero free disk space
+  if [[ -n "$(get_metadata_attribute creating-image)" ]]; then
+    dd if=/dev/zero of=/zero
+    sync
+    sleep 3s
+    rm -f /zero
+  fi
+
+  return 0
+}
+
+function prepare_to_install(){
+  # Verify OS compatability and Secure boot state
+  check_os
+  check_secure_boot
+
+  prepare_gpu_env
+
+  OS_NAME="$(lsb_release -is | tr '[:upper:]' '[:lower:]')"
+  readonly OS_NAME
+
+  # node role
+  ROLE="$(get_metadata_attribute dataproc-role)"
+  readonly ROLE
+
+  workdir=/opt/install-dpgce
+  tmpdir=/tmp/
+  temp_bucket="$(get_metadata_attribute dataproc-temp-bucket)"
+  readonly temp_bucket
+  readonly pkg_bucket="gs://${temp_bucket}/dpgce-packages"
+  uname_r=$(uname -r)
+  readonly uname_r
+  readonly bdcfg="/usr/local/bin/bdconfig"
+  export DEBIAN_FRONTEND=noninteractive
+
+  mkdir -p "${workdir}"
+  trap exit_handler EXIT
+  set_proxy
+  mount_ramdisk
+
+  readonly install_log="${tmpdir}/install.log"
+
+  if test -f "${workdir}/prepare-complete" ; then return ; fi
+
+  repair_old_backports
+
+  if is_debuntu ; then
+    clean_up_sources_lists
+    apt-get update -qq
+    apt-get -y clean
+    apt-get -o DPkg::Lock::Timeout=60 -y autoremove
+    if ge_debian12 ; then
+    apt-mark unhold systemd libsystemd0 ; fi
+    hold_nvidia_packages
+  else
+    dnf clean all
+  fi
+
+  # zero free disk space
+  if [[ -n "$(get_metadata_attribute creating-image)" ]]; then ( set +e
+    time dd if=/dev/zero of=/zero status=none ; sync ; sleep 3s ; rm -f /zero
+  ) fi
+
+  install_dependencies
+
+  # Monitor disk usage in a screen session
+  df / > "/run/disk-usage.log"
+  touch "/run/keep-running-df"
+  screen -d -m -LUS keep-running-df \
+    bash -c "while [[ -f /run/keep-running-df ]] ; do df / | tee -a /run/disk-usage.log ; sleep 5s ; done"
+
+  touch "${workdir}/prepare-complete"
+}
+
+function main() {
+  # default MIG to on when this script is used
+  META_MIG_VALUE=$(get_metadata_attribute 'ENABLE_MIG' "1")
+
+  if (lspci | grep -q NVIDIA); then
+    if [[ $META_MIG_VALUE -ne 0 ]]; then
+      # if the first invocation, the NVIDIA drivers and tools are not installed
+      if [[ -f "/usr/bin/nvidia-smi" ]]; then
+        # check to see if we already enabled mig mode and rebooted so we don't end
+        # up in infinite reboot loop
+        NUM_GPUS_WITH_DIFF_MIG_MODES=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
+        if [[ $NUM_GPUS_WITH_DIFF_MIG_MODES -eq 1 ]]; then
+          if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
+            echo "MIG is enabled on all GPUs, configuring instances"
+            configure_mig_cgi
+            exit 0
+          else
+            echo "GPUs present but MIG is not enabled"
+          fi
+        else
+          echo "More than 1 GPU with MIG configured differently between them"
+        fi
+      fi
+    fi
+
+    install_nvidia_gpu_driver
+
+    if [[ ${META_MIG_VALUE} -ne 0 ]]; then
+      enable_mig
+      NUM_GPUS_WITH_DIFF_MIG_MODES="$(/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l)"
+      if [[ NUM_GPUS_WITH_DIFF_MIG_MODES -eq 1 ]]; then
+        if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
+          echo "MIG is fully enabled, we don't need to reboot"
+          configure_mig_cgi
+        else
+          echo "MIG is configured on but NOT enabled.  Failing"
+          exit 1
+        fi
+      else
+        echo "MIG is NOT enabled all on GPUs.  Failing"
+        exit 1
+      fi
+    else
+      echo "Not enabling MIG"
+    fi
+  fi
+}
+
+prepare_to_install
+
+main
