@@ -1,6 +1,5 @@
 #!/bin/bash
 #
-[% template_path="gpu/install_gpu_driver.sh.in" %]
 [% INSERT legal/license_header %]
 #
 [% PROCESS common/template_disclaimer %]
