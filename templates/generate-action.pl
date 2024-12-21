@@ -6,20 +6,19 @@
 
 use Template;
 use strict;
-use v5.10;
+
+my $action = $ARGV[0];
+my $v = { template_path => "${action}.in" };
+
+sub usage{ die "Usage: $0 <action>" }
+
+usage unless( $action && -f "$ENV{PWD}/templates/$v->{template_path}" );
 
 my $tt = Template->new( {
   INCLUDE_PATH => "$ENV{PWD}/templates",
+  VARIABLES => $v,
   INTERPOLATE  => 0,
 }) || die "$Template::ERROR$/";
 
-my $action = $ARGV[0];
 
-sub usage{
-  die "Usage: $0 <action>";
-}
-
-usage unless( -f "$ENV{PWD}/templates/${action}.in" );
-
-$tt->process("${action}.in")
-    || die $tt->error(), "\n";
+$tt->process($v->{template_path}) or die( $tt->error(), "\n" );
