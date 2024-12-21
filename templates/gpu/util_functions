@@ -1192,13 +1192,56 @@ function hold_nvidia_packages() {
   fi
 }
 
+function delete_mig_instances() (
+  # delete all instances
+  set +e
+  nvidia-smi mig -dci
+
+  case "${?}" in
+    "0" ) echo "compute instances deleted"            ;;
+    "2" ) echo "invalid argument"                     ;;
+    "6" ) echo "No compute instances found to delete" ;;
+    *   ) echo "unrecognized return code"             ;;
+  esac
+
+  nvidia-smi mig -dgi
+  case "${?}" in
+    "0" ) echo "compute instances deleted"        ;;
+    "2" ) echo "invalid argument"                 ;;
+    "6" ) echo "No GPU instances found to delete" ;;
+    *   ) echo "unrecognized return code"         ;;
+  esac
+)
+
+# https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/gpu-operator-mig.html#configuring-mig-profiles
 function configure_mig_cgi() {
-  if (/usr/share/google/get_metadata_value attributes/MIG_CGI); then
-    META_MIG_CGI_VALUE=$(/usr/share/google/get_metadata_value attributes/MIG_CGI)
-    nvidia-smi mig -cgi $META_MIG_CGI_VALUE -C
+  delete_mig_instances
+  META_MIG_CGI_VALUE="$(get_metadata_attribute 'MIG_CGI')"
+  if test -n "${META_MIG_CGI_VALUE}"; then
+    nvidia-smi mig -cgi "${META_MIG_CGI_VALUE}" -C
   else
-    # Dataproc only supports A100's right now split in 2 if not specified
-    nvidia-smi mig -cgi 9,9  -C
+    if lspci | grep -q H100 ; then
+      # run the following command to list placement profiles
+      # nvidia-smi mig -lgipp
+      #
+      # This is the result when using H100 instances on 20241220
+      # GPU  0 Profile ID 19 Placements: {0,1,2,3,4,5,6}:1
+      # GPU  0 Profile ID 20 Placements: {0,1,2,3,4,5,6}:1
+      # GPU  0 Profile ID 15 Placements: {0,2,4,6}:2
+      # GPU  0 Profile ID 14 Placements: {0,2,4}:2
+      # GPU  0 Profile ID  9 Placements: {0,4}:4
+      # GPU  0 Profile ID  5 Placement : {0}:4
+      # GPU  0 Profile ID  0 Placement : {0}:8
+
+      # For H100 3D controllers, use profile 19, 7x1G instances
+      nvidia-smi mig -cgi 19 -C
+    elif lspci | grep -q A100 ; then
+      # Dataproc only supports A100s right now split in 2 if not specified
+      # https://docs.nvidia.com/datacenter/tesla/mig-user-guide/#creating-gpu-instances
+      nvidia-smi mig -cgi 9,9 -C
+    else
+      echo "unrecognized 3D controller"
+    fi
   fi
 }
 
