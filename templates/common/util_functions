@@ -397,6 +397,8 @@ function apt_add_repo() {
   if [[ "${include_src}" == "yes" ]] ; then
     echo "deb-src [signed-by=${kr_path}] ${repo_data}" >> "${repo_path}"
   fi
+
+  apt-get update -qq
 }
 
 #
@@ -424,6 +426,7 @@ function dnf_add_repo() {
 function os_add_repo() {
   local -r repo_name="$1"
   local -r signing_key_url="$2"
+  local -r repo_data="$3" # "http(s)://host/path/uri argument0 .. argumentN"
   local kr_path
   if is_debuntu ; then kr_path="${5:-/usr/share/keyrings/${repo_name}.gpg}"
                   else kr_path="${5:-/etc/pki/rpm-gpg/${repo_name}.gpg}" ; fi
@@ -433,8 +436,8 @@ function os_add_repo() {
   curl -fsS --retry-connrefused --retry 10 --retry-max-time 30 "${signing_key_url}" \
     | gpg --import --no-default-keyring --keyring "${kr_path}"
 
-  if is_debuntu ; then apt_add_repo $*
-                  else dnf_add_repo $* ; fi
+  if is_debuntu ; then apt_add_repo "${repo_name}" "${signing_key_url}" "${repo_data}" "${4:-yes}" "${kr_path}" "${6:-}"
+                  else dnf_add_repo "${repo_name}" "${signing_key_url}" "${repo_data}" "${4:-yes}" "${kr_path}" "${6:-}" ; fi
 }
 
 
