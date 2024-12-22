@@ -184,52 +184,52 @@ function prepare_to_install(){
   touch "${workdir}/prepare-complete"
 }
 
+function enable_and_configure_mig() {
+  # default MIG to on when this script is used
+  META_MIG_VALUE=$(get_metadata_attribute 'ENABLE_MIG' "1")
+
+  if [[ ${META_MIG_VALUE} -eq 0 ]]; then echo "Not enabling MIG" ; return ; fi
+
+  enable_mig
+
+  mig_mode_current="$(/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader)"
+
+  NUM_GPUS_WITH_DIFF_MIG_MODES=
+  if [[ "$(echo "${mig_mode_current}" | uniq | wc -l)" -ne "1" ]] ; then echo "MIG is NOT enabled all on GPUs.  Failing"       ; exit 1 ; fi
+  if ! (echo "${mig_mode_current}" | grep Enabled)                ; then echo "MIG is configured on but NOT enabled.  Failing" ; exit 1 ; fi
+
+  echo "MIG is fully enabled"
+  configure_mig_cgi
+}
+
 function main() {
   # default MIG to on when this script is used
   META_MIG_VALUE=$(get_metadata_attribute 'ENABLE_MIG' "1")
 
-  if (lspci | grep -q NVIDIA); then
-    if [[ $META_MIG_VALUE -ne 0 ]]; then
-      # if the first invocation, the NVIDIA drivers and tools are not installed
-      if [[ -f "/usr/bin/nvidia-smi" ]]; then
-        # check to see if we already enabled mig mode and rebooted so we don't end
-        # up in infinite reboot loop
-        NUM_GPUS_WITH_DIFF_MIG_MODES=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
-        if [[ $NUM_GPUS_WITH_DIFF_MIG_MODES -eq 1 ]]; then
-          if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
-            echo "MIG is enabled on all GPUs, configuring instances"
-            configure_mig_cgi
-            exit 0
-          else
-            echo "GPUs present but MIG is not enabled"
-          fi
-        else
-          echo "More than 1 GPU with MIG configured differently between them"
-        fi
-      fi
-    fi
-
-    install_nvidia_gpu_driver
-
-    if [[ ${META_MIG_VALUE} -ne 0 ]]; then
-      enable_mig
-      NUM_GPUS_WITH_DIFF_MIG_MODES="$(/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l)"
-      if [[ NUM_GPUS_WITH_DIFF_MIG_MODES -eq 1 ]]; then
-        if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
-          echo "MIG is fully enabled, we don't need to reboot"
+  if ! (lspci | grep -q NVIDIA) ; then return ; fi
+  if [[ $META_MIG_VALUE -ne 0 ]]; then
+    # if the first invocation, the NVIDIA drivers and tools are not installed
+    if [[ -f "/usr/bin/nvidia-smi" ]]; then
+      # check to see if we already enabled mig mode and rebooted so we don't end
+      # up in infinite reboot loop
+      mig_mode_current="$(/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader)"
+      NUM_GPUS_WITH_DIFF_MIG_MODES="$(echo "${mig_mode_current}" | uniq | wc -l)"
+      if [[ $NUM_GPUS_WITH_DIFF_MIG_MODES -eq 1 ]]; then
+        if (echo "${mig_mode_current}" | grep Enabled); then
+          echo "MIG is enabled on all GPUs, configuring instances"
           configure_mig_cgi
+          exit 0
         else
-          echo "MIG is configured on but NOT enabled.  Failing"
-          exit 1
+          echo "GPUs present but MIG is not enabled"
         fi
       else
-        echo "MIG is NOT enabled all on GPUs.  Failing"
-        exit 1
+        echo "More than 1 GPU with MIG configured differently between them"
       fi
-    else
-      echo "Not enabling MIG"
     fi
   fi
+
+  install_nvidia_gpu_driver
+  enable_and_configure_mig
 }
 
 prepare_to_install
