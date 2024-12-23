@@ -416,9 +416,6 @@ function dnf_add_repo() {
 }
 
 #
-# Install package signing key and add corresponding repository
-# https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
-#
 # Keyrings default to
 # /usr/share/keyrings/${repo_name}.gpg (debian/ubuntu) or
 # /etc/pki/rpm-gpg/${repo_name}.gpg    (rocky/RHEL)
