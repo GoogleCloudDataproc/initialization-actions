@@ -617,6 +617,9 @@ function add_nonfree_components() {
   fi
 }
 
+#
+# Install package signing key and add corresponding repository
+# https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
 function add_repo_nvidia_container_toolkit() {
   local nvctk_root="https://nvidia.github.io/libnvidia-container"
   local signing_key_url="${nvctk_root}/gpgkey"
