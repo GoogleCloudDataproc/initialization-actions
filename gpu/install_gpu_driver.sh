@@ -437,8 +437,8 @@ function dnf_add_repo() {
   local -r repo_path="${6:-/etc/yum.repos.d/${repo_name}.repo}"
 
   curl -s -L "${repo_url}" \
-    | perl -p -e "s{^gpgkey=.*$}{gpgkey=file://${kr_path}}" \
     | dd of="${repo_path}" status=progress
+#    | perl -p -e "s{^gpgkey=.*$}{gpgkey=file://${kr_path}}" \
 }
 
 #
