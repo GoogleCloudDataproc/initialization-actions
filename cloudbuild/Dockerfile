@@ -12,7 +12,7 @@ COPY --chown=ia-tests:ia-tests . /init-actions
 ENV bazel_kr_path=/usr/share/keyrings/bazel-keyring.gpg \
     bazel_version=7.4.0 \
     bazel_repo_data="http://storage.googleapis.com/bazel-apt stable jdk1.8" \
-    bazel_repo_file="/etc/apt/sources.list.d/bazel.list"
+    bazel_repo_file="/etc/apt/sources.list.d/bazel.list" \
     DEBIAN_FRONTEND=noninteractive
 RUN apt-get install -y -qq curl >/dev/null 2>&1 && \
     apt-get clean
