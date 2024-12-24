@@ -13,13 +13,6 @@
 # limitations under the License.
 
 #
-# This initialization action is generated from
-# initialization-actions/templates/gpu/install_gpu_driver.sh.in
-#
-# Modifications made directly to the generated file will be lost when
-# the template is re-evaluated
-
-#
 # This script installs NVIDIA GPU drivers and collects GPU utilization metrics.
 
 set -euxo pipefail
@@ -33,30 +26,25 @@ function version_gt() ( set +x ;  [ "$1" = "$2" ] && return 1 || version_ge $1 $
 function version_le() ( set +x ;  [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ] ; )
 function version_lt() ( set +x ;  [ "$1" = "$2" ] && return 1 || version_le $1 $2 ; )
 
-function define_os_comparison_functions() {
+readonly -A supported_os=(
+  ['debian']="10 11 12"
+  ['rocky']="8 9"
+  ['ubuntu']="18.04 20.04 22.04"
+)
 
-  readonly -A supported_os=(
-    ['debian']="10 11 12"
-    ['rocky']="8 9"
-    ['ubuntu']="18.04 20.04 22.04"
-  )
+# dynamically define OS version test utility functions
+if [[ "$(os_id)" == "rocky" ]];
+then _os_version=$(os_version | sed -e 's/[^0-9].*$//g')
+else _os_version="$(os_version)"; fi
+for os_id_val in 'rocky' 'ubuntu' 'debian' ; do
+  eval "function is_${os_id_val}() ( set +x ;  [[ \"$(os_id)\" == '${os_id_val}' ]] ; )"
 
-  # dynamically define OS version test utility functions
-  if [[ "$(os_id)" == "rocky" ]];
-  then _os_version=$(os_version | sed -e 's/[^0-9].*$//g')
-  else _os_version="$(os_version)"; fi
-  for os_id_val in 'rocky' 'ubuntu' 'debian' ; do
-    eval "function is_${os_id_val}() ( set +x ;  [[ \"$(os_id)\" == '${os_id_val}' ]] ; )"
-
-    for osver in $(echo "${supported_os["${os_id_val}"]}") ; do
-      eval "function is_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && [[ \"${_os_version}\" == \"${osver}\" ]] ; )"
-      eval "function ge_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && version_ge \"${_os_version}\" \"${osver}\" ; )"
-      eval "function le_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && version_le \"${_os_version}\" \"${osver}\" ; )"
-    done
+  for osver in $(echo "${supported_os["${os_id_val}"]}") ; do
+    eval "function is_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && [[ \"${_os_version}\" == \"${osver}\" ]] ; )"
+    eval "function ge_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && version_ge \"${_os_version}\" \"${osver}\" ; )"
+    eval "function le_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && version_le \"${_os_version}\" \"${osver}\" ; )"
   done
-}
-
-define_os_comparison_functions
+done
 
 function is_debuntu()  ( set +x ;  is_debian || is_ubuntu ; )
 
@@ -131,399 +119,64 @@ function get_metadata_attribute() (
   get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
 )
 
-function execute_with_retries() (
-  set +x
-  local -r cmd="$*"
+OS_NAME="$(lsb_release -is | tr '[:upper:]' '[:lower:]')"
+distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+readonly OS_NAME
 
-  if [[ "$cmd" =~ "^apt-get install" ]] ; then
-    apt-get -y clean
-    apt-get -o DPkg::Lock::Timeout=60 -y autoremove
-  fi
-  for ((i = 0; i < 3; i++)); do
-    set -x
-    time eval "$cmd" > "${install_log}" 2>&1 && retval=$? || { retval=$? ; cat "${install_log}" ; }
-    set +x
-    if [[ $retval == 0 ]] ; then return 0 ; fi
-    sleep 5
-  done
-  return 1
+# node role
+ROLE="$(get_metadata_attribute dataproc-role)"
+readonly ROLE
+
+# CUDA version and Driver version
+# https://docs.nvidia.com/deploy/cuda-compatibility/
+# https://docs.nvidia.com/deeplearning/frameworks/support-matrix/index.html
+# https://developer.nvidia.com/cuda-downloads
+
+# Minimum supported version for open kernel driver is 515.43.04
+# https://github.com/NVIDIA/open-gpu-kernel-modules/tags
+# Rocky8: 12.0: 525.147.05
+latest="$(curl -s https://download.nvidia.com/XFree86/Linux-x86_64/latest.txt | awk '{print $1}')"
+readonly -A DRIVER_FOR_CUDA=(
+        ["11.7"]="515.65.01"   ["11.8"]="525.147.05"
+        ["12.0"]="525.147.05"  ["12.1"]="530.30.02" ["12.4"]="550.135"    ["12.5"]="555.42.02"  ["12.6"]="560.35.03"
+)
+readonly -A DRIVER_SUBVER=(
+        ["515"]="515.48.07"   ["520"]="525.147.05" ["525"]="525.147.05"  ["530"]="530.41.03"   ["535"]="535.216.01"
+        ["545"]="545.29.06"   ["550"]="550.135"    ["555"]="555.58.02"   ["560"]="560.35.03"   ["565"]="565.57.01"
+)
+# https://developer.nvidia.com/cudnn-downloads
+if is_debuntu ; then
+readonly -A CUDNN_FOR_CUDA=(
+        ["11.7"]="9.5.1.17"   ["11.8"]="9.5.1.17"
+        ["12.0"]="9.5.1.17"   ["12.1"]="9.5.1.17"  ["12.4"]="9.5.1.17"   ["12.5"]="9.5.1.17"   ["12.6"]="9.5.1.17"
+)
+elif is_rocky ; then
+# rocky:
+#   12.0: 8.8.1.3
+#   12.1: 8.9.3.28
+#   12.2: 8.9.7.29
+#   12.3: 9.0.0.312
+#   12.4: 9.1.1.17
+#   12.5: 9.2.1.18
+#   12.6: 9.5.1.17
+readonly -A CUDNN_FOR_CUDA=(
+        ["11.7"]="8.9.7.29"   ["11.8"]="9.5.1.17"
+        ["12.0"]="8.8.1.3"    ["12.1"]="8.9.3.28"  ["12.4"]="9.1.1.17"   ["12.5"]="9.2.1.18"   ["12.6"]="9.5.1.17"
+)
+fi
+# https://developer.nvidia.com/nccl/nccl-download
+# 12.2: 2.19.3, 12.5: 2.21.5
+readonly -A NCCL_FOR_CUDA=(
+        ["11.7"]="2.21.5"     ["11.8"]="2.21.5"
+        ["12.0"]="2.16.5"     ["12.1"]="2.18.3"    ["12.4"]="2.23.4"     ["12.5"]="2.21.5"     ["12.6"]="2.23.4"
+)
+readonly -A CUDA_SUBVER=(
+        ["11.7"]="11.7.1"     ["11.8"]="11.8.0"
+        ["12.0"]="12.0.1"     ["12.1"]="12.1.1"    ["12.2"]="12.2.2"     ["12.3"]="12.3.2"     ["12.4"]="12.4.1"     ["12.5"]="12.5.1"     ["12.6"]="12.6.2"
 )
 
-function cache_fetched_package() {
-  local src_url="$1"
-  local gcs_fn="$2"
-  local local_fn="$3"
-
-  if gsutil ls "${gcs_fn}" 2>&1 | grep -q "${gcs_fn}" ; then
-    time gcloud storage cp "${gcs_fn}" "${local_fn}"
-  else
-    time ( curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 "${src_url}" -o "${local_fn}" && \
-           gcloud storage cp "${local_fn}" "${gcs_fn}" ; )
-  fi
-}
-
-function add_contrib_component() {
-  if ! is_debuntu ; then return ; fi
-  if ge_debian12 ; then
-      # Include in sources file components on which nvidia-kernel-open-dkms depends
-      local -r debian_sources="/etc/apt/sources.list.d/debian.sources"
-      local components="main contrib"
-
-      sed -i -e "s/Components: .*$/Components: ${components}/" "${debian_sources}"
-  elif is_debian ; then
-      sed -i -e 's/ main$/ main contrib/' /etc/apt/sources.list
-  fi
-}
-
-function set_hadoop_property() {
-  local -r config_file=$1
-  local -r property=$2
-  local -r value=$3
-  "${bdcfg}" set_property \
-    --configuration_file "${HADOOP_CONF_DIR}/${config_file}" \
-    --name "${property}" --value "${value}" \
-    --clobber
-}
-
-function configure_yarn_resources() {
-  if [[ ! -d "${HADOOP_CONF_DIR}" ]] ; then return 0 ; fi # pre-init scripts
-  if [[ ! -f "${HADOOP_CONF_DIR}/resource-types.xml" ]]; then
-    printf '<?xml version="1.0" ?>\n<configuration/>' >"${HADOOP_CONF_DIR}/resource-types.xml"
-  fi
-  set_hadoop_property 'resource-types.xml' 'yarn.resource-types' 'yarn.io/gpu'
-
-  set_hadoop_property 'capacity-scheduler.xml' \
-    'yarn.scheduler.capacity.resource-calculator' \
-    'org.apache.hadoop.yarn.util.resource.DominantResourceCalculator'
-
-  set_hadoop_property 'yarn-site.xml' 'yarn.resource-types' 'yarn.io/gpu'
-}
-
-# This configuration should be applied only if GPU is attached to the node
-function configure_yarn_nodemanager() {
-  set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
-  set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.resource-plugins.gpu.allowed-gpu-devices' 'auto'
-  set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.resource-plugins.gpu.path-to-discovery-executables' $NVIDIA_SMI_PATH
-  set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.linux-container-executor.cgroups.mount' 'true'
-  set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.linux-container-executor.cgroups.mount-path' '/sys/fs/cgroup'
-  set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.linux-container-executor.cgroups.hierarchy' 'yarn'
-  set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.container-executor.class' \
-    'org.apache.hadoop.yarn.server.nodemanager.LinuxContainerExecutor'
-  set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.linux-container-executor.group' 'yarn'
-
-  # Fix local dirs access permissions
-  local yarn_local_dirs=()
-
-  readarray -d ',' yarn_local_dirs < <("${bdcfg}" get_property_value \
-    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
-    --name "yarn.nodemanager.local-dirs" 2>/dev/null | tr -d '\n')
-
-  if [[ "${#yarn_local_dirs[@]}" -ne "0" && "${yarn_local_dirs[@]}" != "None" ]]; then
-    chown yarn:yarn -R "${yarn_local_dirs[@]/,/}"
-  fi
-}
-
-function clean_up_sources_lists() {
-  #
-  # bigtop (primary)
-  #
-  local -r dataproc_repo_file="/etc/apt/sources.list.d/dataproc.list"
-
-  if [[ -f "${dataproc_repo_file}" ]] && ! grep -q signed-by "${dataproc_repo_file}" ; then
-    region="$(get_metadata_value zone | perl -p -e 's:.*/:: ; s:-[a-z]+$::')"
-
-    local regional_bigtop_repo_uri
-    regional_bigtop_repo_uri=$(cat ${dataproc_repo_file} |
-      sed "s#/dataproc-bigtop-repo/#/goog-dataproc-bigtop-repo-${region}/#" |
-      grep "deb .*goog-dataproc-bigtop-repo-${region}.* dataproc contrib" |
-      cut -d ' ' -f 2 |
-      head -1)
-
-    if [[ "${regional_bigtop_repo_uri}" == */ ]]; then
-      local -r bigtop_key_uri="${regional_bigtop_repo_uri}archive.key"
-    else
-      local -r bigtop_key_uri="${regional_bigtop_repo_uri}/archive.key"
-    fi
-
-    local -r bigtop_kr_path="/usr/share/keyrings/bigtop-keyring.gpg"
-    rm -f "${bigtop_kr_path}"
-    curl -fsS --retry-connrefused --retry 10 --retry-max-time 30 \
-      "${bigtop_key_uri}" | gpg --dearmor -o "${bigtop_kr_path}"
-
-    sed -i -e "s:deb https:deb [signed-by=${bigtop_kr_path}] https:g" "${dataproc_repo_file}"
-    sed -i -e "s:deb-src https:deb-src [signed-by=${bigtop_kr_path}] https:g" "${dataproc_repo_file}"
-  fi
-
-  #
-  # adoptium
-  #
-  # https://adoptium.net/installation/linux/#_deb_installation_on_debian_or_ubuntu
-  local -r key_url="https://packages.adoptium.net/artifactory/api/gpg/key/public"
-  local -r adoptium_kr_path="/usr/share/keyrings/adoptium.gpg"
-  rm -f "${adoptium_kr_path}"
-  curl -fsS --retry-connrefused --retry 10 --retry-max-time 30 "${key_url}" \
-   | gpg --dearmor -o "${adoptium_kr_path}"
-  echo "deb [signed-by=${adoptium_kr_path}] https://packages.adoptium.net/artifactory/deb/ $(os_codename) main" \
-   > /etc/apt/sources.list.d/adoptium.list
-
-
-  #
-  # docker
-  #
-  local docker_kr_path="/usr/share/keyrings/docker-keyring.gpg"
-  local docker_repo_file="/etc/apt/sources.list.d/docker.list"
-  local -r docker_key_url="https://download.docker.com/linux/$(os_id)/gpg"
-
-  rm -f "${docker_kr_path}"
-  curl -fsS --retry-connrefused --retry 10 --retry-max-time 30 "${docker_key_url}" \
-    | gpg --dearmor -o "${docker_kr_path}"
-  echo "deb [signed-by=${docker_kr_path}] https://download.docker.com/linux/$(os_id) $(os_codename) stable" \
-    > ${docker_repo_file}
-
-  #
-  # google cloud + logging/monitoring
-  #
-  if ls /etc/apt/sources.list.d/google-cloud*.list ; then
-    rm -f /usr/share/keyrings/cloud.google.gpg
-    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
-    for list in google-cloud google-cloud-logging google-cloud-monitoring ; do
-      list_file="/etc/apt/sources.list.d/${list}.list"
-      if [[ -f "${list_file}" ]]; then
-        sed -i -e 's:deb https:deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https:g' "${list_file}"
-      fi
-    done
-  fi
-
-  #
-  # cran-r
-  #
-  if [[ -f /etc/apt/sources.list.d/cran-r.list ]]; then
-    keyid="0x95c0faf38db3ccad0c080a7bdc78b2ddeabc47b7"
-    if is_ubuntu18 ; then keyid="0x51716619E084DAB9"; fi
-    rm -f /usr/share/keyrings/cran-r.gpg
-    curl "https://keyserver.ubuntu.com/pks/lookup?op=get&search=${keyid}" | \
-      gpg --dearmor -o /usr/share/keyrings/cran-r.gpg
-    sed -i -e 's:deb http:deb [signed-by=/usr/share/keyrings/cran-r.gpg] http:g' /etc/apt/sources.list.d/cran-r.list
-  fi
-
-  #
-  # mysql
-  #
-  if [[ -f /etc/apt/sources.list.d/mysql.list ]]; then
-    rm -f /usr/share/keyrings/mysql.gpg
-    curl 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xBCA43417C3B485DD128EC6D4B7B3B788A8D3785C' | \
-      gpg --dearmor -o /usr/share/keyrings/mysql.gpg
-    sed -i -e 's:deb https:deb [signed-by=/usr/share/keyrings/mysql.gpg] https:g' /etc/apt/sources.list.d/mysql.list
-  fi
-
-  if [[ -f /etc/apt/trusted.gpg ]] ; then mv /etc/apt/trusted.gpg /etc/apt/old-trusted.gpg ; fi
-
-}
-
-function set_proxy(){
-  METADATA_HTTP_PROXY="$(get_metadata_attribute http-proxy '')"
-
-  if [[ -z "${METADATA_HTTP_PROXY}" ]] ; then return ; fi
-
-  export METADATA_HTTP_PROXY
-  export http_proxy="${METADATA_HTTP_PROXY}"
-  export https_proxy="${METADATA_HTTP_PROXY}"
-  export HTTP_PROXY="${METADATA_HTTP_PROXY}"
-  export HTTPS_PROXY="${METADATA_HTTP_PROXY}"
-  no_proxy="localhost,127.0.0.0/8,::1,metadata.google.internal,169.254.169.254"
-  local no_proxy_svc
-  for no_proxy_svc in compute  secretmanager dns    servicedirectory     logging  \
-                      bigquery composer      pubsub bigquerydatatransfer dataflow \
-                      storage  datafusion    ; do
-    no_proxy="${no_proxy},${no_proxy_svc}.googleapis.com"
-  done
-
-  export NO_PROXY="${no_proxy}"
-}
-
-function mount_ramdisk(){
-  local free_mem
-  free_mem="$(awk '/^MemFree/ {print $2}' /proc/meminfo)"
-  if [[ ${free_mem} -lt 10500000 ]]; then return 0 ; fi
-
-  # Write to a ramdisk instead of churning the persistent disk
-
-  tmpdir="/mnt/shm"
-  mkdir -p "${tmpdir}"
-  mount -t tmpfs tmpfs "${tmpdir}"
-
-  # Download conda packages to tmpfs
-  /opt/conda/miniconda3/bin/conda config --add pkgs_dirs "${tmpdir}"
-
-  # Clear pip cache
-  # TODO: make this conditional on which OSs have pip without cache purge
-  pip cache purge || echo "unable to purge pip cache"
-
-  # Download pip packages to tmpfs
-  pip config set global.cache-dir "${tmpdir}" || echo "unable to set global.cache-dir"
-
-  # Download OS packages to tmpfs
-  if is_debuntu ; then
-    mount -t tmpfs tmpfs /var/cache/apt/archives
-  else
-    mount -t tmpfs tmpfs /var/cache/dnf
-  fi
-}
-
-function check_os() {
-  if is_debian && ( ! is_debian10 && ! is_debian11 && ! is_debian12 ) ; then
-      echo "Error: The Debian version ($(os_version)) is not supported. Please use a compatible Debian version."
-      exit 1
-  elif is_ubuntu && ( ! is_ubuntu18 && ! is_ubuntu20 && ! is_ubuntu22  ) ; then
-      echo "Error: The Ubuntu version ($(os_version)) is not supported. Please use a compatible Ubuntu version."
-      exit 1
-  elif is_rocky && ( ! is_rocky8 && ! is_rocky9 ) ; then
-      echo "Error: The Rocky Linux version ($(os_version)) is not supported. Please use a compatible Rocky Linux version."
-      exit 1
-  fi
-
-  SPARK_VERSION="$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)"
-  readonly SPARK_VERSION
-  if version_lt "${SPARK_VERSION}" "3.1" || \
-     version_ge "${SPARK_VERSION}" "4.0" ; then
-    echo "Error: Your Spark version is not supported. Please upgrade Spark to one of the supported versions."
-    exit 1
-  fi
-
-  # Detect dataproc image version
-  if (! test -v DATAPROC_IMAGE_VERSION) ; then
-    if test -v DATAPROC_VERSION ; then
-      DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
-    else
-      if   version_lt "${SPARK_VERSION}" "3.2" ; then DATAPROC_IMAGE_VERSION="2.0"
-      elif version_lt "${SPARK_VERSION}" "3.4" ; then DATAPROC_IMAGE_VERSION="2.1"
-      elif version_lt "${SPARK_VERSION}" "3.6" ; then DATAPROC_IMAGE_VERSION="2.2"
-      else echo "Unknown dataproc image version" ; exit 1 ; fi
-    fi
-  fi
-}
-
-#
-# Generate repo file under /etc/apt/sources.list.d/
-#
-function apt_add_repo() {
-  local -r repo_name="$1"
-  local -r repo_data="$3" # "http(s)://host/path/uri argument0 .. argumentN"
-  local -r include_src="${4:-yes}"
-  local -r kr_path="${5:-/usr/share/keyrings/${repo_name}.gpg}"
-  local -r repo_path="${6:-/etc/apt/sources.list.d/${repo_name}.list}"
-
-  echo "deb [signed-by=${kr_path}] ${repo_data}" > "${repo_path}"
-  if [[ "${include_src}" == "yes" ]] ; then
-    echo "deb-src [signed-by=${kr_path}] ${repo_data}" >> "${repo_path}"
-  fi
-
-  apt-get update -qq
-}
-
-#
-# Generate repo file under /etc/yum.repos.d/
-#
-function dnf_add_repo() {
-  local -r repo_name="$1"
-  local -r repo_url="$3" # "http(s)://host/path/filename.repo"
-  local -r kr_path="${5:-/etc/pki/rpm-gpg/${repo_name}.gpg}"
-  local -r repo_path="${6:-/etc/yum.repos.d/${repo_name}.repo}"
-
-  curl -s -L "${repo_url}" \
-    | dd of="${repo_path}" status=progress
-#    | perl -p -e "s{^gpgkey=.*$}{gpgkey=file://${kr_path}}" \
-}
-
-#
-# Keyrings default to
-# /usr/share/keyrings/${repo_name}.gpg (debian/ubuntu) or
-# /etc/pki/rpm-gpg/${repo_name}.gpg    (rocky/RHEL)
-#
-function os_add_repo() {
-  local -r repo_name="$1"
-  local -r signing_key_url="$2"
-  local -r repo_data="$3" # "http(s)://host/path/uri argument0 .. argumentN"
-  local kr_path
-  if is_debuntu ; then kr_path="${5:-/usr/share/keyrings/${repo_name}.gpg}"
-                  else kr_path="${5:-/etc/pki/rpm-gpg/${repo_name}.gpg}" ; fi
-
-  mkdir -p "$(dirname "${kr_path}")"
-
-  curl -fsS --retry-connrefused --retry 10 --retry-max-time 30 "${signing_key_url}" \
-    | gpg --import --no-default-keyring --keyring "${kr_path}"
-
-  if is_debuntu ; then apt_add_repo "${repo_name}" "${signing_key_url}" "${repo_data}" "${4:-yes}" "${kr_path}" "${6:-}"
-                  else dnf_add_repo "${repo_name}" "${signing_key_url}" "${repo_data}" "${4:-yes}" "${kr_path}" "${6:-}" ; fi
-}
-
-
-readonly _shortname="$(os_id)$(os_version|perl -pe 's/(\d+).*/$1/')"
-
-# Dataproc configurations
-readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
-readonly HIVE_CONF_DIR='/etc/hive/conf'
-readonly SPARK_CONF_DIR='/etc/spark/conf'
-
-
-function set_support_matrix() {
-  # CUDA version and Driver version
-  # https://docs.nvidia.com/deploy/cuda-compatibility/
-  # https://docs.nvidia.com/deeplearning/frameworks/support-matrix/index.html
-  # https://developer.nvidia.com/cuda-downloads
-
-  # Minimum supported version for open kernel driver is 515.43.04
-  # https://github.com/NVIDIA/open-gpu-kernel-modules/tags
-  # Rocky8: 12.0: 525.147.05
-  local latest
-  latest="$(curl -s https://download.nvidia.com/XFree86/Linux-x86_64/latest.txt | awk '{print $1}')"
-  readonly -A DRIVER_FOR_CUDA=(
-          ["11.7"]="515.65.01"   ["11.8"]="525.147.05"
-          ["12.0"]="525.147.05"  ["12.1"]="530.30.02" ["12.4"]="550.135"    ["12.5"]="555.42.02"  ["12.6"]="560.35.03"
-  )
-  readonly -A DRIVER_SUBVER=(
-          ["515"]="515.48.07"   ["520"]="525.147.05" ["525"]="525.147.05"  ["530"]="530.41.03"   ["535"]="535.216.01"
-          ["545"]="545.29.06"   ["550"]="550.135"    ["555"]="555.58.02"   ["560"]="560.35.03"   ["565"]="565.57.01"
-  )
-  # https://developer.nvidia.com/cudnn-downloads
-  if is_debuntu ; then
-  readonly -A CUDNN_FOR_CUDA=(
-          ["11.7"]="9.5.1.17"   ["11.8"]="9.5.1.17"
-          ["12.0"]="9.5.1.17"   ["12.1"]="9.5.1.17"  ["12.4"]="9.5.1.17"   ["12.5"]="9.5.1.17"   ["12.6"]="9.5.1.17"
-  )
-  elif is_rocky ; then
-  # rocky:
-  #   12.0: 8.8.1.3
-  #   12.1: 8.9.3.28
-  #   12.2: 8.9.7.29
-  #   12.3: 9.0.0.312
-  #   12.4: 9.1.1.17
-  #   12.5: 9.2.1.18
-  #   12.6: 9.5.1.17
-  readonly -A CUDNN_FOR_CUDA=(
-          ["11.7"]="8.9.7.29"   ["11.8"]="9.5.1.17"
-          ["12.0"]="8.8.1.3"    ["12.1"]="8.9.3.28"  ["12.4"]="9.1.1.17"   ["12.5"]="9.2.1.18"   ["12.6"]="9.5.1.17"
-  )
-  fi
-  # https://developer.nvidia.com/nccl/nccl-download
-  # 12.2: 2.19.3, 12.5: 2.21.5
-  readonly -A NCCL_FOR_CUDA=(
-          ["11.7"]="2.21.5"     ["11.8"]="2.21.5"
-          ["12.0"]="2.16.5"     ["12.1"]="2.18.3"    ["12.4"]="2.23.4"     ["12.5"]="2.21.5"     ["12.6"]="2.23.4"
-  )
-  readonly -A CUDA_SUBVER=(
-          ["11.7"]="11.7.1"     ["11.8"]="11.8.0"
-          ["12.0"]="12.0.1"     ["12.1"]="12.1.1"    ["12.2"]="12.2.2"     ["12.3"]="12.3.2"     ["12.4"]="12.4.1"     ["12.5"]="12.5.1"     ["12.6"]="12.6.2"
-  )
-}
-
-set_support_matrix
+# Verify SPARK compatability
+RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 
 function set_cuda_version() {
   local cuda_url
@@ -602,7 +255,7 @@ function set_driver_version() {
   DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' "${DEFAULT_DRIVER}")
 
   readonly DRIVER_VERSION
-  readonly DRIVER="${DRIVER_VERSION%%.*}"
+  readonly DRIVER=${DRIVER_VERSION%%.*}
 
   export DRIVER_VERSION DRIVER
 
@@ -653,14 +306,14 @@ if is_ubuntu22  ; then
     # use packages from previous release until such time as nvidia
     # release ubuntu2204 builds
 
-    shortname="$(os_id)$(os_vercat)"
     nccl_shortname="ubuntu2004"
+    shortname="$(os_id)$(os_vercat)"
 elif ge_rocky9 ; then
     # use packages from previous release until such time as nvidia
     # release rhel9 builds
 
-    shortname="rhel9"
     nccl_shortname="rhel8"
+    shortname="rhel9"
 elif is_rocky ; then
     shortname="$(os_id | sed -e 's/rocky/rhel/')$(os_vercat)"
     nccl_shortname="${shortname}"
@@ -794,9 +447,32 @@ readonly GPU_DRIVER_PROVIDER
 INSTALL_GPU_AGENT=$(get_metadata_attribute 'install-gpu-agent' 'false')
 readonly INSTALL_GPU_AGENT
 
+# Dataproc configurations
+readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
+readonly HIVE_CONF_DIR='/etc/hive/conf'
+readonly SPARK_CONF_DIR='/etc/spark/conf'
+
 NVIDIA_SMI_PATH='/usr/bin'
 MIG_MAJOR_CAPS=0
 IS_MIG_ENABLED=0
+
+function execute_with_retries() (
+  set +x
+  local -r cmd="$*"
+
+  if [[ "$cmd" =~ "^apt-get install" ]] ; then
+    apt-get -y clean
+    apt-get -o DPkg::Lock::Timeout=60 -y autoremove
+  fi
+  for ((i = 0; i < 3; i++)); do
+    set -x
+    time eval "$cmd" > "${install_log}" 2>&1 && retval=$? || { retval=$? ; cat "${install_log}" ; }
+    set +x
+    if [[ $retval == 0 ]] ; then return 0 ; fi
+    sleep 5
+  done
+  return 1
+)
 
 CUDA_KEYRING_PKG_INSTALLED="0"
 function install_cuda_keyring_pkg() {
@@ -818,8 +494,6 @@ function uninstall_cuda_keyring_pkg() {
 function install_local_cuda_repo() {
   if test -f "${workdir}/install-local-cuda-repo-complete" ; then return ; fi
 
-  if [[ "${CUDA_LOCAL_REPO_INSTALLED}" == "1" ]]; then return ; fi
-  CUDA_LOCAL_REPO_INSTALLED="1"
   pkgname="cuda-repo-${shortname}-${CUDA_VERSION//./-}-local"
   CUDA_LOCAL_REPO_PKG_NAME="${pkgname}"
   readonly LOCAL_INSTALLER_DEB="${pkgname}_${CUDA_FULL_VERSION}-${DRIVER_VERSION}-1_amd64.deb"
@@ -1068,14 +742,105 @@ function install_nvidia_cudnn() {
       fi
     fi
   else
-    echo "Unsupported OS: '${_shortname}'"
+    echo "Unsupported OS: '${OS_NAME}'"
     exit 1
   fi
 
   ldconfig
 
-  echo "NVIDIA cuDNN successfully installed for ${_shortname}."
   touch "${workdir}/cudnn-complete"
+  echo "NVIDIA cuDNN successfully installed for ${OS_NAME}."
+}
+
+function configure_dkms_certs() {
+  if test -v PSN && [[ -z "${PSN}" ]]; then
+      echo "No signing secret provided.  skipping";
+      return 0
+  fi
+
+  mkdir -p "${CA_TMPDIR}"
+
+  # If the private key exists, verify it
+  if [[ -f "${CA_TMPDIR}/db.rsa" ]]; then
+    echo "Private key material exists"
+
+    local expected_modulus_md5sum
+    expected_modulus_md5sum=$(get_metadata_attribute modulus_md5sum)
+    if [[ -n "${expected_modulus_md5sum}" ]]; then
+      modulus_md5sum="${expected_modulus_md5sum}"
+
+      # Verify that cert md5sum matches expected md5sum
+      if [[ "${modulus_md5sum}" != "$(openssl rsa -noout -modulus -in "${CA_TMPDIR}/db.rsa" | openssl md5 | awk '{print $2}')" ]]; then
+        echo "unmatched rsa key"
+      fi
+
+      # Verify that key md5sum matches expected md5sum
+      if [[ "${modulus_md5sum}" != "$(openssl x509 -noout -modulus -in ${mok_der} | openssl md5 | awk '{print $2}')" ]]; then
+        echo "unmatched x509 cert"
+      fi
+    else
+      modulus_md5sum="$(openssl rsa -noout -modulus -in "${CA_TMPDIR}/db.rsa" | openssl md5 | awk '{print $2}')"
+    fi
+    ln -sf "${CA_TMPDIR}/db.rsa" "${mok_key}"
+
+    return
+  fi
+
+  # Retrieve cloud secrets keys
+  local sig_priv_secret_name
+  sig_priv_secret_name="${PSN}"
+  local sig_pub_secret_name
+  sig_pub_secret_name="$(get_metadata_attribute public_secret_name)"
+  local sig_secret_project
+  sig_secret_project="$(get_metadata_attribute secret_project)"
+  local sig_secret_version
+  sig_secret_version="$(get_metadata_attribute secret_version)"
+
+  # If metadata values are not set, do not write mok keys
+  if [[ -z "${sig_priv_secret_name}" ]]; then return 0 ; fi
+
+  # Write private material to volatile storage
+  gcloud secrets versions access "${sig_secret_version}" \
+         --project="${sig_secret_project}" \
+         --secret="${sig_priv_secret_name}" \
+      | dd status=none of="${CA_TMPDIR}/db.rsa"
+
+  # Write public material to volatile storage
+  gcloud secrets versions access "${sig_secret_version}" \
+         --project="${sig_secret_project}" \
+         --secret="${sig_pub_secret_name}" \
+      | base64 --decode \
+      | dd status=none of="${CA_TMPDIR}/db.der"
+
+  local mok_directory="$(dirname "${mok_key}")"
+  mkdir -p "${mok_directory}"
+
+  # symlink private key and copy public cert from volatile storage to DKMS directory
+  ln -sf "${CA_TMPDIR}/db.rsa" "${mok_key}"
+  cp  -f "${CA_TMPDIR}/db.der" "${mok_der}"
+
+  modulus_md5sum="$(openssl rsa -noout -modulus -in "${mok_key}" | openssl md5 | awk '{print $2}')"
+}
+
+function clear_dkms_key {
+  if [[ -z "${PSN}" ]]; then
+      echo "No signing secret provided.  skipping" >&2
+      return 0
+  fi
+  rm -rf "${CA_TMPDIR}" "${mok_key}"
+}
+
+function add_contrib_component() {
+  if ! is_debuntu ; then return ; fi
+  if ge_debian12 ; then
+      # Include in sources file components on which nvidia-kernel-open-dkms depends
+      local -r debian_sources="/etc/apt/sources.list.d/debian.sources"
+      local components="main contrib"
+
+      sed -i -e "s/Components: .*$/Components: ${components}/" "${debian_sources}"
+  elif is_debian ; then
+      sed -i -e 's/ main$/ main contrib/' /etc/apt/sources.list
+  fi
 }
 
 function add_nonfree_components() {
@@ -1116,13 +881,14 @@ function add_repo_cuda() {
   fi
 }
 
+readonly uname_r=$(uname -r)
+
 function build_driver_from_github() {
   # non-GPL driver will have been built on rocky8
   if is_rocky8 ; then return 0 ; fi
   pushd "${workdir}"
-
   test -d "${workdir}/open-gpu-kernel-modules" || {
-    local tarball_fn="${DRIVER_VERSION}.tar.gz"
+    tarball_fn="${DRIVER_VERSION}.tar.gz"
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "https://github.com/NVIDIA/open-gpu-kernel-modules/archive/refs/tags/${tarball_fn}" \
       | tar xz
@@ -1469,6 +1235,60 @@ EOF
   systemctl --no-reload --now enable gpu-utilization-agent.service
 }
 
+function set_hadoop_property() {
+  local -r config_file=$1
+  local -r property=$2
+  local -r value=$3
+  "${bdcfg}" set_property \
+    --configuration_file "${HADOOP_CONF_DIR}/${config_file}" \
+    --name "${property}" --value "${value}" \
+    --clobber
+}
+
+function configure_yarn_resources() {
+  if [[ ! -d "${HADOOP_CONF_DIR}" ]] ; then return 0 ; fi # pre-init scripts
+  if [[ ! -f "${HADOOP_CONF_DIR}/resource-types.xml" ]]; then
+    printf '<?xml version="1.0" ?>\n<configuration/>' >"${HADOOP_CONF_DIR}/resource-types.xml"
+  fi
+  set_hadoop_property 'resource-types.xml' 'yarn.resource-types' 'yarn.io/gpu'
+
+  set_hadoop_property 'capacity-scheduler.xml' \
+    'yarn.scheduler.capacity.resource-calculator' \
+    'org.apache.hadoop.yarn.util.resource.DominantResourceCalculator'
+
+  set_hadoop_property 'yarn-site.xml' 'yarn.resource-types' 'yarn.io/gpu'
+}
+
+# This configuration should be applied only if GPU is attached to the node
+function configure_yarn_nodemanager() {
+  set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.resource-plugins.gpu.allowed-gpu-devices' 'auto'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.resource-plugins.gpu.path-to-discovery-executables' $NVIDIA_SMI_PATH
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.linux-container-executor.cgroups.mount' 'true'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.linux-container-executor.cgroups.mount-path' '/sys/fs/cgroup'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.linux-container-executor.cgroups.hierarchy' 'yarn'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.container-executor.class' \
+    'org.apache.hadoop.yarn.server.nodemanager.LinuxContainerExecutor'
+  set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.linux-container-executor.group' 'yarn'
+
+  # Fix local dirs access permissions
+  local yarn_local_dirs=()
+
+  readarray -d ',' yarn_local_dirs < <("${bdcfg}" get_property_value \
+    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
+    --name "yarn.nodemanager.local-dirs" 2>/dev/null | tr -d '\n')
+
+  if [[ "${#yarn_local_dirs[@]}" -ne "0" && "${yarn_local_dirs[@]}" != "None" ]]; then
+    chown yarn:yarn -R "${yarn_local_dirs[@]/,/}"
+  fi
+}
+
 function configure_gpu_exclusive_mode() {
   # check if running spark 3, if not, enable GPU exclusive mode
   local spark_version
@@ -1649,8 +1469,6 @@ function install_dependencies() {
 }
 
 function prepare_gpu_env(){
-  # Verify SPARK compatability
-  RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 
   readonly DEFAULT_XGBOOST_VERSION="1.7.6" # try 2.1.1
   nvsmi_works="0"
@@ -1726,84 +1544,6 @@ function enable_mig() {
   nvidia-smi -mig 1
 }
 
-
-function configure_dkms_certs() {
-  if test -v PSN && [[ -z "${PSN}" ]]; then
-      echo "No signing secret provided.  skipping";
-      return 0
-  fi
-
-  mkdir -p "${CA_TMPDIR}"
-
-  # If the private key exists, verify it
-  if [[ -f "${CA_TMPDIR}/db.rsa" ]]; then
-    echo "Private key material exists"
-
-    local expected_modulus_md5sum
-    expected_modulus_md5sum=$(get_metadata_attribute modulus_md5sum)
-    if [[ -n "${expected_modulus_md5sum}" ]]; then
-      modulus_md5sum="${expected_modulus_md5sum}"
-
-      # Verify that cert md5sum matches expected md5sum
-      if [[ "${modulus_md5sum}" != "$(openssl rsa -noout -modulus -in "${CA_TMPDIR}/db.rsa" | openssl md5 | awk '{print $2}')" ]]; then
-        echo "unmatched rsa key"
-      fi
-
-      # Verify that key md5sum matches expected md5sum
-      if [[ "${modulus_md5sum}" != "$(openssl x509 -noout -modulus -in ${mok_der} | openssl md5 | awk '{print $2}')" ]]; then
-        echo "unmatched x509 cert"
-      fi
-    else
-      modulus_md5sum="$(openssl rsa -noout -modulus -in "${CA_TMPDIR}/db.rsa" | openssl md5 | awk '{print $2}')"
-    fi
-    ln -sf "${CA_TMPDIR}/db.rsa" "${mok_key}"
-
-    return
-  fi
-
-  # Retrieve cloud secrets keys
-  local sig_priv_secret_name
-  sig_priv_secret_name="${PSN}"
-  local sig_pub_secret_name
-  sig_pub_secret_name="$(get_metadata_attribute public_secret_name)"
-  local sig_secret_project
-  sig_secret_project="$(get_metadata_attribute secret_project)"
-  local sig_secret_version
-  sig_secret_version="$(get_metadata_attribute secret_version)"
-
-  # If metadata values are not set, do not write mok keys
-  if [[ -z "${sig_priv_secret_name}" ]]; then return 0 ; fi
-
-  # Write private material to volatile storage
-  gcloud secrets versions access "${sig_secret_version}" \
-         --project="${sig_secret_project}" \
-         --secret="${sig_priv_secret_name}" \
-      | dd status=none of="${CA_TMPDIR}/db.rsa"
-
-  # Write public material to volatile storage
-  gcloud secrets versions access "${sig_secret_version}" \
-         --project="${sig_secret_project}" \
-         --secret="${sig_pub_secret_name}" \
-      | base64 --decode \
-      | dd status=none of="${CA_TMPDIR}/db.der"
-
-  local mok_directory="$(dirname "${mok_key}")"
-  mkdir -p "${mok_directory}"
-
-  # symlink private key and copy public cert from volatile storage to DKMS directory
-  ln -sf "${CA_TMPDIR}/db.rsa" "${mok_key}"
-  cp  -f "${CA_TMPDIR}/db.der" "${mok_der}"
-
-  modulus_md5sum="$(openssl rsa -noout -modulus -in "${mok_key}" | openssl md5 | awk '{print $2}')"
-}
-
-function clear_dkms_key {
-  if [[ -z "${PSN}" ]]; then
-      echo "No signing secret provided.  skipping" >&2
-      return 0
-  fi
-  rm -rf "${CA_TMPDIR}" "${mok_key}"
-}
 
 function check_secure_boot() {
   local SECURE_BOOT="disabled"
@@ -1919,6 +1659,116 @@ function main() {
   done
 }
 
+function cache_fetched_package() {
+  local src_url="$1"
+  local gcs_fn="$2"
+  local local_fn="$3"
+
+  if gsutil ls "${gcs_fn}" 2>&1 | grep -q "${gcs_fn}" ; then
+    time gcloud storage cp "${gcs_fn}" "${local_fn}"
+  else
+    time ( curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 "${src_url}" -o "${local_fn}" && \
+           gcloud storage cp "${local_fn}" "${gcs_fn}" ; )
+  fi
+}
+
+function clean_up_sources_lists() {
+  #
+  # bigtop (primary)
+  #
+  local -r dataproc_repo_file="/etc/apt/sources.list.d/dataproc.list"
+
+  if [[ -f "${dataproc_repo_file}" ]] && ! grep -q signed-by "${dataproc_repo_file}" ; then
+    region="$(get_metadata_value zone | perl -p -e 's:.*/:: ; s:-[a-z]+$::')"
+
+    local regional_bigtop_repo_uri
+    regional_bigtop_repo_uri=$(cat ${dataproc_repo_file} |
+      sed "s#/dataproc-bigtop-repo/#/goog-dataproc-bigtop-repo-${region}/#" |
+      grep "deb .*goog-dataproc-bigtop-repo-${region}.* dataproc contrib" |
+      cut -d ' ' -f 2 |
+      head -1)
+
+    if [[ "${regional_bigtop_repo_uri}" == */ ]]; then
+      local -r bigtop_key_uri="${regional_bigtop_repo_uri}archive.key"
+    else
+      local -r bigtop_key_uri="${regional_bigtop_repo_uri}/archive.key"
+    fi
+
+    local -r bigtop_kr_path="/usr/share/keyrings/bigtop-keyring.gpg"
+    rm -f "${bigtop_kr_path}"
+    curl -fsS --retry-connrefused --retry 10 --retry-max-time 30 \
+      "${bigtop_key_uri}" | gpg --dearmor -o "${bigtop_kr_path}"
+
+    sed -i -e "s:deb https:deb [signed-by=${bigtop_kr_path}] https:g" "${dataproc_repo_file}"
+    sed -i -e "s:deb-src https:deb-src [signed-by=${bigtop_kr_path}] https:g" "${dataproc_repo_file}"
+  fi
+
+  #
+  # adoptium
+  #
+  # https://adoptium.net/installation/linux/#_deb_installation_on_debian_or_ubuntu
+  local -r key_url="https://packages.adoptium.net/artifactory/api/gpg/key/public"
+  local -r adoptium_kr_path="/usr/share/keyrings/adoptium.gpg"
+  rm -f "${adoptium_kr_path}"
+  curl -fsS --retry-connrefused --retry 10 --retry-max-time 30 "${key_url}" \
+   | gpg --dearmor -o "${adoptium_kr_path}"
+  echo "deb [signed-by=${adoptium_kr_path}] https://packages.adoptium.net/artifactory/deb/ $(os_codename) main" \
+   > /etc/apt/sources.list.d/adoptium.list
+
+
+  #
+  # docker
+  #
+  local docker_kr_path="/usr/share/keyrings/docker-keyring.gpg"
+  local docker_repo_file="/etc/apt/sources.list.d/docker.list"
+  local -r docker_key_url="https://download.docker.com/linux/$(os_id)/gpg"
+
+  rm -f "${docker_kr_path}"
+  curl -fsS --retry-connrefused --retry 10 --retry-max-time 30 "${docker_key_url}" \
+    | gpg --dearmor -o "${docker_kr_path}"
+  echo "deb [signed-by=${docker_kr_path}] https://download.docker.com/linux/$(os_id) $(os_codename) stable" \
+    > ${docker_repo_file}
+
+  #
+  # google cloud + logging/monitoring
+  #
+  if ls /etc/apt/sources.list.d/google-cloud*.list ; then
+    rm -f /usr/share/keyrings/cloud.google.gpg
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+    for list in google-cloud google-cloud-logging google-cloud-monitoring ; do
+      list_file="/etc/apt/sources.list.d/${list}.list"
+      if [[ -f "${list_file}" ]]; then
+        sed -i -e 's:deb https:deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https:g' "${list_file}"
+      fi
+    done
+  fi
+
+  #
+  # cran-r
+  #
+  if [[ -f /etc/apt/sources.list.d/cran-r.list ]]; then
+    keyid="0x95c0faf38db3ccad0c080a7bdc78b2ddeabc47b7"
+    if is_ubuntu18 ; then keyid="0x51716619E084DAB9"; fi
+    rm -f /usr/share/keyrings/cran-r.gpg
+    curl "https://keyserver.ubuntu.com/pks/lookup?op=get&search=${keyid}" | \
+      gpg --dearmor -o /usr/share/keyrings/cran-r.gpg
+    sed -i -e 's:deb http:deb [signed-by=/usr/share/keyrings/cran-r.gpg] http:g' /etc/apt/sources.list.d/cran-r.list
+  fi
+
+  #
+  # mysql
+  #
+  if [[ -f /etc/apt/sources.list.d/mysql.list ]]; then
+    rm -f /usr/share/keyrings/mysql.gpg
+    curl 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xBCA43417C3B485DD128EC6D4B7B3B788A8D3785C' | \
+      gpg --dearmor -o /usr/share/keyrings/mysql.gpg
+    sed -i -e 's:deb https:deb [signed-by=/usr/share/keyrings/mysql.gpg] https:g' /etc/apt/sources.list.d/mysql.list
+  fi
+
+  if [[ -f /etc/apt/trusted.gpg ]] ; then mv /etc/apt/trusted.gpg /etc/apt/old-trusted.gpg ; fi
+
+}
+
 function exit_handler() {
   # Purge private key material until next grant
   clear_dkms_key
@@ -2020,6 +1870,56 @@ print( "    samples-taken: ", scalar @siz, $/,
   return 0
 }
 
+function set_proxy(){
+  METADATA_HTTP_PROXY="$(get_metadata_attribute http-proxy '')"
+
+  if [[ -z "${METADATA_HTTP_PROXY}" ]] ; then return ; fi
+
+  export METADATA_HTTP_PROXY
+  export http_proxy="${METADATA_HTTP_PROXY}"
+  export https_proxy="${METADATA_HTTP_PROXY}"
+  export HTTP_PROXY="${METADATA_HTTP_PROXY}"
+  export HTTPS_PROXY="${METADATA_HTTP_PROXY}"
+  no_proxy="localhost,127.0.0.0/8,::1,metadata.google.internal,169.254.169.254"
+  local no_proxy_svc
+  for no_proxy_svc in compute  secretmanager dns    servicedirectory     logging  \
+                      bigquery composer      pubsub bigquerydatatransfer dataflow \
+                      storage  datafusion    ; do
+    no_proxy="${no_proxy},${no_proxy_svc}.googleapis.com"
+  done
+
+  export NO_PROXY="${no_proxy}"
+}
+
+function mount_ramdisk(){
+  local free_mem
+  free_mem="$(awk '/^MemFree/ {print $2}' /proc/meminfo)"
+  if [[ ${free_mem} -lt 10500000 ]]; then return 0 ; fi
+
+  # Write to a ramdisk instead of churning the persistent disk
+
+  tmpdir="/mnt/shm"
+  mkdir -p "${tmpdir}"
+  mount -t tmpfs tmpfs "${tmpdir}"
+
+  # Download conda packages to tmpfs
+  /opt/conda/miniconda3/bin/conda config --add pkgs_dirs "${tmpdir}"
+
+  # Clear pip cache
+  # TODO: make this conditional on which OSs have pip without cache purge
+  pip cache purge || echo "unable to purge pip cache"
+
+  # Download pip packages to tmpfs
+  pip config set global.cache-dir "${tmpdir}" || echo "unable to set global.cache-dir"
+
+  # Download OS packages to tmpfs
+  if is_debuntu ; then
+    mount -t tmpfs tmpfs /var/cache/apt/archives
+  else
+    mount -t tmpfs tmpfs /var/cache/dnf
+  fi
+}
+
 function prepare_to_install(){
   # Verify OS compatability and Secure boot state
   check_os
@@ -2027,20 +1927,11 @@ function prepare_to_install(){
 
   prepare_gpu_env
 
-  OS_NAME="$(lsb_release -is | tr '[:upper:]' '[:lower:]')"
-  readonly OS_NAME
-
-  # node role
-  ROLE="$(get_metadata_attribute dataproc-role)"
-  readonly ROLE
-
   workdir=/opt/install-dpgce
   tmpdir=/tmp/
   temp_bucket="$(get_metadata_attribute dataproc-temp-bucket)"
   readonly temp_bucket
   readonly pkg_bucket="gs://${temp_bucket}/dpgce-packages"
-  uname_r=$(uname -r)
-  readonly uname_r
   readonly bdcfg="/usr/local/bin/bdconfig"
   export DEBIAN_FRONTEND=noninteractive
 
@@ -2081,6 +1972,96 @@ function prepare_to_install(){
 
   touch "${workdir}/prepare-complete"
 }
+
+function check_os() {
+  if is_debian && ( ! is_debian10 && ! is_debian11 && ! is_debian12 ) ; then
+      echo "Error: The Debian version ($(os_version)) is not supported. Please use a compatible Debian version."
+      exit 1
+  elif is_ubuntu && ( ! is_ubuntu18 && ! is_ubuntu20 && ! is_ubuntu22  ) ; then
+      echo "Error: The Ubuntu version ($(os_version)) is not supported. Please use a compatible Ubuntu version."
+      exit 1
+  elif is_rocky && ( ! is_rocky8 && ! is_rocky9 ) ; then
+      echo "Error: The Rocky Linux version ($(os_version)) is not supported. Please use a compatible Rocky Linux version."
+      exit 1
+  fi
+
+  SPARK_VERSION="$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)"
+  readonly SPARK_VERSION
+  if version_lt "${SPARK_VERSION}" "3.1" || \
+     version_ge "${SPARK_VERSION}" "4.0" ; then
+    echo "Error: Your Spark version is not supported. Please upgrade Spark to one of the supported versions."
+    exit 1
+  fi
+
+  # Detect dataproc image version
+  if (! test -v DATAPROC_IMAGE_VERSION) ; then
+    if test -v DATAPROC_VERSION ; then
+      DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
+    else
+      if   version_lt "${SPARK_VERSION}" "3.2" ; then DATAPROC_IMAGE_VERSION="2.0"
+      elif version_lt "${SPARK_VERSION}" "3.4" ; then DATAPROC_IMAGE_VERSION="2.1"
+      elif version_lt "${SPARK_VERSION}" "3.6" ; then DATAPROC_IMAGE_VERSION="2.2"
+      else echo "Unknown dataproc image version" ; exit 1 ; fi
+    fi
+  fi
+}
+
+#
+# Generate repo file under /etc/apt/sources.list.d/
+#
+function apt_add_repo() {
+  local -r repo_name="$1"
+  local -r repo_data="$3" # "http(s)://host/path/uri argument0 .. argumentN"
+  local -r include_src="${4:-yes}"
+  local -r kr_path="${5:-/usr/share/keyrings/${repo_name}.gpg}"
+  local -r repo_path="${6:-/etc/apt/sources.list.d/${repo_name}.list}"
+
+  echo "deb [signed-by=${kr_path}] ${repo_data}" > "${repo_path}"
+  if [[ "${include_src}" == "yes" ]] ; then
+    echo "deb-src [signed-by=${kr_path}] ${repo_data}" >> "${repo_path}"
+  fi
+
+  apt-get update -qq
+}
+
+#
+# Generate repo file under /etc/yum.repos.d/
+#
+function dnf_add_repo() {
+  local -r repo_name="$1"
+  local -r repo_url="$3" # "http(s)://host/path/filename.repo"
+  local -r kr_path="${5:-/etc/pki/rpm-gpg/${repo_name}.gpg}"
+  local -r repo_path="${6:-/etc/yum.repos.d/${repo_name}.repo}"
+
+  curl -s -L "${repo_url}" \
+    | dd of="${repo_path}" status=progress
+#    | perl -p -e "s{^gpgkey=.*$}{gpgkey=file://${kr_path}}" \
+}
+
+#
+# Keyrings default to
+# /usr/share/keyrings/${repo_name}.gpg (debian/ubuntu) or
+# /etc/pki/rpm-gpg/${repo_name}.gpg    (rocky/RHEL)
+#
+function os_add_repo() {
+  local -r repo_name="$1"
+  local -r signing_key_url="$2"
+  local -r repo_data="$3" # "http(s)://host/path/uri argument0 .. argumentN"
+  local kr_path
+  if is_debuntu ; then kr_path="${5:-/usr/share/keyrings/${repo_name}.gpg}"
+                  else kr_path="${5:-/etc/pki/rpm-gpg/${repo_name}.gpg}" ; fi
+
+  mkdir -p "$(dirname "${kr_path}")"
+
+  curl -fsS --retry-connrefused --retry 10 --retry-max-time 30 "${signing_key_url}" \
+    | gpg --import --no-default-keyring --keyring "${kr_path}"
+
+  if is_debuntu ; then apt_add_repo "${repo_name}" "${signing_key_url}" "${repo_data}" "${4:-yes}" "${kr_path}" "${6:-}"
+                  else dnf_add_repo "${repo_name}" "${signing_key_url}" "${repo_data}" "${4:-yes}" "${kr_path}" "${6:-}" ; fi
+}
+
+
+readonly _shortname="$(os_id)$(os_version|perl -pe 's/(\d+).*/$1/')"
 
 prepare_to_install
 
