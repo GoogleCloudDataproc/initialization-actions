@@ -492,7 +492,7 @@ function uninstall_cuda_keyring_pkg() {
 }
 
 function install_local_cuda_repo() {
-  if test -f "${workdir}/install-local-cuda-repo-complete" ; then return ; fi
+  if test -f "${workdir}/complete/install-local-cuda-repo" ; then return ; fi
 
   pkgname="cuda-repo-${shortname}-${CUDA_VERSION//./-}-local"
   CUDA_LOCAL_REPO_PKG_NAME="${pkgname}"
@@ -513,16 +513,16 @@ function install_local_cuda_repo() {
       -o /etc/apt/preferences.d/cuda-repository-pin-600
   fi
 
-  touch "${workdir}/install-local-cuda-repo-complete"
+  touch "${workdir}/complete/install-local-cuda-repo"
 }
 function uninstall_local_cuda_repo(){
   apt-get purge -yq "${CUDA_LOCAL_REPO_PKG_NAME}"
-  rm -f "${workdir}/install-local-cuda-repo-complete"
+  rm -f "${workdir}/complete/install-local-cuda-repo"
 }
 
 CUDNN_PKG_NAME=""
 function install_local_cudnn_repo() {
-  if test -f "${workdir}/install-local-cudnn-repo-complete" ; then return ; fi
+  if test -f "${workdir}/complete/install-local-cudnn-repo" ; then return ; fi
   pkgname="cudnn-local-repo-${shortname}-${CUDNN_VERSION%.*}"
   CUDNN_PKG_NAME="${pkgname}"
   local_deb_fn="${pkgname}_1.0-1_amd64.deb"
@@ -538,18 +538,18 @@ function install_local_cudnn_repo() {
 
   cp /var/cudnn-local-repo-*-${CUDNN_VERSION%.*}*/cudnn-local-*-keyring.gpg /usr/share/keyrings
 
-  touch "${workdir}/install-local-cudnn-repo-complete"
+  touch "${workdir}/complete/install-local-cudnn-repo"
 }
 
 function uninstall_local_cudnn_repo() {
   apt-get purge -yq "${CUDNN_PKG_NAME}"
-  rm -f "${workdir}/install-local-cudnn-repo-complete"
+  rm -f "${workdir}/complete/install-local-cudnn-repo"
 }
 
 CUDNN8_LOCAL_REPO_INSTALLED="0"
 CUDNN8_PKG_NAME=""
 function install_local_cudnn8_repo() {
-  if test -f "${workdir}/install-local-cudnn8-repo-complete" ; then return ; fi
+  if test -f "${workdir}/complete/install-local-cudnn8-repo" ; then return ; fi
 
   if   is_ubuntu ; then cudnn8_shortname="ubuntu2004"
   elif is_debian ; then cudnn8_shortname="debian11"
@@ -583,16 +583,16 @@ function install_local_cudnn8_repo() {
   rm -f "${local_deb_fn}"
 
   cp "${cudnn_path}"/cudnn-local-*-keyring.gpg /usr/share/keyrings
-  touch "${workdir}/install-local-cudnn8-repo-complete"
+  touch "${workdir}/complete/install-local-cudnn8-repo"
 }
 
 function uninstall_local_cudnn8_repo() {
   apt-get purge -yq "${CUDNN8_PKG_NAME}"
-  rm -f "${workdir}/install-local-cudnn8-repo-complete"
+  rm -f "${workdir}/complete/install-local-cudnn8-repo"
 }
 
 function install_nvidia_nccl() {
-  if test -f "${workdir}/nccl-complete" ; then return ; fi
+  if test -f "${workdir}/complete/nccl" ; then return ; fi
 
   if is_cuda11 && is_debian12 ; then
     echo "NCCL cannot be compiled for CUDA 11 on ${_shortname}"
@@ -683,14 +683,14 @@ function install_nvidia_nccl() {
   fi
 
   popd
-  touch "${workdir}/nccl-complete"
+  touch "${workdir}/complete/nccl"
 }
 
 function is_src_nvidia() ( set +x ; [[ "${GPU_DRIVER_PROVIDER}" == "NVIDIA" ]] ; )
 function is_src_os()     ( set +x ; [[ "${GPU_DRIVER_PROVIDER}" == "OS" ]] ; )
 
 function install_nvidia_cudnn() {
-  if test -f "${workdir}/cudnn-complete" ; then return ; fi
+  if test -f "${workdir}/complete/cudnn" ; then return ; fi
   local major_version
   major_version="${CUDNN_VERSION%%.*}"
   local cudnn_pkg_version
@@ -748,7 +748,7 @@ function install_nvidia_cudnn() {
 
   ldconfig
 
-  touch "${workdir}/cudnn-complete"
+  touch "${workdir}/complete/cudnn"
   echo "NVIDIA cuDNN successfully installed for ${OS_NAME}."
 }
 
@@ -994,7 +994,7 @@ function install_nvidia_userspace_runfile() {
   #
   # wget https://us.download.nvidia.com/XFree86/Linux-x86_64/560.35.03/NVIDIA-Linux-x86_64-560.35.03.run
   # sh ./NVIDIA-Linux-x86_64-560.35.03.run -x # this will allow you to review the contents of the package without installing it.
-  if test -f "${workdir}/userspace-complete" ; then return ; fi
+  if test -f "${workdir}/complete/userspace" ; then return ; fi
   local local_fn="${tmpdir}/userspace.run"
 
   cache_fetched_package "${USERSPACE_URL}" \
@@ -1062,12 +1062,12 @@ function install_nvidia_userspace_runfile() {
   fi
 
   rm -f "${local_fn}"
-  touch "${workdir}/userspace-complete"
+  touch "${workdir}/complete/userspace"
   sync
 }
 
 function install_cuda_runfile() {
-  if test -f "${workdir}/cuda-complete" ; then return ; fi
+  if test -f "${workdir}/complete/cuda" ; then return ; fi
   local local_fn="${tmpdir}/cuda.run"
 
   cache_fetched_package "${NVIDIA_CUDA_URL}" \
@@ -1076,7 +1076,7 @@ function install_cuda_runfile() {
 
   execute_with_retries bash "${local_fn}" --toolkit --no-opengl-libs --silent --tmpdir="${tmpdir}"
   rm -f "${local_fn}"
-  touch "${workdir}/cuda-complete"
+  touch "${workdir}/complete/cuda"
   sync
 }
 
@@ -1114,7 +1114,7 @@ function load_kernel_module() {
 }
 
 function install_cuda(){
-  if test -f "${workdir}/cuda-repo-complete" ; then return ; fi
+  if test -f "${workdir}/complete/cuda-repo" ; then return ; fi
 
   if ( ge_debian12 && is_src_os ) ; then
     echo "installed with the driver on ${_shortname}"
@@ -1127,7 +1127,7 @@ function install_cuda(){
   # Includes CUDA packages
   add_repo_cuda
 
-  touch "${workdir}/cuda-repo-complete"
+  touch "${workdir}/complete/cuda-repo"
 }
 
 function install_nvidia_container_toolkit() {
@@ -1150,7 +1150,7 @@ function install_nvidia_container_toolkit() {
 
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
-  if test -f "${workdir}/gpu-driver-complete" ; then return ; fi
+  if test -f "${workdir}/complete/gpu-driver" ; then return ; fi
 
   if ( ge_debian12 && is_src_os ) ; then
     add_nonfree_components
@@ -1172,7 +1172,7 @@ function install_nvidia_gpu_driver() {
   build_driver_from_github
 
   echo "NVIDIA GPU driver provided by NVIDIA was installed successfully"
-  touch "${workdir}/gpu-driver-complete"
+  touch "${workdir}/complete/gpu-driver"
 }
 
 function install_ops_agent(){
@@ -1184,7 +1184,7 @@ function install_ops_agent(){
   curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
   execute_with_retries bash add-google-cloud-ops-agent-repo.sh --also-install
 
-  touch "${workdir}/ops-agent-complete"
+  touch "${workdir}/complete/ops-agent"
 }
 
 # Collects 'gpu_utilization' and 'gpu_memory_utilization' metrics
@@ -1421,7 +1421,7 @@ function nvsmi() {
 }
 
 function install_build_dependencies() {
-  if test -f "${workdir}/build-dependencies-complete" ; then return ; fi
+  if test -f "${workdir}/complete/build-dependencies" ; then return ; fi
 
   if is_debuntu ; then
     if is_ubuntu22 && is_cuda12 ; then
@@ -1459,7 +1459,7 @@ function install_build_dependencies() {
 
     execute_with_retries "${dnf_cmd}"
   fi
-  touch "${workdir}/build-dependencies-complete"
+  touch "${workdir}/complete/build-dependencies"
 }
 
 function install_dependencies() {
@@ -1486,64 +1486,6 @@ function hold_nvidia_packages() {
     apt-mark hold xserver-xorg-video-nvidia*
   fi
 }
-
-function delete_mig_instances() (
-  # delete all instances
-  set +e
-  nvidia-smi mig -dci
-
-  case "${?}" in
-    "0" ) echo "compute instances deleted"            ;;
-    "2" ) echo "invalid argument"                     ;;
-    "6" ) echo "No compute instances found to delete" ;;
-    *   ) echo "unrecognized return code"             ;;
-  esac
-
-  nvidia-smi mig -dgi
-  case "${?}" in
-    "0" ) echo "compute instances deleted"        ;;
-    "2" ) echo "invalid argument"                 ;;
-    "6" ) echo "No GPU instances found to delete" ;;
-    *   ) echo "unrecognized return code"         ;;
-  esac
-)
-
-# https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/gpu-operator-mig.html#configuring-mig-profiles
-function configure_mig_cgi() {
-  delete_mig_instances
-  META_MIG_CGI_VALUE="$(get_metadata_attribute 'MIG_CGI')"
-  if test -n "${META_MIG_CGI_VALUE}"; then
-    nvidia-smi mig -cgi "${META_MIG_CGI_VALUE}" -C
-  else
-    if lspci | grep -q H100 ; then
-      # run the following command to list placement profiles
-      # nvidia-smi mig -lgipp
-      #
-      # This is the result when using H100 instances on 20241220
-      # GPU  0 Profile ID 19 Placements: {0,1,2,3,4,5,6}:1
-      # GPU  0 Profile ID 20 Placements: {0,1,2,3,4,5,6}:1
-      # GPU  0 Profile ID 15 Placements: {0,2,4,6}:2
-      # GPU  0 Profile ID 14 Placements: {0,2,4}:2
-      # GPU  0 Profile ID  9 Placements: {0,4}:4
-      # GPU  0 Profile ID  5 Placement : {0}:4
-      # GPU  0 Profile ID  0 Placement : {0}:8
-
-      # For H100 3D controllers, use profile 19, 7x1G instances
-      nvidia-smi mig -cgi 19 -C
-    elif lspci | grep -q A100 ; then
-      # Dataproc only supports A100s right now split in 2 if not specified
-      # https://docs.nvidia.com/datacenter/tesla/mig-user-guide/#creating-gpu-instances
-      nvidia-smi mig -cgi 9,9 -C
-    else
-      echo "unrecognized 3D controller"
-    fi
-  fi
-}
-
-function enable_mig() {
-  nvidia-smi -mig 1
-}
-
 
 function check_secure_boot() {
   local SECURE_BOOT="disabled"
@@ -1935,14 +1877,14 @@ function prepare_to_install(){
   readonly bdcfg="/usr/local/bin/bdconfig"
   export DEBIAN_FRONTEND=noninteractive
 
-  mkdir -p "${workdir}"
+  mkdir -p "${workdir}/complete"
   trap exit_handler EXIT
   set_proxy
   mount_ramdisk
 
   readonly install_log="${tmpdir}/install.log"
 
-  if test -f "${workdir}/prepare-complete" ; then return ; fi
+  if test -f "${workdir}/complete/prepare" ; then return ; fi
 
   repair_old_backports
 
@@ -1970,7 +1912,7 @@ function prepare_to_install(){
   screen -d -m -LUS keep-running-df \
     bash -c "while [[ -f /run/keep-running-df ]] ; do df / | tee -a /run/disk-usage.log ; sleep 5s ; done"
 
-  touch "${workdir}/prepare-complete"
+  touch "${workdir}/complete/prepare"
 }
 
 function check_os() {
