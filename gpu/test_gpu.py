@@ -18,8 +18,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
   def verify_instance(self, name):
     # Verify that nvidia-smi works
-    time.sleep(3) # Many failed nvidia-smi attempts have been caused by impatience
-    self.assert_instance_command(name, "nvidia-smi", 1)
+    time.sleep(6) # Many failed nvidia-smi attempts have been caused by impatience
+    self.assert_instance_command(name, "nvidia-smi", 2)
 
   def verify_pyspark(self, name):
     # Verify that pyspark works
@@ -87,6 +87,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
   @parameterized.parameters(
       ("SINGLE", ["m"], GPU_T4, None, None),
+      ("KERBEROS", ["m"], GPU_T4, None, None),
   )
   def test_install_gpu_without_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
@@ -188,6 +189,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "11.8"),
 #      ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "12.0"),
       ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "12.4"),
+      ("KERBEROS", ["m"], GPU_H100, GPU_A100, "NVIDIA", "12.4"),
   )
   def test_install_gpu_with_mig(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
@@ -232,7 +234,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
   @parameterized.parameters(
       ("SINGLE", GPU_T4, None, None),
-      ("STANDARD", GPU_T4, GPU_T4, "NVIDIA")
+      ("STANDARD", GPU_T4, GPU_T4, "NVIDIA"),
   )
   def test_gpu_allocation(self, configuration, master_accelerator,
                           worker_accelerator, driver_provider):
