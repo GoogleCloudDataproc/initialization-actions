@@ -418,8 +418,9 @@ function install_nvidia_gpu_driver() {
       mkdir -p "${WORKDIR}"
       pushd $_
       # Fetch open souce kernel module with corresponding tag
-      git clone https://github.com/NVIDIA/open-gpu-kernel-modules.git \
-          --branch "${NVIDIA_DRIVER_VERSION}" --single-branch
+      test -d open-gpu-kernel-modules || \
+	 git clone https://github.com/NVIDIA/open-gpu-kernel-modules.git \
+            --branch "${NVIDIA_DRIVER_VERSION}" --single-branch
       cd ${WORKDIR}/open-gpu-kernel-modules
       #
       # build kernel modules
