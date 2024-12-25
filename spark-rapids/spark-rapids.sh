@@ -261,7 +261,7 @@ IS_MIG_ENABLED=0
 function execute_with_retries() {
   local -r cmd=$1
   for ((i = 0; i < 10; i++)); do
-    if eval "$cmd"; then
+    if time eval "$cmd"; then
       return 0
     fi
     sleep 5
@@ -452,7 +452,7 @@ function install_nvidia_gpu_driver() {
       curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
        "https://developer.download.nvidia.com/compute/cuda/${CUDA_VERSION}/local_installers/${cuda_runfile}" \
        -o cuda.run
-      bash cuda.run --silent --toolkit --no-opengl-libs
+      time bash cuda.run --silent --toolkit --no-opengl-libs
       rm cuda.run
     else
       # Install from repo provided by NV
