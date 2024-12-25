@@ -141,25 +141,29 @@ function set_driver_version() {
 
 set_driver_version
 
-readonly DEFAULT_CUDNN8_VERSION="8.0.5.39"
-readonly DEFAULT_CUDNN9_VERSION="9.1.0.70"
+function set_cudnn_version() {
+  readonly DEFAULT_CUDNN8_VERSION="8.0.5.39"
+  readonly DEFAULT_CUDNN9_VERSION="9.1.0.70"
 
-# Parameters for NVIDIA-provided cuDNN library
-readonly DEFAULT_CUDNN_VERSION=${CUDNN_FOR_CUDA["${CUDA_VERSION}"]}
-CUDNN_VERSION=$(get_metadata_attribute 'cudnn-version' "${DEFAULT_CUDNN_VERSION}")
+  # Parameters for NVIDIA-provided cuDNN library
+  readonly DEFAULT_CUDNN_VERSION=${CUDNN_FOR_CUDA["${CUDA_VERSION}"]}
+  CUDNN_VERSION=$(get_metadata_attribute 'cudnn-version' "${DEFAULT_CUDNN_VERSION}")
+  # The minimum cuDNN version supported by rocky is ${DEFAULT_CUDNN8_VERSION}
+  if is_rocky  && (version_le "${CUDNN_VERSION}" "${DEFAULT_CUDNN8_VERSION}") ; then
+    CUDNN_VERSION="${DEFAULT_CUDNN8_VERSION}"
+  elif (ge_ubuntu20 || ge_debian12) && [[ "${CUDNN_VERSION%%.*}" == "8" ]] ; then
+    # cuDNN v8 is not distribution for ubuntu20+, debian12
+    CUDNN_VERSION="${DEFAULT_CUDNN9_VERSION}"
+  elif (le_ubuntu18 || le_debian11) && [[ "${CUDNN_VERSION%%.*}" == "9" ]] ; then
+    # cuDNN v9 is not distributed for ubuntu18, debian10, debian11 ; fall back to 8
+    CUDNN_VERSION="8.8.0.121"
+  fi
+  readonly CUDNN_VERSION
+}
+set_cudnn_version
+
 function is_cudnn8() ( set +x ; [[ "${CUDNN_VERSION%%.*}" == "8" ]] ; )
 function is_cudnn9() ( set +x ; [[ "${CUDNN_VERSION%%.*}" == "9" ]] ; )
-# The minimum cuDNN version supported by rocky is ${DEFAULT_CUDNN8_VERSION}
-if is_rocky  && (version_le "${CUDNN_VERSION}" "${DEFAULT_CUDNN8_VERSION}") ; then
-  CUDNN_VERSION="${DEFAULT_CUDNN8_VERSION}"
-elif (ge_ubuntu20 || ge_debian12) && is_cudnn8 ; then
-  # cuDNN v8 is not distribution for ubuntu20+, debian12
-  CUDNN_VERSION="${DEFAULT_CUDNN9_VERSION}"
-elif (le_ubuntu18 || le_debian11) && is_cudnn9 ; then
-  # cuDNN v9 is not distributed for ubuntu18, debian10, debian11 ; fall back to 8
-  CUDNN_VERSION="8.8.0.121"
-fi
-readonly CUDNN_VERSION
 
 readonly DEFAULT_NCCL_VERSION=${NCCL_FOR_CUDA["${CUDA_VERSION}"]}
 readonly NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION})
@@ -948,6 +952,39 @@ function install_ops_agent(){
 }
 
 # Collects 'gpu_utilization' and 'gpu_memory_utilization' metrics
+function install_gpu_monitoring_agent() {
+  download_gpu_monitoring_agent
+  install_gpu_monitoring_agent_dependency
+  start_gpu_monitoring_agent_service
+}
+
+function download_gpu_monitoring_agent(){
+  if is_rocky ; then
+    execute_with_retries "dnf -y -q install git"
+  else
+    execute_with_retries "apt-get install git -y"
+  fi
+  mkdir -p /opt/google
+  chmod 777 /opt/google
+  cd /opt/google
+  test -d compute-gpu-monitoring || \
+    execute_with_retries "git clone https://github.com/GoogleCloudPlatform/compute-gpu-monitoring.git"
+}
+
+function install_gpu_monitoring_agent_dependency(){
+  cd /opt/google/compute-gpu-monitoring/linux
+  python3 -m venv venv
+  venv/bin/pip install wheel
+  venv/bin/pip install -Ur requirements.txt
+}
+
+function start_gpu_monitoring_agent_service(){
+  cp /opt/google/compute-gpu-monitoring/linux/systemd/google_gpu_monitoring_agent_venv.service /lib/systemd/system
+  systemctl daemon-reload
+  systemctl --no-reload --now enable /lib/systemd/system/google_gpu_monitoring_agent_venv.service
+}
+
+# Collects 'gpu_utilization' and 'gpu_memory_utilization' metrics
 function install_gpu_agent() {
   # Stackdriver GPU agent parameters
 #  local -r GPU_AGENT_REPO_URL='https://raw.githubusercontent.com/GoogleCloudPlatform/ml-on-gcp/master/dlvm/gcp-gpu-utilization-metrics'
@@ -1013,6 +1050,28 @@ function fetch_mig_scripts() {
   chmod 755 /usr/local/yarn-mig-scripts/*
 }
 
+function install_spark_rapids() {
+  # Update SPARK RAPIDS config
+  readonly DEFAULT_SPARK_RAPIDS_VERSION="24.08.1"
+  readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
+  readonly DEFAULT_XGBOOST_VERSION="1.7.6" # try 2.1.1
+  readonly XGBOOST_VERSION=$(get_metadata_attribute 'xgboost-version' ${DEFAULT_XGBOOST_VERSION})
+
+  local -r rapids_repo_url='https://repo1.maven.org/maven2/ai/rapids'
+  local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
+  local -r dmlc_repo_url='https://repo.maven.apache.org/maven2/ml/dmlc'
+
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "${dmlc_repo_url}/xgboost4j-spark-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-spark-gpu_2.12-${XGBOOST_VERSION}.jar" \
+    -P /usr/lib/spark/jars/
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "${dmlc_repo_url}/xgboost4j-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-gpu_2.12-${XGBOOST_VERSION}.jar" \
+    -P /usr/lib/spark/jars/
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "${nvidia_repo_url}/rapids-4-spark_2.12/${SPARK_RAPIDS_VERSION}/rapids-4-spark_2.12-${SPARK_RAPIDS_VERSION}.jar" \
+    -P /usr/lib/spark/jars/
+}
+
 function configure_gpu_script() {
   # Download GPU discovery script
   local -r spark_gpu_script_dir='/usr/lib/spark/scripts/gpu'
@@ -1049,9 +1108,9 @@ EOF
   chmod a+rx "${gpus_resources_script}"
 
   local spark_defaults_conf="/etc/spark/conf.dist/spark-defaults.conf"
-  if version_ge "${SPARK_VERSION}" "3.0" ; then
-    local gpu_count
-    gpu_count="$(lspci | grep NVIDIA | wc -l)"
+  local gpu_count
+  gpu_count="$(lspci | grep NVIDIA | wc -l)"
+  if version_ge "${gpu_count}" "1" ; then
     local executor_cores
     executor_cores="$(nproc | perl -MPOSIX -pe '$_ = POSIX::floor( $_ * 0.75 ); $_-- if $_ % 2')"
     local executor_memory
@@ -1066,8 +1125,9 @@ EOF
 # query explain output won't show GPU operator, if the user has doubts
 # they can uncomment the line before seeing the GPU plan explain;
 # having AQE enabled gives user the best performance.
-spark.executor.resource.gpu.discoveryScript=${gpus_resources_script}
 spark.executor.resource.gpu.amount=${gpu_count}
+spark.plugins=com.nvidia.spark.SQLPlugin
+spark.executor.resource.gpu.discoveryScript=${gpus_resources_script}
 spark.executor.cores=${executor_cores}
 spark.executor.memory=${executor_memory_gb}G
 spark.dynamicAllocation.enabled=false
@@ -1178,13 +1238,10 @@ function prepare_gpu_env(){
   # Verify SPARK compatability
   RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 
-  readonly DEFAULT_XGBOOST_VERSION="1.7.6" # try 2.1.1
   nvsmi_works="0"
 
   if   is_cuda11 ; then gcc_ver="11"
   elif is_cuda12 ; then gcc_ver="12" ; fi
-
-  mkdir -p "${workdir}/complete"
 }
 
 # Hold all NVIDIA-related packages from upgrading unintenionally or services like unattended-upgrades
@@ -1252,4 +1309,53 @@ function configure_mig_cgi() {
 
 function enable_mig() {
   nvidia-smi -mig 1
+}
+
+function setup_gpu_yarn() {
+  # This configuration should be run on all nodes
+  # regardless if they have attached GPUs
+  configure_yarn_resources
+
+  # Detect NVIDIA GPU
+  if (lspci | grep -q NVIDIA); then
+    # if this is called without the MIG script then the drivers are not installed
+    migquery_result="$(nvsmi --query-gpu=mig.mode.current --format=csv,noheader)"
+    if [[ "${migquery_result}" == "[N/A]" ]] ; then migquery_result="" ; fi
+    NUM_MIG_GPUS="$(echo ${migquery_result} | uniq | wc -l)"
+
+    if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
+      if [[ "${NUM_MIG_GPUS}" -eq "1" ]]; then
+        if (echo "${migquery_result}" | grep Enabled); then
+          IS_MIG_ENABLED=1
+          NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
+          MIG_MAJOR_CAPS=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
+          fetch_mig_scripts
+        fi
+      fi
+    fi
+
+    # if mig is enabled drivers would have already been installed
+    if [[ $IS_MIG_ENABLED -eq 0 ]]; then
+      install_nvidia_gpu_driver
+      install_cuda
+      load_kernel_module
+
+      #Install GPU metrics collection in Stackdriver if needed
+      if [[ "${INSTALL_GPU_AGENT}" == "true" ]]; then
+        install_gpu_agent
+#        install_gpu_monitoring_agent
+        echo 'GPU metrics agent successfully deployed.'
+      else
+        echo 'GPU metrics agent has not been installed.'
+      fi
+      configure_gpu_exclusive_mode
+    fi
+
+    configure_yarn_nodemanager
+    configure_gpu_script
+    configure_gpu_isolation
+  elif [[ "${ROLE}" == "Master" ]]; then
+    configure_yarn_nodemanager
+    configure_gpu_script
+  fi
 }
