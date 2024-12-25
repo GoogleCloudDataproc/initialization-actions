@@ -526,7 +526,8 @@ function download_agent(){
   mkdir -p /opt/google
   chmod 777 /opt/google
   cd /opt/google
-  execute_with_retries "git clone https://github.com/GoogleCloudPlatform/compute-gpu-monitoring.git"
+  test -d compute-gpu-monitoring || \
+    execute_with_retries "git clone https://github.com/GoogleCloudPlatform/compute-gpu-monitoring.git"
 }
 
 function install_agent_dependency(){
