@@ -10,93 +10,33 @@ set -euxo pipefail
 
 [% INSERT common/util_functions %]
 
-[% INSERT gpu/util_functions %]
-
 [% INSERT 'secure-boot/util_functions' %]
 
+[% INSERT gpu/util_functions %]
+
 function main() {
-  # This configuration should be run on all nodes
-  # regardless if they have attached GPUs
-  configure_yarn_resources
+  setup_gpu_yarn
+  if [[ -n ${CUDNN_VERSION} ]]; then
+    install_nvidia_nccl
+    install_nvidia_cudnn
+  fi
+  install_nvidia_container_toolkit
 
-  # Detect NVIDIA GPU
-  if (lspci | grep -q NVIDIA); then
-    # if this is called without the MIG script then the drivers are not installed
-    migquery_result="$(nvsmi --query-gpu=mig.mode.current --format=csv,noheader)"
-    if [[ "${migquery_result}" == "[N/A]" ]] ; then migquery_result="" ; fi
-    NUM_MIG_GPUS="$(echo ${migquery_result} | uniq | wc -l)"
-
-    if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
-      if [[ "${NUM_MIG_GPUS}" -eq "1" ]]; then
-        if (echo "${migquery_result}" | grep Enabled); then
-          IS_MIG_ENABLED=1
-          NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
-          MIG_MAJOR_CAPS=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
-          fetch_mig_scripts
-        fi
-      fi
-    fi
-
-    # if mig is enabled drivers would have already been installed
-    if [[ $IS_MIG_ENABLED -eq 0 ]]; then
-      install_nvidia_gpu_driver
-      install_nvidia_container_toolkit
-      install_cuda
-      load_kernel_module
-
-      if [[ -n ${CUDNN_VERSION} ]]; then
-        install_nvidia_nccl
-        install_nvidia_cudnn
-      fi
-      #Install GPU metrics collection in Stackdriver if needed
-      if [[ "${INSTALL_GPU_AGENT}" == "true" ]]; then
-        #install_ops_agent
-	install_gpu_agent
-        echo 'GPU metrics agent successfully deployed.'
-      else
-        echo 'GPU metrics agent will not be installed.'
-      fi
-
-      # for some use cases, the kernel module needs to be removed before first use of nvidia-smi
-      for module in nvidia_uvm nvidia_drm nvidia_modeset nvidia ; do
-        rmmod ${module} > /dev/null 2>&1 || echo "unable to rmmod ${module}"
-      done
-
-      MIG_GPU_LIST="$(nvsmi -L | grep -e MIG -e P100 -e H100 -e A100 || echo -n "")"
-      if test -n "$(nvsmi -L)" ; then
-	# cache the result of the gpu query
-        ADDRS=$(nvsmi --query-gpu=index --format=csv,noheader | perl -e 'print(join(q{,},map{chomp; qq{"$_"}}<STDIN>))')
-        echo "{\"name\": \"gpu\", \"addresses\":[$ADDRS]}" | tee "/var/run/nvidia-gpu-index.txt"
-      fi
-      NUM_MIG_GPUS="$(test -n "${MIG_GPU_LIST}" && echo "${MIG_GPU_LIST}" | wc -l || echo "0")"
-      if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
-        # enable MIG on every GPU
-	for GPU_ID in $(echo ${MIG_GPU_LIST} | awk -F'[: ]' -e '{print $2}') ; do
-	  nvsmi -i "${GPU_ID}" --multi-instance-gpu 1
-	done
-
-        NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
-        MIG_MAJOR_CAPS="$(grep nvidia-caps /proc/devices | cut -d ' ' -f 1)"
-        fetch_mig_scripts
-      else
-        configure_gpu_exclusive_mode
-      fi
-    fi
-
-    configure_yarn_nodemanager
+  if [[ "${RAPIDS_RUNTIME}" == "SPARK" ]]; then
     install_spark_rapids
-    configure_gpu_script
-    configure_gpu_isolation
-  elif [[ "${ROLE}" == "Master" ]]; then
-    configure_yarn_nodemanager
-    install_spark_rapids
-    configure_gpu_script
+    configure_spark
+    echo "RAPIDS initialized with Spark runtime"
+  elif [[ "${RAPIDS_RUNTIME}" == "DASK" ]]; then
+    # we are not currently tooled for installing dask in this action.
+    echo "RAPIDS recognizes DASK runtime - currently supported using dask/dask.sh or rapids/rapids.sh"
+  else
+    echo "Unrecognized RAPIDS Runtime: ${RAPIDS_RUNTIME}"
   fi
 
   # Restart YARN services if they are running already
   for svc in resourcemanager nodemanager; do
-    if [[ $(systemctl show hadoop-yarn-${svc}.service -p SubState --value) == 'running' ]]; then
-      systemctl restart hadoop-yarn-${svc}.service
+    if [[ "$(systemctl show hadoop-yarn-${svc}.service -p SubState --value)" == 'running' ]]; then
+      systemctl restart "hadoop-yarn-${svc}.service"
     fi
   done
 }
@@ -226,14 +166,14 @@ function prepare_to_install(){
   readonly bdcfg="/usr/local/bin/bdconfig"
   export DEBIAN_FRONTEND=noninteractive
 
-  mkdir -p "${workdir}"
+  mkdir -p "${workdir}/complete"
   trap exit_handler EXIT
   set_proxy
   mount_ramdisk
 
   readonly install_log="${tmpdir}/install.log"
 
-  if test -f "${workdir}/prepare-complete" ; then return ; fi
+  if test -f "${workdir}/complete/prepare" ; then return ; fi
 
   repair_old_backports
 
@@ -261,7 +201,7 @@ function prepare_to_install(){
   screen -d -m -LUS keep-running-df \
     bash -c "while [[ -f /run/keep-running-df ]] ; do df / | tee -a /run/disk-usage.log ; sleep 5s ; done"
 
-  touch "${workdir}/prepare-complete"
+  touch "${workdir}/complete/prepare"
 }
 
 prepare_to_install
