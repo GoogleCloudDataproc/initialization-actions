@@ -216,7 +216,7 @@ else
 fi
 
 # Update SPARK RAPIDS config
-readonly DEFAULT_SPARK_RAPIDS_VERSION="24.08.1"
+readonly DEFAULT_SPARK_RAPIDS_VERSION="24.12.0"
 readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
 readonly XGBOOST_VERSION=$(get_metadata_attribute 'xgboost-version' ${DEFAULT_XGBOOST_VERSION})
 
@@ -261,7 +261,7 @@ IS_MIG_ENABLED=0
 function execute_with_retries() {
   local -r cmd=$1
   for ((i = 0; i < 10; i++)); do
-    if eval "$cmd"; then
+    if time eval "$cmd"; then
       return 0
     fi
     sleep 5
@@ -418,8 +418,9 @@ function install_nvidia_gpu_driver() {
       mkdir -p "${WORKDIR}"
       pushd $_
       # Fetch open souce kernel module with corresponding tag
-      git clone https://github.com/NVIDIA/open-gpu-kernel-modules.git \
-          --branch "${NVIDIA_DRIVER_VERSION}" --single-branch
+      test -d open-gpu-kernel-modules || \
+	 git clone https://github.com/NVIDIA/open-gpu-kernel-modules.git \
+            --branch "${NVIDIA_DRIVER_VERSION}" --single-branch
       cd ${WORKDIR}/open-gpu-kernel-modules
       #
       # build kernel modules
@@ -451,7 +452,7 @@ function install_nvidia_gpu_driver() {
       curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
        "https://developer.download.nvidia.com/compute/cuda/${CUDA_VERSION}/local_installers/${cuda_runfile}" \
        -o cuda.run
-      bash cuda.run --silent --toolkit --no-opengl-libs
+      time bash cuda.run --silent --toolkit --no-opengl-libs
       rm cuda.run
     else
       # Install from repo provided by NV
@@ -525,7 +526,8 @@ function download_agent(){
   mkdir -p /opt/google
   chmod 777 /opt/google
   cd /opt/google
-  execute_with_retries "git clone https://github.com/GoogleCloudPlatform/compute-gpu-monitoring.git"
+  test -d compute-gpu-monitoring || \
+    execute_with_retries "git clone https://github.com/GoogleCloudPlatform/compute-gpu-monitoring.git"
 }
 
 function install_agent_dependency(){

@@ -17,18 +17,8 @@ RAPIDS Accelerator For Apache Spark is supported on Dataproc 2.0+ (Spark 3.0)+.
 ## RAPIDS Accelerator For Apache Spark
 
 ### Prerequisites
-
-To use RAPIDS Accelerator For Apache Spark, XGBoost4j with Spark 3
-
-*   Apache Spark 3.0+
-*   Hardware Requirements
-    *   NVIDIA Pascal™ GPU architecture or better (V100, P100, T4 and later)
-    *   Multi-node clusters with homogenous GPU configuration
-*   Software Requirements
-    *   NVIDIA GPU driver 440.33+
-    *   CUDA v11.5/v11.0/v10.2/v10.1
-    *   NCCL 2.11.4+
-    *   Ubuntu 18.04, Ubuntu 20.04 or Rocky Linux 7, Rocky Linux8, Debian 10, Debian 11
+Please find the [RAPIDS Accelerator For Apache Spark](https://nvidia.github.io/spark-rapids/) 
+official document for the hardware and software [requirements](https://nvidia.github.io/spark-rapids/docs/download.html).
 
 This section describes how to create
 [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster with
@@ -59,11 +49,10 @@ export GCS_BUCKET=<your bucket for the logs and notebooks>
 export REGION=<region>
 export NUM_GPUS=1
 export NUM_WORKERS=2
-export CUDA_VER=11.5
 
 gcloud dataproc clusters create $CLUSTER_NAME  \
     --region $REGION \
-    --image-version=2.0-ubuntu18 \
+    --image-version=2.2-ubuntu22 \
     --master-machine-type n1-standard-4 \
     --master-boot-disk-size 200 \
     --num-workers $NUM_WORKERS \
@@ -71,8 +60,6 @@ gcloud dataproc clusters create $CLUSTER_NAME  \
     --worker-machine-type n1-standard-8 \
     --num-worker-local-ssds 1 \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/spark-rapids/spark-rapids.sh \
-    --optional-components=JUPYTER,ZEPPELIN \
-    --metadata gpu-driver-provider="NVIDIA",rapids-runtime="SPARK",cuda-version="$CUDA_VER" \
     --bucket $GCS_BUCKET \
     --subnet=default \
     --enable-component-gateway
