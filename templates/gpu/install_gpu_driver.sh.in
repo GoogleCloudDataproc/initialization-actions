@@ -24,7 +24,7 @@ function main() {
 
   if [[ "${RAPIDS_RUNTIME}" == "SPARK" ]]; then
     install_spark_rapids
-    configure_spark
+    configure_gpu_script
     echo "RAPIDS initialized with Spark runtime"
   elif [[ "${RAPIDS_RUNTIME}" == "DASK" ]]; then
     # we are not currently tooled for installing dask in this action.
