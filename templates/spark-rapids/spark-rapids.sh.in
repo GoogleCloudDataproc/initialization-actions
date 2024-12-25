@@ -1,20 +1,41 @@
 #!/bin/bash
 #
 [% INSERT legal/license_header %]
+# This script installs NVIDIA GPU drivers (version 535.104.05) along with CUDA 12.2.
+# However, Cuda 12.1.1 - Driver v530.30.02 is used for Ubuntu 18 only
+# Additionally, it installs the RAPIDS Spark plugin, configures Spark and YARN, and is compatible with Debian, Ubuntu, and Rocky Linux distributions.
+# Note that the script is designed to work when secure boot is disabled during cluster creation.
+# It also creates a Systemd Service for maintaining up-to-date Kernel Headers on Debian and Ubuntu.
 #
 [% PROCESS common/template_disclaimer %]
-#
-# This script installs NVIDIA GPU drivers and collects GPU utilization metrics.
 
 set -euxo pipefail
 
 [% INSERT common/util_functions %]
 
-[% INSERT gpu/util_functions %]
-
 [% INSERT 'secure-boot/util_functions' %]
 
-function main() {
+[% INSERT gpu/util_functions %]
+
+[% INSERT 'spark-rapids/util_functions' %]
+
+check_secure_boot
+
+# Stackdriver GPU agent parameters
+# Whether to install GPU monitoring agent that sends GPU metrics to Stackdriver
+INSTALL_GPU_AGENT=$(get_metadata_attribute 'install-gpu-agent' 'false')
+readonly INSTALL_GPU_AGENT
+
+# Dataproc configurations
+readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
+readonly HIVE_CONF_DIR='/etc/hive/conf'
+readonly SPARK_CONF_DIR='/etc/spark/conf'
+
+NVIDIA_SMI_PATH='/usr/bin'
+MIG_MAJOR_CAPS=0
+IS_MIG_ENABLED=0
+
+function setup_gpu_yarn() {
   # This configuration should be run on all nodes
   # regardless if they have attached GPUs
   configure_yarn_resources
@@ -37,63 +58,61 @@ function main() {
       fi
     fi
 
+    if is_debuntu ; then
+      execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
+    elif is_rocky ; then
+      echo "kernel devel and headers not required on rocky.  installing from binary"
+    fi
+
     # if mig is enabled drivers would have already been installed
     if [[ $IS_MIG_ENABLED -eq 0 ]]; then
       install_nvidia_gpu_driver
-      install_nvidia_container_toolkit
       install_cuda
       load_kernel_module
 
-      if [[ -n ${CUDNN_VERSION} ]]; then
-        install_nvidia_nccl
-        install_nvidia_cudnn
-      fi
       #Install GPU metrics collection in Stackdriver if needed
-      if [[ "${INSTALL_GPU_AGENT}" == "true" ]]; then
-        #install_ops_agent
-	install_gpu_agent
+      if [[ ${INSTALL_GPU_AGENT} == true ]]; then
+        #install_gpu_agent
+        install_gpu_monitoring_agent
+
         echo 'GPU metrics agent successfully deployed.'
       else
         echo 'GPU metrics agent will not be installed.'
       fi
-
-      # for some use cases, the kernel module needs to be removed before first use of nvidia-smi
-      for module in nvidia_uvm nvidia_drm nvidia_modeset nvidia ; do
-        rmmod ${module} > /dev/null 2>&1 || echo "unable to rmmod ${module}"
-      done
-
-      MIG_GPU_LIST="$(nvsmi -L | grep -e MIG -e P100 -e H100 -e A100 || echo -n "")"
-      if test -n "$(nvsmi -L)" ; then
-	# cache the result of the gpu query
-        ADDRS=$(nvsmi --query-gpu=index --format=csv,noheader | perl -e 'print(join(q{,},map{chomp; qq{"$_"}}<STDIN>))')
-        echo "{\"name\": \"gpu\", \"addresses\":[$ADDRS]}" | tee "/var/run/nvidia-gpu-index.txt"
-      fi
-      NUM_MIG_GPUS="$(test -n "${MIG_GPU_LIST}" && echo "${MIG_GPU_LIST}" | wc -l || echo "0")"
-      if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
-        # enable MIG on every GPU
-	for GPU_ID in $(echo ${MIG_GPU_LIST} | awk -F'[: ]' -e '{print $2}') ; do
-	  nvsmi -i "${GPU_ID}" --multi-instance-gpu 1
-	done
-
-        NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
-        MIG_MAJOR_CAPS="$(grep nvidia-caps /proc/devices | cut -d ' ' -f 1)"
-        fetch_mig_scripts
-      else
-        configure_gpu_exclusive_mode
-      fi
+      configure_gpu_exclusive_mode
     fi
 
     configure_yarn_nodemanager
-    install_spark_rapids
     configure_gpu_script
     configure_gpu_isolation
   elif [[ "${ROLE}" == "Master" ]]; then
     configure_yarn_nodemanager
-    install_spark_rapids
     configure_gpu_script
   fi
 
   # Restart YARN services if they are running already
+  for svc in resourcemanager nodemanager; do
+    if [[ "$(systemctl show hadoop-yarn-${svc}.service -p SubState --value)" == 'running' ]]; then
+      systemctl restart "hadoop-yarn-${svc}.service"
+    fi
+  done
+}
+
+function main() {
+  repair_old_backports
+  check_os
+  check_secure_boot
+
+  setup_gpu_yarn
+  if [[ "${RAPIDS_RUNTIME}" == "SPARK" ]]; then
+    install_spark_rapids
+    configure_gpu_script
+    echo "RAPIDS initialized with Spark runtime"
+  else
+    echo "Unsupported RAPIDS Runtime: ${RUNTIME}"
+    exit 1
+  fi
+
   for svc in resourcemanager nodemanager; do
     if [[ $(systemctl show hadoop-yarn-${svc}.service -p SubState --value) == 'running' ]]; then
       systemctl restart hadoop-yarn-${svc}.service
@@ -202,6 +221,20 @@ print( "    samples-taken: ", scalar @siz, $/,
   return 0
 }
 
+# Update SPARK RAPIDS config
+readonly DEFAULT_SPARK_RAPIDS_VERSION="24.08.1"
+readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
+readonly XGBOOST_VERSION=$(get_metadata_attribute 'xgboost-version' ${DEFAULT_XGBOOST_VERSION})
+
+# Fetch instance roles and runtime
+readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
+readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
+
+# CUDA version and Driver version config
+CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '12.4.1')  #12.2.2
+NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '550.54.15') #535.104.05
+CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.2
+
 function prepare_to_install(){
   # Verify OS compatability and Secure boot state
   check_os
@@ -263,7 +296,5 @@ function prepare_to_install(){
 
   touch "${workdir}/prepare-complete"
 }
-
-prepare_to_install
 
 main
