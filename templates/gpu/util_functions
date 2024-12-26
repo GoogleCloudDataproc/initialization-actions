@@ -1214,13 +1214,14 @@ function install_dependencies() {
 }
 
 function prepare_gpu_env(){
-  set_cuda_version
-  set_driver_version
-  set_cuda_repo_shortname
-  set_nv_urls
-  set_cuda_runfile_url
-  set_cudnn_version
-  set_cudnn_tarball_url
+  nvsmi_works="0"
+  NVIDIA_SMI_PATH='/usr/bin'
+  MIG_MAJOR_CAPS=0
+  IS_MIG_ENABLED=0
+  CUDA_KEYRING_PKG_INSTALLED="0"
+  CUDNN_PKG_NAME=""
+  CUDNN8_LOCAL_REPO_INSTALLED="0"
+  CUDNN8_PKG_NAME=""
 
   # Whether to install NVIDIA-provided or OS-provided GPU driver
   GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'NVIDIA')
@@ -1230,19 +1231,17 @@ function prepare_gpu_env(){
   INSTALL_GPU_AGENT=$(get_metadata_attribute 'install-gpu-agent' 'false')
   readonly INSTALL_GPU_AGENT
 
-  NVIDIA_SMI_PATH='/usr/bin'
-  MIG_MAJOR_CAPS=0
-  IS_MIG_ENABLED=0
-
-  CUDA_KEYRING_PKG_INSTALLED="0"
-  CUDNN_PKG_NAME=""
-  CUDNN8_LOCAL_REPO_INSTALLED="0"
-  CUDNN8_PKG_NAME=""
-
   # Verify SPARK compatability
   RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
+  readonly RAPIDS_RUNTIME
 
-  nvsmi_works="0"
+  set_cuda_version
+  set_driver_version
+  set_cuda_repo_shortname
+  set_nv_urls
+  set_cuda_runfile_url
+  set_cudnn_version
+  set_cudnn_tarball_url
 
   if   is_cuda11 ; then gcc_ver="11"
   elif is_cuda12 ; then gcc_ver="12" ; fi
@@ -1370,6 +1369,6 @@ function gpu_exit_handler() {
       if ( grep -q "^tmpfs ${shmdir}" /proc/mounts && ! grep -q "^tmpfs ${shmdir}" /etc/fstab ) ; then
         umount -f ${shmdir}
       fi
-    fi
+    done
   fi
 }
