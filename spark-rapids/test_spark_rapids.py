@@ -76,7 +76,7 @@ class SparkRapidsTestCase(DataprocTestCase):
         self.INIT_ACTIONS,
         optional_components=optional_components,
         metadata=metadata,
-        machine_type="n1-standard-4",
+        machine_type="n1-standard-32",
         master_accelerator=accelerator if configuration == "SINGLE" else None,
         worker_accelerator=accelerator,
         boot_disk_size="50GB",
@@ -106,7 +106,7 @@ class SparkRapidsTestCase(DataprocTestCase):
       self.INIT_ACTIONS,
       optional_components=optional_components,
       metadata=metadata,
-      machine_type="n1-standard-4",
+      machine_type="n1-standard-32",
       master_accelerator=accelerator if configuration == "SINGLE" else None,
       worker_accelerator=accelerator,
       boot_disk_size="50GB",
@@ -134,6 +134,11 @@ class SparkRapidsTestCase(DataprocTestCase):
           ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
       self.skipTest("CUDA > 12.0 not supported on older debian/ubuntu releases")
 
+    if pkg_resources.parse_version(cuda_version) < pkg_resources.parse_version("12.0") \
+    and ( self.getImageOs() == 'debian' or self.getImageOs() == 'rocky' ) \
+    and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+      self.skipTest("CUDA < 12 not supported on Debian >= 12, Rocky >= 9")
+
     if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in 2.0 and earlier images")
 
@@ -144,7 +149,7 @@ class SparkRapidsTestCase(DataprocTestCase):
         configuration,
         self.INIT_ACTIONS,
         metadata=metadata,
-        machine_type="n1-standard-4",
+        machine_type="n1-standard-32",
         master_accelerator=accelerator if configuration == "SINGLE" else None,
         worker_accelerator=accelerator,
         boot_disk_size="50GB",
