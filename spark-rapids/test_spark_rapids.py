@@ -62,11 +62,12 @@ class SparkRapidsTestCase(DataprocTestCase):
                             ("STANDARD", ["w-0"], GPU_T4))
   def test_spark_rapids(self, configuration, machine_suffixes, accelerator):
 
-    if self.getImageOs() == "rocky":
-      self.skipTest("Not supported for Rocky OS")
-
     if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in 2.0 and earlier images")
+
+    if ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
+         ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
+      self.skipTest("CUDA 12.4 (default) not supported on older debian/ubuntu releases")
 
     optional_components = None
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
@@ -92,11 +93,12 @@ class SparkRapidsTestCase(DataprocTestCase):
                             ("STANDARD", ["w-0"], GPU_T4))
   def test_spark_rapids_sql(self, configuration, machine_suffixes, accelerator):
 
-    if self.getImageOs() == "rocky":
-      self.skipTest("Not supported for Rocky OS")
-
     if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in 2.0 and earlier images")
+
+    if ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
+         ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
+      self.skipTest("CUDA 12.4 (default) not supported on older debian/ubuntu releases")
 
     optional_components = None
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
@@ -120,16 +122,14 @@ class SparkRapidsTestCase(DataprocTestCase):
 
   @parameterized.parameters(
     ("STANDARD", ["w-0"], GPU_T4, "11.8.0", "525.147.05"),
+    ("STANDARD", ["w-0"], GPU_T4, "12.0.1", "525.147.05"),
     ("STANDARD", ["w-0"], GPU_T4, "12.4.0", "550.54.14"),
     ("STANDARD", ["w-0"], GPU_T4, "12.6.2", "560.35.03")
   )
   def test_non_default_cuda_versions(self, configuration, machine_suffixes,
                                      accelerator, cuda_version, driver_version):
 
-    if self.getImageOs() == "rocky":
-      self.skipTest("Not supported for Rocky OS")
-
-    if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.0") \
+    if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.0.1") \
     and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
           ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
       self.skipTest("CUDA > 12.0 not supported on older debian/ubuntu releases")
