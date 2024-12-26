@@ -10,8 +10,6 @@ set -euxo pipefail
 
 [% INSERT common/util_functions %]
 
-[% INSERT 'secure-boot/util_functions' %]
-
 [% INSERT gpu/util_functions %]
 
 function main() {
@@ -143,65 +141,8 @@ print( "    samples-taken: ", scalar @siz, $/,
 }
 
 function prepare_to_install(){
-  # Verify OS compatability and Secure boot state
-  check_os
-  check_secure_boot
-
+  prepare_common_env
   prepare_gpu_env
-
-  OS_NAME="$(lsb_release -is | tr '[:upper:]' '[:lower:]')"
-  readonly OS_NAME
-
-  # node role
-  ROLE="$(get_metadata_attribute dataproc-role)"
-  readonly ROLE
-
-  workdir=/opt/install-dpgce
-  tmpdir=/tmp/
-  temp_bucket="$(get_metadata_attribute dataproc-temp-bucket)"
-  readonly temp_bucket
-  readonly pkg_bucket="gs://${temp_bucket}/dpgce-packages"
-  uname_r=$(uname -r)
-  readonly uname_r
-  readonly bdcfg="/usr/local/bin/bdconfig"
-  export DEBIAN_FRONTEND=noninteractive
-
-  mkdir -p "${workdir}/complete"
-  trap exit_handler EXIT
-  set_proxy
-  mount_ramdisk
-
-  readonly install_log="${tmpdir}/install.log"
-
-  if test -f "${workdir}/complete/prepare" ; then return ; fi
-
-  repair_old_backports
-
-  if is_debuntu ; then
-    clean_up_sources_lists
-    apt-get update -qq
-    apt-get -y clean
-    apt-get -o DPkg::Lock::Timeout=60 -y autoremove
-    if ge_debian12 ; then
-    apt-mark unhold systemd libsystemd0 ; fi
-  else
-    dnf clean all
-  fi
-
-  # zero free disk space
-  if [[ -n "$(get_metadata_attribute creating-image)" ]]; then ( set +e
-    time dd if=/dev/zero of=/zero status=none ; sync ; sleep 3s ; rm -f /zero
-  ) fi
-
-  install_dependencies
-
-  # Monitor disk usage in a screen session
-  df / > "/run/disk-usage.log"
-  touch "/run/keep-running-df"
-  screen -d -m -LUS keep-running-df \
-    bash -c "while [[ -f /run/keep-running-df ]] ; do df / | tee -a /run/disk-usage.log ; sleep 5s ; done"
-
-  touch "${workdir}/complete/prepare"
 }
 
 prepare_to_install
