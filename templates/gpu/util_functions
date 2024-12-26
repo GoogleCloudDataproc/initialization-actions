@@ -1363,3 +1363,13 @@ function setup_gpu_yarn() {
     configure_gpu_script
   fi
 }
+
+function gpu_exit_handler() {
+  if [[ "${tmpdir}" == "/mnt/shm" ]] ; then
+    for shmdir in /var/cudnn-local ; do
+      if ( grep -q "^tmpfs ${shmdir}" /proc/mounts && ! grep -q "^tmpfs ${shmdir}" /etc/fstab ) ; then
+        umount -f ${shmdir}
+      fi
+    fi
+  fi
+}
