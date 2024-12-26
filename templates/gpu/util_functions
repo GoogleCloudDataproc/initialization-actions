@@ -65,7 +65,23 @@ function set_cuda_version() {
   fi
 
   if ( ! test -v DEFAULT_CUDA_VERSION ) ; then
-    DEFAULT_CUDA_VERSION='12.4'
+    DEFAULT_CUDA_VERSION='12.4.1'
+  fi
+  # EXCEPTIONS
+  # Change default CUDA version for Ubuntu 18 (Cuda 12.1.1 - Driver v530.30.02 is the latest version supported by Ubuntu 18)
+  case "${DATAPROC_IMAGE_VERSION}" in
+    "2.0" ) DEFAULT_CUDA_VERSION="12.1.1" ;;
+    "2.1" ) DEFAULT_CUDA_VERSION="12.4.1" ;;
+    "2.2" ) DEFAULT_CUDA_VERSION="12.6.2" ;;
+    *   )
+      echo "unrecognized Dataproc image version"
+      exit 1
+      ;;
+  esac
+
+  if le_ubuntu18 ; then
+    DEFAULT_CUDA_VERSION="12.1.1"
+    CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.1
   fi
   readonly DEFAULT_CUDA_VERSION
 
@@ -81,8 +97,6 @@ function set_cuda_version() {
   readonly CUDA_FULL_VERSION
 
 }
-
-set_cuda_version
 
 function is_cuda12() ( set +x ; [[ "${CUDA_VERSION%%.*}" == "12" ]] ; )
 function le_cuda12() ( set +x ; version_le "${CUDA_VERSION%%.*}" "12" ; )
@@ -139,8 +153,6 @@ function set_driver_version() {
   fi
 }
 
-set_driver_version
-
 function set_cudnn_version() {
   readonly DEFAULT_CUDNN8_VERSION="8.0.5.39"
   readonly DEFAULT_CUDNN9_VERSION="9.1.0.70"
@@ -160,54 +172,29 @@ function set_cudnn_version() {
   fi
   readonly CUDNN_VERSION
 }
-set_cudnn_version
+
 
 function is_cudnn8() ( set +x ; [[ "${CUDNN_VERSION%%.*}" == "8" ]] ; )
 function is_cudnn9() ( set +x ; [[ "${CUDNN_VERSION%%.*}" == "9" ]] ; )
 
-readonly DEFAULT_NCCL_VERSION=${NCCL_FOR_CUDA["${CUDA_VERSION}"]}
-readonly NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION})
-
-# Parameters for NVIDIA-provided Debian GPU driver
-readonly DEFAULT_USERSPACE_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
-
-readonly USERSPACE_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_USERSPACE_URL}")
-
-USERSPACE_FILENAME="$(echo ${USERSPACE_URL} | perl -pe 's{^.+/}{}')"
-readonly USERSPACE_FILENAME
-
+function set_cuda_repo_shortname() {
 # Short name for urls
-if is_ubuntu22  ; then
-    # at the time of writing 20241125 there is no ubuntu2204 in the index of repos at
-    # https://developer.download.nvidia.com/compute/machine-learning/repos/
-    # use packages from previous release until such time as nvidia
-    # release ubuntu2204 builds
-
-    shortname="$(os_id)$(os_vercat)"
-    nccl_shortname="ubuntu2004"
-elif ge_rocky9 ; then
-    # use packages from previous release until such time as nvidia
-    # release rhel9 builds
-
-    shortname="rhel9"
-    nccl_shortname="rhel8"
-elif is_rocky ; then
+# https://developer.download.nvidia.com/compute/cuda/repos/${shortname}
+  if is_rocky ; then
     shortname="$(os_id | sed -e 's/rocky/rhel/')$(os_vercat)"
-    nccl_shortname="${shortname}"
-else
+  else
     shortname="$(os_id)$(os_vercat)"
-    nccl_shortname="${shortname}"
-fi
+  fi
+}
 
-# Parameters for NVIDIA-provided package repositories
-readonly NVIDIA_BASE_DL_URL='https://developer.download.nvidia.com/compute'
-readonly NVIDIA_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64"
+function set_nv_urls() {
+  # Parameters for NVIDIA-provided package repositories
+  readonly NVIDIA_BASE_DL_URL='https://developer.download.nvidia.com/compute'
+  readonly NVIDIA_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64"
 
-# Parameters for NVIDIA-provided NCCL library
-readonly DEFAULT_NCCL_REPO_URL="${NVIDIA_BASE_DL_URL}/machine-learning/repos/${nccl_shortname}/x86_64/nvidia-machine-learning-repo-${nccl_shortname}_1.0.0-1_amd64.deb"
-NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
-readonly NCCL_REPO_URL
-readonly NCCL_REPO_KEY="${NVIDIA_BASE_DL_URL}/machine-learning/repos/${nccl_shortname}/x86_64/7fa2af80.pub" # 3bf863cc.pub
+  # Parameter for NVIDIA-provided Rocky Linux GPU driver
+  readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_REPO_URL}/cuda-${shortname}.repo"
+}
 
 function set_cuda_runfile_url() {
   local MAX_DRIVER_VERSION
@@ -291,11 +278,7 @@ function set_cuda_runfile_url() {
   fi
 }
 
-set_cuda_runfile_url
-
-# Parameter for NVIDIA-provided Rocky Linux GPU driver
-readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_REPO_URL}/cuda-${shortname}.repo"
-
+function set_cudnn_tarball_url() {
 CUDNN_TARBALL="cudnn-${CUDA_VERSION}-linux-x64-v${CUDNN_VERSION}.tgz"
 CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN_VERSION%.*}/${CUDNN_TARBALL}"
 if ( version_ge "${CUDNN_VERSION}" "8.3.1.22" ); then
@@ -315,20 +298,8 @@ if ( version_ge "${CUDA_VERSION}" "12.0" ); then
 fi
 readonly CUDNN_TARBALL
 readonly CUDNN_TARBALL_URL
+}
 
-# Whether to install NVIDIA-provided or OS-provided GPU driver
-GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'NVIDIA')
-readonly GPU_DRIVER_PROVIDER
-
-# Whether to install GPU monitoring agent that sends GPU metrics to Stackdriver
-INSTALL_GPU_AGENT=$(get_metadata_attribute 'install-gpu-agent' 'false')
-readonly INSTALL_GPU_AGENT
-
-NVIDIA_SMI_PATH='/usr/bin'
-MIG_MAJOR_CAPS=0
-IS_MIG_ENABLED=0
-
-CUDA_KEYRING_PKG_INSTALLED="0"
 function install_cuda_keyring_pkg() {
   if [[ "${CUDA_KEYRING_PKG_INSTALLED}" == "1" ]]; then return ; fi
   local kr_ver=1.1
@@ -376,7 +347,6 @@ function uninstall_local_cuda_repo(){
   rm -f "${workdir}/complete/install-local-cuda-repo"
 }
 
-CUDNN_PKG_NAME=""
 function install_local_cudnn_repo() {
   if test -f "${workdir}/complete/install-local-cudnn-repo" ; then return ; fi
   pkgname="cudnn-local-repo-${shortname}-${CUDNN_VERSION%.*}"
@@ -402,8 +372,6 @@ function uninstall_local_cudnn_repo() {
   rm -f "${workdir}/complete/install-local-cudnn-repo"
 }
 
-CUDNN8_LOCAL_REPO_INSTALLED="0"
-CUDNN8_PKG_NAME=""
 function install_local_cudnn8_repo() {
   if test -f "${workdir}/complete/install-local-cudnn8-repo" ; then return ; fi
 
@@ -448,6 +416,9 @@ function uninstall_local_cudnn8_repo() {
 }
 
 function install_nvidia_nccl() {
+  readonly DEFAULT_NCCL_VERSION=${NCCL_FOR_CUDA["${CUDA_VERSION}"]}
+  readonly NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION})
+
   if test -f "${workdir}/complete/nccl" ; then return ; fi
 
   if is_cuda11 && is_debian12 ; then
@@ -747,6 +718,13 @@ function build_driver_from_packages() {
 }
 
 function install_nvidia_userspace_runfile() {
+  # Parameters for NVIDIA-provided Debian GPU driver
+  readonly DEFAULT_USERSPACE_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
+
+  readonly USERSPACE_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_USERSPACE_URL}")
+
+  USERSPACE_FILENAME="$(echo ${USERSPACE_URL} | perl -pe 's{^.+/}{}')"
+  readonly USERSPACE_FILENAME
 
   # This .run file contains NV's OpenGL implementation as well as
   # nvidia optimized implementations of the gtk+ 2,3 stack(s) not
@@ -1118,6 +1096,7 @@ EOF
     local task_cpus=2
     local gpu_amount
     gpu_amount="$(echo $executor_cores | perl -pe "\$_ = ( ${gpu_count} / (\$_ / ${task_cpus}) )")"
+    if version_ge "${gpu_amount}" "0.5" && version_lt "${gpu_amount}" "1.0" ; then gpu_amount="0.5" ; fi
 
     cat >>"${spark_defaults_conf}" <<EOF
 ###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
@@ -1235,6 +1214,31 @@ function install_dependencies() {
 }
 
 function prepare_gpu_env(){
+  set_cuda_version
+  set_driver_version
+  set_cuda_repo_shortname
+  set_nv_urls
+  set_cuda_runfile_url
+  set_cudnn_version
+  set_cudnn_tarball_url
+
+  # Whether to install NVIDIA-provided or OS-provided GPU driver
+  GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'NVIDIA')
+  readonly GPU_DRIVER_PROVIDER
+
+  # Whether to install GPU monitoring agent that sends GPU metrics to Stackdriver
+  INSTALL_GPU_AGENT=$(get_metadata_attribute 'install-gpu-agent' 'false')
+  readonly INSTALL_GPU_AGENT
+
+  NVIDIA_SMI_PATH='/usr/bin'
+  MIG_MAJOR_CAPS=0
+  IS_MIG_ENABLED=0
+
+  CUDA_KEYRING_PKG_INSTALLED="0"
+  CUDNN_PKG_NAME=""
+  CUDNN8_LOCAL_REPO_INSTALLED="0"
+  CUDNN8_PKG_NAME=""
+
   # Verify SPARK compatability
   RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 
