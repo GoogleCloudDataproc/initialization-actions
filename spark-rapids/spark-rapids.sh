@@ -660,7 +660,7 @@ function set_cuda_version() {
   fi
 
   if ( ! test -v DEFAULT_CUDA_VERSION ) ; then
-    DEFAULT_CUDA_VERSION='12.4'
+    DEFAULT_CUDA_VERSION='12.1.1'
   fi
   readonly DEFAULT_CUDA_VERSION
 
