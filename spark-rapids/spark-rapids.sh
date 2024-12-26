@@ -1713,6 +1713,7 @@ EOF
     local task_cpus=2
     local gpu_amount
     gpu_amount="$(echo $executor_cores | perl -pe "\$_ = ( ${gpu_count} / (\$_ / ${task_cpus}) )")"
+    if version_ge "${gpu_amount}" "0.5" && version_lt "${gpu_amount}" "1.0" ; then gpu_amount="0.5" ; fi
 
     cat >>"${spark_defaults_conf}" <<EOF
 ###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
