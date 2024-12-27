@@ -81,7 +81,7 @@ function set_cuda_version() {
 
   if le_ubuntu18 ; then
     DEFAULT_CUDA_VERSION="12.1.1"
-    CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.1
+    CUDA_VERSION_MAJOR="${DEFAULT_CUDA_VERSION%.*}"  #12.1
   fi
   readonly DEFAULT_CUDA_VERSION
 
@@ -648,7 +648,7 @@ function build_driver_from_github() {
       # build the kernel modules
       pushd open-gpu-kernel-modules
       install_build_dependencies
-      if is_cuda11 && is_ubuntu22 ; then
+      if ( is_cuda11 && is_ubuntu22 ) ; then
         echo "Kernel modules cannot be compiled for CUDA 11 on ${_shortname}"
         exit 1
       fi
