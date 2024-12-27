@@ -1218,10 +1218,9 @@ function prepare_gpu_env(){
   NVIDIA_SMI_PATH='/usr/bin'
   MIG_MAJOR_CAPS=0
   IS_MIG_ENABLED=0
-  CUDA_KEYRING_PKG_INSTALLED="0"
   CUDNN_PKG_NAME=""
-  CUDNN8_LOCAL_REPO_INSTALLED="0"
   CUDNN8_PKG_NAME=""
+  CUDA_LOCAL_REPO_INSTALLED="0"
 
   # Whether to install NVIDIA-provided or OS-provided GPU driver
   GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'NVIDIA')
