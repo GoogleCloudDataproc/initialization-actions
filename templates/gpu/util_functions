@@ -1312,7 +1312,7 @@ function configure_mig_cgi() {
 
       # For H100 3D controllers, use profile 19, 7x1G instances
       nvidia-smi mig -cgi 19 -C
-    if echo "${pci_id_list}" | grep -q -i 'PCI_ID=10DE:20' ; then
+    elif echo "${pci_id_list}" | grep -q -i 'PCI_ID=10DE:20' ; then
       # Dataproc only supports A100s right now split in 2 if not specified
       # https://docs.nvidia.com/datacenter/tesla/mig-user-guide/#creating-gpu-instances
       nvidia-smi mig -cgi 9,9 -C
