@@ -1096,8 +1096,6 @@ EOF
   chmod a+rx "${gpus_resources_script}"
 
   local spark_defaults_conf="/etc/spark/conf.dist/spark-defaults.conf"
-  local gpu_count
-  gpu_count="$(lspci | grep NVIDIA | wc -l)"
 
   local executor_cores
   executor_cores="$(nproc | perl -MPOSIX -pe '$_ = POSIX::floor( $_ * 0.75 ); $_-- if $_ % 2')"
@@ -1126,6 +1124,15 @@ spark.task.cpus=2
 spark.yarn.unmanagedAM.enabled=false
 ###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
 EOF
+}
+
+function configure_yarn_nodemanager_gpu() {
+  set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.resource-plugins.gpu.allowed-gpu-devices' 'auto'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.resource-plugins.gpu.path-to-discovery-executables' "${NVIDIA_SMI_PATH}"
+  configure_yarn_nodemanager
 }
 
 function configure_gpu_isolation() {
@@ -1217,6 +1224,7 @@ function install_build_dependencies() {
 }
 
 function prepare_gpu_env(){
+  gpu_count="$(lspci | grep -q NVIDIA | wc -l)"
   nvsmi_works="0"
   NVIDIA_SMI_PATH='/usr/bin'
   MIG_MAJOR_CAPS=0
@@ -1321,48 +1329,51 @@ function setup_gpu_yarn() {
   # regardless if they have attached GPUs
   configure_yarn_resources
 
-  # Detect NVIDIA GPU
-  if (lspci | grep -q NVIDIA); then
-    # if this is called without the MIG script then the drivers are not installed
-    migquery_result="$(nvsmi --query-gpu=mig.mode.current --format=csv,noheader)"
-    if [[ "${migquery_result}" == "[N/A]" ]] ; then migquery_result="" ; fi
-    NUM_MIG_GPUS="$(echo ${migquery_result} | uniq | wc -l)"
-
-    if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
-      if [[ "${NUM_MIG_GPUS}" -eq "1" ]]; then
-        if (echo "${migquery_result}" | grep Enabled); then
-          IS_MIG_ENABLED=1
-          NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
-          MIG_MAJOR_CAPS=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
-          fetch_mig_scripts
-        fi
-      fi
+  # When there is no GPU, but the installer is executing on a master node:
+  if [[ "${gpu_count}" == "0" ]] ; then
+    if [[ "${ROLE}" == "Master" ]]; then
+      configure_yarn_nodemanager
     fi
-
-    # if mig is enabled drivers would have already been installed
-    if [[ $IS_MIG_ENABLED -eq 0 ]]; then
-      install_nvidia_gpu_driver
-      install_cuda
-      load_kernel_module
-
-      #Install GPU metrics collection in Stackdriver if needed
-      if [[ "${INSTALL_GPU_AGENT}" == "true" ]]; then
-        install_gpu_agent
-#        install_gpu_monitoring_agent
-        echo 'GPU metrics agent successfully deployed.'
-      else
-        echo 'GPU metrics agent has not been installed.'
-      fi
-      configure_gpu_exclusive_mode
-    fi
-
-    configure_yarn_nodemanager
-    configure_gpu_script
-    configure_gpu_isolation
-  elif [[ "${ROLE}" == "Master" ]]; then
-    configure_yarn_nodemanager
-    configure_gpu_script
+    return 0
   fi
+
+  # if this is called without the MIG script then the drivers are not installed
+  migquery_result="$(nvsmi --query-gpu=mig.mode.current --format=csv,noheader)"
+  if [[ "${migquery_result}" == "[N/A]" ]] ; then migquery_result="" ; fi
+  NUM_MIG_GPUS="$(echo ${migquery_result} | uniq | wc -l)"
+
+  if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
+    if [[ "${NUM_MIG_GPUS}" -eq "1" ]]; then
+      if (echo "${migquery_result}" | grep Enabled); then
+        IS_MIG_ENABLED=1
+        NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
+        MIG_MAJOR_CAPS=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
+        fetch_mig_scripts
+      fi
+    fi
+  fi
+
+  # if mig is enabled drivers would have already been installed
+  if [[ $IS_MIG_ENABLED -eq 0 ]]; then
+    install_nvidia_gpu_driver
+    install_cuda
+    load_kernel_module
+
+    #Install GPU metrics collection in Stackdriver if needed
+    if [[ "${INSTALL_GPU_AGENT}" == "true" ]]; then
+      install_gpu_agent
+#      install_gpu_monitoring_agent
+      echo 'GPU metrics agent successfully deployed.'
+    else
+      echo 'GPU metrics agent has not been installed.'
+    fi
+    configure_gpu_exclusive_mode
+  fi
+
+  install_nvidia_container_toolkit
+  configure_yarn_nodemanager_gpu
+  configure_gpu_script
+  configure_gpu_isolation
 }
 
 function gpu_exit_handler() {
