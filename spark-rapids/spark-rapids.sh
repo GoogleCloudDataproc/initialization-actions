@@ -1781,8 +1781,12 @@ function install_spark_rapids() {
   readonly DEFAULT_SPARK_RAPIDS_VERSION="24.08.1"
   readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
 
+  # https://mvnrepository.com/artifact/ml.dmlc/xgboost4j-spark-gpu
+  local -r scala_ver="2.12"
+  if version_ge "${DATAPROC_IMAGE_VERSION}" "2.2" ; then
+    DEFAULT_XGBOOST_VERSION="1.7.6" # try 2.1.3
   if version_ge "${DATAPROC_IMAGE_VERSION}" "2.1" ; then
-    DEFAULT_XGBOOST_VERSION="1.7.6" # try 2.1.1
+    DEFAULT_XGBOOST_VERSION="1.7.6"
   elif version_ge "${DATAPROC_IMAGE_VERSION}" "2.0" ; then
     DEFAULT_XGBOOST_VERSION="1.6.2"
   fi
@@ -1795,13 +1799,13 @@ function install_spark_rapids() {
   local -r dmlc_repo_url='https://repo.maven.apache.org/maven2/ml/dmlc'
 
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${dmlc_repo_url}/xgboost4j-spark-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-spark-gpu_2.12-${XGBOOST_VERSION}.jar" \
+    "${dmlc_repo_url}/xgboost4j-spark-gpu_${scala_ver}/${XGBOOST_VERSION}/xgboost4j-spark-gpu_${scala_ver}-${XGBOOST_VERSION}.jar" \
     -P /usr/lib/spark/jars/
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${dmlc_repo_url}/xgboost4j-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-gpu_2.12-${XGBOOST_VERSION}.jar" \
+    "${dmlc_repo_url}/xgboost4j-gpu_${scala_ver}/${XGBOOST_VERSION}/xgboost4j-gpu_${scala_ver}-${XGBOOST_VERSION}.jar" \
     -P /usr/lib/spark/jars/
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${nvidia_repo_url}/rapids-4-spark_2.12/${SPARK_RAPIDS_VERSION}/rapids-4-spark_2.12-${SPARK_RAPIDS_VERSION}.jar" \
+    "${nvidia_repo_url}/rapids-4-spark_${scala_ver}/${SPARK_RAPIDS_VERSION}/rapids-4-spark_${scala_ver}-${SPARK_RAPIDS_VERSION}.jar" \
     -P /usr/lib/spark/jars/
 }
 
@@ -1843,17 +1847,18 @@ EOF
   local spark_defaults_conf="/etc/spark/conf.dist/spark-defaults.conf"
   local gpu_count
   gpu_count="$(lspci | grep NVIDIA | wc -l)"
-  if version_ge "${gpu_count}" "1" ; then
-    local executor_cores
-    executor_cores="$(nproc | perl -MPOSIX -pe '$_ = POSIX::floor( $_ * 0.75 ); $_-- if $_ % 2')"
-    local executor_memory
-    executor_memory_gb="$(awk '/^MemFree/ {print $2}' /proc/meminfo | perl -MPOSIX -pe '$_ *= 0.75; $_ = POSIX::floor( $_ / (1024*1024) )')"
-    local task_cpus=2
-    local gpu_amount
-    gpu_amount="$(echo $executor_cores | perl -pe "\$_ = ( ${gpu_count} / (\$_ / ${task_cpus}) )")"
-    if version_ge "${gpu_amount}" "0.5" && version_lt "${gpu_amount}" "1.0" ; then gpu_amount="0.5" ; fi
+  if version_lt "${gpu_count}" "1" ; then return ; fi
 
-    cat >>"${spark_defaults_conf}" <<EOF
+  local executor_cores
+  executor_cores="$(nproc | perl -MPOSIX -pe '$_ = POSIX::floor( $_ * 0.75 ); $_-- if $_ % 2')"
+  local executor_memory
+  executor_memory_gb="$(awk '/^MemFree/ {print $2}' /proc/meminfo | perl -MPOSIX -pe '$_ *= 0.75; $_ = POSIX::floor( $_ / (1024*1024) )')"
+  local task_cpus=2
+  local gpu_amount
+  gpu_amount="$(echo $executor_cores | perl -pe "\$_ = ( ${gpu_count} / (\$_ / ${task_cpus}) )")"
+  if version_ge "${gpu_amount}" "0.5" && version_lt "${gpu_amount}" "1.0" ; then gpu_amount="0.5" ; fi
+
+  cat >>"${spark_defaults_conf}" <<EOF
 ###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
 # Rapids Accelerator for Spark can utilize AQE, but when the plan is not finalized,
 # query explain output won't show GPU operator, if the user has doubts
@@ -1871,7 +1876,6 @@ spark.task.cpus=2
 spark.yarn.unmanagedAM.enabled=false
 ###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
 EOF
-  fi
 }
 
 function configure_gpu_isolation() {
