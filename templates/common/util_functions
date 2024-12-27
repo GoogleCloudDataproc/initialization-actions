@@ -532,8 +532,6 @@ function check_secure_boot() {
                       mok_der=/var/lib/shim-signed/mok/MOK.der
                  else mok_key=/var/lib/dkms/mok.key
                       mok_der=/var/lib/dkms/mok.pub ; fi
-
-  configure_dkms_certs
 }
 
 function install_dependencies() {
@@ -613,9 +611,6 @@ function prepare_common_env() {
 }
 
 function common_exit_handler() {
-  # Purge private key material until next grant
-  clear_dkms_key
-
   set +ex
   echo "Exit handler invoked"
 
