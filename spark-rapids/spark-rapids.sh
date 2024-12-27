@@ -613,7 +613,6 @@ function prepare_common_env() {
   export DEBIAN_FRONTEND=noninteractive
 
   mkdir -p "${workdir}/complete"
-  trap exit_handler EXIT
   set_proxy
   mount_ramdisk
 
@@ -2149,9 +2148,12 @@ function main() {
   # Restart YARN services if they are running already
   for svc in resourcemanager nodemanager; do
     if [[ "$(systemctl show hadoop-yarn-${svc}.service -p SubState --value)" == 'running' ]]; then
-      systemctl restart "hadoop-yarn-${svc}.service"
+      systemctl  stop "hadoop-yarn-${svc}.service"
+      systemctl start "hadoop-yarn-${svc}.service"
     fi
   done
+  echo "main complete"
+  return 0
 }
 
 function exit_handler() {
@@ -2163,6 +2165,7 @@ function exit_handler() {
 function prepare_to_install(){
   prepare_common_env
   prepare_gpu_env
+  trap exit_handler EXIT
 
   # Fetch instance roles and runtime
   readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
