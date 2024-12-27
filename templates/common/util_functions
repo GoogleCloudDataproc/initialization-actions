@@ -28,9 +28,8 @@ function define_os_comparison_functions() {
       eval "function le_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && version_le \"${_os_version}\" \"${osver}\" ; )"
     done
   done
+  eval "function is_debuntu()  ( set +x ;  is_debian || is_ubuntu ; )"
 }
-
-function is_debuntu()  ( set +x ;  is_debian || is_ubuntu ; )
 
 function os_vercat()   ( set +x
   if   is_ubuntu ; then os_version | sed -e 's/[^0-9]//g'
@@ -536,7 +535,7 @@ function check_secure_boot() {
 
 function install_dependencies() {
   test -f "${workdir}/complete/install-dependencies" && return 0
-  pkg_list="pciutils screen"
+  pkg_list="screen"
   if is_debuntu ; then execute_with_retries apt-get -y -q install ${pkg_list}
   elif is_rocky ; then execute_with_retries dnf     -y -q install ${pkg_list} ; fi
   touch "${workdir}/complete/install-dependencies"
