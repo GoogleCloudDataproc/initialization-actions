@@ -828,7 +828,7 @@ function set_cuda_version() {
 
   if le_ubuntu18 ; then
     DEFAULT_CUDA_VERSION="12.1.1"
-    CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.1
+    CUDA_VERSION_MAJOR="${DEFAULT_CUDA_VERSION%.*}"  #12.1
   fi
   readonly DEFAULT_CUDA_VERSION
 
