@@ -1033,7 +1033,14 @@ function install_spark_rapids() {
   # Update SPARK RAPIDS config
   readonly DEFAULT_SPARK_RAPIDS_VERSION="24.08.1"
   readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
-  readonly DEFAULT_XGBOOST_VERSION="1.7.6" # try 2.1.1
+
+  if version_ge "${DATAPROC_IMAGE_VERSION}" "2.1" ; then
+    DEFAULT_XGBOOST_VERSION="1.7.6" # try 2.1.1
+  elif version_ge "${DATAPROC_IMAGE_VERSION}" "2.0" ; then
+    DEFAULT_XGBOOST_VERSION="1.6.2"
+  fi
+
+  readonly DEFAULT_XGBOOST_VERSION
   readonly XGBOOST_VERSION=$(get_metadata_attribute 'xgboost-version' ${DEFAULT_XGBOOST_VERSION})
 
   local -r rapids_repo_url='https://repo1.maven.org/maven2/ai/rapids'
