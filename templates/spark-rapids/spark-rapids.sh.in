@@ -43,7 +43,8 @@ function main() {
   # Restart YARN services if they are running already
   for svc in resourcemanager nodemanager; do
     if [[ "$(systemctl show hadoop-yarn-${svc}.service -p SubState --value)" == 'running' ]]; then
-      systemctl restart "hadoop-yarn-${svc}.service"
+      systemctl  stop "hadoop-yarn-${svc}.service"
+      systemctl start "hadoop-yarn-${svc}.service"
     fi
   done
   echo "main complete"
