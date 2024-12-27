@@ -21,7 +21,6 @@ function main() {
     install_nvidia_nccl
     install_nvidia_cudnn
   fi
-  install_nvidia_container_toolkit
 
   if [[ "${RAPIDS_RUNTIME}" == "SPARK" ]]; then
     install_spark_rapids
