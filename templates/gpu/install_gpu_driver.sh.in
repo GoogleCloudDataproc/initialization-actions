@@ -14,7 +14,7 @@ set -euxo pipefail
 
 function main() {
   setup_gpu_yarn
-  if ( test -v CUDNN_VERSION && [[ -n ${CUDNN_VERSION} ]] ) ; then
+  if ( test -v CUDNN_VERSION && [[ -n "${CUDNN_VERSION}" ]] ) ; then
     install_nvidia_nccl
     install_nvidia_cudnn
   fi
@@ -37,6 +37,8 @@ function main() {
       systemctl restart "hadoop-yarn-${svc}.service"
     fi
   done
+  echo "main complete"
+  return 0
 }
 
 function exit_handler() {
@@ -48,6 +50,7 @@ function exit_handler() {
 function prepare_to_install(){
   prepare_common_env
   prepare_gpu_env
+  trap exit_handler EXIT
 }
 
 prepare_to_install
