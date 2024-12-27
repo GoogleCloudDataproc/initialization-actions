@@ -1246,8 +1246,6 @@ function prepare_gpu_env(){
   RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
   readonly RAPIDS_RUNTIME
 
-  install_dependencies
-
   set_cuda_version
   set_driver_version
   set_cuda_repo_shortname
