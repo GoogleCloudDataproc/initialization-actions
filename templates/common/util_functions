@@ -573,7 +573,6 @@ function prepare_common_env() {
   export DEBIAN_FRONTEND=noninteractive
 
   mkdir -p "${workdir}/complete"
-  trap exit_handler EXIT
   set_proxy
   mount_ramdisk
 
