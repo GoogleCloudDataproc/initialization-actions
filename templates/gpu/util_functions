@@ -981,6 +981,7 @@ function install_gpu_agent() {
     | dd status=none of="${install_dir}/report_gpu_metrics.py"
   local venv="${install_dir}/venv"
   python3 -m venv "${venv}"
+
 (
   source "${venv}/bin/activate"
   python3 -m pip install --upgrade pip
@@ -1012,13 +1013,10 @@ EOF
 }
 
 function configure_gpu_exclusive_mode() {
-  # check if running spark 3, if not, enable GPU exclusive mode
-  local spark_version
-  spark_version=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
-  if [[ ${spark_version} != 3.* ]]; then
-    # include exclusive mode on GPU
-    nvidia-smi -c EXCLUSIVE_PROCESS
-  fi
+  # only run this function when spark < 3.0
+  if version_ge "${SPARK_VERSION}" "3.0" ; then return 0 ; fi
+  # include exclusive mode on GPU
+  nvidia-smi -c EXCLUSIVE_PROCESS
 }
 
 function fetch_mig_scripts() {
