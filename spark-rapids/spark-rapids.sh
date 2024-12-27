@@ -581,6 +581,13 @@ function check_secure_boot() {
   configure_dkms_certs
 }
 
+function install_dependencies() {
+  pkg_list="pciutils screen"
+  if is_debuntu ; then execute_with_retries apt-get -y -q install ${pkg_list}
+  elif is_rocky ; then execute_with_retries dnf     -y -q install ${pkg_list} ; fi
+  lspci | grep -q NVIDIA || exit 0
+}
+
 function prepare_common_env() {
   define_os_comparison_functions
 
@@ -637,6 +644,8 @@ function prepare_common_env() {
   if [[ -n "$(get_metadata_attribute creating-image)" ]]; then ( set +e
     time dd if=/dev/zero of=/zero status=none ; sync ; sleep 3s ; rm -f /zero
   ) fi
+
+  install_dependencies
 
   # Monitor disk usage in a screen session
   df / > "/run/disk-usage.log"
@@ -1962,13 +1971,6 @@ function install_build_dependencies() {
   touch "${workdir}/complete/build-dependencies"
 }
 
-function install_dependencies() {
-  pkg_list="pciutils screen"
-  if is_debuntu ; then execute_with_retries apt-get -y -q install ${pkg_list}
-  elif is_rocky ; then execute_with_retries dnf     -y -q install ${pkg_list} ; fi
-  lspci | grep -q NVIDIA || exit 0
-}
-
 function prepare_gpu_env(){
   nvsmi_works="0"
   NVIDIA_SMI_PATH='/usr/bin'
@@ -2163,7 +2165,6 @@ function exit_handler() {
 }
 
 function prepare_to_install(){
-  install_dependencies
   prepare_common_env
   prepare_gpu_env
   trap exit_handler EXIT
