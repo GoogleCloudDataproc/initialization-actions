@@ -14,7 +14,7 @@ set -euxo pipefail
 
 function main() {
   setup_gpu_yarn
-  if [[ -n ${CUDNN_VERSION} ]]; then
+  if ( test -v CUDNN_VERSION && [[ -n ${CUDNN_VERSION} ]] ) ; then
     install_nvidia_nccl
     install_nvidia_cudnn
   fi
