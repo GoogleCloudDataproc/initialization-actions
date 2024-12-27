@@ -1990,8 +1990,6 @@ function prepare_gpu_env(){
   RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
   readonly RAPIDS_RUNTIME
 
-  install_dependencies
-
   set_cuda_version
   set_driver_version
   set_cuda_repo_shortname
@@ -2165,6 +2163,7 @@ function exit_handler() {
 }
 
 function prepare_to_install(){
+  install_dependencies
   prepare_common_env
   prepare_gpu_env
   trap exit_handler EXIT
