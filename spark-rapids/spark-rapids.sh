@@ -1783,9 +1783,9 @@ function install_spark_rapids() {
 
   # https://mvnrepository.com/artifact/ml.dmlc/xgboost4j-spark-gpu
   local -r scala_ver="2.12"
-  if version_ge "${DATAPROC_IMAGE_VERSION}" "2.2" ; then
+  if   version_ge "${DATAPROC_IMAGE_VERSION}" "2.2" ; then
     DEFAULT_XGBOOST_VERSION="1.7.6" # try 2.1.3
-  if version_ge "${DATAPROC_IMAGE_VERSION}" "2.1" ; then
+  elif version_ge "${DATAPROC_IMAGE_VERSION}" "2.1" ; then
     DEFAULT_XGBOOST_VERSION="1.7.6"
   elif version_ge "${DATAPROC_IMAGE_VERSION}" "2.0" ; then
     DEFAULT_XGBOOST_VERSION="1.6.2"
