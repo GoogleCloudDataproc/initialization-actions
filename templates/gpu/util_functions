@@ -1223,7 +1223,8 @@ function install_build_dependencies() {
 }
 
 function prepare_gpu_env(){
-  gpu_count="$(lspci | grep -q NVIDIA | wc -l)"
+  gpu_count="$(grep -i PCI_ID=10DE /sys/bus/pci/devices/*/uevent | wc -l)"
+  echo "gpu_count=[${gpu_count}]"
   nvsmi_works="0"
   NVIDIA_SMI_PATH='/usr/bin'
   MIG_MAJOR_CAPS=0
@@ -1294,7 +1295,9 @@ function configure_mig_cgi() {
   if test -n "${META_MIG_CGI_VALUE}"; then
     nvidia-smi mig -cgi "${META_MIG_CGI_VALUE}" -C
   else
-    if lspci | grep -q H100 ; then
+    # https://pci-ids.ucw.cz/v2.2/pci.ids
+    local pci_id_list="$(grep -iH PCI_ID=10DE /sys/bus/pci/devices/*/uevent)"
+    if echo "${pci_id_list}" | grep -q -i 'PCI_ID=10DE:23' ; then
       # run the following command to list placement profiles
       # nvidia-smi mig -lgipp
       #
@@ -1309,7 +1312,7 @@ function configure_mig_cgi() {
 
       # For H100 3D controllers, use profile 19, 7x1G instances
       nvidia-smi mig -cgi 19 -C
-    elif lspci | grep -q A100 ; then
+    if echo "${pci_id_list}" | grep -q -i 'PCI_ID=10DE:20' ; then
       # Dataproc only supports A100s right now split in 2 if not specified
       # https://docs.nvidia.com/datacenter/tesla/mig-user-guide/#creating-gpu-instances
       nvidia-smi mig -cgi 9,9 -C
