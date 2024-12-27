@@ -598,8 +598,6 @@ function prepare_common_env() {
     time dd if=/dev/zero of=/zero status=none ; sync ; sleep 3s ; rm -f /zero
   ) fi
 
-  install_dependencies
-
   # Monitor disk usage in a screen session
   df / > "/run/disk-usage.log"
   touch "/run/keep-running-df"

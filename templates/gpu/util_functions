@@ -1100,7 +1100,6 @@ EOF
   local spark_defaults_conf="/etc/spark/conf.dist/spark-defaults.conf"
   local gpu_count
   gpu_count="$(lspci | grep NVIDIA | wc -l)"
-  if version_lt "${gpu_count}" "1" ; then return ; fi
 
   local executor_cores
   executor_cores="$(nproc | perl -MPOSIX -pe '$_ = POSIX::floor( $_ * 0.75 ); $_-- if $_ % 2')"
@@ -1223,6 +1222,7 @@ function install_dependencies() {
   pkg_list="pciutils screen"
   if is_debuntu ; then execute_with_retries apt-get -y -q install ${pkg_list}
   elif is_rocky ; then execute_with_retries dnf     -y -q install ${pkg_list} ; fi
+  lspci | grep -q NVIDIA || exit 0
 }
 
 function prepare_gpu_env(){
@@ -1245,6 +1245,8 @@ function prepare_gpu_env(){
   # Verify SPARK compatability
   RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
   readonly RAPIDS_RUNTIME
+
+  install_dependencies
 
   set_cuda_version
   set_driver_version
