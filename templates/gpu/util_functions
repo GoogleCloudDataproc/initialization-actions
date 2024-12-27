@@ -301,7 +301,8 @@ readonly CUDNN_TARBALL_URL
 }
 
 function install_cuda_keyring_pkg() {
-  if [[ "${CUDA_KEYRING_PKG_INSTALLED}" == "1" ]]; then return ; fi
+  if ( test -v CUDA_KEYRING_PKG_INSTALLED &&
+       [[ "${CUDA_KEYRING_PKG_INSTALLED}" == "1" ]] ); then return ; fi
   local kr_ver=1.1
   curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
     "${NVIDIA_REPO_URL}/cuda-keyring_${kr_ver}-1_all.deb" \
