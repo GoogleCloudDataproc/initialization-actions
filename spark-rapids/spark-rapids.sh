@@ -638,8 +638,6 @@ function prepare_common_env() {
     time dd if=/dev/zero of=/zero status=none ; sync ; sleep 3s ; rm -f /zero
   ) fi
 
-  install_dependencies
-
   # Monitor disk usage in a screen session
   df / > "/run/disk-usage.log"
   touch "/run/keep-running-df"
@@ -1846,7 +1844,6 @@ EOF
   local spark_defaults_conf="/etc/spark/conf.dist/spark-defaults.conf"
   local gpu_count
   gpu_count="$(lspci | grep NVIDIA | wc -l)"
-  if version_lt "${gpu_count}" "1" ; then return ; fi
 
   local executor_cores
   executor_cores="$(nproc | perl -MPOSIX -pe '$_ = POSIX::floor( $_ * 0.75 ); $_-- if $_ % 2')"
@@ -1969,6 +1966,7 @@ function install_dependencies() {
   pkg_list="pciutils screen"
   if is_debuntu ; then execute_with_retries apt-get -y -q install ${pkg_list}
   elif is_rocky ; then execute_with_retries dnf     -y -q install ${pkg_list} ; fi
+  lspci | grep -q NVIDIA || exit 0
 }
 
 function prepare_gpu_env(){
@@ -1991,6 +1989,8 @@ function prepare_gpu_env(){
   # Verify SPARK compatability
   RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
   readonly RAPIDS_RUNTIME
+
+  install_dependencies
 
   set_cuda_version
   set_driver_version
@@ -2133,6 +2133,8 @@ function gpu_exit_handler() {
 
 function main() {
   setup_gpu_yarn
+
+  echo "yarn setup complete"
 
   if [[ "${RAPIDS_RUNTIME}" == "SPARK" ]]; then
     install_spark_rapids
