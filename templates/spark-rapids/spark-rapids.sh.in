@@ -29,6 +29,8 @@ set -euxo pipefail
 function main() {
   setup_gpu_yarn
 
+  echo "yarn setup complete"
+
   if [[ "${RAPIDS_RUNTIME}" == "SPARK" ]]; then
     install_spark_rapids
     configure_gpu_script
