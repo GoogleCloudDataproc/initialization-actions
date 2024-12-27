@@ -1218,13 +1218,6 @@ function install_build_dependencies() {
   touch "${workdir}/complete/build-dependencies"
 }
 
-function install_dependencies() {
-  pkg_list="pciutils screen"
-  if is_debuntu ; then execute_with_retries apt-get -y -q install ${pkg_list}
-  elif is_rocky ; then execute_with_retries dnf     -y -q install ${pkg_list} ; fi
-  lspci | grep -q NVIDIA || exit 0
-}
-
 function prepare_gpu_env(){
   nvsmi_works="0"
   NVIDIA_SMI_PATH='/usr/bin'
