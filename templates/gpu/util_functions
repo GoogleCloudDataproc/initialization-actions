@@ -657,12 +657,14 @@ function build_driver_from_github() {
         2> kernel-open/build_error.log
       # Sign kernel modules
       if [[ -n "${PSN}" ]]; then
+        configure_dkms_certs
         for module in $(find open-gpu-kernel-modules/kernel-open -name '*.ko'); do
           "/lib/modules/${uname_r}/build/scripts/sign-file" sha256 \
           "${mok_key}" \
           "${mok_der}" \
           "${module}"
         done
+	clear_dkms_key
       fi
       make modules_install \
         >>  kernel-open/build.log \
@@ -702,12 +704,10 @@ function build_driver_from_packages() {
     add_contrib_component
     apt-get update -qq
     execute_with_retries apt-get install -y -qq --no-install-recommends dkms
-    #configure_dkms_certs
     execute_with_retries apt-get install -y -qq --no-install-recommends "${pkglist[@]}"
     sync
 
   elif is_rocky ; then
-    #configure_dkms_certs
     if execute_with_retries dnf -y -q module install "nvidia-driver:${DRIVER}-dkms" ; then
       echo "nvidia-driver:${DRIVER}-dkms installed successfully"
     else
@@ -715,7 +715,6 @@ function build_driver_from_packages() {
     fi
     sync
   fi
-  #clear_dkms_key
 }
 
 function install_nvidia_userspace_runfile() {
@@ -767,7 +766,7 @@ function install_nvidia_userspace_runfile() {
         echo "cache hit"
       else
         install_build_dependencies
-
+        configure_dkms_certs
         local signing_options
         signing_options=""
         if [[ -n "${PSN}" ]]; then
@@ -778,7 +777,6 @@ function install_nvidia_userspace_runfile() {
           --module-signing-script \"/lib/modules/${uname_r}/build/scripts/sign-file\" \
           "
         fi
-
         runfile_args="--no-dkms ${signing_options}"
       fi
     }
@@ -797,6 +795,7 @@ function install_nvidia_userspace_runfile() {
       gcloud storage cat "${gcs_tarball}" | tar -C / -xzv
       depmod -a
     else
+      clear_dkms_key
       tar czvf "${local_tarball}" \
         /var/log/nvidia-installer.log \
         $(find /lib/modules/${uname_r}/ -iname 'nvidia*.ko')
