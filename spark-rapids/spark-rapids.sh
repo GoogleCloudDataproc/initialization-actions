@@ -1770,14 +1770,14 @@ function fetch_mig_scripts() {
 
 function install_spark_rapids() {
   # Update SPARK RAPIDS config
-  local DEFAULT_SPARK_RAPIDS_VERSION="24.08.1"
+  local DEFAULT_SPARK_RAPIDS_VERSION="23.08.2" # Final release to support spark 3.1.3
   local DEFAULT_XGBOOST_VERSION="1.7.6"
 
   # https://mvnrepository.com/artifact/ml.dmlc/xgboost4j-spark-gpu
   local -r scala_ver="2.12"
 
-  if [[ "${DATAPROC_IMAGE_VERSION}" == "2.0" ]] ; then
-    DEFAULT_SPARK_RAPIDS_VERSION="23.08.2" # Final release to support spark 3.1.3
+  if [[ "${DATAPROC_IMAGE_VERSION}" == "2.2" ]] ; then
+    DEFAULT_SPARK_RAPIDS_VERSION="24.08.1"
   fi
 
   readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
