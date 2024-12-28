@@ -1218,7 +1218,9 @@ function install_build_dependencies() {
 }
 
 function prepare_gpu_env(){
+  set +e
   gpu_count="$(grep -i PCI_ID=10DE /sys/bus/pci/devices/*/uevent | wc -l)"
+  set -e
   echo "gpu_count=[${gpu_count}]"
   nvsmi_works="0"
   NVIDIA_SMI_PATH='/usr/bin'
