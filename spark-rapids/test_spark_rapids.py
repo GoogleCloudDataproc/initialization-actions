@@ -1,4 +1,5 @@
 import os
+import time
 
 import pkg_resources
 from absl.testing import absltest
@@ -77,28 +78,6 @@ class SparkRapidsTestCase(DataprocTestCase):
                                                 machine_suffix))
     # Only need to do this once
     self.verify_spark_job()
-
-  @parameterized.parameters(("SINGLE", ["m"], GPU_T4),
-                            ("STANDARD", ["w-0"], GPU_T4))
-  def test_spark_rapids_sql(self, configuration, machine_suffixes, accelerator):
-
-    optional_components = None
-    metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
-
-    self.createCluster(
-      configuration,
-      self.INIT_ACTIONS,
-      optional_components=optional_components,
-      metadata=metadata,
-      machine_type="n1-standard-32",
-      master_accelerator=accelerator if configuration == "SINGLE" else None,
-      worker_accelerator=accelerator,
-      boot_disk_size="40GB",
-      timeout_in_minutes=30)
-
-    for machine_suffix in machine_suffixes:
-      self.verify_spark_instance("{}-{}".format(self.getClusterName(),
-                                                machine_suffix))
     # Only need to do this once
     self.verify_spark_job_sql()
 
@@ -124,6 +103,8 @@ class SparkRapidsTestCase(DataprocTestCase):
                                                 machine_suffix))
     # Only need to do this once
     self.verify_spark_job()
+    # Only need to do this once
+    self.verify_spark_job_sql()
 
   # Disable MIG related test due to the lack of A100 GPUs, more detail see
   # https://github.com/GoogleCloudDataproc/initialization-actions/pull/1070
