@@ -34,8 +34,6 @@ function main() {
   fi
 
   # Restart YARN services if they are running already
-  nodes_include_gcs="gs:/$(get_metadata_attribute dataproc-bucket)/google-cloud-dataproc-metainfo/$(get_metadata_attribute dataproc-cluster-uuid)/nodes_include"
-  gsutil ls "${nodes_include_gcs}"
   for svc in resourcemanager nodemanager; do
     if [[ "$(systemctl show hadoop-yarn-${svc}.service -p SubState --value)" == 'running' ]]; then
       systemctl  stop "hadoop-yarn-${svc}.service"
