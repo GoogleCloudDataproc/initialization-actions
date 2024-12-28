@@ -589,6 +589,9 @@ function prepare_common_env() {
     apt-get -o DPkg::Lock::Timeout=60 -y autoremove
     if ge_debian12 ; then
     apt-mark unhold systemd libsystemd0 ; fi
+    if is_ubuntu ; then
+      while ! command -v gcloud ; do sleep 5s ; done
+    fi
   else
     dnf clean all
   fi
