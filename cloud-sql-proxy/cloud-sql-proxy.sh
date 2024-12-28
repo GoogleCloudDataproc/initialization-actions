@@ -69,6 +69,9 @@ readonly METASTORE_INSTANCE
 ADDITIONAL_INSTANCES="$(/usr/share/google/get_metadata_value ${ADDITIONAL_INSTANCES_KEY} || echo '')"
 readonly ADDITIONAL_INSTANCES
 
+POSTGRES_JDBC_VERSION="$(/usr/share/google/get_metadata_value attributes/postgres-jdbc-version || echo '42.7.4')"
+readonly POSTGRES_JDBC_VERSION
+
 function remove_old_backports {
   # This script uses 'apt-get update' and is therefore potentially dependent on
   # backports repositories which have been archived.  In order to mitigate this
@@ -137,6 +140,15 @@ else
   METASTORE_PROXY_PORT=${DEFAULT_DB_PORT["${CLOUDSQL_INSTANCE_TYPE}"]}
 fi
 readonly METASTORE_PROXY_PORT
+
+# get postgres driver
+if [[ "${CLOUDSQL_INSTANCE_TYPE}" == "POSTGRES" ]]; then
+  log 'Downloading JDBC driver for Postgres...'
+  wget -P /usr/share/java https://jdbc.postgresql.org/download/postgresql-"${POSTGRES_JDBC_VERSION}".jar
+  ln -s /usr/share/java/postgresql-"${POSTGRES_JDBC_VERSION}".jar /usr/share/java/postgresql-jdbc.jar
+  ln -s /usr/share/java/postgresql-jdbc.jar /usr/lib/hive/lib/postgresql-jdbc.jar
+  #wget https://jdbc.postgresql.org/download/postgresql-42.7.4.jar
+fi
 
 # Database user to use to access metastore.
 DB_HIVE_USER="$(/usr/share/google/get_metadata_value attributes/db-hive-user || echo 'hive')"
