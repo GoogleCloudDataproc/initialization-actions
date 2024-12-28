@@ -68,9 +68,8 @@ function define_os_comparison_functions() {
       eval "function le_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && version_le \"${_os_version}\" \"${osver}\" ; )"
     done
   done
+  eval "function is_debuntu()  ( set +x ;  is_debian || is_ubuntu ; )"
 }
-
-function is_debuntu()  ( set +x ;  is_debian || is_ubuntu ; )
 
 function os_vercat()   ( set +x
   if   is_ubuntu ; then os_version | sed -e 's/[^0-9]//g'
@@ -213,11 +212,6 @@ function configure_yarn_resources() {
 
 # This configuration should be applied only if GPU is attached to the node
 function configure_yarn_nodemanager() {
-  set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
-  set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.resource-plugins.gpu.allowed-gpu-devices' 'auto'
-  set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.resource-plugins.gpu.path-to-discovery-executables' $NVIDIA_SMI_PATH
   set_hadoop_property 'yarn-site.xml' \
     'yarn.nodemanager.linux-container-executor.cgroups.mount' 'true'
   set_hadoop_property 'yarn-site.xml' \
@@ -577,15 +571,14 @@ function check_secure_boot() {
                       mok_der=/var/lib/shim-signed/mok/MOK.der
                  else mok_key=/var/lib/dkms/mok.key
                       mok_der=/var/lib/dkms/mok.pub ; fi
-
-  configure_dkms_certs
 }
 
 function install_dependencies() {
-  pkg_list="pciutils screen"
+  test -f "${workdir}/complete/install-dependencies" && return 0
+  pkg_list="screen"
   if is_debuntu ; then execute_with_retries apt-get -y -q install ${pkg_list}
   elif is_rocky ; then execute_with_retries dnf     -y -q install ${pkg_list} ; fi
-  lspci | grep -q NVIDIA || exit 0
+  touch "${workdir}/complete/install-dependencies"
 }
 
 function prepare_common_env() {
@@ -657,9 +650,6 @@ function prepare_common_env() {
 }
 
 function common_exit_handler() {
-  # Purge private key material until next grant
-  clear_dkms_key
-
   set +ex
   echo "Exit handler invoked"
 
@@ -1388,10 +1378,8 @@ function build_driver_from_github() {
   test -n "${nvidia_ko_path}" && test -f "${nvidia_ko_path}" || {
     local build_tarball="kmod_${_shortname}_${DRIVER_VERSION}.tar.gz"
     local local_tarball="${workdir}/${build_tarball}"
-    local build_dir
-    if test -v modulus_md5sum && [[ -n "${modulus_md5sum}" ]]
-      then build_dir="${modulus_md5sum}"
-      else build_dir="unsigned" ; fi
+    local def_dir="${modulus_md5sum:-unsigned}"
+    local build_dir=$(get_metadata_attribute modulus_md5sum "${def_dir}")
 
     local gcs_tarball="${pkg_bucket}/${_shortname}/${uname_r}/${build_dir}/${build_tarball}"
 
@@ -1410,12 +1398,14 @@ function build_driver_from_github() {
         2> kernel-open/build_error.log
       # Sign kernel modules
       if [[ -n "${PSN}" ]]; then
+        configure_dkms_certs
         for module in $(find open-gpu-kernel-modules/kernel-open -name '*.ko'); do
           "/lib/modules/${uname_r}/build/scripts/sign-file" sha256 \
           "${mok_key}" \
           "${mok_der}" \
           "${module}"
         done
+	clear_dkms_key
       fi
       make modules_install \
         >>  kernel-open/build.log \
@@ -1455,12 +1445,10 @@ function build_driver_from_packages() {
     add_contrib_component
     apt-get update -qq
     execute_with_retries apt-get install -y -qq --no-install-recommends dkms
-    #configure_dkms_certs
     execute_with_retries apt-get install -y -qq --no-install-recommends "${pkglist[@]}"
     sync
 
   elif is_rocky ; then
-    #configure_dkms_certs
     if execute_with_retries dnf -y -q module install "nvidia-driver:${DRIVER}-dkms" ; then
       echo "nvidia-driver:${DRIVER}-dkms installed successfully"
     else
@@ -1468,7 +1456,6 @@ function build_driver_from_packages() {
     fi
     sync
   fi
-  #clear_dkms_key
 }
 
 function install_nvidia_userspace_runfile() {
@@ -1507,10 +1494,8 @@ function install_nvidia_userspace_runfile() {
     test -n "${nvidia_ko_path}" && test -f "${nvidia_ko_path}" || {
       local build_tarball="kmod_${_shortname}_${DRIVER_VERSION}.tar.gz"
       local_tarball="${workdir}/${build_tarball}"
-      local build_dir
-      if test -v modulus_md5sum && [[ -n "${modulus_md5sum}" ]]
-        then build_dir="${modulus_md5sum}"
-        else build_dir="unsigned" ; fi
+      local def_dir="${modulus_md5sum:-unsigned}"
+      local build_dir=$(get_metadata_attribute modulus_md5sum "${def_dir}")
 
       local gcs_tarball="${pkg_bucket}/${_shortname}/${uname_r}/${build_dir}/${build_tarball}"
 
@@ -1520,7 +1505,7 @@ function install_nvidia_userspace_runfile() {
         echo "cache hit"
       else
         install_build_dependencies
-
+        configure_dkms_certs
         local signing_options
         signing_options=""
         if [[ -n "${PSN}" ]]; then
@@ -1531,7 +1516,6 @@ function install_nvidia_userspace_runfile() {
           --module-signing-script \"/lib/modules/${uname_r}/build/scripts/sign-file\" \
           "
         fi
-
         runfile_args="--no-dkms ${signing_options}"
       fi
     }
@@ -1550,6 +1534,7 @@ function install_nvidia_userspace_runfile() {
       gcloud storage cat "${gcs_tarball}" | tar -C / -xzv
       depmod -a
     else
+      clear_dkms_key
       tar czvf "${local_tarball}" \
         /var/log/nvidia-installer.log \
         $(find /lib/modules/${uname_r}/ -iname 'nvidia*.ko')
@@ -1765,13 +1750,10 @@ EOF
 }
 
 function configure_gpu_exclusive_mode() {
-  # check if running spark 3, if not, enable GPU exclusive mode
-  local spark_version
-  spark_version=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
-  if [[ ${spark_version} != 3.* ]]; then
-    # include exclusive mode on GPU
-    nvidia-smi -c EXCLUSIVE_PROCESS
-  fi
+  # only run this function when spark < 3.0
+  if version_ge "${SPARK_VERSION}" "3.0" ; then return 0 ; fi
+  # include exclusive mode on GPU
+  nvidia-smi -c EXCLUSIVE_PROCESS
 }
 
 function fetch_mig_scripts() {
@@ -1851,8 +1833,6 @@ EOF
   chmod a+rx "${gpus_resources_script}"
 
   local spark_defaults_conf="/etc/spark/conf.dist/spark-defaults.conf"
-  local gpu_count
-  gpu_count="$(lspci | grep NVIDIA | wc -l)"
 
   local executor_cores
   executor_cores="$(nproc | perl -MPOSIX -pe '$_ = POSIX::floor( $_ * 0.75 ); $_-- if $_ % 2')"
@@ -1881,6 +1861,15 @@ spark.task.cpus=2
 spark.yarn.unmanagedAM.enabled=false
 ###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
 EOF
+}
+
+function configure_yarn_nodemanager_gpu() {
+  set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.resource-plugins.gpu.allowed-gpu-devices' 'auto'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.resource-plugins.gpu.path-to-discovery-executables' "${NVIDIA_SMI_PATH}"
+  configure_yarn_nodemanager
 }
 
 function configure_gpu_isolation() {
@@ -1972,6 +1961,8 @@ function install_build_dependencies() {
 }
 
 function prepare_gpu_env(){
+  gpu_count="$(grep -i PCI_ID=10DE /sys/bus/pci/devices/*/uevent | wc -l)"
+  echo "gpu_count=[${gpu_count}]"
   nvsmi_works="0"
   NVIDIA_SMI_PATH='/usr/bin'
   MIG_MAJOR_CAPS=0
@@ -2042,7 +2033,9 @@ function configure_mig_cgi() {
   if test -n "${META_MIG_CGI_VALUE}"; then
     nvidia-smi mig -cgi "${META_MIG_CGI_VALUE}" -C
   else
-    if lspci | grep -q H100 ; then
+    # https://pci-ids.ucw.cz/v2.2/pci.ids
+    local pci_id_list="$(grep -iH PCI_ID=10DE /sys/bus/pci/devices/*/uevent)"
+    if echo "${pci_id_list}" | grep -q -i 'PCI_ID=10DE:23' ; then
       # run the following command to list placement profiles
       # nvidia-smi mig -lgipp
       #
@@ -2057,7 +2050,7 @@ function configure_mig_cgi() {
 
       # For H100 3D controllers, use profile 19, 7x1G instances
       nvidia-smi mig -cgi 19 -C
-    elif lspci | grep -q A100 ; then
+    elif echo "${pci_id_list}" | grep -q -i 'PCI_ID=10DE:20' ; then
       # Dataproc only supports A100s right now split in 2 if not specified
       # https://docs.nvidia.com/datacenter/tesla/mig-user-guide/#creating-gpu-instances
       nvidia-smi mig -cgi 9,9 -C
@@ -2076,48 +2069,51 @@ function setup_gpu_yarn() {
   # regardless if they have attached GPUs
   configure_yarn_resources
 
-  # Detect NVIDIA GPU
-  if (lspci | grep -q NVIDIA); then
-    # if this is called without the MIG script then the drivers are not installed
-    migquery_result="$(nvsmi --query-gpu=mig.mode.current --format=csv,noheader)"
-    if [[ "${migquery_result}" == "[N/A]" ]] ; then migquery_result="" ; fi
-    NUM_MIG_GPUS="$(echo ${migquery_result} | uniq | wc -l)"
-
-    if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
-      if [[ "${NUM_MIG_GPUS}" -eq "1" ]]; then
-        if (echo "${migquery_result}" | grep Enabled); then
-          IS_MIG_ENABLED=1
-          NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
-          MIG_MAJOR_CAPS=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
-          fetch_mig_scripts
-        fi
-      fi
+  # When there is no GPU, but the installer is executing on a master node:
+  if [[ "${gpu_count}" == "0" ]] ; then
+    if [[ "${ROLE}" == "Master" ]]; then
+      configure_yarn_nodemanager
     fi
-
-    # if mig is enabled drivers would have already been installed
-    if [[ $IS_MIG_ENABLED -eq 0 ]]; then
-      install_nvidia_gpu_driver
-      install_cuda
-      load_kernel_module
-
-      #Install GPU metrics collection in Stackdriver if needed
-      if [[ "${INSTALL_GPU_AGENT}" == "true" ]]; then
-        install_gpu_agent
-#        install_gpu_monitoring_agent
-        echo 'GPU metrics agent successfully deployed.'
-      else
-        echo 'GPU metrics agent has not been installed.'
-      fi
-      configure_gpu_exclusive_mode
-    fi
-
-    configure_yarn_nodemanager
-    configure_gpu_script
-    configure_gpu_isolation
-  elif [[ "${ROLE}" == "Master" ]]; then
-    configure_yarn_nodemanager
-    configure_gpu_script
+    return 0
   fi
+
+  # if this is called without the MIG script then the drivers are not installed
+  migquery_result="$(nvsmi --query-gpu=mig.mode.current --format=csv,noheader)"
+  if [[ "${migquery_result}" == "[N/A]" ]] ; then migquery_result="" ; fi
+  NUM_MIG_GPUS="$(echo ${migquery_result} | uniq | wc -l)"
+
+  if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
+    if [[ "${NUM_MIG_GPUS}" -eq "1" ]]; then
+      if (echo "${migquery_result}" | grep Enabled); then
+        IS_MIG_ENABLED=1
+        NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
+        MIG_MAJOR_CAPS=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
+        fetch_mig_scripts
+      fi
+    fi
+  fi
+
+  # if mig is enabled drivers would have already been installed
+  if [[ $IS_MIG_ENABLED -eq 0 ]]; then
+    install_nvidia_gpu_driver
+    install_cuda
+    load_kernel_module
+
+    #Install GPU metrics collection in Stackdriver if needed
+    if [[ "${INSTALL_GPU_AGENT}" == "true" ]]; then
+      install_gpu_agent
+#      install_gpu_monitoring_agent
+      echo 'GPU metrics agent successfully deployed.'
+    else
+      echo 'GPU metrics agent has not been installed.'
+    fi
+    configure_gpu_exclusive_mode
+  fi
+
+  install_nvidia_container_toolkit
+  configure_yarn_nodemanager_gpu
+  configure_gpu_script
+  configure_gpu_isolation
 }
 
 function gpu_exit_handler() {
