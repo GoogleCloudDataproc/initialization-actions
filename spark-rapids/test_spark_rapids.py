@@ -34,7 +34,7 @@ class SparkRapidsTestCase(DataprocTestCase):
     self.assert_instance_command(
         instance_name, """echo :quit | spark-shell \
          --conf spark.executor.resource.gpu.amount=1 \
-         --conf spark.task.resource.gpu.amount=1 \
+         --conf spark.task.resource.gpu.amount=0.1 \
          --conf spark.dynamicAllocation.enabled=false -i {}""".format(
              self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME))
     self.remove_test_script(self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME,
@@ -49,7 +49,7 @@ class SparkRapidsTestCase(DataprocTestCase):
     self.assert_instance_command(
       instance_name, """echo :quit | spark-shell \
          --conf spark.executor.resource.gpu.amount=1 \
-         --conf spark.task.resource.gpu.amount=1 \
+         --conf spark.task.resource.gpu.amount=0.1 \
          --conf spark.dynamicAllocation.enabled=false -i {}""".format(
         self.XGBOOST_SPARK_SQL_TEST_SCRIPT_FILE_NAME))
     self.remove_test_script(self.XGBOOST_SPARK_SQL_TEST_SCRIPT_FILE_NAME,
