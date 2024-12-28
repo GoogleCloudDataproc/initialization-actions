@@ -753,10 +753,8 @@ function install_nvidia_userspace_runfile() {
     test -n "${nvidia_ko_path}" && test -f "${nvidia_ko_path}" || {
       local build_tarball="kmod_${_shortname}_${DRIVER_VERSION}.tar.gz"
       local_tarball="${workdir}/${build_tarball}"
-      local build_dir
-      if test -v modulus_md5sum && [[ -n "${modulus_md5sum}" ]]
-        then build_dir="${modulus_md5sum}"
-        else build_dir="unsigned" ; fi
+      local def_dir="${modulus_md5sum:-unsigned}"
+      local build_dir=$(get_metadata_attribute modulus_md5sum "${def_dir}")
 
       local gcs_tarball="${pkg_bucket}/${_shortname}/${uname_r}/${build_dir}/${build_tarball}"
 
@@ -980,7 +978,6 @@ function install_gpu_agent() {
     | dd status=none of="${install_dir}/report_gpu_metrics.py"
   local venv="${install_dir}/venv"
   python3 -m venv "${venv}"
-
 (
   source "${venv}/bin/activate"
   python3 -m pip install --upgrade pip
