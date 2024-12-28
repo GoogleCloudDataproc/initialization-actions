@@ -58,10 +58,6 @@ class SparkRapidsTestCase(DataprocTestCase):
                             ("STANDARD", ["w-0"], GPU_T4))
   def test_spark_rapids(self, configuration, machine_suffixes, accelerator):
 
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() <= pkg_resources.parse_version("2.1") \
-    and configuration == 'SINGLE':
-      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail")
-
     optional_components = None
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
 
@@ -73,7 +69,7 @@ class SparkRapidsTestCase(DataprocTestCase):
         machine_type="n1-standard-32",
         master_accelerator=accelerator if configuration == "SINGLE" else None,
         worker_accelerator=accelerator,
-        boot_disk_size="50GB",
+        boot_disk_size="40GB",
         timeout_in_minutes=30)
 
     for machine_suffix in machine_suffixes:
@@ -86,10 +82,6 @@ class SparkRapidsTestCase(DataprocTestCase):
                             ("STANDARD", ["w-0"], GPU_T4))
   def test_spark_rapids_sql(self, configuration, machine_suffixes, accelerator):
 
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() <= pkg_resources.parse_version("2.1") \
-    and configuration == 'SINGLE':
-      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail")
-
     optional_components = None
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
 
@@ -101,7 +93,7 @@ class SparkRapidsTestCase(DataprocTestCase):
       machine_type="n1-standard-32",
       master_accelerator=accelerator if configuration == "SINGLE" else None,
       worker_accelerator=accelerator,
-      boot_disk_size="50GB",
+      boot_disk_size="40GB",
       timeout_in_minutes=30)
 
     for machine_suffix in machine_suffixes:
@@ -129,7 +121,7 @@ class SparkRapidsTestCase(DataprocTestCase):
         machine_type="n1-standard-32",
         master_accelerator=accelerator if configuration == "SINGLE" else None,
         worker_accelerator=accelerator,
-        boot_disk_size="50GB",
+        boot_disk_size="40GB",
         timeout_in_minutes=30)
 
     for machine_suffix in machine_suffixes:
