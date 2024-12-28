@@ -78,6 +78,7 @@ class SparkRapidsTestCase(DataprocTestCase):
                                                 machine_suffix))
     # Only need to do this once
     self.verify_spark_job()
+    time.sleep(30) # allow things to settle
     # Only need to do this once
     self.verify_spark_job_sql()
 
