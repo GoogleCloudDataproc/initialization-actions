@@ -993,7 +993,7 @@ function set_cuda_runfile_url() {
           ["12.2.0"]="535.54.03" ["12.2.1"]="535.86.10" ["12.2.2"]="535.104.05"
           ["12.3.0"]="545.23.06" ["12.3.1"]="545.23.08" ["12.3.2"]="545.23.08"
           ["12.4.0"]="550.54.14" ["12.4.1"]="550.54.15" # 550.54.15 is not a driver indexed at https://download.nvidia.com/XFree86/Linux-x86_64/
-          ["12.5.0"]="555.42.02" ["12.5.1"]="555.42.06" # 555.42.02 is indexed, 555.41.06 is not
+          ["12.5.0"]="555.42.02" ["12.5.1"]="555.42.06" # 555.42.02 is indexed, 555.42.06 is not
           ["12.6.0"]="560.28.03" ["12.6.1"]="560.35.03" ["12.6.2"]="560.35.03"
   )
 
@@ -1770,22 +1770,17 @@ function fetch_mig_scripts() {
 
 function install_spark_rapids() {
   # Update SPARK RAPIDS config
-  DEFAULT_SPARK_RAPIDS_VERSION="24.08.1"
+  local DEFAULT_SPARK_RAPIDS_VERSION="24.08.1"
+  local DEFAULT_XGBOOST_VERSION="1.7.6"
 
   # https://mvnrepository.com/artifact/ml.dmlc/xgboost4j-spark-gpu
   local -r scala_ver="2.12"
-  if   version_ge "${DATAPROC_IMAGE_VERSION}" "2.2" ; then
-    DEFAULT_XGBOOST_VERSION="1.7.6" # try 2.1.3
-  elif version_ge "${DATAPROC_IMAGE_VERSION}" "2.1" ; then
-    DEFAULT_XGBOOST_VERSION="1.7.6"
-  elif version_ge "${DATAPROC_IMAGE_VERSION}" "2.0" ; then
-    DEFAULT_XGBOOST_VERSION="1.7.6"
+
+  if [[ "${DATAPROC_IMAGE_VERSION}" == "2.0" ]] ; then
     DEFAULT_SPARK_RAPIDS_VERSION="23.08.2" # Final release to support spark 3.1.3
   fi
 
   readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
-
-  readonly DEFAULT_XGBOOST_VERSION
   readonly XGBOOST_VERSION=$(get_metadata_attribute 'xgboost-version' ${DEFAULT_XGBOOST_VERSION})
 
   local -r rapids_repo_url='https://repo1.maven.org/maven2/ai/rapids'
