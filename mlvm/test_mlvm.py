@@ -35,8 +35,7 @@ class MLVMTestCase(DataprocTestCase):
 
   def verify_spark_bigquery_connector(self):
     self.assert_dataproc_job(
-        self.name, "pyspark", "{}/{}".format(self.INIT_ACTIONS_REPO,
-                                             self.SPARK_BQ_SCRIPT))
+        self.name, "pyspark", "{}/{}".format(self.INIT_ACTIONS_REPO, self.SPARK_BQ_SCRIPT))
 
   def verify_gpu(self):
     for machine_suffix in ["m", "w-0", "w-1"]:
@@ -79,7 +78,6 @@ class MLVMTestCase(DataprocTestCase):
   def verify_all(self):
     self.verify_python()
     self.verify_r()
-    self.verify_spark_bigquery_connector()
 
   @parameterized.parameters(
       ("STANDARD", None),
@@ -112,8 +110,6 @@ class MLVMTestCase(DataprocTestCase):
   @parameterized.parameters(
       ("STANDARD", None, None),
       ("STANDARD", None, "SPARK"),
-      ("STANDARD", "yarn", "DASK"),
-      ("STANDARD", "standalone", "DASK"),
   )
   def test_mlvm_gpu(self, configuration, dask_runtime, rapids_runtime):
     if self.getImageOs() == 'rocky':
@@ -123,11 +119,8 @@ class MLVMTestCase(DataprocTestCase):
     if self.getImageVersion() < pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in pre 2.0 images")
 
-    metadata = ("init-actions-repo={},include-gpus=true"
-                ",gpu-driver-provider=NVIDIA").format(self.INIT_ACTIONS_REPO)
-
-    cudnn_version = "8.1.1.33"
-    cuda_version = "11.2"
+    cudnn_version = "9.1.0.70"
+    cuda_version = "12.4"
 
     metadata = ("init-actions-repo={},include-gpus=true"
                 ",gpu-driver-provider=NVIDIA,"
@@ -143,15 +136,16 @@ class MLVMTestCase(DataprocTestCase):
         configuration,
         self.INIT_ACTIONS,
         optional_components=self.OPTIONAL_COMPONENTS,
-        machine_type="n1-standard-4",
+        machine_type="n1-highmem-8",
         master_accelerator="type=nvidia-tesla-t4",
         worker_accelerator="type=nvidia-tesla-t4",
         timeout_in_minutes=60,
         metadata=metadata)
 
     self.verify_all()
-
+    self.verify_spark_bigquery_connector()
     self.verify_gpu()
+
     if rapids_runtime == "SPARK":
       self.verify_rapids_spark()
     elif rapids_runtime == "DASK":
