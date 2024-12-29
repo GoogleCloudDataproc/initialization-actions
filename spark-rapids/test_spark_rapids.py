@@ -19,17 +19,8 @@ class SparkRapidsTestCase(DataprocTestCase):
   XGBOOST_SPARK_SQL_TEST_SCRIPT_FILE_NAME = "verify_xgboost_spark_rapids_sql.scala"
   cmd_template="""echo :quit | spark-shell \
          --conf spark.executor.resource.gpu.amount=1 \
-         --conf spark.task.resource.gpu.amount=0.1 \
-         --conf spark.dynamicAllocation.enabled=false -i {} 2>&1 | tee /tmp/spark.log \
-         || ( \
-         retval=$?; \
-         app_id=$(perl -e '
-           $content = join($/,<STDIN>);
-           $content =~ /Application (application_\d+_\d+)/;
-           print $1' < /tmp/spark.log); \
-         yarn logs -applicationId "${app_id}"; \
-         return ${retval}
-); """
+         --conf spark.task.resource.gpu.amount=1 \
+         --conf spark.dynamicAllocation.enabled=false -i {}"""
 
   def verify_spark_instance(self, name):
     self.assert_instance_command(name, "nvidia-smi")
@@ -64,6 +55,11 @@ class SparkRapidsTestCase(DataprocTestCase):
                             ("STANDARD", ["w-0"], GPU_T4))
   def test_spark_rapids(self, configuration, machine_suffixes, accelerator):
 
+#    if ( self.getImageOs() == 'rocky' ) \
+#    and self.getImageVersion() <= pkg_resources.parse_version("2.1") \
+#    and configuration == 'SINGLE':
+#      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail")
+
     optional_components = None
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
 
@@ -86,11 +82,41 @@ class SparkRapidsTestCase(DataprocTestCase):
     and self.getImageVersion() <= pkg_resources.parse_version("2.1") \
     and configuration == 'SINGLE':
       print("skipping spark job test ; 2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail")
-    else
+    else:
       # Only need to do this once
       self.verify_spark_job()
       # Only need to do this once
       self.verify_spark_job_sql()
+
+# attempting to include the following test in the above
+#  @parameterized.parameters(("SINGLE", ["m"], GPU_T4),
+#                            ("STANDARD", ["w-0"], GPU_T4))
+#  def test_spark_rapids_sql(self, configuration, machine_suffixes, accelerator):
+#
+#    if ( self.getImageOs() == 'rocky' ) \
+#    and self.getImageVersion() <= pkg_resources.parse_version("2.1") \
+#    and configuration == 'SINGLE':
+#      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail")
+#
+#    optional_components = None
+#    metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
+#
+#    self.createCluster(
+#      configuration,
+#      self.INIT_ACTIONS,
+#      optional_components=optional_components,
+#      metadata=metadata,
+#      machine_type="n1-standard-32",
+#      master_accelerator=accelerator if configuration == "SINGLE" else None,
+#      worker_accelerator=accelerator,
+#      boot_disk_size="50GB",
+#      timeout_in_minutes=30)
+#
+#    for machine_suffix in machine_suffixes:
+#      self.verify_spark_instance("{}-{}".format(self.getClusterName(),
+#                                                machine_suffix))
+#    # Only need to do this once
+#    self.verify_spark_job_sql()
 
   @parameterized.parameters(("STANDARD", ["w-0"], GPU_T4, "12.4.0", "550.54.14"))
   def test_non_default_cuda_versions(self, configuration, machine_suffixes,
