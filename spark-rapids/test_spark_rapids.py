@@ -55,11 +55,6 @@ class SparkRapidsTestCase(DataprocTestCase):
                             ("STANDARD", ["w-0"], GPU_T4))
   def test_spark_rapids(self, configuration, machine_suffixes, accelerator):
 
-#    if ( self.getImageOs() == 'rocky' ) \
-#    and self.getImageVersion() <= pkg_resources.parse_version("2.1") \
-#    and configuration == 'SINGLE':
-#      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail")
-
     optional_components = None
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
 
@@ -87,36 +82,6 @@ class SparkRapidsTestCase(DataprocTestCase):
       self.verify_spark_job()
       # Only need to do this once
       self.verify_spark_job_sql()
-
-# attempting to include the following test in the above
-#  @parameterized.parameters(("SINGLE", ["m"], GPU_T4),
-#                            ("STANDARD", ["w-0"], GPU_T4))
-#  def test_spark_rapids_sql(self, configuration, machine_suffixes, accelerator):
-#
-#    if ( self.getImageOs() == 'rocky' ) \
-#    and self.getImageVersion() <= pkg_resources.parse_version("2.1") \
-#    and configuration == 'SINGLE':
-#      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail")
-#
-#    optional_components = None
-#    metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
-#
-#    self.createCluster(
-#      configuration,
-#      self.INIT_ACTIONS,
-#      optional_components=optional_components,
-#      metadata=metadata,
-#      machine_type="n1-standard-32",
-#      master_accelerator=accelerator if configuration == "SINGLE" else None,
-#      worker_accelerator=accelerator,
-#      boot_disk_size="50GB",
-#      timeout_in_minutes=30)
-#
-#    for machine_suffix in machine_suffixes:
-#      self.verify_spark_instance("{}-{}".format(self.getClusterName(),
-#                                                machine_suffix))
-#    # Only need to do this once
-#    self.verify_spark_job_sql()
 
   @parameterized.parameters(("STANDARD", ["w-0"], GPU_T4, "12.4.0", "550.54.14"))
   def test_non_default_cuda_versions(self, configuration, machine_suffixes,
