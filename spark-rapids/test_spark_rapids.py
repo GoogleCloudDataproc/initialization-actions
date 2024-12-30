@@ -134,6 +134,7 @@ class SparkRapidsTestCase(DataprocTestCase):
         worker_accelerator=worker_accelerator,
         metadata=None,
         timeout_in_minutes=30,
+        network_interface="nic-type=GVNIC,address=,network=default",
         boot_disk_size="40GB",
         startup_script="spark-rapids/mig.sh")
 

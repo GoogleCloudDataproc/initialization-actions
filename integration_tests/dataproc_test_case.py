@@ -102,6 +102,9 @@ class DataprocTestCase(parameterized.TestCase):
                       machine_type="e2-standard-2",
                       master_machine_type=None,
                       worker_machine_type=None,
+                      network=None,
+                      subnet=None,
+                      network_interface=None,
                       boot_disk_size="50GB",
                       startup_script=None):
         self.initClusterName(configuration)
@@ -154,6 +157,14 @@ class DataprocTestCase(parameterized.TestCase):
             args.append("--master-accelerator={}".format(master_accelerator))
         if worker_accelerator:
             args.append("--worker-accelerator={}".format(worker_accelerator))
+
+        # NetworkInterface NicType can only be set to GVNIC on instances with GVNIC GuestOsFeature
+        if network_interface != None:
+          args.append("--network-interface={}".format(network_interface))
+        elif network != None:
+          args.append("--network={}".format(network))
+        elif subnet != None:
+          args.append("--subnet={}".format(subnet))
 
         if master_machine_type:
             args.append("--master-machine-type={}".format(master_machine_type))
