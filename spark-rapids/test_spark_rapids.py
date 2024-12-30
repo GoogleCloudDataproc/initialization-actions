@@ -128,8 +128,8 @@ class SparkRapidsTestCase(DataprocTestCase):
         configuration,
         self.INIT_ACTIONS,
         zone=zone,
-        master_machine_type="a3-highgpu-8g" if master_accelerator == GPU_H100 else self.default_machine_type
-        worker_machine_type="a3-highgpu-8g" if worker_accelerator == GPU_H100 else self.default_machine_type
+        master_machine_type="a3-highgpu-8g" if master_accelerator == GPU_H100 else self.default_machine_type,
+        worker_machine_type="a3-highgpu-8g" if worker_accelerator == GPU_H100 else self.default_machine_type,
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=None,
