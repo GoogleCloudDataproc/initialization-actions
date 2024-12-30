@@ -114,22 +114,22 @@ class SparkRapidsTestCase(DataprocTestCase):
   # https://github.com/GoogleCloudDataproc/initialization-actions/pull/1070
 
   @parameterized.parameters( ("SINGLE", ["m"], GPU_H100, None, "NVIDIA", "us-central1-c")
-#                             ("STANDARD", ["m", "w-0", "w-1"], None, GPU_H100, "NVIDIA", "us-central1-c")
-#                             ("KERBEROS", ["m", "w-0", "w-1"], None, GPU_H100, "NVIDIA", "us-central1-c")
+#                             ("STANDARD", ["m", "w-0", "w-1"], None, self.GPU_H100, "NVIDIA", "us-central1-c")
+#                             ("KERBEROS", ["m", "w-0", "w-1"], None, self.GPU_H100, "NVIDIA", "us-central1-c")
                             )
   def test_install_gpu_with_mig(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider, zone):
 
     if configuration == 'SINGLE' and master_accelerator == None:
-      master_accelerator=GPU_H100
+      master_accelerator=self.GPU_H100
 
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
         zone=zone,
-        master_machine_type="a3-highgpu-8g" if master_accelerator == GPU_H100 else self.default_machine_type,
-        worker_machine_type="a3-highgpu-8g" if worker_accelerator == GPU_H100 else self.default_machine_type,
+        master_machine_type="a3-highgpu-8g" if master_accelerator == self.GPU_H100 else self.default_machine_type,
+        worker_machine_type="a3-highgpu-8g" if worker_accelerator == self.GPU_H100 else self.default_machine_type,
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=None,
