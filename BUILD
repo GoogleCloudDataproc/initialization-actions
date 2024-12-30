@@ -110,6 +110,20 @@ py_test(
 )
 
 py_test(
+    name = "test_mig",
+    size = "enormous",
+    srcs = ["spark-rapids/test_mig.py"],
+    data = [
+        "spark-rapids/mig.sh",
+    ],
+    local = True,
+    deps = [
+        "//integration_tests:dataproc_test_case",
+        "@io_abseil_py//absl/testing:parameterized",
+    ],
+)
+
+py_test(
     name = "test_spark_rapids",
     size = "enormous",
     srcs = ["spark-rapids/test_spark_rapids.py"],
@@ -117,10 +131,9 @@ py_test(
         "spark-rapids/spark-rapids.sh",
         "spark-rapids/verify_xgboost_spark_rapids.scala",
         "spark-rapids/verify_xgboost_spark_rapids_sql.scala",
-        "spark-rapids/mig.sh",
     ],
     local = True,
-    shard_count = 3,
+    shard_count = 8,
     deps = [
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",

@@ -12,9 +12,7 @@ class SparkRapidsTestCase(DataprocTestCase):
   INIT_ACTIONS = ["spark-rapids/spark-rapids.sh"]
 
   GPU_T4 = "type=nvidia-tesla-t4"
-  GPU_A100 = "type=nvidia-tesla-a100,count=8"
-  GPU_H100 = "type=nvidia-h100-80gb,count=8"
-  default_machine_type = "n1-standard-32"
+  default_machine_type = "n1-standard-4"
 
   # Tests for RAPIDS init action
   XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME = "verify_xgboost_spark_rapids.scala"
@@ -26,10 +24,6 @@ class SparkRapidsTestCase(DataprocTestCase):
 
   def verify_spark_instance(self, name):
     self.assert_instance_command(name, "nvidia-smi")
-
-  def verify_mig_instance(self, name):
-    self.assert_instance_command(name,
-        "/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | xargs -I % test % = 'Enabled'")
 
   def verify_spark_job(self):
     instance_name = "{}-m".format(self.getClusterName())
@@ -96,7 +90,7 @@ class SparkRapidsTestCase(DataprocTestCase):
         configuration,
         self.INIT_ACTIONS,
         metadata=metadata,
-        machine_type=self.default_machine_type,
+        machine_type="n1-standard-32",
         master_accelerator=accelerator if configuration == "SINGLE" else None,
         worker_accelerator=accelerator,
         boot_disk_size="40GB",
@@ -109,38 +103,6 @@ class SparkRapidsTestCase(DataprocTestCase):
     self.verify_spark_job()
     # Only need to do this once
     self.verify_spark_job_sql()
-
-  # Disable MIG related test due to the lack of A100 GPUs, more detail see
-  # https://github.com/GoogleCloudDataproc/initialization-actions/pull/1070
-
-  @parameterized.parameters( ("SINGLE", ["m"], GPU_H100, None, "NVIDIA", "us-central1-c")
-#                             ("STANDARD", ["m", "w-0", "w-1"], None, self.GPU_H100, "NVIDIA", "us-central1-c")
-#                             ("KERBEROS", ["m", "w-0", "w-1"], None, self.GPU_H100, "NVIDIA", "us-central1-c")
-                            )
-  def test_install_gpu_with_mig(self, configuration, machine_suffixes,
-                                  master_accelerator, worker_accelerator,
-                                  driver_provider, zone):
-
-    if configuration == 'SINGLE' and master_accelerator == None:
-      master_accelerator=self.GPU_H100
-
-    self.createCluster(
-        configuration,
-        self.INIT_ACTIONS,
-        zone=zone,
-        master_machine_type="a3-highgpu-8g" if master_accelerator == self.GPU_H100 else self.default_machine_type,
-        worker_machine_type="a3-highgpu-8g" if worker_accelerator == self.GPU_H100 else self.default_machine_type,
-        master_accelerator=master_accelerator,
-        worker_accelerator=worker_accelerator,
-        metadata=None,
-        timeout_in_minutes=30,
-        network_interface="nic-type=GVNIC,address=,network=default",
-        boot_disk_size="40GB",
-        startup_script="spark-rapids/mig.sh")
-
-    for machine_suffix in machine_suffixes:
-      self.verify_mig_instance("{}-{}".format(self.getClusterName(),
-                                          machine_suffix))
 
 if __name__ == "__main__":
   absltest.main()
