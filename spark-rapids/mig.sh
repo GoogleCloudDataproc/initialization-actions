@@ -2069,7 +2069,7 @@ function configure_mig_cgi() {
       # GPU  0 Profile ID  0 Placement : {0}:8
 
       # For H100 3D controllers, use profile 19, 7x1G instances
-      nvidia-smi mig -cgi 19 -C
+      nvidia-smi mig -cgi 9,9 -C
     elif echo "${pci_id_list}" | grep -q -i 'PCI_ID=10DE:20' ; then
       # Dataproc only supports A100s right now split in 2 if not specified
       # https://docs.nvidia.com/datacenter/tesla/mig-user-guide/#creating-gpu-instances
@@ -2081,7 +2081,18 @@ function configure_mig_cgi() {
 }
 
 function enable_mig() {
+  if test -f "${workdir}/complete/enable-mig" ; then return ; fi
+
+  # Start persistenced if it's not already running
+  if ! ( ps auwx | grep -i nvidia\\-persistenced ) ; then ( nvidia-persistenced & ) ; fi
+  for f in /sys/module/nvidia/drivers/pci:nvidia/*/numa_node ; do
+    # Write an ascii zero to the numa node indicator
+    echo "0" | dd of="${f}" status=none
+  done
+  time nvidia-smi --gpu-reset # 30s
   nvidia-smi -mig 1
+
+  touch "${workdir}/complete/enable-mig"
 }
 
 function enable_and_configure_mig() {
