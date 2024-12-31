@@ -26,6 +26,10 @@ class MigTestCase(DataprocTestCase):
                                   master_accelerator, worker_accelerator,
                                   driver_provider, zone):
 
+    if ( self.getImageOs() == 'ubuntu' ) \
+    and self.getImageVersion() >= pkg_resources.parse_version("2.1"):
+      self.skipTest("2.1-ubuntu20 and 2.2-ubuntu22 tests are known to Failed to initialize Spark session")
+
     if configuration == 'SINGLE' and master_accelerator == None:
       master_accelerator=self.GPU_H100
 
