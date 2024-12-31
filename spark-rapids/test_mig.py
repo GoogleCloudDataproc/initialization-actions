@@ -7,7 +7,7 @@ from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
-class SparkRapidsTestCase(DataprocTestCase):
+class MigTestCase(DataprocTestCase):
   COMPONENT = "rapids"
   INIT_ACTIONS = ["spark-rapids/mig.sh"]
 
