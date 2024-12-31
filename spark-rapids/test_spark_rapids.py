@@ -12,7 +12,7 @@ class SparkRapidsTestCase(DataprocTestCase):
   INIT_ACTIONS = ["spark-rapids/spark-rapids.sh"]
 
   GPU_T4 = "type=nvidia-tesla-t4"
-  default_machine_type = "n1-standard-4"
+  default_machine_type = "n1-highmem-8"
 
   # Tests for RAPIDS init action
   XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME = "verify_xgboost_spark_rapids.scala"
