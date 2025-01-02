@@ -1899,17 +1899,6 @@ EOF
   systemctl start dataproc-cgroup-device-permissions
 }
 
-function clear_nvsmi_cache() {
-  if ( test -v nvsmi_query_xml && test -f "${nvsmi_query_xml}" ) ; then
-    rm "${nvsmi_query_xml}"
-  fi
-}
-
-function query_nvsmi() {
-  if ( test -v nvsmi_query_xml && test -f "${nvsmi_query_xml}" ) ; then return ; fi
-  /usr/bin/nvidia-smi -q -x --dtd > "${nvsmi_query_xml}"
-}
-
 function nvsmi() {
   local nvsmi="/usr/bin/nvidia-smi"
   if   [[ "${nvsmi_works}" == "1" ]] ; then echo -n ''
@@ -1926,6 +1915,17 @@ function nvsmi() {
   fi
 
   "${nvsmi}" $*
+}
+
+function clear_nvsmi_cache() {
+  if ( test -v nvsmi_query_xml && test -f "${nvsmi_query_xml}" ) ; then
+    rm "${nvsmi_query_xml}"
+  fi
+}
+
+function query_nvsmi() {
+  if ( test -v nvsmi_query_xml && test -f "${nvsmi_query_xml}" ) ; then return ; fi
+  nvsmi -q -x --dtd > "${nvsmi_query_xml}"
 }
 
 function install_build_dependencies() {
