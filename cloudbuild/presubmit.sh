@@ -49,7 +49,7 @@ initialize_git_repo() {
 determine_tests_to_run() {
   # Infer the files that changed
   mapfile -t DELETED_BUILD_FILES < <(git diff origin/master --name-only --diff-filter=D | grep BUILD)
-  mapfile -t CHANGED_FILES < <(git diff origin/master --name-only)
+  mapfile -t CHANGED_FILES < <(git diff origin/master --name-only | grep -v template)
   echo "Deleted BUILD files: ${DELETED_BUILD_FILES[*]}"
   echo "Changed files: ${CHANGED_FILES[*]}"
 
