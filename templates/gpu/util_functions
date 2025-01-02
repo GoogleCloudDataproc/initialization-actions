@@ -1011,6 +1011,7 @@ function configure_gpu_exclusive_mode() {
   if version_ge "${SPARK_VERSION}" "3.0" ; then return 0 ; fi
   # include exclusive mode on GPU
   nvidia-smi -c EXCLUSIVE_PROCESS
+  clear_nvsmi_cache
 }
 
 function fetch_mig_scripts() {
@@ -1154,6 +1155,17 @@ EOF
   systemctl start dataproc-cgroup-device-permissions
 }
 
+function clear_nvsmi_cache() {
+  if ( test -v nvsmi_query_xml && test -f "${nvsmi_query_xml}" ) ; then
+    rm "${nvsmi_query_xml}"
+  fi
+}
+
+function query_nvsmi() {
+  if ( test -v nvsmi_query_xml && test -f "${nvsmi_query_xml}" ) ; then return ; fi
+  /usr/bin/nvidia-smi -q -x --dtd > "${nvsmi_query_xml}"
+}
+
 function nvsmi() {
   local nvsmi="/usr/bin/nvidia-smi"
   if   [[ "${nvsmi_works}" == "1" ]] ; then echo -n ''
@@ -1220,6 +1232,8 @@ function prepare_gpu_env(){
   set -e
   echo "gpu_count=[${gpu_count}]"
   nvsmi_works="0"
+  nvsmi_query_xml="${tmpdir}/nvsmi.xml"
+  xmllint="/opt/conda/miniconda3/bin/xmllint"
   NVIDIA_SMI_PATH='/usr/bin'
   MIG_MAJOR_CAPS=0
   IS_MIG_ENABLED=0
@@ -1304,20 +1318,52 @@ function configure_mig_cgi() {
       # GPU  0 Profile ID  5 Placement : {0}:4
       # GPU  0 Profile ID  0 Placement : {0}:8
 
-      # For H100 3D controllers, use profile 19, 7x1G instances
-      nvidia-smi mig -cgi 19 -C
+      # For H100 3D controllers, consider profile 19, 7x1G instances
+      nvidia-smi mig -cgi 9,9 -C
     elif echo "${pci_id_list}" | grep -q -i 'PCI_ID=10DE:20' ; then
-      # Dataproc only supports A100s right now split in 2 if not specified
+      # Dataproc only supports H100s right now ; split in 2 if not specified
       # https://docs.nvidia.com/datacenter/tesla/mig-user-guide/#creating-gpu-instances
       nvidia-smi mig -cgi 9,9 -C
     else
       echo "unrecognized 3D controller"
     fi
   fi
+  clear_nvsmi_cache
 }
 
 function enable_mig() {
+  if test -f "${workdir}/complete/enable-mig" ; then return ; fi
+
+  # Start persistenced if it's not already running
+  if ! ( ps auwx | grep -i nvidia\\-persistenced ) ; then ( nvidia-persistenced & ) ; fi
+  for f in /sys/module/nvidia/drivers/pci:nvidia/*/numa_node ; do
+    # Write an ascii zero to the numa node indicator
+    echo "0" | dd of="${f}" status=none
+  done
+  time nvidia-smi --gpu-reset # 30s
   nvidia-smi -mig 1
+  clear_nvsmi_cache
+
+  touch "${workdir}/complete/enable-mig"
+}
+
+function enable_and_configure_mig() {
+  # default MIG to on when this script is used
+  META_MIG_VALUE=$(get_metadata_attribute 'ENABLE_MIG' "1")
+
+  if [[ ${META_MIG_VALUE} -eq 0 ]]; then echo "Not enabling MIG" ; return ; fi
+
+  enable_mig
+
+  xpath='//nvidia_smi_log/*/mig_mode/current_mig/text()'
+  query_nvsmi
+  mig_mode_current="$("${xmllint}" --xpath "${xpath}" "${nvsmi_query_xml}")"
+
+  if [[ "$(echo "${mig_mode_current}" | uniq | wc -l)" -ne "1" ]] ; then echo "MIG is NOT enabled on all on GPUs.  Failing" ; exit 1 ; fi
+  if ! (echo "${mig_mode_current}" | grep Enabled)                ; then echo "MIG is configured but NOT enabled.  Failing" ; exit 1 ; fi
+
+  echo "MIG is fully enabled"
+  configure_mig_cgi
 }
 
 function setup_gpu_yarn() {
@@ -1334,8 +1380,8 @@ function setup_gpu_yarn() {
   fi
 
   # if this is called without the MIG script then the drivers are not installed
-  migquery_result="$(nvsmi --query-gpu=mig.mode.current --format=csv,noheader)"
-  if [[ "${migquery_result}" == "[N/A]" ]] ; then migquery_result="" ; fi
+  query_nvsmi
+  migquery_result="$("${xmllint}" --xpath "${xpath}" "${nvsmi_query_xml}" | grep -v 'N/A')"
   NUM_MIG_GPUS="$(echo ${migquery_result} | uniq | wc -l)"
 
   if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
