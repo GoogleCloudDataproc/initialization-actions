@@ -622,6 +622,14 @@ function common_exit_handler() {
   # Clear pip cache
   pip cache purge || echo "unable to purge pip cache"
 
+  # Restart YARN services if they are running already
+  for svc in resourcemanager nodemanager; do
+    if [[ "$(systemctl show hadoop-yarn-${svc}.service -p SubState --value)" == 'running' ]]; then
+      systemctl  stop "hadoop-yarn-${svc}.service"
+      systemctl start "hadoop-yarn-${svc}.service"
+    fi
+  done
+
   # If system memory was sufficient to mount memory-backed filesystems
   if [[ "${tmpdir}" == "/mnt/shm" ]] ; then
     # remove the tmpfs pip cache-dir

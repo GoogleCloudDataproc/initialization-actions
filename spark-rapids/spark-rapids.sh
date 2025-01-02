@@ -232,10 +232,12 @@ CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.2
 
 # EXCEPTIONS
 # Change CUDA version for Ubuntu 18 (Cuda 12.1.1 - Driver v530.30.02 is the latest version supported by Ubuntu 18)
-if is_ubuntu18 ; then
-  CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '12.1.1')  #12.1.1
-  NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '530.30.02') #530.30.02
-  CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.1
+if [[ "${OS_NAME}" == "ubuntu" ]]; then
+    if is_ubuntu18 ; then
+      CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '12.1.1')  #12.1.1
+      NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '530.30.02') #530.30.02
+      CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.1
+    fi
 fi
 
 # Verify Secure boot
