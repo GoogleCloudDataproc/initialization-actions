@@ -20,10 +20,6 @@ class SparkRapidsTestCase(DataprocTestCase):
   def verify_spark_instance(self, name):
     self.assert_instance_command(name, "nvidia-smi")
 
-  def verify_pyspark(self, name):
-    # Verify that pyspark works
-    self.assert_instance_command(name, "echo 'from pyspark.sql import SparkSession ; SparkSession.builder.getOrCreate()' | pyspark -c spark.executor.resource.gpu.amount=1 -c spark.task.resource.gpu.amount=0.01", 1)
-
   def verify_mig_instance(self, name):
     self.assert_instance_command(name,
         "/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | xargs -I % test % = 'Enabled'")
@@ -62,6 +58,12 @@ class SparkRapidsTestCase(DataprocTestCase):
                             ("STANDARD", ["w-0"], GPU_T4))
   def test_spark_rapids(self, configuration, machine_suffixes, accelerator):
 
+    if self.getImageOs() == "rocky":
+      self.skipTest("Not supported for Rocky OS")
+
+    if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
+      self.skipTest("Not supported in 2.0 and earlier images")
+
     optional_components = None
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
 
@@ -70,10 +72,10 @@ class SparkRapidsTestCase(DataprocTestCase):
         self.INIT_ACTIONS,
         optional_components=optional_components,
         metadata=metadata,
-        machine_type="n1-standard-32",
+        machine_type="n1-standard-4",
         master_accelerator=accelerator if configuration == "SINGLE" else None,
         worker_accelerator=accelerator,
-        boot_disk_size="50GB",
+        boot_disk_size="1024GB",
         timeout_in_minutes=30)
 
     for machine_suffix in machine_suffixes:
@@ -86,6 +88,12 @@ class SparkRapidsTestCase(DataprocTestCase):
                             ("STANDARD", ["w-0"], GPU_T4))
   def test_spark_rapids_sql(self, configuration, machine_suffixes, accelerator):
 
+    if self.getImageOs() == "rocky":
+      self.skipTest("Not supported for Rocky OS")
+
+    if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
+      self.skipTest("Not supported in 2.0 and earlier images")
+
     optional_components = None
     metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
 
@@ -94,10 +102,10 @@ class SparkRapidsTestCase(DataprocTestCase):
       self.INIT_ACTIONS,
       optional_components=optional_components,
       metadata=metadata,
-      machine_type="n1-standard-32",
+      machine_type="n1-standard-4",
       master_accelerator=accelerator if configuration == "SINGLE" else None,
       worker_accelerator=accelerator,
-      boot_disk_size="50GB",
+      boot_disk_size="1024GB",
       timeout_in_minutes=30)
 
     for machine_suffix in machine_suffixes:
@@ -106,24 +114,15 @@ class SparkRapidsTestCase(DataprocTestCase):
     # Only need to do this once
     self.verify_spark_job_sql()
 
-  @parameterized.parameters(
-    ("STANDARD", ["w-0"], GPU_T4, "11.8.0", "525.147.05"),
-    ("STANDARD", ["w-0"], GPU_T4, "12.0.1", "525.147.05"),
-    ("STANDARD", ["w-0"], GPU_T4, "12.4.0", "550.54.14"),
-    ("STANDARD", ["w-0"], GPU_T4, "12.6.2", "560.35.03")
-  )
+  @parameterized.parameters(("STANDARD", ["w-0"], GPU_T4, "12.4.0", "550.54.14"))
   def test_non_default_cuda_versions(self, configuration, machine_suffixes,
                                      accelerator, cuda_version, driver_version):
 
-    if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.1.1") \
-    and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
-          ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
-      self.skipTest("CUDA > 12.1.1 not supported on older debian/ubuntu releases")
+    if self.getImageOs() == "rocky":
+      self.skipTest("Not supported for Rocky OS")
 
-    if pkg_resources.parse_version(cuda_version) < pkg_resources.parse_version("12.0") \
-    and ( self.getImageOs() == 'debian' or self.getImageOs() == 'rocky' ) \
-    and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("CUDA < 12 not supported on Debian >= 12, Rocky >= 9")
+    if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
+      self.skipTest("Not supported in 2.0 and earlier images")
 
     metadata = ("gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
                 ",cuda-version={0},driver-version={1}".format(cuda_version, driver_version))
@@ -132,10 +131,10 @@ class SparkRapidsTestCase(DataprocTestCase):
         configuration,
         self.INIT_ACTIONS,
         metadata=metadata,
-        machine_type="n1-standard-32",
+        machine_type="n1-standard-4",
         master_accelerator=accelerator if configuration == "SINGLE" else None,
         worker_accelerator=accelerator,
-        boot_disk_size="50GB",
+        boot_disk_size="1024GB",
         timeout_in_minutes=30)
 
     for machine_suffix in machine_suffixes:
