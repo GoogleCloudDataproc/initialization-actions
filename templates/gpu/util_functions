@@ -1010,7 +1010,7 @@ function configure_gpu_exclusive_mode() {
   # only run this function when spark < 3.0
   if version_ge "${SPARK_VERSION}" "3.0" ; then return 0 ; fi
   # include exclusive mode on GPU
-  nvidia-smi -c EXCLUSIVE_PROCESS
+  nvsmi -c EXCLUSIVE_PROCESS
   clear_nvsmi_cache
 }
 
@@ -1025,7 +1025,7 @@ function fetch_mig_scripts() {
 function install_spark_rapids() {
   # Update SPARK RAPIDS config
   local DEFAULT_SPARK_RAPIDS_VERSION="23.08.2" # Final release to support spark 3.1.3
-  local DEFAULT_XGBOOST_VERSION="1.7.6"
+  local DEFAULT_XGBOOST_VERSION="2.0.2"
 
   # https://mvnrepository.com/artifact/ml.dmlc/xgboost4j-spark-gpu
   local -r scala_ver="2.12"
@@ -1041,15 +1041,22 @@ function install_spark_rapids() {
   local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
   local -r dmlc_repo_url='https://repo.maven.apache.org/maven2/ml/dmlc'
 
-  wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${dmlc_repo_url}/xgboost4j-spark-gpu_${scala_ver}/${XGBOOST_VERSION}/xgboost4j-spark-gpu_${scala_ver}-${XGBOOST_VERSION}.jar" \
-    -P /usr/lib/spark/jars/
-  wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${dmlc_repo_url}/xgboost4j-gpu_${scala_ver}/${XGBOOST_VERSION}/xgboost4j-gpu_${scala_ver}-${XGBOOST_VERSION}.jar" \
-    -P /usr/lib/spark/jars/
-  wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${nvidia_repo_url}/rapids-4-spark_${scala_ver}/${SPARK_RAPIDS_VERSION}/rapids-4-spark_${scala_ver}-${SPARK_RAPIDS_VERSION}.jar" \
-    -P /usr/lib/spark/jars/
+  local jar_basename
+
+  jar_basename="xgboost4j-spark-gpu_${scala_ver}-${XGBOOST_VERSION}.jar"
+  cache_fetched_package "${dmlc_repo_url}/xgboost4j-spark-gpu_${scala_ver}/${XGBOOST_VERSION}/${jar_basename}" \
+                        "${pkg_bucket}/xgboost4j-spark-gpu_${scala_ver}/${XGBOOST_VERSION}/${jar_basename}" \
+                        "/usr/lib/spark/jars/${jar_basename}"
+
+  jar_basename="xgboost4j-gpu_${scala_ver}-${XGBOOST_VERSION}.jar"
+  cache_fetched_package "${dmlc_repo_url}/xgboost4j-gpu_${scala_ver}/${XGBOOST_VERSION}/${jar_basename}" \
+                        "${pkg_bucket}/xgboost4j-gpu_${scala_ver}/${XGBOOST_VERSION}/${jar_basename}" \
+                        "/usr/lib/spark/jars/${jar_basename}"
+
+  jar_basename="rapids-4-spark_${scala_ver}-${SPARK_RAPIDS_VERSION}.jar"
+  cache_fetched_package "${nvidia_repo_url}/rapids-4-spark_${scala_ver}/${SPARK_RAPIDS_VERSION}/${jar_basename}" \
+                        "${pkg_bucket}/rapids-4-spark_${scala_ver}/${SPARK_RAPIDS_VERSION}/${jar_basename}" \
+                        "/usr/lib/spark/jars/${jar_basename}"
 }
 
 function configure_gpu_script() {
@@ -1162,7 +1169,7 @@ function nvsmi() {
   elif ! eval "${nvsmi} > /dev/null" ; then echo "nvidia-smi fails" >&2 ; return 0
   else nvsmi_works="1" ; fi
 
-  if [[ "$1" == "-L" ]] ; then
+  if test -v 1 && [[ "$1" == "-L" ]] ; then
     local NV_SMI_L_CACHE_FILE="/var/run/nvidia-smi_-L.txt"
     if [[ -f "${NV_SMI_L_CACHE_FILE}" ]]; then cat "${NV_SMI_L_CACHE_FILE}"
     else "${nvsmi}" $* | tee "${NV_SMI_L_CACHE_FILE}" ; fi
@@ -1180,6 +1187,7 @@ function clear_nvsmi_cache() {
 }
 
 function query_nvsmi() {
+  if [[ "${nvsmi_works}" != "1" ]] ; then return ; fi
   if ( test -v nvsmi_query_xml && test -f "${nvsmi_query_xml}" ) ; then return ; fi
   nvsmi -q -x --dtd > "${nvsmi_query_xml}"
 }
@@ -1252,6 +1260,9 @@ function prepare_gpu_env(){
   # Verify SPARK compatability
   RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
   readonly RAPIDS_RUNTIME
+
+  # determine whether we have nvidia-smi installed and working
+  nvsmi
 
   set_cuda_version
   set_driver_version
@@ -1340,8 +1351,8 @@ function enable_mig() {
     # Write an ascii zero to the numa node indicator
     echo "0" | dd of="${f}" status=none
   done
-  time nvidia-smi --gpu-reset # 30s
-  nvidia-smi -mig 1
+  time nvsmi --gpu-reset # 30s
+  nvsmi -mig 1
   clear_nvsmi_cache
 
   touch "${workdir}/complete/enable-mig"
@@ -1354,7 +1365,6 @@ function enable_and_configure_mig() {
   if [[ ${META_MIG_VALUE} -eq 0 ]]; then echo "Not enabling MIG" ; return ; fi
 
   enable_mig
-
   query_nvsmi
   local xpath='//nvidia_smi_log/*/mig_mode/current_mig/text()'
   mig_mode_current="$("${xmllint}" --xpath "${xpath}" "${nvsmi_query_xml}")"
@@ -1379,19 +1389,23 @@ function setup_gpu_yarn() {
     return 0
   fi
 
-  # if this is called without the MIG script then the drivers are not installed
-  query_nvsmi
-  local xpath='//nvidia_smi_log/*/mig_mode/current_mig/text()'
-  migquery_result="$("${xmllint}" --xpath "${xpath}" "${nvsmi_query_xml}" | grep -v 'N/A')"
-  NUM_MIG_GPUS="$(echo ${migquery_result} | uniq | wc -l)"
+  if [[ "${nvsmi_works}" == "1" ]] ; then
+    # if this is called without the MIG script then the drivers are not installed
+    query_nvsmi
+    local xpath='//nvidia_smi_log/*/mig_mode/current_mig/text()'
+    set +e
+    migquery_result="$("${xmllint}" --xpath "${xpath}" "${nvsmi_query_xml}" | grep -v 'N/A')"
+    set -e
+    NUM_MIG_GPUS="$(echo ${migquery_result} | uniq | wc -l)"
 
-  if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
-    if [[ "${NUM_MIG_GPUS}" -eq "1" ]]; then
-      if (echo "${migquery_result}" | grep Enabled); then
-        IS_MIG_ENABLED=1
-        NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
-        MIG_MAJOR_CAPS=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
-        fetch_mig_scripts
+    if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
+      if [[ "${NUM_MIG_GPUS}" -eq "1" ]]; then
+        if (echo "${migquery_result}" | grep Enabled); then
+          IS_MIG_ENABLED=1
+          NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
+          MIG_MAJOR_CAPS=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
+          fetch_mig_scripts
+        fi
       fi
     fi
   fi
