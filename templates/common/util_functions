@@ -2,6 +2,10 @@ function os_id()       ( set +x ;  grep '^ID=' /etc/os-release | cut -d= -f2 | x
 function os_version()  ( set +x ;  grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs ; )
 function os_codename() ( set +x ;  grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs ; )
 
+# For version (or real number) comparison
+# if first argument is greater than or equal to, greater than, less than or equal to, or less than the second
+# ( version_ge 2.0 2.1 ) evaluates to false
+# ( version_ge 2.2 2.1 ) evaluates to true
 function version_ge() ( set +x ;  [ "$1" = "$(echo -e "$1\n$2" | sort -V | tail -n1)" ] ; )
 function version_gt() ( set +x ;  [ "$1" = "$2" ] && return 1 || version_ge $1 $2 ; )
 function version_le() ( set +x ;  [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ] ; )
