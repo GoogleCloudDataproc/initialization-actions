@@ -2099,8 +2099,8 @@ function enable_and_configure_mig() {
 
   enable_mig
 
-  xpath='//nvidia_smi_log/*/mig_mode/current_mig/text()'
   query_nvsmi
+  local xpath='//nvidia_smi_log/*/mig_mode/current_mig/text()'
   mig_mode_current="$("${xmllint}" --xpath "${xpath}" "${nvsmi_query_xml}")"
 
   if [[ "$(echo "${mig_mode_current}" | uniq | wc -l)" -ne "1" ]] ; then echo "MIG is NOT enabled on all on GPUs.  Failing" ; exit 1 ; fi
@@ -2125,6 +2125,7 @@ function setup_gpu_yarn() {
 
   # if this is called without the MIG script then the drivers are not installed
   query_nvsmi
+  local xpath='//nvidia_smi_log/*/mig_mode/current_mig/text()'
   migquery_result="$("${xmllint}" --xpath "${xpath}" "${nvsmi_query_xml}" | grep -v 'N/A')"
   NUM_MIG_GPUS="$(echo ${migquery_result} | uniq | wc -l)"
 
