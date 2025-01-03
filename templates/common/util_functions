@@ -129,6 +129,8 @@ function cache_fetched_package() {
   local gcs_fn="$2"
   local local_fn="$3"
 
+  while ! command -v gcloud ; do sleep 5s ; done
+
   if gsutil ls "${gcs_fn}" 2>&1 | grep -q "${gcs_fn}" ; then
     time gcloud storage cp "${gcs_fn}" "${local_fn}"
   else

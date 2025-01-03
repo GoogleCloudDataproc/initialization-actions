@@ -158,11 +158,11 @@ exit 1 unless $cert eq lc $kmod
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
-        machine_type="n1-highmem-32",
+        machine_type="n1-standard-32",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
-        timeout_in_minutes=90, # This cluster is sized and timed correctly to build the driver and nccl
+        timeout_in_minutes=90, # This cluster is sized and timed appropriately to build the kernel driver and nccl
         boot_disk_size="60GB")
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
