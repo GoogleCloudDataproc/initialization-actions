@@ -247,9 +247,9 @@ exit 1 unless $cert eq lc $kmod
     self.verify_pyspark()
 
   @parameterized.parameters(
-      ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "11.8"),
-#      ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "12.0"),
-      ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "12.4"),
+      ("STANDARD", ["m"], GPU_H100, GPU_H100, "NVIDIA", "11.8"),
+#      ("STANDARD", ["m"], GPU_H100, GPU_H100, "NVIDIA", "12.0"),
+      ("STANDARD", ["m"], GPU_H100, GPU_H100, "NVIDIA", "12.4"),
   )
   def test_install_gpu_with_mig(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
@@ -278,7 +278,7 @@ exit 1 unless $cert eq lc $kmod
         configuration,
         self.INIT_ACTIONS,
         master_machine_type="a3-highgpu-8g",
-        worker_machine_type="a2-highgpu-2g",
+        worker_machine_type="a3-highgpu-8g",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
