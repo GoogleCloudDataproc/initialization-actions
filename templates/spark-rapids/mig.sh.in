@@ -1,0 +1,48 @@
+#!/bin/bash
+#
+[% INSERT legal/license_header %]
+#
+# This script installs NVIDIA GPU drivers and enables MIG on Hopper
+# GPU architectures.
+#
+# This script should be specified in --initialization-actions= option
+# and --metadata=ENABLE_MIG can be used to enable or disable MIG. The
+# default is to enable it.  The script configures the MIG device based
+# on the user specified MIG_CGI profiles specified via:
+# --metadata=^:^MIG_CGI='9,9'. If MIG_CGI is not specified it assumes
+# it's using an H100 and configures 2 instances with profile id 9.
+#
+[% PROCESS common/template_disclaimer %]
+
+set -euxo pipefail
+
+[% INSERT common/util_functions %]
+
+[% INSERT gpu/util_functions %]
+
+function main() {
+  setup_gpu_yarn
+
+  echo "yarn setup complete"
+
+  enable_and_configure_mig
+
+  echo "main complete"
+  return 0
+}
+
+function exit_handler() {
+  gpu_exit_handler
+  common_exit_handler
+  return 0
+}
+
+function prepare_to_install(){
+  prepare_common_env
+  prepare_gpu_env
+  trap exit_handler EXIT
+}
+
+prepare_to_install
+
+main

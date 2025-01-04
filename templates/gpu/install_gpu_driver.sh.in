@@ -1,0 +1,54 @@
+#!/bin/bash
+#
+[% INSERT legal/license_header %]
+#
+[% PROCESS common/template_disclaimer %]
+#
+# This script installs NVIDIA GPU drivers and collects GPU utilization metrics.
+
+set -euxo pipefail
+
+[% INSERT common/util_functions %]
+
+[% INSERT gpu/util_functions %]
+
+function main() {
+  setup_gpu_yarn
+
+  echo "yarn setup complete"
+
+  if ( test -v CUDNN_VERSION && [[ -n "${CUDNN_VERSION}" ]] ) ; then
+    install_nvidia_nccl
+    install_nvidia_cudnn
+  fi
+
+  if [[ "${RAPIDS_RUNTIME}" == "SPARK" ]]; then
+    install_spark_rapids
+    configure_gpu_script
+    echo "RAPIDS initialized with Spark runtime"
+  elif [[ "${RAPIDS_RUNTIME}" == "DASK" ]]; then
+    # we are not currently tooled for installing dask in this action.
+    echo "RAPIDS recognizes DASK runtime - currently supported using dask/dask.sh or rapids/rapids.sh"
+  else
+    echo "Unrecognized RAPIDS Runtime: ${RAPIDS_RUNTIME}"
+  fi
+
+  echo "main complete"
+  return 0
+}
+
+function exit_handler() {
+  gpu_exit_handler
+  common_exit_handler
+  return 0
+}
+
+function prepare_to_install(){
+  prepare_common_env
+  prepare_gpu_env
+  trap exit_handler EXIT
+}
+
+prepare_to_install
+
+main
