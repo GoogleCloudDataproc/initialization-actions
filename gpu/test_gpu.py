@@ -104,6 +104,15 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.assert_instance_command(
         name, "nvidia-smi -q -x | /opt/conda/default/bin/xmllint --xpath '//nvidia_smi_log/driver_version/text()' - | grep {}".format(driver_version) )
 
+  def verify_pyspark(self, name):
+    self.assert_dataproc_job(
+      self.getClusterName(),
+      "pyspark",
+      """--properties="spark:spark.executor.resource.gpu.amount=1" \
+         --properties="spark:spark.task.resource.gpu.amount=0.01" \
+         'gs://{}/gpu/verify_pyspark.py'""".format(self.INIT_ACTIONS_REPO)
+    )
+
   def verify_instance_spark(self):
     self.assert_dataproc_job(
       self.getClusterName(),
@@ -169,7 +178,7 @@ exit 1 unless $cert eq lc $kmod
       self.verify_instance(machine_name)
       self.verify_instance_nvcc(machine_name, DEFAULT_CUDA_VERSION)
       self.verify_instance_pyspark(machine_name)
-      self.verify_instance_spark()
+    self.verify_pyspark()
 
   @parameterized.parameters(
       ("SINGLE", ["m"], GPU_T4, None, None),
@@ -285,7 +294,7 @@ exit 1 unless $cert eq lc $kmod
       self.verify_instance(machine_name)
       self.verify_instance_nvcc(machine_name, cuda_version)
       self.verify_instance_pyspark(machine_name)
-    self.verify_instance_spark()
+    self.verify_pyspark()
 
   @parameterized.parameters(
       ("STANDARD", ["m"], GPU_H100, GPU_A100, "NVIDIA", "11.8"),
@@ -359,7 +368,7 @@ exit 1 unless $cert eq lc $kmod
         boot_disk_size="50GB",
         timeout_in_minutes=90)
 
-    self.verify_instance_spark()
+    self.verify_pyspark()
 
   @parameterized.parameters(
     ("SINGLE", ["m"], GPU_T4, None, "11.8"),
@@ -404,7 +413,7 @@ exit 1 unless $cert eq lc $kmod
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
       self.verify_instance(machine_name)
       self.verify_instance_gpu_agent(machine_name)
-    self.verify_instance_spark()
+    self.verify_pyspark()
 
   @parameterized.parameters(
 #    ("SINGLE", ["m"], GPU_T4, GPU_T4, "11.8", ''),
@@ -465,7 +474,7 @@ exit 1 unless $cert eq lc $kmod
       self.verify_instance_gpu_agent(hostname)
 #      self.verify_driver_signature(hostname)
 
-    self.verify_instance_spark()
+    self.verify_pyspark()
 
 if __name__ == "__main__":
   absltest.main()
