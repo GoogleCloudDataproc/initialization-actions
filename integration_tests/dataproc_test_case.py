@@ -7,6 +7,8 @@ import re
 import string
 import subprocess
 import sys
+import time
+import random
 from threading import Timer
 
 import pkg_resources
@@ -300,7 +302,7 @@ class DataprocTestCase(parameterized.TestCase):
           print("An error occurred: ", e)
           retry_count -= 1
           if retry_count > 0:
-            time.sleep(10)
+            time.sleep( 3 + random.randint(1, 10) )
             continue
           else:
             raise
