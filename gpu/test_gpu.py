@@ -104,7 +104,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.assert_instance_command(
         name, "nvidia-smi -q -x | /opt/conda/default/bin/xmllint --xpath '//nvidia_smi_log/driver_version/text()' - | grep {}".format(driver_version) )
 
-  def verify_pyspark(self, name):
+  def verify_pyspark(self):
     self.assert_dataproc_job(
       self.getClusterName(),
       "pyspark",
