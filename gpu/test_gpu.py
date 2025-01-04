@@ -16,38 +16,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   INIT_ACTIONS = ["gpu/install_gpu_driver.sh"]
   GPU_L4   = "type=nvidia-l4"
   GPU_T4   = "type=nvidia-tesla-t4"
-  GPU_V100 = "type=nvidia-tesla-v100"
-  GPU_A100 = "type=nvidia-tesla-a100,count=2"
   GPU_H100 = "type=nvidia-h100-80gb,count=8"
-
-  # Tests for PyTorch
-  TORCH_TEST_SCRIPT_FILE_NAME = "verify_pytorch.py"
-
-  # Tests for TensorFlow
-  TF_TEST_SCRIPT_FILE_NAME = "verify_tensorflow.py"
-
-  def assert_instance_command(self,
-                             instance,
-                             cmd,
-                             timeout_in_minutes=DEFAULT_TIMEOUT):
-
-    retry_count = 5
-
-    ssh_cmd='gcloud compute ssh -q {} --zone={} --command="{}" -- -o ConnectTimeout=60'.format(
-      instance, self.cluster_zone, cmd)
-
-    while retry_count > 0:
-      try:
-        ret_code, stdout, stderr = self.assert_command( ssh_cmd, timeout_in_minutes )
-        return ret_code, stdout, stderr
-      except Exception as e:
-        print("An error occurred: ", e)
-        retry_count -= 1
-        if retry_count > 0:
-          time.sleep(10)
-          continue
-        else:
-          raise
 
   def verify_instance(self, name):
     # Verify that nvidia-smi works
@@ -55,26 +24,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     # Many failed nvidia-smi attempts have been caused by impatience and temporal collisions
     time.sleep( 3 + random.randint(1, 30) )
     self.assert_instance_command(name, "nvidia-smi", 1)
-
-  def verify_pytorch(self, name):
-    test_filename=os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               self.TORCH_TEST_SCRIPT_FILE_NAME)
-    self.upload_test_file(test_filename, name)
-
-    verify_cmd = "for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node) ; do echo 0 | dd of=${f} ; done ; /opt/conda/miniconda3/envs/pytorch/bin/python {}".format(
-        self.TORCH_TEST_SCRIPT_FILE_NAME)
-    self.assert_instance_command(name, verify_cmd)
-    self.remove_test_script(self.TORCH_TEST_SCRIPT_FILE_NAME, name)
-
-  def verify_tensorflow(self, name):
-    test_filename=os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               self.TF_TEST_SCRIPT_FILE_NAME)
-    self.upload_test_file(test_filename, name)
-
-    verify_cmd = "for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node) ; do echo 0 | dd of=${f} ; done ; /opt/conda/miniconda3/envs/pytorch/bin/python {}".format(
-        self.TF_TEST_SCRIPT_FILE_NAME)
-    self.assert_instance_command(name, verify_cmd)
-    self.remove_test_script(self.TF_TEST_SCRIPT_FILE_NAME, name)
 
   def verify_mig_instance(self, name):
     self.assert_instance_command(name,

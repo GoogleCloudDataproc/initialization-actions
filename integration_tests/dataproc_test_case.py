@@ -286,11 +286,24 @@ class DataprocTestCase(parameterized.TestCase):
         Raises:
             AssertionError: if command returned non-0 exit code.
         """
+      retry_count = 5
 
-        ret_code, stdout, stderr = self.assert_command(
-            'gcloud compute ssh {} --zone={} --command="{}"'.format(
-                instance, self.cluster_zone, cmd), timeout_in_minutes)
-        return ret_code, stdout, stderr
+      ssh_cmd='gcloud compute ssh -q {} --zone={} --command="{}" -- -o ConnectTimeout=60'.format(
+        instance, self.cluster_zone, cmd)
+
+      while retry_count > 0:
+        try:
+          ret_code, stdout, stderr = self.assert_command(
+              ssh_cmd, timeout_in_minutes )
+          return ret_code, stdout, stderr
+        except Exception as e:
+          print("An error occurred: ", e)
+          retry_count -= 1
+          if retry_count > 0:
+            time.sleep(10)
+            continue
+          else:
+            raise
 
     def assert_dataproc_job(self,
                             cluster_name,
