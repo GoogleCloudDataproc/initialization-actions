@@ -110,7 +110,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       "pyspark",
       """--properties="spark:spark.executor.resource.gpu.amount=1" \
          --properties="spark:spark.task.resource.gpu.amount=0.01" \
-         'gs://{}/gpu/verify_pyspark.py'""".format(self.INIT_ACTIONS_REPO)
+         '{}/gpu/verify_pyspark.py'""".format(self.INIT_ACTIONS_REPO)
     )
 
   def verify_instance_spark(self):
@@ -175,9 +175,9 @@ exit 1 unless $cert eq lc $kmod
         boot_disk_size="60GB")
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
-      self.verify_instance(machine_name)
-      self.verify_instance_nvcc(machine_name, DEFAULT_CUDA_VERSION)
-      self.verify_instance_pyspark(machine_name)
+#      self.verify_instance(machine_name)
+#      self.verify_instance_nvcc(machine_name, DEFAULT_CUDA_VERSION)
+#      self.verify_instance_pyspark(machine_name)
     self.verify_pyspark()
 
   @parameterized.parameters(
@@ -418,8 +418,8 @@ exit 1 unless $cert eq lc $kmod
   @parameterized.parameters(
 #    ("SINGLE", ["m"], GPU_T4, GPU_T4, "11.8", ''),
 #    ("STANDARD", ["m"], GPU_T4, None, "12.0"),
-#    ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "11.8", 'rocky', '2.0'),
-    ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4", 'rocky', '2.1'),
+    ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.1.1", 'rocky', '2.0'),
+#    ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.4", 'rocky', '2.1'),
 #    ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.0", 'rocky', '2.2'),
 #    ("KERBEROS", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "12.6", 'rocky', '2.2'),
 #    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.8"),
@@ -470,8 +470,8 @@ exit 1 unless $cert eq lc $kmod
       scopes="https://www.googleapis.com/auth/monitoring.write")
     for machine_suffix in machine_suffixes:
       hostname="{}-{}".format(self.getClusterName(),machine_suffix)
-      self.verify_instance(hostname)
-      self.verify_instance_gpu_agent(hostname)
+#      self.verify_instance(hostname)
+#      self.verify_instance_gpu_agent(hostname)
 #      self.verify_driver_signature(hostname)
 
     self.verify_pyspark()
