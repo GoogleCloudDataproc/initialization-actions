@@ -35,6 +35,12 @@
 # For details see
 # github.com/GoogleCloudDataproc/custom-images/tree/main/examples/secure-boot
 #
+# This initialization action is generated from
+# initialization-actions/templates/spark-rapids/spark-rapids.sh.in
+#
+# Modifications made directly to the generated file will be lost when
+# the template is re-evaluated
+
 
 set -euxo pipefail
 
@@ -42,6 +48,10 @@ function os_id()       ( set +x ;  grep '^ID=' /etc/os-release | cut -d= -f2 | x
 function os_version()  ( set +x ;  grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs ; )
 function os_codename() ( set +x ;  grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs ; )
 
+# For version (or real number) comparison
+# if first argument is greater than or equal to, greater than, less than or equal to, or less than the second
+# ( version_ge 2.0 2.1 ) evaluates to false
+# ( version_ge 2.2 2.1 ) evaluates to true
 function version_ge() ( set +x ;  [ "$1" = "$(echo -e "$1\n$2" | sort -V | tail -n1)" ] ; )
 function version_gt() ( set +x ;  [ "$1" = "$2" ] && return 1 || version_ge $1 $2 ; )
 function version_le() ( set +x ;  [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ] ; )
@@ -164,6 +174,8 @@ function cache_fetched_package() {
   local src_url="$1"
   local gcs_fn="$2"
   local local_fn="$3"
+
+  while ! command -v gcloud ; do sleep 5s ; done
 
   if gsutil ls "${gcs_fn}" 2>&1 | grep -q "${gcs_fn}" ; then
     time gcloud storage cp "${gcs_fn}" "${local_fn}"
@@ -661,6 +673,14 @@ function common_exit_handler() {
 
   # Clear pip cache
   pip cache purge || echo "unable to purge pip cache"
+
+  # Restart YARN services if they are running already
+  for svc in resourcemanager nodemanager; do
+    if [[ "$(systemctl show hadoop-yarn-${svc}.service -p SubState --value)" == 'running' ]]; then
+      systemctl  stop "hadoop-yarn-${svc}.service"
+      systemctl start "hadoop-yarn-${svc}.service"
+    fi
+  done
 
   # If system memory was sufficient to mount memory-backed filesystems
   if [[ "${tmpdir}" == "/mnt/shm" ]] ; then
@@ -1760,7 +1780,8 @@ function configure_gpu_exclusive_mode() {
   # only run this function when spark < 3.0
   if version_ge "${SPARK_VERSION}" "3.0" ; then return 0 ; fi
   # include exclusive mode on GPU
-  nvidia-smi -c EXCLUSIVE_PROCESS
+  nvsmi -c EXCLUSIVE_PROCESS
+  clear_nvsmi_cache
 }
 
 function fetch_mig_scripts() {
@@ -1773,14 +1794,14 @@ function fetch_mig_scripts() {
 
 function install_spark_rapids() {
   # Update SPARK RAPIDS config
-  local DEFAULT_SPARK_RAPIDS_VERSION="23.08.2" # Final release to support spark 3.1.3
-  local DEFAULT_XGBOOST_VERSION="1.7.6"
+  local DEFAULT_SPARK_RAPIDS_VERSION="24.08.1"
+  local DEFAULT_XGBOOST_VERSION="1.7.6" # 2.1.3
 
   # https://mvnrepository.com/artifact/ml.dmlc/xgboost4j-spark-gpu
   local -r scala_ver="2.12"
 
-  if [[ "${DATAPROC_IMAGE_VERSION}" == "2.2" ]] ; then
-    DEFAULT_SPARK_RAPIDS_VERSION="24.08.1"
+  if [[ "${DATAPROC_IMAGE_VERSION}" == "2.0" ]] ; then
+    local DEFAULT_SPARK_RAPIDS_VERSION="23.08.2" # Final release to support spark 3.1.3
   fi
 
   readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
@@ -1790,15 +1811,22 @@ function install_spark_rapids() {
   local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
   local -r dmlc_repo_url='https://repo.maven.apache.org/maven2/ml/dmlc'
 
-  wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${dmlc_repo_url}/xgboost4j-spark-gpu_${scala_ver}/${XGBOOST_VERSION}/xgboost4j-spark-gpu_${scala_ver}-${XGBOOST_VERSION}.jar" \
-    -P /usr/lib/spark/jars/
-  wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${dmlc_repo_url}/xgboost4j-gpu_${scala_ver}/${XGBOOST_VERSION}/xgboost4j-gpu_${scala_ver}-${XGBOOST_VERSION}.jar" \
-    -P /usr/lib/spark/jars/
-  wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${nvidia_repo_url}/rapids-4-spark_${scala_ver}/${SPARK_RAPIDS_VERSION}/rapids-4-spark_${scala_ver}-${SPARK_RAPIDS_VERSION}.jar" \
-    -P /usr/lib/spark/jars/
+  local jar_basename
+
+  jar_basename="xgboost4j-spark-gpu_${scala_ver}-${XGBOOST_VERSION}.jar"
+  cache_fetched_package "${dmlc_repo_url}/xgboost4j-spark-gpu_${scala_ver}/${XGBOOST_VERSION}/${jar_basename}" \
+                        "${pkg_bucket}/xgboost4j-spark-gpu_${scala_ver}/${XGBOOST_VERSION}/${jar_basename}" \
+                        "/usr/lib/spark/jars/${jar_basename}"
+
+  jar_basename="xgboost4j-gpu_${scala_ver}-${XGBOOST_VERSION}.jar"
+  cache_fetched_package "${dmlc_repo_url}/xgboost4j-gpu_${scala_ver}/${XGBOOST_VERSION}/${jar_basename}" \
+                        "${pkg_bucket}/xgboost4j-gpu_${scala_ver}/${XGBOOST_VERSION}/${jar_basename}" \
+                        "/usr/lib/spark/jars/${jar_basename}"
+
+  jar_basename="rapids-4-spark_${scala_ver}-${SPARK_RAPIDS_VERSION}.jar"
+  cache_fetched_package "${nvidia_repo_url}/rapids-4-spark_${scala_ver}/${SPARK_RAPIDS_VERSION}/${jar_basename}" \
+                        "${pkg_bucket}/rapids-4-spark_${scala_ver}/${SPARK_RAPIDS_VERSION}/${jar_basename}" \
+                        "/usr/lib/spark/jars/${jar_basename}"
 }
 
 function configure_gpu_script() {
@@ -1828,6 +1856,7 @@ function configure_gpu_script() {
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# Example output: {"name": "gpu", "addresses":["0","1","2","3","4","5","6","7"]}
 
 ADDRS=$(nvidia-smi --query-gpu=index --format=csv,noheader | perl -e 'print(join(q{,},map{chomp; qq{"$_"}}<STDIN>))')
 
@@ -1844,8 +1873,15 @@ EOF
   executor_memory_gb="$(awk '/^MemFree/ {print $2}' /proc/meminfo | perl -MPOSIX -pe '$_ *= 0.75; $_ = POSIX::floor( $_ / (1024*1024) )')"
   local task_cpus=2
   local gpu_amount
-  gpu_amount="$(echo $executor_cores | perl -pe "\$_ = ( ${gpu_count} / (\$_ / ${task_cpus}) )")"
-  if ( version_ge "${gpu_amount}" "0.5" && version_lt "${gpu_amount}" "1.0" ) ; then gpu_amount="0.5" ; fi
+
+  # The current setting of spark.task.resource.gpu.amount (0.333) is
+  # not ideal to get the best performance from the RAPIDS Accelerator
+  # plugin. It's recommended to be 1/{executor core count} unless you
+  # have a special use case.
+#  gpu_amount="$(echo $executor_cores | perl -pe "\$_ = ( ${gpu_count} / (\$_ / ${task_cpus}) )")"
+  gpu_amount="$(perl -e "print 1 / ${executor_cores}")"
+
+# cannot run on GPU because GPU does not currently support the operator class org.apache.spark.sql.execution.aggregate.ComplexTypedAggregateExpression
 
   cat >>"${spark_defaults_conf}" <<EOF
 ###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
@@ -1911,7 +1947,7 @@ function nvsmi() {
   elif ! eval "${nvsmi} > /dev/null" ; then echo "nvidia-smi fails" >&2 ; return 0
   else nvsmi_works="1" ; fi
 
-  if [[ "$1" == "-L" ]] ; then
+  if test -v 1 && [[ "$1" == "-L" ]] ; then
     local NV_SMI_L_CACHE_FILE="/var/run/nvidia-smi_-L.txt"
     if [[ -f "${NV_SMI_L_CACHE_FILE}" ]]; then cat "${NV_SMI_L_CACHE_FILE}"
     else "${nvsmi}" $* | tee "${NV_SMI_L_CACHE_FILE}" ; fi
@@ -1920,6 +1956,18 @@ function nvsmi() {
   fi
 
   "${nvsmi}" $*
+}
+
+function clear_nvsmi_cache() {
+  if ( test -v nvsmi_query_xml && test -f "${nvsmi_query_xml}" ) ; then
+    rm "${nvsmi_query_xml}"
+  fi
+}
+
+function query_nvsmi() {
+  if [[ "${nvsmi_works}" != "1" ]] ; then return ; fi
+  if ( test -v nvsmi_query_xml && test -f "${nvsmi_query_xml}" ) ; then return ; fi
+  nvsmi -q -x --dtd > "${nvsmi_query_xml}"
 }
 
 function install_build_dependencies() {
@@ -1970,6 +2018,8 @@ function prepare_gpu_env(){
   set -e
   echo "gpu_count=[${gpu_count}]"
   nvsmi_works="0"
+  nvsmi_query_xml="${tmpdir}/nvsmi.xml"
+  xmllint="/opt/conda/miniconda3/bin/xmllint"
   NVIDIA_SMI_PATH='/usr/bin'
   MIG_MAJOR_CAPS=0
   IS_MIG_ENABLED=0
@@ -1988,6 +2038,9 @@ function prepare_gpu_env(){
   # Verify SPARK compatability
   RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
   readonly RAPIDS_RUNTIME
+
+  # determine whether we have nvidia-smi installed and working
+  nvsmi
 
   set_cuda_version
   set_driver_version
@@ -2054,20 +2107,51 @@ function configure_mig_cgi() {
       # GPU  0 Profile ID  5 Placement : {0}:4
       # GPU  0 Profile ID  0 Placement : {0}:8
 
-      # For H100 3D controllers, use profile 19, 7x1G instances
-      nvidia-smi mig -cgi 19 -C
+      # For H100 3D controllers, consider profile 19, 7x1G instances
+      nvidia-smi mig -cgi 9,9 -C
     elif echo "${pci_id_list}" | grep -q -i 'PCI_ID=10DE:20' ; then
-      # Dataproc only supports A100s right now split in 2 if not specified
+      # Dataproc only supports H100s right now ; split in 2 if not specified
       # https://docs.nvidia.com/datacenter/tesla/mig-user-guide/#creating-gpu-instances
       nvidia-smi mig -cgi 9,9 -C
     else
       echo "unrecognized 3D controller"
     fi
   fi
+  clear_nvsmi_cache
 }
 
 function enable_mig() {
-  nvidia-smi -mig 1
+  if test -f "${workdir}/complete/enable-mig" ; then return ; fi
+
+  # Start persistenced if it's not already running
+  if ! ( ps auwx | grep -i nvidia\\-persistenced ) ; then ( nvidia-persistenced & ) ; fi
+  for f in /sys/module/nvidia/drivers/pci:nvidia/*/numa_node ; do
+    # Write an ascii zero to the numa node indicator
+    echo "0" | dd of="${f}" status=none
+  done
+  time nvsmi --gpu-reset # 30s
+  nvsmi -mig 1
+  clear_nvsmi_cache
+
+  touch "${workdir}/complete/enable-mig"
+}
+
+function enable_and_configure_mig() {
+  # default MIG to on when this script is used
+  META_MIG_VALUE=$(get_metadata_attribute 'ENABLE_MIG' "1")
+
+  if [[ ${META_MIG_VALUE} -eq 0 ]]; then echo "Not enabling MIG" ; return ; fi
+
+  enable_mig
+  query_nvsmi
+  local xpath='//nvidia_smi_log/*/mig_mode/current_mig/text()'
+  mig_mode_current="$("${xmllint}" --xpath "${xpath}" "${nvsmi_query_xml}")"
+
+  if [[ "$(echo "${mig_mode_current}" | uniq | wc -l)" -ne "1" ]] ; then echo "MIG is NOT enabled on all on GPUs.  Failing" ; exit 1 ; fi
+  if ! (echo "${mig_mode_current}" | grep Enabled)                ; then echo "MIG is configured but NOT enabled.  Failing" ; exit 1 ; fi
+
+  echo "MIG is fully enabled"
+  configure_mig_cgi
 }
 
 function setup_gpu_yarn() {
@@ -2083,18 +2167,23 @@ function setup_gpu_yarn() {
     return 0
   fi
 
-  # if this is called without the MIG script then the drivers are not installed
-  migquery_result="$(nvsmi --query-gpu=mig.mode.current --format=csv,noheader)"
-  if [[ "${migquery_result}" == "[N/A]" ]] ; then migquery_result="" ; fi
-  NUM_MIG_GPUS="$(echo ${migquery_result} | uniq | wc -l)"
+  if [[ "${nvsmi_works}" == "1" ]] ; then
+    # if this is called without the MIG script then the drivers are not installed
+    query_nvsmi
+    local xpath='//nvidia_smi_log/*/mig_mode/current_mig/text()'
+    set +e
+    migquery_result="$("${xmllint}" --xpath "${xpath}" "${nvsmi_query_xml}" | grep -v 'N/A')"
+    set -e
+    NUM_MIG_GPUS="$(echo ${migquery_result} | uniq | wc -l)"
 
-  if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
-    if [[ "${NUM_MIG_GPUS}" -eq "1" ]]; then
-      if (echo "${migquery_result}" | grep Enabled); then
-        IS_MIG_ENABLED=1
-        NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
-        MIG_MAJOR_CAPS=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
-        fetch_mig_scripts
+    if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
+      if [[ "${NUM_MIG_GPUS}" -eq "1" ]]; then
+        if (echo "${migquery_result}" | grep Enabled); then
+          IS_MIG_ENABLED=1
+          NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
+          MIG_MAJOR_CAPS=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
+          fetch_mig_scripts
+        fi
       fi
     fi
   fi
@@ -2149,13 +2238,6 @@ function main() {
     echo "Unrecognized RAPIDS Runtime: ${RAPIDS_RUNTIME}"
   fi
 
-  # Restart YARN services if they are running already
-  for svc in resourcemanager nodemanager; do
-    if [[ "$(systemctl show hadoop-yarn-${svc}.service -p SubState --value)" == 'running' ]]; then
-      systemctl  stop "hadoop-yarn-${svc}.service"
-      systemctl start "hadoop-yarn-${svc}.service"
-    fi
-  done
   echo "main complete"
   return 0
 }
