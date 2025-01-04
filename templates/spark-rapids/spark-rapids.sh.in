@@ -4,13 +4,16 @@
 #
 [% PROCESS common/template_disclaimer %]
 #
-# This script installs NVIDIA GPU drivers (version 550.135) along with
-# CUDA 12.4.
+# This script installs NVIDIA GPU drivers.
+#
+# Dataproc 2.0:  Driver version 530.30.02, CUDA version 12.1.1, Rapids 23.08.2
+# Dataproc 2.1:  Driver version   550.135, CUDA version 12.4.1, Rapids 24.08.1
+# Dataproc 2.2:  Driver version 560.35.03, CUDA version 12.6.2, Rapids 24.08.1
 #
 # Additionally, it installs the RAPIDS Spark plugin, configures Spark
-# and YARN, installs an agent to collect GPU utilization metrics.  The
-# installer is compatible with Debian, Ubuntu, and Rocky Linux
-# distributions.
+# and YARN, and installs an agent to collect GPU utilization metrics.
+# The installer is regularly exercised with Debian, Ubuntu, and Rocky
+# Linux distributions.
 #
 # Note that the script is designed to work both when secure boot is
 # enabled with a custom image and when disabled during cluster
