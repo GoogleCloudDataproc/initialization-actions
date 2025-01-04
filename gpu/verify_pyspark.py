@@ -23,7 +23,6 @@ from pyspark import SparkConf, StorageLevel
 from tqdm import tqdm
 from pyspark.ml.feature import HashingTF, IDF, Tokenizer, StopWordsRemover
 import pyspark.sql.functions as f
-import nltk
 
 spark = SparkSession.builder.appName("spark-rapids").getOrCreate()
 

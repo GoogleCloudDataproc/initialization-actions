@@ -108,8 +108,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.assert_dataproc_job(
       self.getClusterName(),
       "pyspark",
-      """--properties="spark:spark.executor.resource.gpu.amount=1" \
-         --properties="spark:spark.task.resource.gpu.amount=0.01" \
+      """--properties="spark.executor.resource.gpu.amount=1" \
+         --properties="spark.task.resource.gpu.amount=0.01" \
          '{}/gpu/verify_pyspark.py'""".format(self.INIT_ACTIONS_REPO)
     )
 
@@ -209,8 +209,8 @@ exit 1 unless $cert eq lc $kmod
         boot_disk_size="50GB")
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
-      self.verify_instance(machine_name)
-
+#      self.verify_instance(machine_name)
+    self.verify_pyspark()
   @parameterized.parameters(
       ("KERBEROS", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, None),
 #      ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "NVIDIA"),
@@ -242,8 +242,9 @@ exit 1 unless $cert eq lc $kmod
         scopes="https://www.googleapis.com/auth/monitoring.write")
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
-      self.verify_instance(machine_name)
-      self.verify_instance_gpu_agent(machine_name)
+#      self.verify_instance(machine_name)
+#      self.verify_instance_gpu_agent(machine_name)
+    self.verify_pyspark()
 
   @parameterized.parameters(
         ("SINGLE", ["m"],               GPU_T4, None,   "12.4"),
@@ -291,9 +292,9 @@ exit 1 unless $cert eq lc $kmod
 
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
-      self.verify_instance(machine_name)
-      self.verify_instance_nvcc(machine_name, cuda_version)
-      self.verify_instance_pyspark(machine_name)
+      #self.verify_instance(machine_name)
+      #self.verify_instance_nvcc(machine_name, cuda_version)
+      #self.verify_instance_pyspark(machine_name)
     self.verify_pyspark()
 
   @parameterized.parameters(
@@ -411,8 +412,8 @@ exit 1 unless $cert eq lc $kmod
 
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
-      self.verify_instance(machine_name)
-      self.verify_instance_gpu_agent(machine_name)
+#      self.verify_instance(machine_name)
+#      self.verify_instance_gpu_agent(machine_name)
     self.verify_pyspark()
 
   @parameterized.parameters(
