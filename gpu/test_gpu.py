@@ -175,9 +175,9 @@ exit 1 unless $cert eq lc $kmod
         boot_disk_size="60GB")
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
-#      self.verify_instance(machine_name)
-#      self.verify_instance_nvcc(machine_name, DEFAULT_CUDA_VERSION)
-#      self.verify_instance_pyspark(machine_name)
+      self.verify_instance(machine_name)
+      self.verify_instance_nvcc(machine_name, DEFAULT_CUDA_VERSION)
+      self.verify_instance_pyspark(machine_name)
     self.verify_pyspark()
 
   @parameterized.parameters(
@@ -209,7 +209,7 @@ exit 1 unless $cert eq lc $kmod
         boot_disk_size="50GB")
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
-#      self.verify_instance(machine_name)
+      self.verify_instance(machine_name)
     self.verify_pyspark()
   @parameterized.parameters(
       ("KERBEROS", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, None),
@@ -242,8 +242,8 @@ exit 1 unless $cert eq lc $kmod
         scopes="https://www.googleapis.com/auth/monitoring.write")
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
-#      self.verify_instance(machine_name)
-#      self.verify_instance_gpu_agent(machine_name)
+      self.verify_instance(machine_name)
+      self.verify_instance_gpu_agent(machine_name)
     self.verify_pyspark()
 
   @parameterized.parameters(
@@ -292,9 +292,9 @@ exit 1 unless $cert eq lc $kmod
 
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
-      #self.verify_instance(machine_name)
-      #self.verify_instance_nvcc(machine_name, cuda_version)
-      #self.verify_instance_pyspark(machine_name)
+      self.verify_instance(machine_name)
+      self.verify_instance_nvcc(machine_name, cuda_version)
+      self.verify_instance_pyspark(machine_name)
     self.verify_pyspark()
 
   @parameterized.parameters(
@@ -412,8 +412,8 @@ exit 1 unless $cert eq lc $kmod
 
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
-#      self.verify_instance(machine_name)
-#      self.verify_instance_gpu_agent(machine_name)
+      self.verify_instance(machine_name)
+      self.verify_instance_gpu_agent(machine_name)
     self.verify_pyspark()
 
   @parameterized.parameters(
@@ -471,9 +471,9 @@ exit 1 unless $cert eq lc $kmod
       scopes="https://www.googleapis.com/auth/monitoring.write")
     for machine_suffix in machine_suffixes:
       hostname="{}-{}".format(self.getClusterName(),machine_suffix)
-#      self.verify_instance(hostname)
-#      self.verify_instance_gpu_agent(hostname)
-#      self.verify_driver_signature(hostname)
+      self.verify_instance(hostname)
+      self.verify_instance_gpu_agent(hostname)
+      self.verify_driver_signature(hostname)
 
     self.verify_pyspark()
 
