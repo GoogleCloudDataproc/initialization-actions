@@ -1024,14 +1024,14 @@ function fetch_mig_scripts() {
 
 function install_spark_rapids() {
   # Update SPARK RAPIDS config
-  local DEFAULT_SPARK_RAPIDS_VERSION="23.08.2" # Final release to support spark 3.1.3
-  local DEFAULT_XGBOOST_VERSION="2.0.2"
+  local DEFAULT_SPARK_RAPIDS_VERSION="24.08.1"
+  local DEFAULT_XGBOOST_VERSION="1.7.6" # 2.1.3
 
   # https://mvnrepository.com/artifact/ml.dmlc/xgboost4j-spark-gpu
   local -r scala_ver="2.12"
 
-  if [[ "${DATAPROC_IMAGE_VERSION}" == "2.2" ]] ; then
-    DEFAULT_SPARK_RAPIDS_VERSION="24.08.1"
+  if [[ "${DATAPROC_IMAGE_VERSION}" == "2.0" ]] ; then
+    local DEFAULT_SPARK_RAPIDS_VERSION="23.08.2" # Final release to support spark 3.1.3
   fi
 
   readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
@@ -1086,6 +1086,7 @@ function configure_gpu_script() {
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# Example output: {"name": "gpu", "addresses":["0","1","2","3","4","5","6","7"]}
 
 ADDRS=$(nvidia-smi --query-gpu=index --format=csv,noheader | perl -e 'print(join(q{,},map{chomp; qq{"$_"}}<STDIN>))')
 
@@ -1102,8 +1103,15 @@ EOF
   executor_memory_gb="$(awk '/^MemFree/ {print $2}' /proc/meminfo | perl -MPOSIX -pe '$_ *= 0.75; $_ = POSIX::floor( $_ / (1024*1024) )')"
   local task_cpus=2
   local gpu_amount
-  gpu_amount="$(echo $executor_cores | perl -pe "\$_ = ( ${gpu_count} / (\$_ / ${task_cpus}) )")"
-  if ( version_ge "${gpu_amount}" "0.5" && version_lt "${gpu_amount}" "1.0" ) ; then gpu_amount="0.5" ; fi
+
+  # The current setting of spark.task.resource.gpu.amount (0.333) is
+  # not ideal to get the best performance from the RAPIDS Accelerator
+  # plugin. It's recommended to be 1/{executor core count} unless you
+  # have a special use case.
+#  gpu_amount="$(echo $executor_cores | perl -pe "\$_ = ( ${gpu_count} / (\$_ / ${task_cpus}) )")"
+  gpu_amount="$(perl -e "print 1 / ${executor_cores}")"
+
+# cannot run on GPU because GPU does not currently support the operator class org.apache.spark.sql.execution.aggregate.ComplexTypedAggregateExpression
 
   cat >>"${spark_defaults_conf}" <<EOF
 ###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
