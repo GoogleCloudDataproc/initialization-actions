@@ -703,7 +703,6 @@ function common_exit_handler() {
     # re-hold systemd package
     if ge_debian12 ; then
     apt-mark hold systemd libsystemd0 ; fi
-    hold_nvidia_packages
   else
     dnf clean all
   fi
