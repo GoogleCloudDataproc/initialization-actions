@@ -521,13 +521,13 @@ function check_secure_boot() {
   readonly PSN
 
   if [[ "${SECURE_BOOT}" == "enabled" ]] && le_debian11 ; then
-    echo "Error: Secure Boot is not supported on Debian before image 2.2. Please disable Secure Boot while creating the cluster."
-    exit 1
+    echo "Error: Secure Boot is not supported on Debian before image 2.2. Consider disabling Secure Boot while creating the cluster."
+    return
   elif [[ "${SECURE_BOOT}" == "enabled" ]] && [[ -z "${PSN}" ]]; then
     echo "Secure boot is enabled, but no signing material provided."
-    echo "Please either disable secure boot or provide signing material as per"
+    echo "Consider either disabling secure boot or provide signing material as per"
     echo "https://github.com/GoogleCloudDataproc/custom-images/tree/master/examples/secure-boot"
-    return 1
+    return
   fi
 
   CA_TMPDIR="$(mktemp -u -d -p /run/tmp -t ca_dir-XXXX)"
