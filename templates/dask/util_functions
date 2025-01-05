@@ -343,15 +343,8 @@ EOF
 }
 
 function install_dask() {
-  if is_cuda12 ; then
-    local python_spec="python>=3.11"
-    local cuda_spec="cuda-version>=12,<13"
-    local dask_spec="dask>=2024.7"
-  elif is_cuda11 ; then
-    local python_spec="python>=3.9"
-    local cuda_spec="cuda-version>=11,<12.0a0"
-    local dask_spec="dask"
-  fi
+  local python_spec="python>=3.11"
+  local dask_spec="dask>=2024.7"
 
   CONDA_PACKAGES=()
   if [[ "${DASK_RUNTIME}" == 'yarn' ]]; then
@@ -370,7 +363,6 @@ function install_dask() {
   fi
 
   CONDA_PACKAGES+=(
-    "${cuda_spec}"
     "${dask_spec}"
     "dask-bigquery"
     "dask-ml"
