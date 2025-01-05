@@ -54,14 +54,12 @@ function main() {
 }
 
 function exit_handler() {
-  gpu_exit_handler
   common_exit_handler
   return 0
 }
 
 function prepare_to_install(){
   prepare_common_env
-  prepare_gpu_env
   conda_env="$(get_metadata_attribute conda-env || echo 'dask')"
   readonly conda_env
   prepare_dask_env
