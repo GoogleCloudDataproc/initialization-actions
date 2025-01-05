@@ -603,6 +603,10 @@ function prepare_common_env() {
   ROLE="$(get_metadata_attribute dataproc-role)"
   readonly ROLE
 
+  # master node
+  MASTER="$(get_metadata_attribute dataproc-master)"
+  readonly MASTER
+
   workdir=/opt/install-dpgce
   tmpdir=/tmp/
   temp_bucket="$(get_metadata_attribute dataproc-temp-bucket)"
