@@ -1,0 +1,502 @@
+function configure_dask_yarn() {
+  readonly DASK_YARN_CONFIG_DIR=/etc/dask/
+  readonly DASK_YARN_CONFIG_FILE=${DASK_YARN_CONFIG_DIR}/config.yaml
+  # Minimal custom configuration is required for this
+  # setup. Please see https://yarn.dask.org/en/latest/quickstart.html#usage
+  # for information on tuning Dask-Yarn environments.
+  mkdir -p "${DASK_YARN_CONFIG_DIR}"
+
+  local worker_class="dask.distributed.Nanny"
+  local gpu_count="0"
+  if command -v nvidia-smi ; then
+    gpu_count="1"
+    worker_class="dask_cuda.CUDAWorker"
+  fi
+
+  cat <<EOF >"${DASK_YARN_CONFIG_FILE}"
+# Config file for Dask Yarn.
+#
+# These values are joined on top of the default config, found at
+# https://yarn.dask.org/en/latest/configuration.html#default-configuration
+
+yarn:
+  environment: python://${DASK_CONDA_ENV}/bin/python
+
+  worker:
+    count: 2
+    gpus: ${gpu_count}
+    worker_class: ${worker_class}
+EOF
+}
+
+function install_systemd_dask_worker() {
+  echo "Installing systemd Dask Worker service..."
+  local -r dask_worker_local_dir="/tmp/${DASK_WORKER_SERVICE}"
+
+  mkdir -p "${dask_worker_local_dir}"
+
+  local DASK_WORKER_LAUNCHER="/usr/local/bin/${DASK_WORKER_SERVICE}-launcher.sh"
+
+  local compute_mode_cmd=""
+  if command -v nvidia-smi ; then compute_mode_cmd="nvidia-smi --compute-mode=DEFAULT" ; fi
+  local worker_name="dask-worker"
+  if test -f "${DASK_CONDA_ENV}/bin/dask-cuda-worker" ; then worker_name="dask-cuda-worker" ; fi
+  local worker="${DASK_CONDA_ENV}/bin/${worker_name}"
+  cat <<EOF >"${DASK_WORKER_LAUNCHER}"
+#!/bin/bash
+LOGFILE="/var/log/${DASK_WORKER_SERVICE}.log"
+${compute_mode_cmd}
+echo "${worker_name} starting, logging to \${LOGFILE}"
+${worker} "${MASTER}:8786" --local-directory="${dask_worker_local_dir}" --memory-limit=auto >> "\${LOGFILE}" 2>&1
+EOF
+
+  chmod 750 "${DASK_WORKER_LAUNCHER}"
+
+  local -r dask_service_file="/usr/lib/systemd/system/${DASK_WORKER_SERVICE}.service"
+  cat <<EOF >"${dask_service_file}"
+[Unit]
+Description=Dask Worker Service
+[Service]
+Type=simple
+Restart=on-failure
+ExecStart=/bin/bash -c 'exec ${DASK_WORKER_LAUNCHER}'
+[Install]
+WantedBy=multi-user.target
+EOF
+  chmod a+r "${dask_service_file}"
+
+  systemctl daemon-reload
+
+  # Enable the service
+  enable_systemd_dask_worker_service="0"
+  if [[ "${ROLE}" != "Master" ]]; then
+    enable_systemd_dask_worker_service="1"
+  else
+    # Enable service on single-node cluster (no workers)
+    local worker_count="$(get_metadata_attribute dataproc-worker-count)"
+    if [[ "${worker_count}" == "0" ]] &&
+       [[ "$(get_metadata_attribute dask-cuda-worker-on-master 'true')" == "true" ]] &&
+       [[ "$(get_metadata_attribute dask-worker-on-master 'true')" == "true" ]] ; then
+      enable_systemd_dask_worker_service="1"
+    fi
+  fi
+  readonly enable_systemd_dask_worker_service
+
+  if [[ "${enable_systemd_dask_worker_service}" == "1" ]]; then
+    systemctl enable "${DASK_WORKER_SERVICE}"
+    systemctl restart "${DASK_WORKER_SERVICE}"
+  fi
+}
+
+function install_systemd_dask_scheduler() {
+  # only run scheduler on primary master
+  if [[ "$(hostname -s)" != "${MASTER}" ]]; then return ; fi
+  echo "Installing systemd Dask Scheduler service..."
+  local -r dask_scheduler_local_dir="/tmp/${DASK_SCHEDULER_SERVICE}"
+
+  mkdir -p "${dask_scheduler_local_dir}"
+
+  local DASK_SCHEDULER_LAUNCHER="/usr/local/bin/${DASK_SCHEDULER_SERVICE}-launcher.sh"
+
+  cat <<EOF >"${DASK_SCHEDULER_LAUNCHER}"
+#!/bin/bash
+LOGFILE="/var/log/${DASK_SCHEDULER_SERVICE}.log"
+echo "dask scheduler starting, logging to \${LOGFILE}"
+${DASK_CONDA_ENV}/bin/dask scheduler >> "\${LOGFILE}" 2>&1
+EOF
+
+  chmod 750 "${DASK_SCHEDULER_LAUNCHER}"
+
+  local -r dask_service_file="/usr/lib/systemd/system/${DASK_SCHEDULER_SERVICE}.service"
+  cat <<EOF >"${dask_service_file}"
+[Unit]
+Description=Dask Scheduler Service
+[Service]
+Type=simple
+Restart=on-failure
+ExecStart=/bin/bash -c 'exec ${DASK_SCHEDULER_LAUNCHER}'
+[Install]
+WantedBy=multi-user.target
+EOF
+  chmod a+r "${dask_service_file}"
+
+  systemctl daemon-reload
+
+  # Enable the service
+  systemctl enable "${DASK_SCHEDULER_SERVICE}"
+}
+
+function install_systemd_dask_service() {
+  install_systemd_dask_scheduler
+  install_systemd_dask_worker
+}
+
+function configure_knox_for_dask() {
+  if [[ ! -d "${KNOX_HOME}" ]]; then
+    echo "Skip configuring Knox rules for Dask"
+    return 0
+  fi
+
+  local DASK_UI_PORT=8787
+  if [[ -f /etc/knox/conf/topologies/default.xml ]]; then
+    sed -i \
+      "/<\/topology>/i <service><role>DASK<\/role><url>http://localhost:${DASK_UI_PORT}<\/url><\/service> <service><role>DASKWS<\/role><url>ws:\/\/${MASTER}:${DASK_UI_PORT}<\/url><\/service>" \
+      /etc/knox/conf/topologies/default.xml
+  fi
+
+  mkdir -p "${KNOX_DASK_DIR}"
+
+  cat >"${KNOX_DASK_DIR}/service.xml" <<'EOF'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+
+<service role="DASK" name="dask" version="0.1.0">
+  <policies>
+    <policy role="webappsec"/>
+    <policy role="authentication" name="Anonymous"/>
+    <policy role="rewrite"/>
+    <policy role="authorization"/>
+  </policies>
+
+  <routes>
+    <!-- Javascript paths -->
+    <route path="/dask/**/*.js">
+      <rewrite apply="DASK/dask/inbound/js/dask" to="request.url"/>
+      <rewrite apply="DASK/dask/outbound/js" to="response.body"/>
+    </route>
+    <route path="/dask/**/*.js?**">
+      <rewrite apply="DASK/dask/inbound/js/dask" to="request.url"/>
+      <rewrite apply="DASK/dask/outbound/js" to="response.body"/>
+    </route>
+
+    <!-- CSS paths -->
+    <route path="/dask/**/*.css">
+      <rewrite apply="DASK/dask/inbound/css/dask" to="request.url"/>
+    </route>
+
+    <!-- General path routing -->
+    <route path="/dask">
+      <rewrite apply="DASK/dask/inbound/root" to="request.url"/>
+      <rewrite apply="DASK/dask/outbound/headers" to="response.headers"/>
+    </route>
+    <route path="/dask/**">
+      <rewrite apply="DASK/dask/inbound/root/path" to="request.url"/>
+      <rewrite apply="DASK/dask/outbound/headers" to="response.headers"/>
+      <rewrite apply="DASK/dask/outbound/logs" to="response.body"/>
+    </route>
+    <route path="/dask/**?**">
+      <rewrite apply="DASK/dask/inbound/root/query" to="request.url"/>
+      <rewrite apply="DASK/dask/outbound/headers" to="response.headers"/>
+      <rewrite apply="DASK/dask/outbound/logs" to="response.body"/>
+    </route>
+  </routes>
+  <dispatch classname="org.apache.knox.gateway.dispatch.PassAllHeadersNoChunkedPostDispatch"/>
+</service>
+EOF
+
+  cat >"${KNOX_DASK_DIR}/rewrite.xml" <<'EOF'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+
+<rules>
+  <rule dir="IN" name="DASK/dask/inbound/js/dask" pattern="http://*:*/**/dask/{**}?{**}">
+    <rewrite template="{$serviceUrl[DASK]}/{**}?{**}"/>
+  </rule>
+  <rule dir="IN" name="DASK/dask/inbound/root" pattern="http://*:*/**/dask">
+    <rewrite template="{$serviceUrl[DASK]}"/>
+  </rule>
+  <rule dir="IN" name="DASK/dask/inbound/root/path" pattern="http://*:*/**/dask/{**}">
+    <rewrite template="{$serviceUrl[DASK]}/{**}"/>
+  </rule>
+  <rule dir="IN" name="DASK/dask/inbound/root/query" pattern="http://*:*/**/dask/{**}?{**}">
+    <rewrite template="{$serviceUrl[DASK]}/{**}?{**}"/>
+  </rule>
+  <rule dir="IN" name="DASK/dask/inbound/css/dask" pattern="http://*:*/**/dask/{**}?{**}">
+    <rewrite template="{$serviceUrl[DASK]}/{**}?{**}"/>
+  </rule>
+  <!-- without the /gateway/default prefix -->
+  <rule dir="IN" name="DASK/dask/inbound/root/noprefix" pattern="http://*:*/dask">
+    <rewrite template="{$serviceUrl[DASK]}"/>
+  </rule>
+
+  <rule dir="OUT" name="DASK/dask/outbound/logs" pattern="/logs">
+    <rewrite template="{$frontend[path]}/dask/info/logs"/>
+  </rule>
+
+  <!-- Rewrite redirect responses Location header -->
+  <filter name="DASK/dask/outbound/headers">
+    <content type="application/x-http-headers">
+      <apply path="Location" rule="DASK/dask/outbound/headers/location"/>
+    </content>
+  </filter>
+
+  <rule dir="OUT" name="DASK/dask/outbound/headers/location" flow="OR">
+    <match pattern="*://*:*/">
+      <rewrite template="{$frontend[path]}/dask/"/>
+    </match>
+    <match pattern="*://*:*/{**}">
+      <rewrite template="{$frontend[path]}/dask/{**}"/>
+    </match>
+    <match pattern="*://*:*/{**}?{**}">
+      <rewrite template="{$frontend[path]}/dask/{**}?{**}"/>
+    </match>
+    <match pattern="/{**}">
+      <rewrite template="{$frontend[path]}/dask/{**}"/>
+    </match>
+    <match pattern="/{**}?{**}">
+      <rewrite template="{$frontend[path]}/dask/{**}?{**}"/>
+    </match>
+  </rule>
+</rules>
+EOF
+
+  mkdir -p "${KNOX_DASKWS_DIR}"
+
+  cat >"${KNOX_DASKWS_DIR}/service.xml" <<'EOF'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+
+<service role="DASKWS" name="daskws" version="0.1.0">
+  <policies>
+    <policy role="webappsec"/>
+    <policy role="authentication" name="Anonymous"/>
+    <policy role="rewrite"/>
+    <policy role="authorization"/>
+  </policies>
+
+  <routes>
+
+    <route path="/dask/**/ws">
+      <rewrite apply="DASKWS/daskws/inbound/ws" to="request.url"/>
+    </route>
+
+  </routes>
+  <dispatch classname="org.apache.knox.gateway.dispatch.PassAllHeadersNoChunkedPostDispatch"/>
+</service>
+EOF
+
+  cat >"${KNOX_DASKWS_DIR}/rewrite.xml" <<'EOF'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+
+<rules>
+  <rule dir="IN" name="DASKWS/daskws/inbound/ws" pattern="ws://*:*/**/dask/{**}/ws">
+    <rewrite template="{$serviceUrl[DASKWS]}/{**}/ws"/>
+  </rule>
+</rules>
+EOF
+
+  chown -R knox:knox "${KNOX_DASK_DIR}" "${KNOX_DASKWS_DIR}"
+
+  # Do not restart knox during pre-init script run
+  if [[ -n "${ROLE}" ]]; then
+    restart_knox
+  fi
+}
+
+function configure_fluentd_for_dask() {
+  if [[ "$(hostname -s)" == "${MASTER}" ]]; then
+    cat >/etc/google-fluentd/config.d/dataproc-dask.conf <<EOF
+# Fluentd config for Dask logs
+
+# Dask scheduler
+<source>
+  @type tail
+  path /var/log/dask-scheduler.log
+  pos_file /var/tmp/fluentd.dataproc.dask.scheduler.pos
+  read_from_head true
+  tag google.dataproc.dask-scheduler
+  <parse>
+    @type none
+  </parse>
+</source>
+
+<filter google.dataproc.dask-scheduler>
+  @type record_transformer
+  <record>
+    filename dask-scheduler.log
+  </record>
+</filter>
+EOF
+  fi
+
+  if [[ "${enable_systemd_dask_worker_service}" == "1" ]]; then
+    cat >>/etc/google-fluentd/config.d/dataproc-dask.conf <<EOF
+# Dask worker
+<source>
+  @type tail
+  path /var/log/dask-worker.log
+  pos_file /var/tmp/fluentd.dataproc.dask.worker.pos
+  read_from_head true
+  tag google.dataproc.dask-worker
+  <parse>
+    @type none
+  </parse>
+</source>
+
+<filter google.dataproc.dask-worker>
+  @type record_transformer
+  <record>
+    filename dask-worker.log
+  </record>
+</filter>
+EOF
+  fi
+
+  systemctl restart google-fluentd
+}
+
+function install_dask() {
+  if is_cuda12 ; then
+    local python_spec="python>=3.11"
+    local cuda_spec="cuda-version>=12,<13"
+    local dask_spec="dask>=2024.7"
+  elif is_cuda11 ; then
+    local python_spec="python>=3.9"
+    local cuda_spec="cuda-version>=11,<12.0a0"
+    local dask_spec="dask"
+  fi
+
+  CONDA_PACKAGES=()
+  if [[ "${DASK_RUNTIME}" == 'yarn' ]]; then
+    # Pin `distributed` and `dask` package versions to old release
+    # because `dask-yarn` 0.9 uses skein in a way which
+    # is not compatible with `distributed` package 2022.2 and newer:
+    # https://github.com/dask/dask-yarn/issues/155
+
+    dask_spec="dask<2022.2"
+    python_spec="python>=3.7,<3.8.0a0"
+    if is_ubuntu18 ; then
+      # the libuuid.so.1 distributed with fiona 1.8.22 dumps core when calling uuid_generate_time_generic
+      CONDA_PACKAGES+=("fiona<1.8.22")
+    fi
+    CONDA_PACKAGES+=('dask-yarn=0.9' "distributed<2022.2")
+  fi
+
+  CONDA_PACKAGES+=(
+    "${cuda_spec}"
+    "${dask_spec}"
+    "dask-bigquery"
+    "dask-ml"
+    "dask-sql"
+  )
+
+  # Install dask
+  mamba="/opt/conda/miniconda3/bin/mamba"
+  conda="/opt/conda/miniconda3/bin/conda"
+
+  ( set +e
+  local is_installed=0
+  for installer in "${mamba}" "${conda}" ; do
+    test -d "${DASK_CONDA_ENV}" || \
+      time "${installer}" "create" -m -n "${conda_env}" -y --no-channel-priority \
+      -c 'conda-forge' -c 'nvidia'  \
+      ${CONDA_PACKAGES[*]} \
+      "${python_spec}" \
+      > "${install_log}" 2>&1 && retval=$? || { retval=$? ; cat "${install_log}" ; }
+    sync
+    if [[ "$retval" == "0" ]] ; then
+      is_installed="1"
+      break
+    fi
+    "${conda}" config --set channel_priority flexible
+  done
+  if [[ "${is_installed}" == "0" ]]; then
+    echo "failed to install dask"
+    return 1
+  fi
+  )
+}
+
+function install_dask_rapids() {
+  if is_cuda12 ; then
+    local python_spec="python>=3.11"
+    local cuda_spec="cuda-version>=12,<13"
+    local dask_spec="dask>=2024.7"
+    local numba_spec="numba"
+  elif is_cuda11 ; then
+    local python_spec="python>=3.9"
+    local cuda_spec="cuda-version>=11,<12.0a0"
+    local dask_spec="dask"
+    local numba_spec="numba"
+  fi
+
+  rapids_spec="rapids>=${RAPIDS_VERSION}"
+  CONDA_PACKAGES=()
+  if [[ "${DASK_RUNTIME}" == 'yarn' ]]; then
+    # Pin `distributed` and `dask` package versions to old release
+    # because `dask-yarn` 0.9 uses skein in a way which
+    # is not compatible with `distributed` package 2022.2 and newer:
+    # https://github.com/dask/dask-yarn/issues/155
+
+    dask_spec="dask<2022.2"
+    python_spec="python>=3.7,<3.8.0a0"
+    rapids_spec="rapids<=24.05"
+    if is_ubuntu18 ; then
+      # the libuuid.so.1 distributed with fiona 1.8.22 dumps core when calling uuid_generate_time_generic
+      CONDA_PACKAGES+=("fiona<1.8.22")
+    fi
+    CONDA_PACKAGES+=('dask-yarn=0.9' "distributed<2022.2")
+  fi
+
+  CONDA_PACKAGES+=(
+    "${cuda_spec}"
+    "${rapids_spec}"
+    "${dask_spec}"
+    "dask-bigquery"
+    "dask-ml"
+    "dask-sql"
+    "cudf"
+    "${numba_spec}"
+  )
+
+  # Install cuda, rapids, dask
+  mamba="/opt/conda/miniconda3/bin/mamba"
+  conda="/opt/conda/miniconda3/bin/conda"
+
+  ( set +e
+  local is_installed="0"
+  for installer in "${mamba}" "${conda}" ; do
+    test -d "${DASK_CONDA_ENV}" || \
+      time "${installer}" "create" -m -n "${conda_env}" -y --no-channel-priority \
+      -c 'conda-forge' -c 'nvidia' -c 'rapidsai'  \
+      ${CONDA_PACKAGES[*]} \
+      "${python_spec}" \
+      > "${install_log}" 2>&1 && retval=$? || { retval=$? ; cat "${install_log}" ; }
+    sync
+    if [[ "$retval" == "0" ]] ; then
+      is_installed="1"
+      break
+    fi
+    "${conda}" config --set channel_priority flexible
+  done
+  if [[ "${is_installed}" == "0" ]]; then
+    echo "failed to install dask"
+    return 1
+  fi
+  )
+}
+
+function prepare_dask_env() {
+  # Dask config
+  DASK_RUNTIME="$(get_metadata_attribute dask-runtime || echo 'standalone')"
+  readonly DASK_RUNTIME
+  readonly DASK_SERVICE=dask-cluster
+  readonly DASK_WORKER_SERVICE=dask-worker
+  readonly DASK_SCHEDULER_SERVICE=dask-scheduler
+  readonly DASK_CONDA_ENV="/opt/conda/miniconda3/envs/${conda_env}"
+}
+
+function prepare_dask_rapids_env(){
+  prepare_dask_env
+  # RAPIDS config
+  RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'DASK')
+  readonly RAPIDS_RUNTIME
+
+  local DEFAULT_DASK_RAPIDS_VERSION="24.08"
+  if [[ "${DATAPROC_IMAGE_VERSION}" == "2.0" ]] ; then
+    DEFAULT_DASK_RAPIDS_VERSION="23.08" # Final release to support spark 3.1.3
+  fi
+  readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' ${DEFAULT_DASK_RAPIDS_VERSION})
+}
+
+
+function dask_exit_handler() {
+  echo "no exit handler for dask"
+}

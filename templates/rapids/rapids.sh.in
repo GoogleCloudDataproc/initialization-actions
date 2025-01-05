@@ -1,0 +1,79 @@
+#!/bin/bash
+#
+[% INSERT legal/license_header %]
+#
+[% PROCESS common/template_disclaimer %]
+#
+# This initialization action script will install rapids on a Dataproc
+# cluster.
+
+set -euxo pipefail
+
+[% INSERT common/util_functions %]
+
+[% INSERT gpu/util_functions %]
+
+[% INSERT dask/util_functions %]
+
+function main() {
+  # Install Dask with RAPIDS
+  install_dask_rapids
+
+  # In "standalone" mode, Dask relies on a systemd unit to launch.
+  # In "yarn" mode, it relies a config.yaml file.
+  if [[ "${DASK_RUNTIME}" == "yarn" ]]; then
+    # Create cuda accelerated Dask YARN config file
+    configure_dask_yarn
+  else
+    # Create Dask service
+    install_systemd_dask_service
+
+    if [[ "$(hostname -s)" == "${MASTER}" ]]; then
+      systemctl start "${DASK_SCHEDULER_SERVICE}"
+      systemctl status "${DASK_SCHEDULER_SERVICE}"
+    fi
+
+    echo "Starting Dask 'standalone' cluster..."
+    if [[ "${enable_worker_service}" == "1" ]]; then
+      systemctl start "${DASK_WORKER_SERVICE}"
+      systemctl status "${DASK_WORKER_SERVICE}"
+    fi
+
+    configure_knox_for_dask
+
+    local DASK_CLOUD_LOGGING="$(get_metadata_attribute dask-cloud-logging || echo 'false')"
+    if [[ "${DASK_CLOUD_LOGGING}" == "true" ]]; then
+      configure_fluentd_for_dask
+    fi
+  fi
+
+  echo "Dask RAPIDS for ${DASK_RUNTIME} successfully initialized."
+  if [[ "${ROLE}" == "Master" ]]; then
+    systemctl restart hadoop-yarn-resourcemanager.service
+    # Restart NodeManager on Master as well if this is a single-node-cluster.
+    if systemctl list-units | grep hadoop-yarn-nodemanager; then
+      systemctl restart hadoop-yarn-nodemanager.service
+    fi
+  else
+    systemctl restart hadoop-yarn-nodemanager.service
+  fi
+}
+
+function exit_handler() {
+  gpu_exit_handler
+  common_exit_handler
+  return 0
+}
+
+function prepare_to_install(){
+  prepare_common_env
+  prepare_gpu_env
+  conda_env="$(get_metadata_attribute conda-env || echo 'dask-rapids')"
+  readonly conda_env
+  prepare_dask_rapids_env
+  trap exit_handler EXIT
+}
+
+prepare_to_install
+
+main
