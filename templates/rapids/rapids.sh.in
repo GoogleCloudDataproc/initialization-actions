@@ -34,7 +34,7 @@ function main() {
     fi
 
     echo "Starting Dask 'standalone' cluster..."
-    if [[ "${enable_worker_service}" == "1" ]]; then
+    if [[ "${enable_systemd_dask_worker_service}" == "1" ]]; then
       systemctl start "${DASK_WORKER_SERVICE}"
       systemctl status "${DASK_WORKER_SERVICE}"
     fi
