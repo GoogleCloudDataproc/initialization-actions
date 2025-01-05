@@ -60,9 +60,6 @@ function prepare_to_install(){
   prepare_common_env
   prepare_gpu_env
   trap exit_handler EXIT
-
-  # Fetch instance roles and runtime
-  readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 }
 
 prepare_to_install
