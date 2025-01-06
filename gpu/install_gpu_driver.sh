@@ -1,5 +1,7 @@
 #!/bin/bash
 #
+# Copyright 2015 Google LLC and contributors
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -345,6 +347,20 @@ function set_proxy(){
   export NO_PROXY="${no_proxy}"
 }
 
+function is_ramdisk() {
+  if [[ "${1:-}" == "-f" ]] ; then unset IS_RAMDISK ; fi
+  if   ( test -v IS_RAMDISK && "${IS_RAMDISK}" == "true" ) ; then return 0
+  elif ( test -v IS_RAMDISK && "${IS_RAMDISK}" == "false" ) ; then return 1 ; fi
+
+  if ( test -d /mnt/shm && grep -q /mnt/shm /proc/mounts ) ; then
+    IS_RAMDISK="true"
+    return 0
+  else
+    IS_RAMDISK="false"
+    return 1
+  fi
+}
+
 function mount_ramdisk(){
   local free_mem
   free_mem="$(awk '/^MemFree/ {print $2}' /proc/meminfo)"
@@ -353,18 +369,11 @@ function mount_ramdisk(){
   # Write to a ramdisk instead of churning the persistent disk
 
   tmpdir="/mnt/shm"
-  mkdir -p "${tmpdir}"
+  mkdir -p "${tmpdir}/pkgs_dirs"
   mount -t tmpfs tmpfs "${tmpdir}"
 
   # Download conda packages to tmpfs
-  /opt/conda/miniconda3/bin/conda config --add pkgs_dirs "${tmpdir}"
-
-  # Clear pip cache
-  # TODO: make this conditional on which OSs have pip without cache purge
-  pip cache purge || echo "unable to purge pip cache"
-
-  # Download pip packages to tmpfs
-  pip config set global.cache-dir "${tmpdir}" || echo "unable to set global.cache-dir"
+  /opt/conda/miniconda3/bin/conda config --add pkgs_dirs "${tmpdir}/pkgs_dirs"
 
   # Download OS packages to tmpfs
   if is_debuntu ; then
@@ -372,6 +381,7 @@ function mount_ramdisk(){
   else
     mount -t tmpfs tmpfs /var/cache/dnf
   fi
+  is_ramdisk -f
 }
 
 function check_os() {
@@ -547,13 +557,13 @@ function check_secure_boot() {
   readonly PSN
 
   if [[ "${SECURE_BOOT}" == "enabled" ]] && le_debian11 ; then
-    echo "Error: Secure Boot is not supported on Debian before image 2.2. Please disable Secure Boot while creating the cluster."
-    exit 1
+    echo "Error: Secure Boot is not supported on Debian before image 2.2. Consider disabling Secure Boot while creating the cluster."
+    return
   elif [[ "${SECURE_BOOT}" == "enabled" ]] && [[ -z "${PSN}" ]]; then
     echo "Secure boot is enabled, but no signing material provided."
-    echo "Please either disable secure boot or provide signing material as per"
+    echo "Consider either disabling secure boot or provide signing material as per"
     echo "https://github.com/GoogleCloudDataproc/custom-images/tree/master/examples/secure-boot"
-    return 1
+    return
   fi
 
   CA_TMPDIR="$(mktemp -u -d -p /run/tmp -t ca_dir-XXXX)"
@@ -565,6 +575,12 @@ function check_secure_boot() {
                       mok_der=/var/lib/dkms/mok.pub ; fi
 }
 
+function restart_knox() {
+  systemctl stop knox
+  rm -rf "${KNOX_HOME}/data/deployments/*"
+  systemctl start knox
+}
+
 function install_dependencies() {
   test -f "${workdir}/complete/install-dependencies" && return 0
   pkg_list="screen"
@@ -572,6 +588,21 @@ function install_dependencies() {
   elif is_rocky ; then execute_with_retries dnf     -y -q install ${pkg_list} ; fi
   touch "${workdir}/complete/install-dependencies"
 }
+
+function prepare_pip_env() {
+  # Clear pip cache
+  # TODO: make this conditional on which OSs have pip without cache purge
+  test -d "${tmpdir}/python-venv" || python3 -m venv "${tmpdir}/python-venv"
+  source "${tmpdir}/python-venv/bin/activate"
+
+  pip cache purge || echo "unable to purge pip cache"
+  if is_ramdisk ; then
+    # Download pip packages to tmpfs
+    mkdir -p "${tmpdir}/cache-dir"
+    pip config set global.cache-dir "${tmpdir}/cache-dir" || echo "unable to set global.cache-dir"
+  fi
+}
+
 
 function prepare_common_env() {
   define_os_comparison_functions
@@ -594,6 +625,10 @@ function prepare_common_env() {
   ROLE="$(get_metadata_attribute dataproc-role)"
   readonly ROLE
 
+  # master node
+  MASTER="$(get_metadata_attribute dataproc-master)"
+  readonly MASTER
+
   workdir=/opt/install-dpgce
   tmpdir=/tmp/
   temp_bucket="$(get_metadata_attribute dataproc-temp-bucket)"
@@ -603,6 +638,9 @@ function prepare_common_env() {
   readonly uname_r
   readonly bdcfg="/usr/local/bin/bdconfig"
   export DEBIAN_FRONTEND=noninteractive
+
+  # Knox config
+  readonly KNOX_HOME=/usr/lib/knox
 
   mkdir -p "${workdir}/complete"
   set_proxy
@@ -647,12 +685,16 @@ function prepare_common_env() {
   touch "${workdir}/complete/prepare.common"
 }
 
+function pip_exit_handler() {
+  if is_ramdisk ; then
+    # remove the tmpfs pip cache-dir
+    pip config unset global.cache-dir || echo "unable to unset global pip cache"
+  fi
+}
+
 function common_exit_handler() {
   set +ex
   echo "Exit handler invoked"
-
-  # Clear pip cache
-  pip cache purge || echo "unable to purge pip cache"
 
   # Restart YARN services if they are running already
   for svc in resourcemanager nodemanager; do
@@ -664,9 +706,6 @@ function common_exit_handler() {
 
   # If system memory was sufficient to mount memory-backed filesystems
   if [[ "${tmpdir}" == "/mnt/shm" ]] ; then
-    # remove the tmpfs pip cache-dir
-    pip config unset global.cache-dir || echo "unable to unset global pip cache"
-
     # Clean up shared memory mounts
     for shmdir in /var/cache/apt/archives /var/cache/dnf /mnt/shm /tmp ; do
       if ( grep -q "^tmpfs ${shmdir}" /proc/mounts && ! grep -q "^tmpfs ${shmdir}" /etc/fstab ) ; then
@@ -685,11 +724,11 @@ function common_exit_handler() {
     # re-hold systemd package
     if ge_debian12 ; then
     apt-mark hold systemd libsystemd0 ; fi
-    hold_nvidia_packages
   else
     dnf clean all
   fi
 
+  # When creating image, print disk usage statistics, zero unused disk space
   if [[ -n "$(get_metadata_attribute creating-image)" ]]; then
     # print disk usage statistics for large components
     if is_ubuntu ; then
@@ -731,11 +770,12 @@ function common_exit_handler() {
           '@siz=( sort { $a => $b }
                    map { (split)[2] =~ /^(\d+)/ }
                   grep { m:^/: } <STDIN> );
-$max=$siz[0]; $min=$siz[-1]; $inc=$max-$min;
+$max=$siz[0]; $min=$siz[-1]; $starting="unknown"; $inc=q{$max-$starting};
 print( "    samples-taken: ", scalar @siz, $/,
-       "maximum-disk-used: $max", $/,
-       "minimum-disk-used: $min", $/,
-       "     increased-by: $inc", $/ )' < "/run/disk-usage.log"
+       "starting-disk-used: $starting", $/,
+       "maximum-disk-used:  $max", $/,
+       "minimum-disk-used:  $min", $/,
+       "     increased-by:  $inc", $/ )' < "/run/disk-usage.log"
 
 
     # zero free disk space
@@ -802,6 +842,15 @@ function set_support_matrix() {
 set_support_matrix
 
 function set_cuda_version() {
+  case "${DATAPROC_IMAGE_VERSION}" in
+    "2.0" ) DEFAULT_CUDA_VERSION="12.1.1" ;; # Cuda 12.1.1 - Driver v530.30.02 is the latest version supported by Ubuntu 18)
+    "2.1" ) DEFAULT_CUDA_VERSION="12.4.1" ;;
+    "2.2" ) DEFAULT_CUDA_VERSION="12.6.2" ;;
+    *   )
+      echo "unrecognized Dataproc image version: ${DATAPROC_IMAGE_VERSION}"
+      exit 1
+      ;;
+  esac
   local cuda_url
   cuda_url=$(get_metadata_attribute 'cuda-url' '')
   if [[ -n "${cuda_url}" ]] ; then
@@ -810,28 +859,7 @@ function set_cuda_version() {
     CUDA_URL_VERSION="$(echo "${cuda_url}" | perl -pe 's{^.*/cuda_(\d+\.\d+\.\d+)_\d+\.\d+\.\d+_linux.run$}{$1}')"
     if [[ "${CUDA_URL_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] ; then
       DEFAULT_CUDA_VERSION="${CUDA_URL_VERSION%.*}"
-      CUDA_FULL_VERSION="${CUDA_URL_VERSION}"
     fi
-  fi
-
-  if ( ! test -v DEFAULT_CUDA_VERSION ) ; then
-    DEFAULT_CUDA_VERSION='12.4.1'
-  fi
-  # EXCEPTIONS
-  # Change default CUDA version for Ubuntu 18 (Cuda 12.1.1 - Driver v530.30.02 is the latest version supported by Ubuntu 18)
-  case "${DATAPROC_IMAGE_VERSION}" in
-    "2.0" ) DEFAULT_CUDA_VERSION="12.1.1" ;;
-    "2.1" ) DEFAULT_CUDA_VERSION="12.4.1" ;;
-    "2.2" ) DEFAULT_CUDA_VERSION="12.6.2" ;;
-    *   )
-      echo "unrecognized Dataproc image version"
-      exit 1
-      ;;
-  esac
-
-  if le_ubuntu18 ; then
-    DEFAULT_CUDA_VERSION="12.1.1"
-    CUDA_VERSION_MAJOR="${DEFAULT_CUDA_VERSION%.*}"  #12.1
   fi
   readonly DEFAULT_CUDA_VERSION
 
@@ -845,7 +873,6 @@ function set_cuda_version() {
     CUDA_FULL_VERSION=${CUDA_SUBVER["${CUDA_VERSION}"]}
   fi
   readonly CUDA_FULL_VERSION
-
 }
 
 function is_cuda12() ( set +x ; [[ "${CUDA_VERSION%%.*}" == "12" ]] ; )
@@ -2037,6 +2064,8 @@ function prepare_gpu_env(){
 # Hold all NVIDIA-related packages from upgrading unintenionally or services like unattended-upgrades
 # Users should run apt-mark unhold before they wish to upgrade these packages
 function hold_nvidia_packages() {
+  if ! is_debuntu ; then return ; fi
+
   apt-mark hold nvidia-*
   apt-mark hold libnvidia-*
   if dpkg -l | grep -q "xserver-xorg-video-nvidia"; then
@@ -2199,6 +2228,7 @@ function gpu_exit_handler() {
       fi
     done
   fi
+  hold_nvidia_packages
 }
 
 
@@ -2229,12 +2259,14 @@ function main() {
 
 function exit_handler() {
   gpu_exit_handler
+  pip_exit_handler
   common_exit_handler
   return 0
 }
 
 function prepare_to_install(){
   prepare_common_env
+  prepare_pip_env
   prepare_gpu_env
   trap exit_handler EXIT
 }
