@@ -28,17 +28,21 @@ function main() {
     # Create Dask service
     install_systemd_dask_service
 
+    # only run scheduler on primary master
     if [[ "$(hostname -s)" == "${MASTER}" ]]; then
-      systemctl start "${DASK_SCHEDULER_SERVICE}"
+      date
+      time systemctl start "${DASK_SCHEDULER_SERVICE}"
       systemctl status "${DASK_SCHEDULER_SERVICE}"
     fi
 
     echo "Starting Dask 'standalone' cluster..."
     if [[ "${enable_systemd_dask_worker_service}" == "1" ]]; then
-      systemctl start "${DASK_WORKER_SERVICE}"
+      date
+      time systemctl start "${DASK_WORKER_SERVICE}"
       systemctl status "${DASK_WORKER_SERVICE}"
     fi
 
+    date
     configure_knox_for_dask
 
     local DASK_CLOUD_LOGGING="$(get_metadata_attribute dask-cloud-logging || echo 'false')"
