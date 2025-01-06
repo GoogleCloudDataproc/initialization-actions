@@ -46,7 +46,7 @@ class DaskTestCase(DataprocTestCase):
         if command_asserted == 0:
           raise Exception("Unable to assert instance command [{}]".format(verify_cmd))
 
-        self.remove_test_script(script, name)        
+        self.remove_test_script(script, name)
 
 
     @parameterized.parameters(

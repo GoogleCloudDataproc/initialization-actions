@@ -806,15 +806,15 @@ function install_systemd_dask_worker() {
 
   local compute_mode_cmd=""
   if command -v nvidia-smi ; then compute_mode_cmd="nvidia-smi --compute-mode=DEFAULT" ; fi
-  local worker_name="dask-worker"
-  if test -f "${DASK_CONDA_ENV}/bin/dask-cuda-worker" ; then worker_name="dask-cuda-worker" ; fi
+  local worker_name="dask worker"
+  if test -f "${DASK_CONDA_ENV}/bin/dask-cuda-worker" ; then worker_name="dask-cuda worker" ; fi
   local worker="${DASK_CONDA_ENV}/bin/${worker_name}"
   cat <<EOF >"${DASK_WORKER_LAUNCHER}"
 #!/bin/bash
 LOGFILE="/var/log/${DASK_WORKER_SERVICE}.log"
 ${compute_mode_cmd}
 echo "${worker_name} starting, logging to \${LOGFILE}"
-${worker} "${MASTER}:8786" --local-directory="${dask_worker_local_dir}" --memory-limit=auto >> "\${LOGFILE}" 2>&1
+${worker} --local-directory="${dask_worker_local_dir}" --memory-limit=auto "${MASTER}:8786" >> "\${LOGFILE}" 2>&1
 EOF
 
   chmod 750 "${DASK_WORKER_LAUNCHER}"
@@ -869,7 +869,7 @@ function install_systemd_dask_scheduler() {
 #!/bin/bash
 LOGFILE="/var/log/${DASK_SCHEDULER_SERVICE}.log"
 echo "dask scheduler starting, logging to \${LOGFILE}"
-${DASK_CONDA_ENV}/bin/dask scheduler >> "\${LOGFILE}" 2>&1
+${DASK_CONDA_ENV}/bin/dask-scheduler >> "\${LOGFILE}" 2>&1
 EOF
 
   chmod 750 "${DASK_SCHEDULER_LAUNCHER}"
@@ -1274,17 +1274,28 @@ function main() {
     # Create Dask service
     install_systemd_dask_service
 
+    # only run scheduler on primary master
     if [[ "$(hostname -s)" == "${MASTER}" ]]; then
-      systemctl start "${DASK_SCHEDULER_SERVICE}"
+      date
+      time systemctl start "${DASK_SCHEDULER_SERVICE}"
       systemctl status "${DASK_SCHEDULER_SERVICE}"
     fi
 
     echo "Starting Dask 'standalone' cluster..."
     if [[ "${enable_systemd_dask_worker_service}" == "1" ]]; then
-      systemctl start "${DASK_WORKER_SERVICE}"
+      date
+      # Pause while scheduler comes online
+      retries=30
+      while ! nc -vz "${MASTER}" 8786 ; do
+        sleep 3s
+        ((retries--)
+        if [[ "${retries}" == "0" ]]; then echo "dask scheduler unreachable" ; exit 1 ; fi
+      fi
+      time systemctl start "${DASK_WORKER_SERVICE}"
       systemctl status "${DASK_WORKER_SERVICE}"
     fi
 
+    date
     configure_knox_for_dask
 
     local DASK_CLOUD_LOGGING="$(get_metadata_attribute dask-cloud-logging || echo 'false')"
