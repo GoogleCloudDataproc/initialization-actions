@@ -1288,9 +1288,9 @@ function main() {
       retries=30
       while ! nc -vz "${MASTER}" 8786 ; do
         sleep 3s
-        ((retries--)
-        if [[ "${retries}" == "0" ]]; then echo "dask scheduler unreachable" ; exit 1 ; fi
-      fi
+        ((retries--))
+        if [[ "${retries}" == "0" ]] ; then echo "dask scheduler unreachable" ; exit 1 ; fi
+      done
       time systemctl start "${DASK_WORKER_SERVICE}"
       systemctl status "${DASK_WORKER_SERVICE}"
     fi
