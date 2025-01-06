@@ -52,12 +52,14 @@ function main() {
 
 function exit_handler() {
   gpu_exit_handler
+  pip_exit_handler
   common_exit_handler
   return 0
 }
 
 function prepare_to_install(){
   prepare_common_env
+  prepare_pip_env
   prepare_gpu_env
   trap exit_handler EXIT
 }
