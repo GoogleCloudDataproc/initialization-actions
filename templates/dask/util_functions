@@ -407,13 +407,13 @@ function install_dask() {
   )
 
   unset CONDA_CHANNEL_ARGS
-  local cache_key="${cache_key_name}_${DATAPROC_IMAGE_VERSION}-${_shortname}}"
+  local cache_key="${cache_key_name}_${DATAPROC_IMAGE_VERSION}-${_shortname}"
   install_conda_packages "${cache_key}"
 }
 
 function install_dask_rapids() {
   local numba_spec="numba"
-  local dask_version="2024.12.1"
+  local dask_version="2024.7"
   local dask_spec="dask>=${dask_version}"
 
   if is_cuda12 ; then
@@ -456,9 +456,9 @@ function install_dask_rapids() {
     "${numba_spec}"
   )
 
-  CONDA_CHANNEL_ARGS="-c 'conda-forge' -c 'nvidia' -c 'rapidsai'"
+  CONDA_CHANNEL_ARGS="-c conda-forge -c nvidia -c rapidsai"
 
-  local cache_key="${cache_key_name}_${DATAPROC_IMAGE_VERSION}}"
+  local cache_key="${cache_key_name}_${DATAPROC_IMAGE_VERSION}-${_shortname}"
   install_conda_packages "${cache_key}"
 }
 
@@ -490,7 +490,7 @@ function install_conda_packages() {
   for installer in "${mamba}" "${conda}" ; do
     test -d "${DASK_CONDA_ENV}" || \
       time "${installer}" "create" -m -n "${conda_env}" -y --no-channel-priority \
-      "${CONDA_CHANNEL_ARGS:- -c 'conda-forge'}"  \
+      ${CONDA_CHANNEL_ARGS:- -c 'conda-forge'}  \
       ${CONDA_PACKAGES[*]} \
       "${python_spec}" \
       > "${install_log}" 2>&1 && retval=$? || { retval=$? ; cat "${install_log}" ; }
@@ -527,9 +527,6 @@ function prepare_dask_env() {
 
 function prepare_dask_rapids_env(){
   prepare_dask_env
-  # RAPIDS config
-  RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'DASK')
-  readonly RAPIDS_RUNTIME
 
   local DEFAULT_DASK_RAPIDS_VERSION="24.08"
   if [[ "${DATAPROC_IMAGE_VERSION}" == "2.0" ]] ; then

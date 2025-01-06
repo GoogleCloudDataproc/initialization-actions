@@ -145,7 +145,8 @@ function set_cudnn_version() {
   readonly DEFAULT_CUDNN9_VERSION="9.1.0.70"
 
   # Parameters for NVIDIA-provided cuDNN library
-  readonly DEFAULT_CUDNN_VERSION=${CUDNN_FOR_CUDA["${CUDA_VERSION}"]}
+  DEFAULT_CUDNN_VERSION=${CUDNN_FOR_CUDA["${CUDA_VERSION}"]}
+  readonly DEFAULT_CUDNN_VERSION
   CUDNN_VERSION=$(get_metadata_attribute 'cudnn-version' "${DEFAULT_CUDNN_VERSION}")
   # The minimum cuDNN version supported by rocky is ${DEFAULT_CUDNN8_VERSION}
   if is_rocky  && (version_le "${CUDNN_VERSION}" "${DEFAULT_CUDNN8_VERSION}") ; then
@@ -1251,10 +1252,6 @@ function prepare_gpu_env(){
   # Whether to install GPU monitoring agent that sends GPU metrics to Stackdriver
   INSTALL_GPU_AGENT=$(get_metadata_attribute 'install-gpu-agent' 'false')
   readonly INSTALL_GPU_AGENT
-
-  # Verify SPARK compatability
-  RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
-  readonly RAPIDS_RUNTIME
 
   # determine whether we have nvidia-smi installed and working
   nvsmi

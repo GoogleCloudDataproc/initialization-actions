@@ -47,11 +47,14 @@ function exit_handler() {
 
 function prepare_to_install(){
   prepare_common_env
-  prepare_conda_env
-  prepare_gpu_env
+  # Verify SPARK compatability
+  RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'DASK')
+  readonly RAPIDS_RUNTIME
   conda_env="$(get_metadata_attribute conda-env 'dask-rapids')"
   readonly conda_env
   prepare_dask_rapids_env
+  prepare_conda_env
+  prepare_gpu_env
   trap exit_handler EXIT
 }
 
