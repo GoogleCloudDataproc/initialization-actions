@@ -40,7 +40,7 @@ function main() {
       date
       # Pause while scheduler comes online
       retries=30
-      while ! nc -vz cluster-1718310842-m 8786 ; do
+      while ! nc -vz "${MASTER}" 8786 ; do
         sleep 3s
         ((retries--)
         if [[ "${retries}" == "0" ]]; then echo "dask scheduler unreachable" ; exit 1 ; fi
