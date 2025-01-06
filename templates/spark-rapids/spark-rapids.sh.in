@@ -22,7 +22,6 @@
 # For details see
 # github.com/GoogleCloudDataproc/custom-images/tree/main/examples/secure-boot
 #
-[% PROCESS common/template_disclaimer %]
 
 set -euxo pipefail
 
