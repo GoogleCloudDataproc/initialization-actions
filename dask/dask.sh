@@ -348,6 +348,20 @@ function set_proxy(){
   export NO_PROXY="${no_proxy}"
 }
 
+function is_ramdisk() {
+  if [[ "${1:-}" == "-f" ]] ; then unset IS_RAMDISK ; fi
+  if   ( test -v IS_RAMDISK && "${IS_RAMDISK}" == "true" ) ; then return 0
+  elif ( test -v IS_RAMDISK && "${IS_RAMDISK}" == "false" ) ; then return 1 ; fi
+
+  if ( test -d /mnt/shm && grep -q /mnt/shm /proc/mounts ) ; then
+    IS_RAMDISK="true"
+    return 0
+  else
+    IS_RAMDISK="false"
+    return 1
+  fi
+}
+
 function mount_ramdisk(){
   local free_mem
   free_mem="$(awk '/^MemFree/ {print $2}' /proc/meminfo)"
@@ -356,18 +370,11 @@ function mount_ramdisk(){
   # Write to a ramdisk instead of churning the persistent disk
 
   tmpdir="/mnt/shm"
-  mkdir -p "${tmpdir}"
+  mkdir -p "${tmpdir}/pkgs_dirs"
   mount -t tmpfs tmpfs "${tmpdir}"
 
   # Download conda packages to tmpfs
-  /opt/conda/miniconda3/bin/conda config --add pkgs_dirs "${tmpdir}"
-
-  # Clear pip cache
-  # TODO: make this conditional on which OSs have pip without cache purge
-  pip cache purge || echo "unable to purge pip cache"
-
-  # Download pip packages to tmpfs
-  pip config set global.cache-dir "${tmpdir}" || echo "unable to set global.cache-dir"
+  /opt/conda/miniconda3/bin/conda config --add pkgs_dirs "${tmpdir}/pkgs_dirs"
 
   # Download OS packages to tmpfs
   if is_debuntu ; then
@@ -375,6 +382,7 @@ function mount_ramdisk(){
   else
     mount -t tmpfs tmpfs /var/cache/dnf
   fi
+  is_ramdisk -f
 }
 
 function check_os() {
@@ -582,6 +590,21 @@ function install_dependencies() {
   touch "${workdir}/complete/install-dependencies"
 }
 
+function prepare_pip_env() {
+  # Clear pip cache
+  # TODO: make this conditional on which OSs have pip without cache purge
+  test -d "${tmpdir}/python-venv" || python3 -m venv "${tmpdir}/python-venv"
+  source "${tmpdir}/python-venv/bin/activate"
+
+  pip cache purge || echo "unable to purge pip cache"
+  if is_ramdisk ; then
+    # Download pip packages to tmpfs
+    mkdir -p "${tmpdir}/cache-dir"
+    pip config set global.cache-dir "${tmpdir}/cache-dir" || echo "unable to set global.cache-dir"
+  fi
+}
+
+
 function prepare_common_env() {
   define_os_comparison_functions
 
@@ -619,8 +642,6 @@ function prepare_common_env() {
 
   # Knox config
   readonly KNOX_HOME=/usr/lib/knox
-  readonly KNOX_DASK_DIR="${KNOX_HOME}/data/services/dask/0.1.0"
-  readonly KNOX_DASKWS_DIR="${KNOX_HOME}/data/services/daskws/0.1.0"
 
   mkdir -p "${workdir}/complete"
   set_proxy
@@ -665,12 +686,16 @@ function prepare_common_env() {
   touch "${workdir}/complete/prepare.common"
 }
 
+function pip_exit_handler() {
+  if is_ramdisk ; then
+    # remove the tmpfs pip cache-dir
+    pip config unset global.cache-dir || echo "unable to unset global pip cache"
+  fi
+}
+
 function common_exit_handler() {
   set +ex
   echo "Exit handler invoked"
-
-  # Clear pip cache
-  pip cache purge || echo "unable to purge pip cache"
 
   # Restart YARN services if they are running already
   for svc in resourcemanager nodemanager; do
@@ -682,9 +707,6 @@ function common_exit_handler() {
 
   # If system memory was sufficient to mount memory-backed filesystems
   if [[ "${tmpdir}" == "/mnt/shm" ]] ; then
-    # remove the tmpfs pip cache-dir
-    pip config unset global.cache-dir || echo "unable to unset global pip cache"
-
     # Clean up shared memory mounts
     for shmdir in /var/cache/apt/archives /var/cache/dnf /mnt/shm /tmp ; do
       if ( grep -q "^tmpfs ${shmdir}" /proc/mounts && ! grep -q "^tmpfs ${shmdir}" /etc/fstab ) ; then
@@ -707,6 +729,7 @@ function common_exit_handler() {
     dnf clean all
   fi
 
+  # When creating image, print disk usage statistics, zero unused disk space
   if [[ -n "$(get_metadata_attribute creating-image)" ]]; then
     # print disk usage statistics for large components
     if is_ubuntu ; then
@@ -748,11 +771,12 @@ function common_exit_handler() {
           '@siz=( sort { $a => $b }
                    map { (split)[2] =~ /^(\d+)/ }
                   grep { m:^/: } <STDIN> );
-$max=$siz[0]; $min=$siz[-1]; $inc=$max-$min;
+$max=$siz[0]; $min=$siz[-1]; $starting="unknown"; $inc=q{$max-$starting};
 print( "    samples-taken: ", scalar @siz, $/,
-       "maximum-disk-used: $max", $/,
-       "minimum-disk-used: $min", $/,
-       "     increased-by: $inc", $/ )' < "/run/disk-usage.log"
+       "starting-disk-used: $starting", $/,
+       "maximum-disk-used:  $max", $/,
+       "minimum-disk-used:  $min", $/,
+       "     increased-by:  $inc", $/ )' < "/run/disk-usage.log"
 
 
     # zero free disk space
@@ -1273,6 +1297,9 @@ function prepare_dask_env() {
   readonly DASK_WORKER_SERVICE=dask-worker
   readonly DASK_SCHEDULER_SERVICE=dask-scheduler
   readonly DASK_CONDA_ENV="/opt/conda/miniconda3/envs/${conda_env}"
+  # Knox dask config
+  readonly KNOX_DASK_DIR="${KNOX_HOME}/data/services/dask/0.1.0"
+  readonly KNOX_DASKWS_DIR="${KNOX_HOME}/data/services/daskws/0.1.0"
 }
 
 function prepare_dask_rapids_env(){
@@ -1323,12 +1350,14 @@ function main() {
 }
 
 function exit_handler() {
+  pip_exit_handler
   common_exit_handler
   return 0
 }
 
 function prepare_to_install(){
   prepare_common_env
+  prepare_pip_env
   conda_env="$(get_metadata_attribute conda-env 'dask')"
   readonly conda_env
   prepare_dask_env
