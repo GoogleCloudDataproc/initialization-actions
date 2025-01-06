@@ -575,6 +575,16 @@ function prepare_pip_env() {
   fi
 }
 
+function prepare_conda_env() {
+  CONDA=/opt/conda/miniconda3/bin/conda
+  touch ~/.condarc
+  cp ~/.condarc ~/.condarc.default
+  if is_ramdisk ; then
+    # Download conda packages to tmpfs
+    mkdir -p "${tmpdir}/conda_cache"
+    ${CONDA} config --add pkgs_dirs "${tmpdir}/conda_cache"
+  fi
+}
 
 function prepare_common_env() {
   define_os_comparison_functions
@@ -662,6 +672,10 @@ function pip_exit_handler() {
     # remove the tmpfs pip cache-dir
     pip config unset global.cache-dir || echo "unable to unset global pip cache"
   fi
+}
+
+function conda_exit_handler() {
+  mv ~/.condarc.default ~/.condarc
 }
 
 function common_exit_handler() {
