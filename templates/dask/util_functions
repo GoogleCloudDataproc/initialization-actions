@@ -506,6 +506,9 @@ function prepare_dask_env() {
   readonly DASK_WORKER_SERVICE=dask-worker
   readonly DASK_SCHEDULER_SERVICE=dask-scheduler
   readonly DASK_CONDA_ENV="/opt/conda/miniconda3/envs/${conda_env}"
+  # Knox dask config
+  readonly KNOX_DASK_DIR="${KNOX_HOME}/data/services/dask/0.1.0"
+  readonly KNOX_DASKWS_DIR="${KNOX_HOME}/data/services/daskws/0.1.0"
 }
 
 function prepare_dask_rapids_env(){
