@@ -102,7 +102,7 @@ function install_systemd_dask_scheduler() {
 #!/bin/bash
 LOGFILE="/var/log/${DASK_SCHEDULER_SERVICE}.log"
 echo "dask scheduler starting, logging to \${LOGFILE}"
-${DASK_CONDA_ENV}/bin/dask-scheduler >> "\${LOGFILE}" 2>&1
+${DASK_CONDA_ENV}/bin/dask scheduler >> "\${LOGFILE}" 2>&1
 EOF
 
   chmod 750 "${DASK_SCHEDULER_LAUNCHER}"
