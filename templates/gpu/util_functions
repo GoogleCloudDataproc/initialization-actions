@@ -306,7 +306,7 @@ function uninstall_cuda_keyring_pkg() {
 }
 
 function install_local_cuda_repo() {
-  if test -f "${workdir}/complete/install-local-cuda-repo" ; then return ; fi
+  is_complete install-local-cuda-repo && return
 
   if [[ "${CUDA_LOCAL_REPO_INSTALLED}" == "1" ]]; then return ; fi
   CUDA_LOCAL_REPO_INSTALLED="1"
@@ -329,7 +329,7 @@ function install_local_cuda_repo() {
       -o /etc/apt/preferences.d/cuda-repository-pin-600
   fi
 
-  touch "${workdir}/complete/install-local-cuda-repo"
+  mark_complete install-local-cuda-repo
 }
 function uninstall_local_cuda_repo(){
   apt-get purge -yq "${CUDA_LOCAL_REPO_PKG_NAME}"
@@ -337,7 +337,8 @@ function uninstall_local_cuda_repo(){
 }
 
 function install_local_cudnn_repo() {
-  if test -f "${workdir}/complete/install-local-cudnn-repo" ; then return ; fi
+  is_complete install-local-cudnn-repo && return
+
   pkgname="cudnn-local-repo-${shortname}-${CUDNN_VERSION%.*}"
   CUDNN_PKG_NAME="${pkgname}"
   local_deb_fn="${pkgname}_1.0-1_amd64.deb"
@@ -353,7 +354,7 @@ function install_local_cudnn_repo() {
 
   cp /var/cudnn-local-repo-*-${CUDNN_VERSION%.*}*/cudnn-local-*-keyring.gpg /usr/share/keyrings
 
-  touch "${workdir}/complete/install-local-cudnn-repo"
+  mark_complete install-local-cudnn-repo
 }
 
 function uninstall_local_cudnn_repo() {
@@ -362,7 +363,7 @@ function uninstall_local_cudnn_repo() {
 }
 
 function install_local_cudnn8_repo() {
-  if test -f "${workdir}/complete/install-local-cudnn8-repo" ; then return ; fi
+  is_complete install-local-cudnn8-repo && return
 
   if   is_ubuntu ; then cudnn8_shortname="ubuntu2004"
   elif is_debian ; then cudnn8_shortname="debian11"
@@ -396,19 +397,19 @@ function install_local_cudnn8_repo() {
   rm -f "${local_deb_fn}"
 
   cp "${cudnn_path}"/cudnn-local-*-keyring.gpg /usr/share/keyrings
-  touch "${workdir}/complete/install-local-cudnn8-repo"
+  mark_complete install-local-cudnn8-repo
 }
 
 function uninstall_local_cudnn8_repo() {
   apt-get purge -yq "${CUDNN8_PKG_NAME}"
-  rm -f "${workdir}/complete/install-local-cudnn8-repo"
+  mark_incomplete install-local-cudnn8-repo
 }
 
 function install_nvidia_nccl() {
   readonly DEFAULT_NCCL_VERSION=${NCCL_FOR_CUDA["${CUDA_VERSION}"]}
   readonly NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION})
 
-  if test -f "${workdir}/complete/nccl" ; then return ; fi
+  is_complete nccl && return
 
   if is_cuda11 && is_debian12 ; then
     echo "NCCL cannot be compiled for CUDA 11 on ${_shortname}"
@@ -499,14 +500,15 @@ function install_nvidia_nccl() {
   fi
 
   popd
-  touch "${workdir}/complete/nccl"
+  mark_complete nccl
 }
 
 function is_src_nvidia() ( set +x ; [[ "${GPU_DRIVER_PROVIDER}" == "NVIDIA" ]] ; )
 function is_src_os()     ( set +x ; [[ "${GPU_DRIVER_PROVIDER}" == "OS" ]] ; )
 
 function install_nvidia_cudnn() {
-  if test -f "${workdir}/complete/cudnn" ; then return ; fi
+  is_complete cudnn && return
+
   local major_version
   major_version="${CUDNN_VERSION%%.*}"
   local cudnn_pkg_version
@@ -565,7 +567,7 @@ function install_nvidia_cudnn() {
   ldconfig
 
   echo "NVIDIA cuDNN successfully installed for ${_shortname}."
-  touch "${workdir}/complete/cudnn"
+  mark_complete cudnn
 }
 
 function add_nonfree_components() {
@@ -722,7 +724,8 @@ function install_nvidia_userspace_runfile() {
   #
   # wget https://us.download.nvidia.com/XFree86/Linux-x86_64/560.35.03/NVIDIA-Linux-x86_64-560.35.03.run
   # sh ./NVIDIA-Linux-x86_64-560.35.03.run -x # this will allow you to review the contents of the package without installing it.
-  if test -f "${workdir}/complete/userspace" ; then return ; fi
+  is_complete userspace && return
+
   local local_fn="${tmpdir}/userspace.run"
 
   cache_fetched_package "${USERSPACE_URL}" \
@@ -788,12 +791,13 @@ function install_nvidia_userspace_runfile() {
   fi
 
   rm -f "${local_fn}"
-  touch "${workdir}/complete/userspace"
+  mark_complete userspace
   sync
 }
 
 function install_cuda_runfile() {
-  if test -f "${workdir}/complete/cuda" ; then return ; fi
+  is_complete cuda && return
+
   local local_fn="${tmpdir}/cuda.run"
 
   cache_fetched_package "${NVIDIA_CUDA_URL}" \
@@ -802,7 +806,7 @@ function install_cuda_runfile() {
 
   execute_with_retries bash "${local_fn}" --toolkit --no-opengl-libs --silent --tmpdir="${tmpdir}"
   rm -f "${local_fn}"
-  touch "${workdir}/complete/cuda"
+  mark_complete cuda
   sync
 }
 
@@ -840,7 +844,7 @@ function load_kernel_module() {
 }
 
 function install_cuda(){
-  if test -f "${workdir}/complete/cuda-repo" ; then return ; fi
+  is_complete cuda-repo && return
 
   if ( ge_debian12 && is_src_os ) ; then
     echo "installed with the driver on ${_shortname}"
@@ -853,10 +857,12 @@ function install_cuda(){
   # Includes CUDA packages
   add_repo_cuda
 
-  touch "${workdir}/complete/cuda-repo"
+  mark_complete cuda-repo
 }
 
 function install_nvidia_container_toolkit() {
+  is_complete install-nvtk && return
+
   local container_runtime_default
     if command -v docker     ; then container_runtime_default='docker'
   elif command -v containerd ; then container_runtime_default='containerd'
@@ -872,11 +878,13 @@ function install_nvidia_container_toolkit() {
     execute_with_retries dnf     install -y -q nvidia-container-toolkit ; fi
   nvidia-ctk runtime configure --runtime="${CONTAINER_RUNTIME}"
   systemctl restart "${CONTAINER_RUNTIME}"
+
+  mark_complete install-nvtk
 }
 
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
-  if test -f "${workdir}/complete/gpu-driver" ; then return ; fi
+  is_complete gpu-driver && return
 
   if ( ge_debian12 && is_src_os ) ; then
     add_nonfree_components
@@ -898,11 +906,11 @@ function install_nvidia_gpu_driver() {
   build_driver_from_github
 
   echo "NVIDIA GPU driver provided by NVIDIA was installed successfully"
-  touch "${workdir}/complete/gpu-driver"
+  mark_complete gpu-driver
 }
 
 function install_ops_agent(){
-  if test -f "${workdir}/complete/ops-agent" ; then return ; fi
+  is_complete ops-agent && return
 
   mkdir -p /opt/google
   cd /opt/google
@@ -910,7 +918,7 @@ function install_ops_agent(){
   curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
   execute_with_retries bash add-google-cloud-ops-agent-repo.sh --also-install
 
-  touch "${workdir}/complete/ops-agent"
+  is_complete ops-agent
 }
 
 # Collects 'gpu_utilization' and 'gpu_memory_utilization' metrics
@@ -1189,7 +1197,7 @@ function query_nvsmi() {
 }
 
 function install_build_dependencies() {
-  if test -f "${workdir}/complete/build-dependencies" ; then return ; fi
+  is_complete build-dependencies && return
 
   if is_debuntu ; then
     if is_ubuntu22 && is_cuda12 ; then
@@ -1227,7 +1235,7 @@ function install_build_dependencies() {
 
     execute_with_retries "${dnf_cmd}"
   fi
-  touch "${workdir}/complete/build-dependencies"
+  mark_complete build-dependencies
 }
 
 function prepare_gpu_env(){
@@ -1244,6 +1252,14 @@ function prepare_gpu_env(){
   CUDNN_PKG_NAME=""
   CUDNN8_PKG_NAME=""
   CUDA_LOCAL_REPO_INSTALLED="0"
+
+  if ! test -v DEFAULT_RAPIDS_RUNTIME ; then
+    readonly DEFAULT_RAPIDS_RUNTIME='SPARK'
+  fi
+
+  # Verify SPARK compatability
+  RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' "${DEFAULT_RAPIDS_RUNTIME}")
+  readonly RAPIDS_RUNTIME
 
   # Whether to install NVIDIA-provided or OS-provided GPU driver
   GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'NVIDIA')
@@ -1337,7 +1353,7 @@ function configure_mig_cgi() {
 }
 
 function enable_mig() {
-  if test -f "${workdir}/complete/enable-mig" ; then return ; fi
+  is_complete enable-mig && return
 
   # Start persistenced if it's not already running
   if ! ( ps auwx | grep -i nvidia\\-persistenced ) ; then ( nvidia-persistenced & ) ; fi
@@ -1349,7 +1365,7 @@ function enable_mig() {
   nvsmi -mig 1
   clear_nvsmi_cache
 
-  touch "${workdir}/complete/enable-mig"
+  mark_complete enable-mig
 }
 
 function enable_and_configure_mig() {

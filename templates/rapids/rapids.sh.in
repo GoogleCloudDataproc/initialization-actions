@@ -16,6 +16,20 @@ set -euxo pipefail
 [% INSERT dask/util_functions %]
 
 function main() {
+  setup_gpu_yarn
+
+  echo "yarn setup complete"
+
+  if ( test -v CUDNN_VERSION && [[ -n "${CUDNN_VERSION}" ]] ) ; then
+    install_nvidia_nccl
+    install_nvidia_cudnn
+  fi
+
+  if [[ "${RAPIDS_RUNTIME}" == "SPARK" ]]; then
+    echo "RAPIDS recognizes SPARK runtime - currently supported using gpu/install_gpu_driver.sh or spark-rapids/spark-rapids.sh"
+    exit 1
+  fi
+
   # Install Dask with RAPIDS
   install_dask_rapids
 
@@ -47,9 +61,6 @@ function exit_handler() {
 
 function prepare_to_install(){
   prepare_common_env
-  # Verify SPARK compatability
-  RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'DASK')
-  readonly RAPIDS_RUNTIME
   conda_env="$(get_metadata_attribute conda-env 'dask-rapids')"
   readonly conda_env
   prepare_dask_rapids_env

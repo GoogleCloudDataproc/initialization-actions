@@ -58,10 +58,6 @@ function exit_handler() {
 
 function prepare_to_install(){
   prepare_common_env
-  # Verify SPARK compatability
-  RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
-  readonly RAPIDS_RUNTIME
-
   prepare_pip_env
   prepare_gpu_env
   trap exit_handler EXIT

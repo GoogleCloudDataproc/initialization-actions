@@ -51,8 +51,6 @@ function exit_handler() {
 
 function prepare_to_install(){
   prepare_common_env
-  RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'DASK')
-  readonly RAPIDS_RUNTIME
   prepare_conda_env
   conda_env="$(get_metadata_attribute conda-env 'dask')"
   readonly conda_env

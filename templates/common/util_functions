@@ -553,12 +553,28 @@ function restart_knox() {
   systemctl start knox
 }
 
+function is_complete() {
+  phase="$1"
+  test -f "${workdir}/complete/${phase}"
+}
+
+function mark_complete() {
+  phase="$1"
+  touch "${workdir}/complete/${phase}"
+}
+
+function mark_incomplete() {
+  phase="$1"
+  rm -f "${workdir}/complete/${phase}"
+}
+
 function install_dependencies() {
-  test -f "${workdir}/complete/install-dependencies" && return 0
+  is_complete install-dependencies && return 0
+
   pkg_list="screen"
   if is_debuntu ; then execute_with_retries apt-get -y -q install ${pkg_list}
   elif is_rocky ; then execute_with_retries dnf     -y -q install ${pkg_list} ; fi
-  touch "${workdir}/complete/install-dependencies"
+  mark_complete install-dependencies
 }
 
 function prepare_pip_env() {
@@ -630,7 +646,7 @@ function prepare_common_env() {
 
   readonly install_log="${tmpdir}/install.log"
 
-  if test -f "${workdir}/complete/prepare.common" ; then return ; fi
+  is_complete prepare.common && return
 
   repair_old_backports
 
@@ -664,7 +680,7 @@ function prepare_common_env() {
       bash -c "while [[ -f /run/keep-running-df ]] ; do df / | tee -a /run/disk-usage.log ; sleep 5s ; done"
  fi
 
-  touch "${workdir}/complete/prepare.common"
+  mark_complete prepare.common
 }
 
 function pip_exit_handler() {
