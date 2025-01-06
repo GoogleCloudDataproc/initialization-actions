@@ -779,7 +779,7 @@ function install_nvidia_userspace_runfile() {
       depmod -a
     else
       clear_dkms_key
-      tar czvf "${local_tarball}" \
+      tar czf "${local_tarball}" \
         /var/log/nvidia-installer.log \
         $(find /lib/modules/${uname_r}/ -iname 'nvidia*.ko')
       gcloud storage cp "${local_tarball}" "${gcs_tarball}"

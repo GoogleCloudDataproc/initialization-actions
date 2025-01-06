@@ -377,10 +377,14 @@ EOF
 
 function install_dask() {
   local python_spec="python>=3.11"
-  local dask_spec="dask>=2024.7"
+  local dask_version="2024.12.1"
+  local dask_spec="dask>=${dask_version}"
+  local cache_key_name="dask-${dask_version}"
 
   CONDA_PACKAGES=()
   if [[ "${DASK_RUNTIME}" == 'yarn' ]]; then
+    dask_yarn_version="0.9"
+    cache_key_name="dask-yarn-${dask_yarn_version}"
     # Pin `distributed` and `dask` package versions to old release
     # because `dask-yarn` 0.9 uses skein in a way which
     # is not compatible with `distributed` package 2022.2 and newer:
@@ -392,7 +396,7 @@ function install_dask() {
       # the libuuid.so.1 distributed with fiona 1.8.22 dumps core when calling uuid_generate_time_generic
       CONDA_PACKAGES+=("fiona<1.8.22")
     fi
-    CONDA_PACKAGES+=('dask-yarn=0.9' "distributed<2022.2")
+    CONDA_PACKAGES+=('dask-yarn=${dask_yarn_version}' "distributed<2022.2")
   fi
 
   CONDA_PACKAGES+=(
@@ -402,49 +406,30 @@ function install_dask() {
     "dask-sql"
   )
 
-  # Install dask
-  mamba="/opt/conda/miniconda3/bin/mamba"
-  conda="/opt/conda/miniconda3/bin/conda"
-
-  ( set +e
-  local is_installed=0
-  for installer in "${mamba}" "${conda}" ; do
-    test -d "${DASK_CONDA_ENV}" || \
-      time "${installer}" "create" -m -n "${conda_env}" -y --no-channel-priority \
-      -c 'conda-forge' -c 'nvidia'  \
-      ${CONDA_PACKAGES[*]} \
-      "${python_spec}" \
-      > "${install_log}" 2>&1 && retval=$? || { retval=$? ; cat "${install_log}" ; }
-    sync
-    if [[ "$retval" == "0" ]] ; then
-      is_installed="1"
-      break
-    fi
-    "${conda}" config --set channel_priority flexible
-  done
-  if [[ "${is_installed}" == "0" ]]; then
-    echo "failed to install dask"
-    return 1
-  fi
-  )
+  unset CONDA_CHANNEL_ARGS
+  local cache_key="${cache_key_name}_${DATAPROC_IMAGE_VERSION}-${_shortname}}"
+  install_conda_packages "${cache_key}"
 }
 
 function install_dask_rapids() {
+  local numba_spec="numba"
+  local dask_version="2024.12.1"
+  local dask_spec="dask>=${dask_version}"
+
   if is_cuda12 ; then
     local python_spec="python>=3.11"
     local cuda_spec="cuda-version>=12,<13"
-    local dask_spec="dask>=2024.7"
-    local numba_spec="numba"
   elif is_cuda11 ; then
     local python_spec="python>=3.9"
     local cuda_spec="cuda-version>=11,<12.0a0"
-    local dask_spec="dask"
-    local numba_spec="numba"
   fi
 
   rapids_spec="rapids>=${RAPIDS_VERSION}"
   CONDA_PACKAGES=()
+  local cache_key_name="dask-rapids-${RAPIDS_VERSION}"
   if [[ "${DASK_RUNTIME}" == 'yarn' ]]; then
+    local rapids_version="24.05"
+    cache_key_name="dask-rapids-yarn-${rapids_version}"
     # Pin `distributed` and `dask` package versions to old release
     # because `dask-yarn` 0.9 uses skein in a way which
     # is not compatible with `distributed` package 2022.2 and newer:
@@ -452,7 +437,7 @@ function install_dask_rapids() {
 
     dask_spec="dask<2022.2"
     python_spec="python>=3.7,<3.8.0a0"
-    rapids_spec="rapids<=24.05"
+    rapids_spec="rapids<=${rapids_version}"
     if is_ubuntu18 ; then
       # the libuuid.so.1 distributed with fiona 1.8.22 dumps core when calling uuid_generate_time_generic
       CONDA_PACKAGES+=("fiona<1.8.22")
@@ -471,6 +456,31 @@ function install_dask_rapids() {
     "${numba_spec}"
   )
 
+  CONDA_CHANNEL_ARGS="-c 'conda-forge' -c 'nvidia' -c 'rapidsai'"
+
+  local cache_key="${cache_key_name}_${DATAPROC_IMAGE_VERSION}}"
+  install_conda_packages "${cache_key}"
+}
+
+# The bash array CONDA_PACKAGES must contain a set of package
+# specifications before calling this function
+
+# The bash string CONDA_CHANNEL_ARGS may contain arguments to specify
+# conda channels. Default is "-c 'conda-forge'"
+
+function install_conda_packages() {
+  local cache_key="${1}"
+
+  local build_tarball="${cache_key}.tar.gz"
+  local gcs_tarball="${pkg_bucket}/conda/${cache_key%%_*}/${build_tarball}"
+  local local_tarball="${tmpdir}/${build_tarball}"
+
+  if gsutil ls "${gcs_tarball}" 2>&1 | grep -q "${gcs_tarball}" ; then
+    echo "cache hit"
+    gcloud storage cat "${gcs_tarball}" | tar -C / -xz
+    return 0
+  fi
+
   # Install cuda, rapids, dask
   mamba="/opt/conda/miniconda3/bin/mamba"
   conda="/opt/conda/miniconda3/bin/conda"
@@ -480,17 +490,21 @@ function install_dask_rapids() {
   for installer in "${mamba}" "${conda}" ; do
     test -d "${DASK_CONDA_ENV}" || \
       time "${installer}" "create" -m -n "${conda_env}" -y --no-channel-priority \
-      -c 'conda-forge' -c 'nvidia' -c 'rapidsai'  \
+      "${CONDA_CHANNEL_ARGS:- -c 'conda-forge'}"  \
       ${CONDA_PACKAGES[*]} \
       "${python_spec}" \
       > "${install_log}" 2>&1 && retval=$? || { retval=$? ; cat "${install_log}" ; }
     sync
     if [[ "$retval" == "0" ]] ; then
       is_installed="1"
+      tar czf "${local_tarball}" "${DASK_CONDA_ENV}"
+      gcloud storage cp "${local_tarball}" "${gcs_tarball}"
+      rm "${local_tarball}"
       break
     fi
     "${conda}" config --set channel_priority flexible
   done
+
   if [[ "${is_installed}" == "0" ]]; then
     echo "failed to install dask"
     return 1

@@ -36,27 +36,18 @@ function main() {
       configure_fluentd_for_dask
     fi
   fi
-
-  echo "Dask RAPIDS for ${DASK_RUNTIME} successfully initialized."
-  if [[ "${ROLE}" == "Master" ]]; then
-    systemctl restart hadoop-yarn-resourcemanager.service
-    # Restart NodeManager on Master as well if this is a single-node-cluster.
-    if systemctl list-units | grep hadoop-yarn-nodemanager; then
-      systemctl restart hadoop-yarn-nodemanager.service
-    fi
-  else
-    systemctl restart hadoop-yarn-nodemanager.service
-  fi
 }
 
 function exit_handler() {
   gpu_exit_handler
+  conda_exit_handler
   common_exit_handler
   return 0
 }
 
 function prepare_to_install(){
   prepare_common_env
+  prepare_conda_env
   prepare_gpu_env
   conda_env="$(get_metadata_attribute conda-env 'dask-rapids')"
   readonly conda_env
