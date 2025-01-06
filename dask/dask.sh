@@ -869,7 +869,7 @@ function install_systemd_dask_scheduler() {
 #!/bin/bash
 LOGFILE="/var/log/${DASK_SCHEDULER_SERVICE}.log"
 echo "dask scheduler starting, logging to \${LOGFILE}"
-${DASK_CONDA_ENV}/bin/dask-scheduler >> "\${LOGFILE}" 2>&1
+${DASK_CONDA_ENV}/bin/dask scheduler >> "\${LOGFILE}" 2>&1
 EOF
 
   chmod 750 "${DASK_SCHEDULER_LAUNCHER}"
@@ -1278,6 +1278,10 @@ function main() {
     if [[ "$(hostname -s)" == "${MASTER}" ]]; then
       date
       time systemctl start "${DASK_SCHEDULER_SERVICE}"
+      local substate_val="$(systemctl show ${DASK_SCHEDULER_SERVICE} -p SubState --value)"
+      if [[ "${substate_val}" != 'running' ]] ; then
+        cat "/var/log/${DASK_SCHEDULER_SERVICE}.log"
+      fi
       systemctl status "${DASK_SCHEDULER_SERVICE}"
     fi
 
@@ -1292,6 +1296,10 @@ function main() {
         if [[ "${retries}" == "0" ]] ; then echo "dask scheduler unreachable" ; exit 1 ; fi
       done
       time systemctl start "${DASK_WORKER_SERVICE}"
+      local substate_val="$(systemctl show ${DASK_WORKER_SERVICE} -p SubState --value)"
+      if [[ "${substate_val}" != 'running' ]] ; then
+        cat "/var/log/${DASK_WORKER_SERVICE}.log"
+      fi
       systemctl status "${DASK_WORKER_SERVICE}"
     fi
 
