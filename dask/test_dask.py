@@ -56,16 +56,13 @@ class DaskTestCase(DataprocTestCase):
     )
     def test_dask(self, configuration, instances, runtime):
 
-        if self.getImageVersion() < pkg_resources.parse_version("2.0"):
-            self.skipTest("Not supported in pre-2.0 images")
-
         metadata = None
         if runtime:
             metadata = "dask-runtime={}".format(runtime)
 
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
-                           machine_type='n1-standard-16',
+                           machine_type='n1-highmem-8',
                            metadata=metadata,
                            timeout_in_minutes=20)
 
