@@ -74,9 +74,10 @@ EOF
   else
     # Enable service on single-node cluster (no workers)
     local worker_count="$(get_metadata_attribute dataproc-worker-count)"
-    if [[ "${worker_count}" == "0" ]] &&
-       [[ "$(get_metadata_attribute dask-cuda-worker-on-master 'true')" == "true" ]] &&
-       [[ "$(get_metadata_attribute dask-worker-on-master 'true')" == "true" ]] ; then
+    if ( [[ "${worker_count}" == "0" ]] ||
+         ( [[ "$(get_metadata_attribute dask-cuda-worker-on-master 'true')" == "true" ]] &&
+           [[ "$(get_metadata_attribute dask-worker-on-master 'true')"      == "true" ]] )
+       ) ; then
       enable_systemd_dask_worker_service="1"
     fi
   fi
@@ -549,9 +550,4 @@ function prepare_dask_rapids_env(){
     DEFAULT_DASK_RAPIDS_VERSION="23.08" # Final release to support spark 3.1.3
   fi
   readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' ${DEFAULT_DASK_RAPIDS_VERSION})
-}
-
-
-function dask_exit_handler() {
-  echo "no exit handler for dask"
 }

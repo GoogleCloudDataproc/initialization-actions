@@ -162,45 +162,6 @@ function set_hadoop_property() {
     --clobber
 }
 
-function configure_yarn_resources() {
-  if [[ ! -d "${HADOOP_CONF_DIR}" ]] ; then return 0 ; fi # pre-init scripts
-  if [[ ! -f "${HADOOP_CONF_DIR}/resource-types.xml" ]]; then
-    printf '<?xml version="1.0" ?>\n<configuration/>' >"${HADOOP_CONF_DIR}/resource-types.xml"
-  fi
-  set_hadoop_property 'resource-types.xml' 'yarn.resource-types' 'yarn.io/gpu'
-
-  set_hadoop_property 'capacity-scheduler.xml' \
-    'yarn.scheduler.capacity.resource-calculator' \
-    'org.apache.hadoop.yarn.util.resource.DominantResourceCalculator'
-
-  set_hadoop_property 'yarn-site.xml' 'yarn.resource-types' 'yarn.io/gpu'
-}
-
-# This configuration should be applied only if GPU is attached to the node
-function configure_yarn_nodemanager() {
-  set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.linux-container-executor.cgroups.mount' 'true'
-  set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.linux-container-executor.cgroups.mount-path' '/sys/fs/cgroup'
-  set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.linux-container-executor.cgroups.hierarchy' 'yarn'
-  set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.container-executor.class' \
-    'org.apache.hadoop.yarn.server.nodemanager.LinuxContainerExecutor'
-  set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.linux-container-executor.group' 'yarn'
-
-  # Fix local dirs access permissions
-  local yarn_local_dirs=()
-
-  readarray -d ',' yarn_local_dirs < <("${bdcfg}" get_property_value \
-    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
-    --name "yarn.nodemanager.local-dirs" 2>/dev/null | tr -d '\n')
-
-  if [[ "${#yarn_local_dirs[@]}" -ne "0" && "${yarn_local_dirs[@]}" != "None" ]]; then
-    chown yarn:yarn -R "${yarn_local_dirs[@]/,/}"
-  fi
-}
-
 function clean_up_sources_lists() {
   #
   # bigtop (primary)
@@ -664,17 +625,18 @@ function prepare_common_env() {
     dnf clean all
   fi
 
-  # zero free disk space
-  if [[ -n "$(get_metadata_attribute creating-image)" ]]; then
+  # When creating a disk image:
+  if [[ -n "$(get_metadata_attribute creating-image "")" ]]; then
+    df / > "/run/disk-usage.log"
 
- ( set +e
+  # zero free disk space
+  ( set +e
     time dd if=/dev/zero of=/zero status=none ; sync ; sleep 3s ; rm -f /zero
   )
 
     install_dependencies
 
     # Monitor disk usage in a screen session
-    df / > "/run/disk-usage.log"
     touch "/run/keep-running-df"
     screen -d -m -LUS keep-running-df \
       bash -c "while [[ -f /run/keep-running-df ]] ; do df / | tee -a /run/disk-usage.log ; sleep 5s ; done"
@@ -698,25 +660,14 @@ function common_exit_handler() {
   set +ex
   echo "Exit handler invoked"
 
-  # Restart YARN services if they are running already
-  for svc in resourcemanager nodemanager; do
-    if [[ "$(systemctl show hadoop-yarn-${svc}.service -p SubState --value)" == 'running' ]]; then
-      systemctl  stop "hadoop-yarn-${svc}.service"
-      systemctl start "hadoop-yarn-${svc}.service"
-    fi
-  done
-
   # If system memory was sufficient to mount memory-backed filesystems
-  if [[ "${tmpdir}" == "/mnt/shm" ]] ; then
+  if is_ramdisk ; then
     # Clean up shared memory mounts
     for shmdir in /var/cache/apt/archives /var/cache/dnf /mnt/shm /tmp ; do
       if ( grep -q "^tmpfs ${shmdir}" /proc/mounts && ! grep -q "^tmpfs ${shmdir}" /etc/fstab ) ; then
         umount -f ${shmdir}
       fi
     done
-
-    # restart services stopped during preparation stage
-    # systemctl list-units | perl -n -e 'qx(systemctl start $1) if /^.*? ((hadoop|knox|hive|mapred|yarn|hdfs)\S*).service/'
   fi
 
   if is_debuntu ; then
