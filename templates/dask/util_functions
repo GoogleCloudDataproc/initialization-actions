@@ -423,15 +423,16 @@ function install_dask_rapids() {
   local dask_version="2024.7"
   local dask_spec="dask>=${dask_version}"
 
-  if is_cuda12 ; then
-    local python_spec="python>=3.11"
-    local cuda_spec="cuda-version>=12,<13"
-  elif is_cuda11 ; then
-    local python_spec="python>=3.9"
-    local cuda_spec="cuda-version>=11,<12.0a0"
+  local python_spec="python>=3.11"
+  local cuda_spec="cuda-version>=12,<13"
+  local cudart_spec="cuda-cudart"
+  if is_cuda11 ; then
+    python_spec="python>=3.9"
+    cuda_spec="cuda-version>=11,<12.0a0"
+    cudart_spec="cudatoolkit"
   fi
 
-  rapids_spec="rapids>=${RAPIDS_VERSION}"
+  local rapids_spec="rapids>=${RAPIDS_VERSION}"
   CONDA_PACKAGES=()
   local cache_key_name="dask-rapids-${RAPIDS_VERSION}"
   if [[ "${DASK_RUNTIME}" == 'yarn' ]]; then
@@ -443,7 +444,7 @@ function install_dask_rapids() {
     # https://github.com/dask/dask-yarn/issues/155
 
     dask_spec="dask<2022.2"
-    python_spec="python>=3.7,<3.8.0a0"
+    python_spec="python>=3.9"
     rapids_spec="rapids<=${rapids_version}"
     if is_ubuntu18 ; then
       # the libuuid.so.1 distributed with fiona 1.8.22 dumps core when calling uuid_generate_time_generic
@@ -454,6 +455,7 @@ function install_dask_rapids() {
 
   CONDA_PACKAGES+=(
     "${cuda_spec}"
+    "${cudart_spec}"
     "${rapids_spec}"
     "${dask_spec}"
     "dask-bigquery"

@@ -1,17 +1,3 @@
-function configure_yarn_resources() {
-  if [[ ! -d "${HADOOP_CONF_DIR}" ]] ; then return 0 ; fi # pre-init scripts
-  if [[ ! -f "${HADOOP_CONF_DIR}/resource-types.xml" ]]; then
-    printf '<?xml version="1.0" ?>\n<configuration/>' >"${HADOOP_CONF_DIR}/resource-types.xml"
-  fi
-  set_hadoop_property 'resource-types.xml' 'yarn.resource-types' 'yarn.io/gpu'
-
-  set_hadoop_property 'capacity-scheduler.xml' \
-    'yarn.scheduler.capacity.resource-calculator' \
-    'org.apache.hadoop.yarn.util.resource.DominantResourceCalculator'
-
-  set_hadoop_property 'yarn-site.xml' 'yarn.resource-types' 'yarn.io/gpu'
-}
-
 # This configuration should be applied only if GPU is attached to the node
 function configure_yarn_nodemanager() {
   set_hadoop_property 'yarn-site.xml' \
@@ -35,25 +21,6 @@ function configure_yarn_nodemanager() {
   if [[ "${#yarn_local_dirs[@]}" -ne "0" && "${yarn_local_dirs[@]}" != "None" ]]; then
     chown yarn:yarn -R "${yarn_local_dirs[@]/,/}"
   fi
-}
-
-function setup_gpu_yarn() {
-  # This configuration should be run on all nodes
-  # regardless if they have attached GPUs
-  configure_yarn_resources
-
-  # When there is no GPU, but the installer is executing on a master node:
-  if [[ "${gpu_count}" == "0" ]] ; then
-    if [[ "${ROLE}" == "Master" ]]; then
-      configure_yarn_nodemanager
-    fi
-    return 0
-  fi
-
-  install_nvidia_container_toolkit
-  configure_yarn_nodemanager_gpu
-  configure_gpu_script
-  configure_gpu_isolation
 }
 
 function yarn_exit_handler() {

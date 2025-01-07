@@ -10,14 +10,18 @@ set -euxo pipefail
 
 [% INSERT common/util_functions %]
 
-[% INSERT common/yarn_functions %]
+[% INSERT common/install_functions %]
 
 [% INSERT gpu/util_functions %]
 
+[% INSERT gpu/install_functions %]
+
+[% INCLUDE gpu/yarn_functions %]
+
+[% INSERT gpu/spark_functions %]
+
 function main() {
-  install_nvidia_gpu_driver
-  install_cuda
-  load_kernel_module
+  install_gpu_driver_and_cuda
 
   #Install GPU metrics collection in Stackdriver if needed
   if [[ "${INSTALL_GPU_AGENT}" == "true" ]]; then
@@ -54,6 +58,7 @@ function main() {
 }
 
 function exit_handler() {
+  gpu_install_exit_handler
   gpu_exit_handler
   pip_exit_handler
   yarn_exit_handler
@@ -65,6 +70,7 @@ function prepare_to_install(){
   prepare_common_env
   prepare_pip_env
   prepare_gpu_env
+  prepare_gpu_install_env
   trap exit_handler EXIT
 }
 
