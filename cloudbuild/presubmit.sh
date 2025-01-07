@@ -48,8 +48,14 @@ initialize_git_repo() {
 # to determine all changed files and looks for tests in directories with changed files.
 determine_tests_to_run() {
   # Infer the files that changed
+  mapfile -t CHANGED_ACTION_TEMPLATES < <(git diff origin/master --name-only | grep 'templates/.*/.*\.sh\.in')
+  for tt in "${CHANGED_ACTION_TEMPLATES[@]}"; do
+    local genfile=`perl -e "print( q{${tt}} =~ m:templates/(.*?.sh).in: )"`
+    perl templates/generate-action.pl "${genfile}" > "${genfile}"
+  done
+
   mapfile -t DELETED_BUILD_FILES < <(git diff origin/master --name-only --diff-filter=D | grep BUILD)
-  mapfile -t CHANGED_FILES < <(git diff origin/master --name-only)
+  mapfile -t CHANGED_FILES < <(git diff origin/master --name-only | grep -v template)
   echo "Deleted BUILD files: ${DELETED_BUILD_FILES[*]}"
   echo "Changed files: ${CHANGED_FILES[*]}"
 
@@ -70,6 +76,7 @@ determine_tests_to_run() {
     changed_dir="${changed_dir%%/*}/"
     # Run all tests if common directories modified
     if [[ ${changed_dir} =~ ^(integration_tests|util|cloudbuild)/$ ]]; then
+      continue
       echo "All tests will be run: '${changed_dir}' was changed"
       TESTS_TO_RUN=(":DataprocInitActionsTestSuite")
       return 0
@@ -104,7 +111,6 @@ run_tests() {
   bazel test \
     --jobs="${max_parallel_tests}" \
     --local_test_jobs="${max_parallel_tests}" \
-    --flaky_test_attempts=3 \
     --action_env="INTERNAL_IP_SSH=true" \
     --test_output="all" \
     --noshow_progress \

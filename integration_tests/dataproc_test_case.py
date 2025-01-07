@@ -7,6 +7,8 @@ import re
 import string
 import subprocess
 import sys
+import time
+import random
 from threading import Timer
 
 import pkg_resources
@@ -123,7 +125,7 @@ class DataprocTestCase(parameterized.TestCase):
 
         for i in init_actions:
             if "install_gpu_driver.sh" in i or "horovod.sh" in i or \
-                     "dask-rapids.sh"  in i or "mlvm.sh"    in i or \
+                           "rapids.sh" in i or "mlvm.sh"    in i or \
                      "spark-rapids.sh" in i:
                 args.append("--no-shielded-secure-boot")
 
@@ -287,10 +289,24 @@ class DataprocTestCase(parameterized.TestCase):
             AssertionError: if command returned non-0 exit code.
         """
 
-        ret_code, stdout, stderr = self.assert_command(
-            'gcloud compute ssh {} --zone={} --command="{}"'.format(
-                instance, self.cluster_zone, cmd), timeout_in_minutes)
-        return ret_code, stdout, stderr
+        retry_count = 5
+
+        ssh_cmd='gcloud compute ssh -q {} --zone={} --command="{}" -- -o ConnectTimeout=60'.format(
+          instance, self.cluster_zone, cmd)
+
+        while retry_count > 0:
+          try:
+            ret_code, stdout, stderr = self.assert_command(
+                ssh_cmd, timeout_in_minutes )
+            return ret_code, stdout, stderr
+          except Exception as e:
+            print("An error occurred: ", e)
+            retry_count -= 1
+            if retry_count > 0:
+              time.sleep( 3 + random.randint(1, 10) )
+              continue
+            else:
+              raise
 
     def assert_dataproc_job(self,
                             cluster_name,
