@@ -69,9 +69,6 @@ function get_metadata_attribute() (
   get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
 )
 
-function is_cuda12() { [[ "${CUDA_VERSION%%.*}" == "12" ]] ; }
-function is_cuda11() { [[ "${CUDA_VERSION%%.*}" == "11" ]] ; }
-
 function execute_with_retries() {
   local -r cmd="$*"
   for i in {0..9} ; do
@@ -82,6 +79,15 @@ function execute_with_retries() {
   echo "Cmd '${cmd}' failed."
   return 1
 }
+
+function restart_knox() {
+  systemctl stop knox
+  rm -rf "${KNOX_HOME}/data/deployments/*"
+  systemctl start knox
+}
+
+function is_cuda12() { [[ "${CUDA_VERSION%%.*}" == "12" ]] ; }
+function is_cuda11() { [[ "${CUDA_VERSION%%.*}" == "11" ]] ; }
 
 function configure_dask_yarn() {
   readonly DASK_YARN_CONFIG_DIR=/etc/dask/
@@ -199,12 +205,6 @@ EOF
 function install_systemd_dask_service() {
   install_systemd_dask_scheduler
   install_systemd_dask_worker
-}
-
-function restart_knox() {
-  systemctl stop knox
-  rm -rf "${KNOX_HOME}/data/deployments/*"
-  systemctl start knox
 }
 
 function configure_knox_for_dask() {
