@@ -10,9 +10,25 @@ set -euxo pipefail
 
 [% INSERT common/util_functions %]
 
+[% INSERT common/yarn_functions %]
+
 [% INSERT gpu/util_functions %]
 
 function main() {
+  install_nvidia_gpu_driver
+  install_cuda
+  load_kernel_module
+
+  #Install GPU metrics collection in Stackdriver if needed
+  if [[ "${INSTALL_GPU_AGENT}" == "true" ]]; then
+    install_gpu_agent
+#    install_gpu_monitoring_agent
+    echo 'GPU metrics agent successfully deployed.'
+  else
+    echo 'GPU metrics agent has not been installed.'
+  fi
+  configure_gpu_exclusive_mode
+
   setup_gpu_yarn
 
   echo "yarn setup complete"
@@ -40,6 +56,7 @@ function main() {
 function exit_handler() {
   gpu_exit_handler
   pip_exit_handler
+  yarn_exit_handler
   common_exit_handler
   return 0
 }

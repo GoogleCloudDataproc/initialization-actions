@@ -580,8 +580,8 @@ function install_dependencies() {
 function prepare_pip_env() {
   # Clear pip cache
   # TODO: make this conditional on which OSs have pip without cache purge
-  test -d "${tmpdir}/python-venv" || python3 -m venv "${tmpdir}/python-venv"
-  source "${tmpdir}/python-venv/bin/activate"
+  test -d "${workdir}/python-venv" || python3 -m venv "${workdir}/python-venv"
+  source "${workdir}/python-venv/bin/activate"
 
   pip cache purge || echo "unable to purge pip cache"
   if is_ramdisk ; then
