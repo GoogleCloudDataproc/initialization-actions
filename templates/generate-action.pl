@@ -10,7 +10,19 @@ use strict;
 my $action = $ARGV[0];
 my $v = { template_path => "${action}.in" };
 
-sub usage{ die "Usage: $0 <action>" }
+sub usage{
+  # TODO: use File::Find to list the available actions for the user
+  my $message = <<EOF;
+This script evaluates a template to generate an initialization action.
+The output is printed to STDOUT.
+
+Action templates reside under templates/$action and end in .sh.in
+
+The <action> argument is the destination action name, not the source.
+EOF
+  print STDERR $message;
+  die "Usage:$/$0 <action>"
+}
 
 usage unless( $action && -f "$ENV{PWD}/templates/$v->{template_path}" );
 

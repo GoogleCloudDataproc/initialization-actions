@@ -798,7 +798,7 @@ function download_gpu_monitoring_agent(){
 
 function install_gpu_monitoring_agent_dependency(){
   cd /opt/google/compute-gpu-monitoring/linux
-  /usr/bin/python3 -m venv venv
+  /opt/conda/miniconda3/bin/python3 -m venv venv
   (
     source venv/bin/activate
     pip install wheel
@@ -829,7 +829,7 @@ function install_gpu_agent() {
     | sed -e 's/-u --format=/--format=/' \
     | dd status=none of="${install_dir}/report_gpu_metrics.py"
   local venv="${install_dir}/venv"
-  /usr/bin/python3 -m venv "${venv}"
+  /opt/conda/miniconda3/bin/python3 -m venv "${venv}"
 (
   source "${venv}/bin/activate"
   python3 -m pip install --upgrade pip
