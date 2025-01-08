@@ -1123,7 +1123,7 @@ function install_dask() {
       # the libuuid.so.1 distributed with fiona 1.8.22 dumps core when calling uuid_generate_time_generic
       CONDA_PACKAGES+=("fiona<1.8.22")
     fi
-    CONDA_PACKAGES+=('dask-yarn=${dask_yarn_version}' "distributed<2022.2")
+    CONDA_PACKAGES+=("dask-yarn=${dask_yarn_version}" "distributed<2022.2")
   fi
 
   CONDA_PACKAGES+=(
@@ -1235,7 +1235,7 @@ function install_conda_packages() {
       is_installed="1"
       pushd "${DASK_CONDA_ENV}"
       time ( set -e
-        tar czf "${local_tarball}" . && tar tzf "${local_tarball}"
+        tar czf "${local_tarball}" . && tar tzf "${local_tarball}" > /dev/null
         gcloud storage cp "${local_tarball}" "${gcs_tarball}"
         rm "${local_tarball}"
       )
