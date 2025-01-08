@@ -8,7 +8,10 @@ use Template;
 use strict;
 
 my $action = $ARGV[0];
-my $v = { template_path => "${action}.in" };
+my $v = {
+  template_path => "${action}",
+  IA_VERSION    => "${IA_VERSION}",
+};
 
 sub usage{
   # TODO: use File::Find to list the available actions for the user
@@ -24,7 +27,7 @@ EOF
   die "Usage:$/$0 <action>"
 }
 
-usage unless( $action && -f "$ENV{PWD}/templates/$v->{template_path}" );
+usage unless( $action && -f "$ENV{PWD}/templates/$v->{template_path}.in" );
 
 my $tt = Template->new( {
   INCLUDE_PATH => "$ENV{PWD}/templates",
@@ -33,4 +36,4 @@ my $tt = Template->new( {
 }) || die "$Template::ERROR$/";
 
 
-$tt->process($v->{template_path}) or die( $tt->error(), "\n" );
+$tt->process("$v->{template_path}.in") or die( $tt->error(), "\n" );
