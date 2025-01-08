@@ -6,17 +6,12 @@ py_test(
     srcs = ["test_ganglia.py"],
     data = [
         "ganglia.sh",
+	"verify_ganglia_running.pl",
     ],
     local = True,
     shard_count = 4,
     deps = [
-        ":verify_ganglia_running",
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",
     ],
-)
-
-py_library(
-    name = "verify_ganglia_running",
-    srcs = ["verify_ganglia_running.py"],
 )
