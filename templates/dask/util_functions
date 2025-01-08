@@ -510,9 +510,9 @@ function install_conda_packages() {
     if [[ "$retval" == "0" ]] ; then
       is_installed="1"
       pushd "${DASK_CONDA_ENV}"
-      time (
-        tar czf "${local_tarball}" .
-        gcloud storage cp "${local_tarball}" "${gcs_tarball}"
+      time ( set -e
+        execute_with_retries "tar czf ${local_tarball} . && tar tzf ${local_tarball}"
+        execute_with_retries gcloud storage cp "${local_tarball}" "${gcs_tarball}"
         rm "${local_tarball}"
       )
       popd
