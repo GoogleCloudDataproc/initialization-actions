@@ -1,5 +1,7 @@
 #!/bin/bash
 #
+# Copyright 2015 Google LLC and contributors
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,11 +15,14 @@
 # limitations under the License.
 
 #
+#
+# Google Cloud Dataproc Initialization Actions v0.0.1
+#
 # This initialization action is generated from
 # initialization-actions/templates/dask/dask.sh.in
 #
-# Modifications made directly to the generated file will be lost when
-# the template is re-evaluated
+# Modifications made directly to generated files will be lost when the
+# templates are next evaluated.
 
 #
 # This initialization action script will install Dask and other relevant
@@ -191,45 +196,6 @@ function set_hadoop_property() {
     --clobber
 }
 
-function configure_yarn_resources() {
-  if [[ ! -d "${HADOOP_CONF_DIR}" ]] ; then return 0 ; fi # pre-init scripts
-  if [[ ! -f "${HADOOP_CONF_DIR}/resource-types.xml" ]]; then
-    printf '<?xml version="1.0" ?>\n<configuration/>' >"${HADOOP_CONF_DIR}/resource-types.xml"
-  fi
-  set_hadoop_property 'resource-types.xml' 'yarn.resource-types' 'yarn.io/gpu'
-
-  set_hadoop_property 'capacity-scheduler.xml' \
-    'yarn.scheduler.capacity.resource-calculator' \
-    'org.apache.hadoop.yarn.util.resource.DominantResourceCalculator'
-
-  set_hadoop_property 'yarn-site.xml' 'yarn.resource-types' 'yarn.io/gpu'
-}
-
-# This configuration should be applied only if GPU is attached to the node
-function configure_yarn_nodemanager() {
-  set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.linux-container-executor.cgroups.mount' 'true'
-  set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.linux-container-executor.cgroups.mount-path' '/sys/fs/cgroup'
-  set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.linux-container-executor.cgroups.hierarchy' 'yarn'
-  set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.container-executor.class' \
-    'org.apache.hadoop.yarn.server.nodemanager.LinuxContainerExecutor'
-  set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.linux-container-executor.group' 'yarn'
-
-  # Fix local dirs access permissions
-  local yarn_local_dirs=()
-
-  readarray -d ',' yarn_local_dirs < <("${bdcfg}" get_property_value \
-    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
-    --name "yarn.nodemanager.local-dirs" 2>/dev/null | tr -d '\n')
-
-  if [[ "${#yarn_local_dirs[@]}" -ne "0" && "${yarn_local_dirs[@]}" != "None" ]]; then
-    chown yarn:yarn -R "${yarn_local_dirs[@]/,/}"
-  fi
-}
-
 function clean_up_sources_lists() {
   #
   # bigtop (primary)
@@ -365,7 +331,7 @@ function is_ramdisk() {
 function mount_ramdisk(){
   local free_mem
   free_mem="$(awk '/^MemFree/ {print $2}' /proc/meminfo)"
-  if [[ ${free_mem} -lt 10500000 ]]; then return 0 ; fi
+  if [[ ${free_mem} -lt 20500000 ]]; then return 0 ; fi
 
   # Write to a ramdisk instead of churning the persistent disk
 
@@ -416,60 +382,6 @@ function check_os() {
       else echo "Unknown dataproc image version" ; exit 1 ; fi
     fi
   fi
-}
-
-#
-# Generate repo file under /etc/apt/sources.list.d/
-#
-function apt_add_repo() {
-  local -r repo_name="$1"
-  local -r repo_data="$3" # "http(s)://host/path/uri argument0 .. argumentN"
-  local -r include_src="${4:-yes}"
-  local -r kr_path="${5:-/usr/share/keyrings/${repo_name}.gpg}"
-  local -r repo_path="${6:-/etc/apt/sources.list.d/${repo_name}.list}"
-
-  echo "deb [signed-by=${kr_path}] ${repo_data}" > "${repo_path}"
-  if [[ "${include_src}" == "yes" ]] ; then
-    echo "deb-src [signed-by=${kr_path}] ${repo_data}" >> "${repo_path}"
-  fi
-
-  apt-get update -qq
-}
-
-#
-# Generate repo file under /etc/yum.repos.d/
-#
-function dnf_add_repo() {
-  local -r repo_name="$1"
-  local -r repo_url="$3" # "http(s)://host/path/filename.repo"
-  local -r kr_path="${5:-/etc/pki/rpm-gpg/${repo_name}.gpg}"
-  local -r repo_path="${6:-/etc/yum.repos.d/${repo_name}.repo}"
-
-  curl -s -L "${repo_url}" \
-    | dd of="${repo_path}" status=progress
-#    | perl -p -e "s{^gpgkey=.*$}{gpgkey=file://${kr_path}}" \
-}
-
-#
-# Keyrings default to
-# /usr/share/keyrings/${repo_name}.gpg (debian/ubuntu) or
-# /etc/pki/rpm-gpg/${repo_name}.gpg    (rocky/RHEL)
-#
-function os_add_repo() {
-  local -r repo_name="$1"
-  local -r signing_key_url="$2"
-  local -r repo_data="$3" # "http(s)://host/path/uri argument0 .. argumentN"
-  local kr_path
-  if is_debuntu ; then kr_path="${5:-/usr/share/keyrings/${repo_name}.gpg}"
-                  else kr_path="${5:-/etc/pki/rpm-gpg/${repo_name}.gpg}" ; fi
-
-  mkdir -p "$(dirname "${kr_path}")"
-
-  curl -fsS --retry-connrefused --retry 10 --retry-max-time 30 "${signing_key_url}" \
-    | gpg --import --no-default-keyring --keyring "${kr_path}"
-
-  if is_debuntu ; then apt_add_repo "${repo_name}" "${signing_key_url}" "${repo_data}" "${4:-yes}" "${kr_path}" "${6:-}"
-                  else dnf_add_repo "${repo_name}" "${signing_key_url}" "${repo_data}" "${4:-yes}" "${kr_path}" "${6:-}" ; fi
 }
 
 function configure_dkms_certs() {
@@ -582,19 +494,35 @@ function restart_knox() {
   systemctl start knox
 }
 
+function is_complete() {
+  phase="$1"
+  test -f "${workdir}/complete/${phase}"
+}
+
+function mark_complete() {
+  phase="$1"
+  touch "${workdir}/complete/${phase}"
+}
+
+function mark_incomplete() {
+  phase="$1"
+  rm -f "${workdir}/complete/${phase}"
+}
+
 function install_dependencies() {
-  test -f "${workdir}/complete/install-dependencies" && return 0
+  is_complete install-dependencies && return 0
+
   pkg_list="screen"
   if is_debuntu ; then execute_with_retries apt-get -y -q install ${pkg_list}
   elif is_rocky ; then execute_with_retries dnf     -y -q install ${pkg_list} ; fi
-  touch "${workdir}/complete/install-dependencies"
+  mark_complete install-dependencies
 }
 
 function prepare_pip_env() {
   # Clear pip cache
   # TODO: make this conditional on which OSs have pip without cache purge
-  test -d "${tmpdir}/python-venv" || python3 -m venv "${tmpdir}/python-venv"
-  source "${tmpdir}/python-venv/bin/activate"
+  test -d "${workdir}/python-venv" || python3 -m venv "${workdir}/python-venv"
+  source "${workdir}/python-venv/bin/activate"
 
   pip cache purge || echo "unable to purge pip cache"
   if is_ramdisk ; then
@@ -604,6 +532,16 @@ function prepare_pip_env() {
   fi
 }
 
+function prepare_conda_env() {
+  CONDA=/opt/conda/miniconda3/bin/conda
+  touch ~/.condarc
+  cp ~/.condarc ~/.condarc.default
+  if is_ramdisk ; then
+    # Download conda packages to tmpfs
+    mkdir -p "${tmpdir}/conda_cache"
+    ${CONDA} config --add pkgs_dirs "${tmpdir}/conda_cache"
+  fi
+}
 
 function prepare_common_env() {
   define_os_comparison_functions
@@ -649,7 +587,7 @@ function prepare_common_env() {
 
   readonly install_log="${tmpdir}/install.log"
 
-  if test -f "${workdir}/complete/prepare.common" ; then return ; fi
+  is_complete prepare.common && return
 
   repair_old_backports
 
@@ -667,23 +605,24 @@ function prepare_common_env() {
     dnf clean all
   fi
 
-  # zero free disk space
-  if [[ -n "$(get_metadata_attribute creating-image)" ]]; then
+  # When creating a disk image:
+  if [[ -n "$(get_metadata_attribute creating-image "")" ]]; then
+    df / > "/run/disk-usage.log"
 
- ( set +e
+  # zero free disk space
+  ( set +e
     time dd if=/dev/zero of=/zero status=none ; sync ; sleep 3s ; rm -f /zero
   )
 
     install_dependencies
 
     # Monitor disk usage in a screen session
-    df / > "/run/disk-usage.log"
     touch "/run/keep-running-df"
     screen -d -m -LUS keep-running-df \
       bash -c "while [[ -f /run/keep-running-df ]] ; do df / | tee -a /run/disk-usage.log ; sleep 5s ; done"
  fi
 
-  touch "${workdir}/complete/prepare.common"
+  mark_complete prepare.common
 }
 
 function pip_exit_handler() {
@@ -693,29 +632,22 @@ function pip_exit_handler() {
   fi
 }
 
+function conda_exit_handler() {
+  mv ~/.condarc.default ~/.condarc
+}
+
 function common_exit_handler() {
   set +ex
   echo "Exit handler invoked"
 
-  # Restart YARN services if they are running already
-  for svc in resourcemanager nodemanager; do
-    if [[ "$(systemctl show hadoop-yarn-${svc}.service -p SubState --value)" == 'running' ]]; then
-      systemctl  stop "hadoop-yarn-${svc}.service"
-      systemctl start "hadoop-yarn-${svc}.service"
-    fi
-  done
-
   # If system memory was sufficient to mount memory-backed filesystems
-  if [[ "${tmpdir}" == "/mnt/shm" ]] ; then
+  if is_ramdisk ; then
     # Clean up shared memory mounts
     for shmdir in /var/cache/apt/archives /var/cache/dnf /mnt/shm /tmp ; do
       if ( grep -q "^tmpfs ${shmdir}" /proc/mounts && ! grep -q "^tmpfs ${shmdir}" /etc/fstab ) ; then
         umount -f ${shmdir}
       fi
     done
-
-    # restart services stopped during preparation stage
-    # systemctl list-units | perl -n -e 'qx(systemctl start $1) if /^.*? ((hadoop|knox|hive|mapred|yarn|hdfs)\S*).service/'
   fi
 
   if is_debuntu ; then
@@ -865,9 +797,10 @@ EOF
   else
     # Enable service on single-node cluster (no workers)
     local worker_count="$(get_metadata_attribute dataproc-worker-count)"
-    if [[ "${worker_count}" == "0" ]] &&
-       [[ "$(get_metadata_attribute dask-cuda-worker-on-master 'true')" == "true" ]] &&
-       [[ "$(get_metadata_attribute dask-worker-on-master 'true')" == "true" ]] ; then
+    if ( [[ "${worker_count}" == "0" ]] ||
+         ( [[ "$(get_metadata_attribute dask-cuda-worker-on-master 'true')" == "true" ]] &&
+           [[ "$(get_metadata_attribute dask-worker-on-master 'true')"      == "true" ]] )
+       ) ; then
       enable_systemd_dask_worker_service="1"
     fi
   fi
@@ -940,7 +873,8 @@ function start_systemd_dask_service() {
     # Pause while scheduler comes online
     retries=30
     while ! nc -vz "${MASTER}" 8786 ; do
-      sleep 3s
+      date
+      sleep 7s
       ((retries--))
       if [[ "${retries}" == "0" ]] ; then echo "dask scheduler unreachable" ; exit 1 ; fi
     done
@@ -1167,11 +1101,17 @@ EOF
 }
 
 function install_dask() {
+  is_complete install.dask && return
+
   local python_spec="python>=3.11"
-  local dask_spec="dask>=2024.7"
+  local dask_version="2024.12.1"
+  local dask_spec="dask>=${dask_version}"
+  local cache_key_name="dask-${dask_version}"
 
   CONDA_PACKAGES=()
   if [[ "${DASK_RUNTIME}" == 'yarn' ]]; then
+    dask_yarn_version="0.9"
+    cache_key_name="dask-yarn-${dask_yarn_version}"
     # Pin `distributed` and `dask` package versions to old release
     # because `dask-yarn` 0.9 uses skein in a way which
     # is not compatible with `distributed` package 2022.2 and newer:
@@ -1183,7 +1123,7 @@ function install_dask() {
       # the libuuid.so.1 distributed with fiona 1.8.22 dumps core when calling uuid_generate_time_generic
       CONDA_PACKAGES+=("fiona<1.8.22")
     fi
-    CONDA_PACKAGES+=('dask-yarn=0.9' "distributed<2022.2")
+    CONDA_PACKAGES+=('dask-yarn=${dask_yarn_version}' "distributed<2022.2")
   fi
 
   CONDA_PACKAGES+=(
@@ -1193,57 +1133,43 @@ function install_dask() {
     "dask-sql"
   )
 
-  # Install dask
-  mamba="/opt/conda/miniconda3/bin/mamba"
-  conda="/opt/conda/miniconda3/bin/conda"
+  unset CONDA_CHANNEL_ARGS
+  local cache_key="${cache_key_name}_${DATAPROC_IMAGE_VERSION}-${_shortname}"
+  install_conda_packages "${cache_key}"
 
-  ( set +e
-  local is_installed=0
-  for installer in "${mamba}" "${conda}" ; do
-    test -d "${DASK_CONDA_ENV}" || \
-      time "${installer}" "create" -m -n "${conda_env}" -y --no-channel-priority \
-      -c 'conda-forge' -c 'nvidia'  \
-      ${CONDA_PACKAGES[*]} \
-      "${python_spec}" \
-      > "${install_log}" 2>&1 && retval=$? || { retval=$? ; cat "${install_log}" ; }
-    sync
-    if [[ "$retval" == "0" ]] ; then
-      is_installed="1"
-      break
-    fi
-    "${conda}" config --set channel_priority flexible
-  done
-  if [[ "${is_installed}" == "0" ]]; then
-    echo "failed to install dask"
-    return 1
-  fi
-  )
+  mark_complete install.dask
 }
 
 function install_dask_rapids() {
-  if is_cuda12 ; then
-    local python_spec="python>=3.11"
-    local cuda_spec="cuda-version>=12,<13"
-    local dask_spec="dask>=2024.7"
-    local numba_spec="numba"
-  elif is_cuda11 ; then
-    local python_spec="python>=3.9"
-    local cuda_spec="cuda-version>=11,<12.0a0"
-    local dask_spec="dask"
-    local numba_spec="numba"
+  if ( is_complete install.dask-rapids && test -d "${DASK_CONDA_ENV}" ) ; then return ; fi
+
+  local numba_spec="numba"
+  local dask_version="2024.7"
+  local dask_spec="dask>=${dask_version}"
+
+  local python_spec="python>=3.11"
+  local cuda_spec="cuda-version>=12,<13"
+  local cudart_spec="cuda-cudart"
+  if is_cuda11 ; then
+    python_spec="python>=3.9"
+    cuda_spec="cuda-version>=11,<12.0a0"
+    cudart_spec="cudatoolkit"
   fi
 
-  rapids_spec="rapids>=${RAPIDS_VERSION}"
+  local rapids_spec="rapids>=${RAPIDS_VERSION}"
   CONDA_PACKAGES=()
+  local cache_key_name="dask-rapids-${RAPIDS_VERSION}"
   if [[ "${DASK_RUNTIME}" == 'yarn' ]]; then
+    local rapids_version="24.05"
+    cache_key_name="dask-rapids-yarn-${rapids_version}"
     # Pin `distributed` and `dask` package versions to old release
     # because `dask-yarn` 0.9 uses skein in a way which
     # is not compatible with `distributed` package 2022.2 and newer:
     # https://github.com/dask/dask-yarn/issues/155
 
     dask_spec="dask<2022.2"
-    python_spec="python>=3.7,<3.8.0a0"
-    rapids_spec="rapids<=24.05"
+    python_spec="python>=3.9"
+    rapids_spec="rapids<=${rapids_version}"
     if is_ubuntu18 ; then
       # the libuuid.so.1 distributed with fiona 1.8.22 dumps core when calling uuid_generate_time_generic
       CONDA_PACKAGES+=("fiona<1.8.22")
@@ -1253,6 +1179,7 @@ function install_dask_rapids() {
 
   CONDA_PACKAGES+=(
     "${cuda_spec}"
+    "${cudart_spec}"
     "${rapids_spec}"
     "${dask_spec}"
     "dask-bigquery"
@@ -1261,6 +1188,34 @@ function install_dask_rapids() {
     "cudf"
     "${numba_spec}"
   )
+
+  CONDA_CHANNEL_ARGS="-c conda-forge -c nvidia -c rapidsai"
+
+  local cache_key="${cache_key_name}_${DATAPROC_IMAGE_VERSION}-${_shortname}"
+  install_conda_packages "${cache_key}"
+
+  mark_complete install.dask-rapids
+}
+
+# The bash array CONDA_PACKAGES must contain a set of package
+# specifications before calling this function
+
+# The bash string CONDA_CHANNEL_ARGS may contain arguments to specify
+# conda channels. Default is "-c 'conda-forge'"
+
+function install_conda_packages() {
+  local cache_key="${1}"
+
+  local build_tarball="${cache_key}.tar.gz"
+  local gcs_tarball="${pkg_bucket}/conda/${cache_key%%_*}/${build_tarball}"
+  local local_tarball="${tmpdir}/${build_tarball}"
+
+  if gsutil ls "${gcs_tarball}" 2>&1 | grep -q "${gcs_tarball}" ; then
+    echo "cache hit"
+    mkdir -p "${DASK_CONDA_ENV}"
+    time ( gcloud storage cat "${gcs_tarball}" | tar -C "${DASK_CONDA_ENV}" -xz )
+    return 0
+  fi
 
   # Install cuda, rapids, dask
   mamba="/opt/conda/miniconda3/bin/mamba"
@@ -1271,17 +1226,25 @@ function install_dask_rapids() {
   for installer in "${mamba}" "${conda}" ; do
     test -d "${DASK_CONDA_ENV}" || \
       time "${installer}" "create" -m -n "${conda_env}" -y --no-channel-priority \
-      -c 'conda-forge' -c 'nvidia' -c 'rapidsai'  \
+      ${CONDA_CHANNEL_ARGS:- -c 'conda-forge'}  \
       ${CONDA_PACKAGES[*]} \
       "${python_spec}" \
       > "${install_log}" 2>&1 && retval=$? || { retval=$? ; cat "${install_log}" ; }
     sync
     if [[ "$retval" == "0" ]] ; then
       is_installed="1"
+      pushd "${DASK_CONDA_ENV}"
+      time ( set -e
+        tar czf "${local_tarball}" . && tar tzf "${local_tarball}"
+        gcloud storage cp "${local_tarball}" "${gcs_tarball}"
+        rm "${local_tarball}"
+      )
+      popd
       break
     fi
     "${conda}" config --set channel_priority flexible
   done
+
   if [[ "${is_installed}" == "0" ]]; then
     echo "failed to install dask"
     return 1
@@ -1304,20 +1267,15 @@ function prepare_dask_env() {
 
 function prepare_dask_rapids_env(){
   prepare_dask_env
-  # RAPIDS config
-  RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'DASK')
-  readonly RAPIDS_RUNTIME
+
+  # Default rapids runtime
+  readonly DEFAULT_RAPIDS_RUNTIME='DASK'
 
   local DEFAULT_DASK_RAPIDS_VERSION="24.08"
   if [[ "${DATAPROC_IMAGE_VERSION}" == "2.0" ]] ; then
     DEFAULT_DASK_RAPIDS_VERSION="23.08" # Final release to support spark 3.1.3
   fi
   readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' ${DEFAULT_DASK_RAPIDS_VERSION})
-}
-
-
-function dask_exit_handler() {
-  echo "no exit handler for dask"
 }
 
 
@@ -1337,7 +1295,7 @@ function main() {
 
     configure_knox_for_dask
 
-    local DASK_CLOUD_LOGGING="$(get_metadata_attribute dask-cloud-logging || echo 'false')"
+    local DASK_CLOUD_LOGGING="$(get_metadata_attribute dask-cloud-logging 'false')"
     if [[ "${DASK_CLOUD_LOGGING}" == "true" ]]; then
       configure_fluentd_for_dask
     fi
@@ -1357,7 +1315,7 @@ function exit_handler() {
 
 function prepare_to_install(){
   prepare_common_env
-  prepare_pip_env
+  prepare_conda_env
   conda_env="$(get_metadata_attribute conda-env 'dask')"
   readonly conda_env
   prepare_dask_env
