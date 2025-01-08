@@ -297,7 +297,7 @@ function is_ramdisk() {
 function mount_ramdisk(){
   local free_mem
   free_mem="$(awk '/^MemFree/ {print $2}' /proc/meminfo)"
-  if [[ ${free_mem} -lt 30000000 ]]; then return 0 ; fi
+  if [[ ${free_mem} -lt 20500000 ]]; then return 0 ; fi
 
   # Write to a ramdisk instead of churning the persistent disk
 
