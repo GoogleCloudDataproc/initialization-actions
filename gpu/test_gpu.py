@@ -70,7 +70,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # ('2.1-rocky8 and 2.0-rocky8 tests are known to fail in SINGLE configuration with errors about nodes_include being empty')
-      unittest.expectedFailure(self)
       self.skipTest("known to fail")
 
     metadata = None
@@ -104,7 +103,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # ('2.1-rocky8 and 2.0-rocky8 tests are known to fail in SINGLE configuration with errors about nodes_include being empty')
-      unittest.expectedFailure(self)
       self.skipTest("known to fail")
 
     metadata = "install-gpu-agent=false"
@@ -136,7 +134,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     if configuration == 'KERBEROS' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # ('KERBEROS fails with image version <= 2.1')
-      unittest.expectedFailure(self)
       self.skipTest("known to fail")
 
     metadata = "install-gpu-agent=true"
@@ -187,7 +184,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # ('2.1-rocky8 and 2.0-rocky8 tests are known to fail in SINGLE configuration with errors about nodes_include being empty')
-      unittest.expectedFailure(self)
       self.skipTest("known to fail")
 
 
@@ -263,7 +259,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # ('2.1-rocky8 and 2.0-rocky8 tests are known to fail in SINGLE configuration with errors about nodes_include being empty')
-      unittest.expectedFailure(self)
       self.skipTest("known to fail")
 
     metadata = None
@@ -306,7 +301,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # ('2.1-rocky8 and 2.0-rocky8 tests are known to fail in SINGLE configuration with errors about nodes_include being empty')
-      unittest.expectedFailure(self)
       self.skipTest("known to fail")
 
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.0") \
