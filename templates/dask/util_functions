@@ -151,7 +151,7 @@ function start_systemd_dask_service() {
     retries=30
     while ! nc -vz "${MASTER}" 8786 ; do
       date
-      sleep 3s
+      sleep 7s
       ((retries--))
       if [[ "${retries}" == "0" ]] ; then echo "dask scheduler unreachable" ; exit 1 ; fi
     done
