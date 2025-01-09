@@ -6,11 +6,7 @@ py_test(
     name = "test_gpu",
     size = "enormous",
     srcs = ["test_gpu.py"],
-    data = [
-      "install_gpu_driver.sh",
-      "verify_pyspark.py",
-      "mig.sh"
-    ],
+    data = ["install_gpu_driver.sh", "mig.sh"],
     local = True,
     shard_count = 15,
     deps = [
