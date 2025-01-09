@@ -1,3 +1,10 @@
+function download_spark_jar() {
+  local -r url=$1
+  local -r jar_name=${url##*/}
+  curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    "${url}" -o "${SPARK_JARS_DIR}/${jar_name}"
+}
+
 function install_spark_rapids() {
   # Update SPARK RAPIDS config
   local DEFAULT_SPARK_RAPIDS_VERSION="24.08.1"

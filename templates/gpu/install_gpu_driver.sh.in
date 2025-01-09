@@ -58,6 +58,7 @@ function main() {
 }
 
 function exit_handler() {
+  set +e
   gpu_install_exit_handler
   gpu_exit_handler
   pip_exit_handler

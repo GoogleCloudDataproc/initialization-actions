@@ -685,9 +685,12 @@ function install_cuda_toolkit() {
 }
 
 function load_kernel_module() {
+  if [[ "${gpu_count}" == "0" ]] ; then return ; fi
   # for some use cases, the kernel module needs to be removed before first use of nvidia-smi
   for module in nvidia_uvm nvidia_drm nvidia_modeset nvidia ; do
-    rmmod ${module} > /dev/null 2>&1 || echo "unable to rmmod ${module}"
+    ( set +e
+      rmmod ${module} > /dev/null 2>&1 || echo "unable to rmmod ${module}"
+    )
   done
 
   depmod -a
@@ -700,6 +703,7 @@ function load_kernel_module() {
 
 function install_cuda(){
   is_complete cuda-repo && return
+  if [[ "${gpu_count}" == "0" ]] ; then return ; fi
 
   if ( ge_debian12 && is_src_os ) ; then
     echo "installed with the driver on ${_shortname}"
@@ -740,6 +744,7 @@ function install_nvidia_container_toolkit() {
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
   is_complete gpu-driver && return
+  if [[ "${gpu_count}" == "0" ]] ; then return ; fi
 
   if ( ge_debian12 && is_src_os ) ; then
     add_nonfree_components
@@ -778,6 +783,7 @@ function install_ops_agent(){
 
 # Collects 'gpu_utilization' and 'gpu_memory_utilization' metrics
 function install_gpu_monitoring_agent() {
+  if [[ "${gpu_count}" == "0" ]] ; then return ; fi
   download_gpu_monitoring_agent
   install_gpu_monitoring_agent_dependency
   start_gpu_monitoring_agent_service
@@ -861,6 +867,7 @@ EOF
 }
 
 function configure_gpu_exclusive_mode() {
+  if [[ "${gpu_count}" == "0" ]] ; then return ; fi
   # only run this function when spark < 3.0
   if version_ge "${SPARK_VERSION}" "3.0" ; then return 0 ; fi
   # include exclusive mode on GPU

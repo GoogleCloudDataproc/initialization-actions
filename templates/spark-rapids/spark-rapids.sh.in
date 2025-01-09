@@ -51,7 +51,6 @@ function main() {
 
   if [[ "${RAPIDS_RUNTIME}" == "SPARK" ]]; then
     install_spark_rapids
-    configure_gpu_script
     echo "RAPIDS initialized with Spark runtime"
   elif [[ "${RAPIDS_RUNTIME}" == "DASK" ]]; then
     echo "This action only installs spark-rapids"
@@ -66,6 +65,7 @@ function main() {
 }
 
 function exit_handler() {
+  set +e
   gpu_install_exit_handler
   gpu_exit_handler
   pip_exit_handler

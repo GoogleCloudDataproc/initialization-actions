@@ -15,6 +15,7 @@ function configure_yarn_gpu_resources() {
 }
 
 function configure_gpu_script() {
+  if [[ "${gpu_count}" == "0" ]] ; then return ; fi
   # Download GPU discovery script
   local -r spark_gpu_script_dir='/usr/lib/spark/scripts/gpu'
   mkdir -p ${spark_gpu_script_dir}
@@ -89,6 +90,7 @@ EOF
 }
 
 function configure_yarn_nodemanager_gpu() {
+  if [[ "${gpu_count}" == "0" ]] ; then return ; fi
   set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
   set_hadoop_property 'yarn-site.xml' \
     'yarn.nodemanager.resource-plugins.gpu.allowed-gpu-devices' 'auto'
@@ -98,6 +100,7 @@ function configure_yarn_nodemanager_gpu() {
 }
 
 function configure_gpu_isolation() {
+  if [[ "${gpu_count}" == "0" ]] ; then return ; fi
   # enable GPU isolation
   sed -i "s/yarn\.nodemanager\.linux\-container\-executor\.group\=.*$/yarn\.nodemanager\.linux\-container\-executor\.group\=yarn/g" "${HADOOP_CONF_DIR}/container-executor.cfg"
   if [[ $IS_MIG_ENABLED -ne 0 ]]; then
@@ -140,6 +143,8 @@ function setup_gpu_yarn() {
 
   install_nvidia_container_toolkit
   configure_yarn_nodemanager_gpu
-  configure_gpu_script
+  if [[ "${RAPIDS_RUNTIME}" == "SPARK" ]]; then
+    configure_gpu_script
+  fi
   configure_gpu_isolation
 }
