@@ -7,6 +7,9 @@
 use Template;
 use strict;
 
+# Version of Initialization Actions we will generate
+my $IA_VERSION="0.0.1";
+
 my $action = $ARGV[0];
 my $v = {
   template_path => "${action}",
