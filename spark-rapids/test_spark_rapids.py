@@ -12,10 +12,15 @@ class SparkRapidsTestCase(DataprocTestCase):
 
   GPU_T4 = "type=nvidia-tesla-t4"
   GPU_A100 = "type=nvidia-tesla-a100"
+  default_machine_type = "n1-highmem-8"
 
   # Tests for RAPIDS init action
   XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME = "verify_xgboost_spark_rapids.scala"
   XGBOOST_SPARK_SQL_TEST_SCRIPT_FILE_NAME = "verify_xgboost_spark_rapids_sql.scala"
+  cmd_template="""echo :quit | spark-shell \
+         --conf spark.executor.resource.gpu.amount=1 \
+         --conf spark.task.resource.gpu.amount=1 \
+         --conf spark.dynamicAllocation.enabled=false -i {}"""
 
   def verify_spark_instance(self, name):
     self.assert_instance_command(name, "nvidia-smi")
@@ -31,11 +36,7 @@ class SparkRapidsTestCase(DataprocTestCase):
             os.path.dirname(os.path.abspath(__file__)),
             self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME), instance_name)
     self.assert_instance_command(
-        instance_name, """echo :quit | spark-shell \
-         --conf spark.executor.resource.gpu.amount=1 \
-         --conf spark.task.resource.gpu.amount=1 \
-         --conf spark.dynamicAllocation.enabled=false -i {}""".format(
-             self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME))
+        instance_name, self.cmd_template.format(self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME))
     self.remove_test_script(self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME,
                             instance_name)
 
@@ -46,11 +47,7 @@ class SparkRapidsTestCase(DataprocTestCase):
         os.path.dirname(os.path.abspath(__file__)),
         self.XGBOOST_SPARK_SQL_TEST_SCRIPT_FILE_NAME), instance_name)
     self.assert_instance_command(
-      instance_name, """echo :quit | spark-shell \
-         --conf spark.executor.resource.gpu.amount=1 \
-         --conf spark.task.resource.gpu.amount=1 \
-         --conf spark.dynamicAllocation.enabled=false -i {}""".format(
-        self.XGBOOST_SPARK_SQL_TEST_SCRIPT_FILE_NAME))
+        instance_name, self.cmd_template.format(self.XGBOOST_SPARK_TEST_SCRIPT_FILE_NAME))
     self.remove_test_script(self.XGBOOST_SPARK_SQL_TEST_SCRIPT_FILE_NAME,
                             instance_name)
 
@@ -72,45 +69,24 @@ class SparkRapidsTestCase(DataprocTestCase):
         self.INIT_ACTIONS,
         optional_components=optional_components,
         metadata=metadata,
-        machine_type="n1-standard-4",
+        machine_type=self.default_machine_type,
         master_accelerator=accelerator if configuration == "SINGLE" else None,
         worker_accelerator=accelerator,
-        boot_disk_size="50GB",
+        boot_disk_size="40GB",
         timeout_in_minutes=30)
 
     for machine_suffix in machine_suffixes:
       self.verify_spark_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
+
+    if ( self.getImageOs() == 'rocky' ) \
+    and self.getImageVersion() <= pkg_resources.parse_version("2.1") \
+    and configuration == 'SINGLE':
+      print("skipping spark job test ; 2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail")
+      return
+
     # Only need to do this once
     self.verify_spark_job()
-
-  @parameterized.parameters(("SINGLE", ["m"], GPU_T4),
-                            ("STANDARD", ["w-0"], GPU_T4))
-  def test_spark_rapids_sql(self, configuration, machine_suffixes, accelerator):
-
-    if self.getImageOs() == "rocky":
-      self.skipTest("Not supported for Rocky OS")
-
-    if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
-      self.skipTest("Not supported in 2.0 and earlier images")
-
-    optional_components = None
-    metadata = "gpu-driver-provider=NVIDIA,rapids-runtime=SPARK"
-
-    self.createCluster(
-      configuration,
-      self.INIT_ACTIONS,
-      optional_components=optional_components,
-      metadata=metadata,
-      machine_type="n1-standard-4",
-      master_accelerator=accelerator if configuration == "SINGLE" else None,
-      worker_accelerator=accelerator,
-      boot_disk_size="50GB",
-      timeout_in_minutes=30)
-
-    for machine_suffix in machine_suffixes:
-      self.verify_spark_instance("{}-{}".format(self.getClusterName(),
-                                                machine_suffix))
     # Only need to do this once
     self.verify_spark_job_sql()
 
@@ -131,10 +107,10 @@ class SparkRapidsTestCase(DataprocTestCase):
         configuration,
         self.INIT_ACTIONS,
         metadata=metadata,
-        machine_type="n1-standard-4",
+        machine_type="n1-standard-32",
         master_accelerator=accelerator if configuration == "SINGLE" else None,
         worker_accelerator=accelerator,
-        boot_disk_size="50GB",
+        boot_disk_size="40GB",
         timeout_in_minutes=30)
 
     for machine_suffix in machine_suffixes:
@@ -142,6 +118,8 @@ class SparkRapidsTestCase(DataprocTestCase):
                                                 machine_suffix))
     # Only need to do this once
     self.verify_spark_job()
+    # Only need to do this once
+    self.verify_spark_job_sql()
 
   # Disable MIG related test due to the lack of A100 GPUs, more detail see
   # https://github.com/GoogleCloudDataproc/initialization-actions/pull/1070

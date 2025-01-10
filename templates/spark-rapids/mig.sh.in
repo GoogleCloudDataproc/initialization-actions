@@ -1,0 +1,97 @@
+#!/bin/bash
+#
+[% INSERT legal/license_header %]
+#
+# This script installs NVIDIA GPU drivers and enables MIG on Hopper
+# GPU architectures.
+#
+# This script should be specified in --initialization-actions= option
+# and --metadata=ENABLE_MIG can be used to enable or disable MIG. The
+# default is to enable it.  The script configures the MIG device based
+# on the user specified MIG_CGI profiles specified via:
+# --metadata=^:^MIG_CGI='9,9'. If MIG_CGI is not specified it assumes
+# it's using an H100 and configures 2 instances with profile id 9.
+#
+[% PROCESS common/template_disclaimer %]
+[% INSERT  common/util_functions %]
+[% INSERT  common/install_functions %]
+[% INSERT  common/yarn_functions %]
+[% INSERT  gpu/mig_functions %]
+[% INSERT  gpu/util_functions %]
+[% INSERT  gpu/install_functions %]
+[% INCLUDE gpu/yarn_functions %]
+[% INSERT  gpu/spark_functions %]
+
+set -euxo pipefail
+
+function main() {
+  if [[ "${nvsmi_works}" == "1" ]] ; then
+    # if this is called without the MIG script then the drivers are not installed
+    query_nvsmi
+    local xpath='//nvidia_smi_log/*/mig_mode/current_mig/text()'
+    set +e
+    migquery_result="$("${xmllint}" --xpath "${xpath}" "${nvsmi_query_xml}" | grep -v 'N/A')"
+    set -e
+    NUM_MIG_GPUS="$(echo ${migquery_result} | uniq | wc -l)"
+
+    if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
+      if [[ "${NUM_MIG_GPUS}" -eq "1" ]]; then
+        if (echo "${migquery_result}" | grep Enabled); then
+          IS_MIG_ENABLED=1
+          NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
+          MIG_MAJOR_CAPS=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
+          fetch_mig_scripts
+        fi
+      fi
+    fi
+  fi
+
+  # if mig is enabled drivers would have already been installed
+  if [[ $IS_MIG_ENABLED -eq 0 ]]; then
+    install_nvidia_gpu_driver
+    install_cuda
+    load_kernel_module
+
+    #Install GPU metrics collection in Stackdriver if needed
+    if [[ "${INSTALL_GPU_AGENT}" == "true" ]]; then
+      install_gpu_agent
+#      install_gpu_monitoring_agent
+      echo 'GPU metrics agent successfully deployed.'
+    else
+      echo 'GPU metrics agent has not been installed.'
+    fi
+    configure_gpu_exclusive_mode
+  fi
+
+  setup_gpu_yarn
+
+  echo "yarn setup complete"
+
+  enable_and_configure_mig
+
+  echo "main complete"
+  return 0
+}
+
+function exit_handler() {
+  set +e
+  gpu_install_exit_handler
+  gpu_exit_handler
+  pip_exit_handler
+  yarn_exit_handler
+  common_exit_handler
+  return 0
+}
+
+function prepare_to_install(){
+  prepare_spark_env
+  prepare_common_env
+  prepare_pip_env
+  prepare_gpu_env
+  prepare_gpu_install_env
+  trap exit_handler EXIT
+}
+
+prepare_to_install
+
+main
