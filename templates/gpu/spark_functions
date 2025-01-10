@@ -41,32 +41,3 @@ function install_spark_rapids() {
                         "${pkg_bucket}/rapids-4-spark_${scala_ver}/${SPARK_RAPIDS_VERSION}/${jar_basename}" \
                         "/usr/lib/spark/jars/${jar_basename}"
 }
-
-function prepare_spark_env() {
-  SPARK_NLP_VERSION="3.2.1" # Must include subminor version here
-  SPARK_JARS_DIR=/usr/lib/spark/jars
-  SPARK_CONF_DIR='/etc/spark/conf'
-  SPARK_BIGQUERY_VERSION="$(get_metadata_attribute spark-bigquery-connector-version "${DEFAULT_SPARK_BIGQUERY_VERSION:-0.22.0}")"
-  SPARK_VERSION="$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)"
-
-  readonly SPARK_VERSION SPARK_BIGQUERY_VERSION SPARK_CONF_DIR SPARK_JARS_DIR SPARK_NLP_VERSION
-
-  if version_lt "${SPARK_VERSION}" "3.1" || \
-     version_ge "${SPARK_VERSION}" "4.0" ; then
-    echo "Error: Your Spark version is not supported. Please upgrade Spark to one of the supported versions."
-    exit 1
-  fi
-
-  # Detect dataproc image version
-  if (! test -v DATAPROC_IMAGE_VERSION) ; then
-    if test -v DATAPROC_VERSION ; then
-      DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
-    else
-      if   version_lt "${SPARK_VERSION}" "3.2" ; then DATAPROC_IMAGE_VERSION="2.0"
-      elif version_lt "${SPARK_VERSION}" "3.4" ; then DATAPROC_IMAGE_VERSION="2.1"
-      elif version_lt "${SPARK_VERSION}" "3.6" ; then DATAPROC_IMAGE_VERSION="2.2"
-      else echo "Unknown dataproc image version" ; exit 1 ; fi
-    fi
-  fi
-
-}
