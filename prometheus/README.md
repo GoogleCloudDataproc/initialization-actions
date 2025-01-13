@@ -38,7 +38,7 @@ Prometheus installed on every node:
     gcloud dataproc clusters create ${CLUSTER_NAME} \
           --region ${REGION} \
           --metadata monitor-kafka=false \
-          --initialization-actions gs://gaurangisaxena/prometheus.sh
+          --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/prometheus/prometheus.sh
     ```
 
 1.  Prometheus UI on the master node can be accessed after connecting with the
