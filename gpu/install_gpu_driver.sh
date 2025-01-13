@@ -345,7 +345,7 @@ function set_cuda_runfile_url() {
   local MAX_DRIVER_VERSION
   local MAX_CUDA_VERSION
 
-  local MIN_OPEN_DRIVER_VER="515.48.07"
+  MIN_OPEN_DRIVER_VER="515.43.04"
   local MIN_DRIVER_VERSION="${MIN_OPEN_DRIVER_VER}"
   local MIN_CUDA_VERSION="11.7.1" # matches MIN_OPEN_DRIVER_VER
 
@@ -904,7 +904,7 @@ readonly uname_r=$(uname -r)
 
 function build_driver_from_github() {
   # non-GPL driver will have been built on rocky8
-  if is_rocky8 ; then return 0 ; fi
+  if ( is_rocky8 || version_lt "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" ) ; then return 0 ; fi
   pushd "${workdir}"
   test -d "${workdir}/open-gpu-kernel-modules" || {
     tarball_fn="${DRIVER_VERSION}.tar.gz"
@@ -1025,7 +1025,7 @@ function install_nvidia_userspace_runfile() {
   local cache_hit="0"
   local local_tarball
 
-  if is_rocky8 ; then
+  if ( is_rocky8 || version_lt "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" ) ; then
     local nvidia_ko_path="$(find /lib/modules/$(uname -r)/ -name 'nvidia.ko')"
     test -n "${nvidia_ko_path}" && test -f "${nvidia_ko_path}" || {
       local build_tarball="kmod_${_shortname}_${DRIVER_VERSION}.tar.gz"
@@ -1039,7 +1039,9 @@ function install_nvidia_userspace_runfile() {
 
       if gsutil ls "${gcs_tarball}" 2>&1 | grep -q "${gcs_tarball}" ; then
         cache_hit="1"
-        runfile_args="--no-kernel-modules"
+        if version_ge "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" ; then
+          runfile_args="${runfile_args} --no-kernel-modules"
+        fi
         echo "cache hit"
       else
         install_build_dependencies
@@ -1054,11 +1056,13 @@ function install_nvidia_userspace_runfile() {
           --module-signing-script \"/lib/modules/${uname_r}/build/scripts/sign-file\" \
           "
         fi
-
-        runfile_args="--no-dkms ${signing_options}"
+        runfile_args="${signing_options}"
+        if version_ge "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" ; then
+          runfile_args="${runfile_args} --no-dkms"
+        fi
       fi
     }
-  else
+  elif version_ge "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" ; then
     runfile_args="--no-kernel-modules"
   fi
 
@@ -1499,8 +1503,8 @@ function prepare_gpu_env(){
 # Hold all NVIDIA-related packages from upgrading unintenionally or services like unattended-upgrades
 # Users should run apt-mark unhold before they wish to upgrade these packages
 function hold_nvidia_packages() {
-  apt-mark hold nvidia-*
-  apt-mark hold libnvidia-*
+#  apt-mark hold nvidia-*
+#  apt-mark hold libnvidia-*
   if dpkg -l | grep -q "xserver-xorg-video-nvidia"; then
     apt-mark hold xserver-xorg-video-nvidia*
   fi
