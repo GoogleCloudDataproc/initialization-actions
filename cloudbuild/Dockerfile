@@ -21,8 +21,8 @@ RUN /usr/bin/curl -s https://bazel.build/bazel-release.pub.gpg | \
     echo "deb [arch=amd64 signed-by=${bazel_kr_path}] ${bazel_repo_data}" | \
     dd of="${bazel_repo_file}" status=none && \
     apt-get update -qq
-RUN apt-get autoremove -y -qq && \
-    apt-get install -y -qq openjdk-8-jdk python3-setuptools bazel >/dev/null 2>&1 && \
+RUN apt-get autoremove -y -qq > /dev/null 2>&1 && \
+    apt-get install -y -qq default-jdk python3-setuptools bazel-${bazel_version} > /dev/null 2>&1 && \
     apt-get clean
 
 # Set bazel-${bazel_version} as the default bazel alternative in this container
