@@ -277,7 +277,8 @@ function set_driver_version() {
 
 set_driver_version
 
-readonly DEFAULT_CUDNN8_VERSION="8.0.5.39"
+readonly MIN_ROCKY8_CUDNN8_VERSION="8.0.5.39"
+readonly DEFAULT_CUDNN8_VERSION="8.3.1.22"
 readonly DEFAULT_CUDNN9_VERSION="9.1.0.70"
 
 # Parameters for NVIDIA-provided cuDNN library
@@ -285,9 +286,9 @@ readonly DEFAULT_CUDNN_VERSION=${CUDNN_FOR_CUDA["${CUDA_VERSION}"]}
 CUDNN_VERSION=$(get_metadata_attribute 'cudnn-version' "${DEFAULT_CUDNN_VERSION}")
 function is_cudnn8() ( set +x ; [[ "${CUDNN_VERSION%%.*}" == "8" ]] ; )
 function is_cudnn9() ( set +x ; [[ "${CUDNN_VERSION%%.*}" == "9" ]] ; )
-# The minimum cuDNN version supported by rocky is ${DEFAULT_CUDNN8_VERSION}
-if is_rocky  && (version_le "${CUDNN_VERSION}" "${DEFAULT_CUDNN8_VERSION}") ; then
-  CUDNN_VERSION="${DEFAULT_CUDNN8_VERSION}"
+# The minimum cuDNN version supported by rocky is ${MIN_ROCKY8_CUDNN8_VERSION}
+if is_rocky  && (version_lt "${CUDNN_VERSION}" "${MIN_ROCKY8_CUDNN8_VERSION}") ; then
+  CUDNN_VERSION="${MIN_ROCKY8_CUDNN8_VERSION}"
 elif (ge_ubuntu20 || ge_debian12) && is_cudnn8 ; then
   # cuDNN v8 is not distribution for ubuntu20+, debian12
   CUDNN_VERSION="${DEFAULT_CUDNN9_VERSION}"
@@ -620,30 +621,6 @@ function install_nvidia_nccl() {
 
   local -r nccl_version="${NCCL_VERSION}-1+cuda${CUDA_VERSION}"
 
-  # https://github.com/NVIDIA/nccl/blob/master/README.md
-  # https://arnon.dk/matching-sm-architectures-arch-and-gencode-for-various-nvidia-cards/
-  # Fermi:     SM_20,             compute_30
-  # Kepler:    SM_30,SM_35,SM_37, compute_30,compute_35,compute_37
-  # Maxwell:   SM_50,SM_52,SM_53, compute_50,compute_52,compute_53
-  # Pascal:    SM_60,SM_61,SM_62, compute_60,compute_61,compute_62
-
-  # The following architectures are suppored by open kernel driver
-  # Volta:     SM_70,SM_72,       compute_70,compute_72
-  # Ampere:    SM_80,SM_86,SM_87, compute_80,compute_86,compute_87
-
-  # The following architectures are supported by CUDA v11.8+
-  # Ada:       SM_89,             compute_89
-  # Hopper:    SM_90,SM_90a       compute_90,compute_90a
-  # Blackwell: SM_100,            compute_100
-                  NVCC_GENCODE="-gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_72,code=sm_72"
-  NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_87,code=sm_87"
-  if version_ge "${CUDA_VERSION}" "11.8" ; then
-    NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_89,code=sm_89"
-  fi
-  if version_ge "${CUDA_VERSION}" "12.0" ; then
-    NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_90a,code=compute_90a"
-  fi
-
   mkdir -p "${workdir}"
   pushd "${workdir}"
 
@@ -668,11 +645,37 @@ function install_nvidia_nccl() {
     if echo "${output}" | grep -q "${gcs_tarball}" ; then
       # cache hit - unpack from cache
       echo "cache hit"
+      gcloud storage cat "${gcs_tarball}" | tar xvz
     else
       # build and cache
       pushd nccl
       # https://github.com/NVIDIA/nccl?tab=readme-ov-file#install
       install_build_dependencies
+
+      # https://github.com/NVIDIA/nccl/blob/master/README.md
+      # https://arnon.dk/matching-sm-architectures-arch-and-gencode-for-various-nvidia-cards/
+      # Fermi:     SM_20,             compute_30
+      # Kepler:    SM_30,SM_35,SM_37, compute_30,compute_35,compute_37
+      # Maxwell:   SM_50,SM_52,SM_53, compute_50,compute_52,compute_53
+      # Pascal:    SM_60,SM_61,SM_62, compute_60,compute_61,compute_62
+
+      # The following architectures are suppored by open kernel driver
+      # Volta:     SM_70,SM_72,       compute_70,compute_72
+      # Ampere:    SM_80,SM_86,SM_87, compute_80,compute_86,compute_87
+
+      # The following architectures are supported by CUDA v11.8+
+      # Ada:       SM_89,             compute_89
+      # Hopper:    SM_90,SM_90a       compute_90,compute_90a
+      # Blackwell: SM_100,            compute_100
+                      NVCC_GENCODE="-gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_72,code=sm_72"
+      NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86"
+      if version_gt "${CUDA_VERSION}" "11.6" ; then
+        NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_87,code=sm_87" ; fi
+      if version_ge "${CUDA_VERSION}" "11.8" ; then
+        NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_89,code=sm_89" ; fi
+      if version_ge "${CUDA_VERSION}" "12.0" ; then
+        NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_90a,code=compute_90a" ; fi
+
       if is_debuntu ; then
         # These packages are required to build .deb packages from source
         execute_with_retries \
@@ -686,13 +689,13 @@ function install_nvidia_nccl() {
         export NVCC_GENCODE
         execute_with_retries make -j$(nproc) pkg.redhat.build
       fi
-      tar czvf "/${local_tarball}" "../${build_path}"
-      gcloud storage cp "${local_tarball}" "${gcs_tarball}"
-      rm "${local_tarball}"
+      tar czvf "${local_tarball}" "../${build_path}"
       make clean
       popd
+      tar xzvf "${local_tarball}"
+      gcloud storage cp "${local_tarball}" "${gcs_tarball}"
+      rm "${local_tarball}"
     fi
-    gcloud storage cat "${gcs_tarball}" | tar xz
   }
 
   if is_debuntu ; then
@@ -734,16 +737,17 @@ function install_nvidia_cudnn() {
       apt-get -y install nvidia-cudnn
     else
       if is_cudnn8 ; then
-        install_local_cudnn8_repo
+        add_repo_cuda
 
         apt-get update -qq
+	# Ignore version requested and use the latest version in the package index
+	cudnn_pkg_version="$(apt-cache show libcudnn8 | awk "/^Ver.*cuda${CUDA_VERSION%%.*}.*/ {print \$2}" | sort -V | tail -1)"
 
         execute_with_retries \
           apt-get -y install --no-install-recommends \
             "libcudnn8=${cudnn_pkg_version}" \
             "libcudnn8-dev=${cudnn_pkg_version}"
 
-        uninstall_local_cudnn8_repo
 	sync
       elif is_cudnn9 ; then
 	install_cuda_keyring_pkg
@@ -1503,8 +1507,10 @@ function prepare_gpu_env(){
 # Hold all NVIDIA-related packages from upgrading unintenionally or services like unattended-upgrades
 # Users should run apt-mark unhold before they wish to upgrade these packages
 function hold_nvidia_packages() {
-#  apt-mark hold nvidia-*
-#  apt-mark hold libnvidia-*
+  if ! is_debuntu ; then return ; fi
+
+  apt-mark hold nvidia-*    > /dev/null 2>&1
+  apt-mark hold libnvidia-* > /dev/null 2>&1
   if dpkg -l | grep -q "xserver-xorg-video-nvidia"; then
     apt-mark hold xserver-xorg-video-nvidia*
   fi
@@ -1587,17 +1593,22 @@ function main() {
         rmmod ${module} > /dev/null 2>&1 || echo "unable to rmmod ${module}"
       done
 
-      MIG_GPU_LIST="$(nvsmi -L | grep -e MIG -e P100 -e H100 -e A100 || echo -n "")"
       if test -n "$(nvsmi -L)" ; then
 	# cache the result of the gpu query
         ADDRS=$(nvsmi --query-gpu=index --format=csv,noheader | perl -e 'print(join(q{,},map{chomp; qq{"$_"}}<STDIN>))')
         echo "{\"name\": \"gpu\", \"addresses\":[$ADDRS]}" | tee "/var/run/nvidia-gpu-index.txt"
+	chmod a+r "/var/run/nvidia-gpu-index.txt"
       fi
+      MIG_GPU_LIST="$(nvsmi -L | grep -e MIG -e P100 -e V100 -e A100 -e H100 || echo -n "")"
       NUM_MIG_GPUS="$(test -n "${MIG_GPU_LIST}" && echo "${MIG_GPU_LIST}" | wc -l || echo "0")"
       if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
         # enable MIG on every GPU
 	for GPU_ID in $(echo ${MIG_GPU_LIST} | awk -F'[: ]' -e '{print $2}') ; do
-	  nvsmi -i "${GPU_ID}" --multi-instance-gpu 1
+          if version_le "${CUDA_VERSION}" "11.6" ; then
+            nvsmi -i "${GPU_ID}" --multi-instance-gpu=1
+          else
+	    nvsmi -i "${GPU_ID}" --multi-instance-gpu 1
+          fi
 	done
 
         NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
