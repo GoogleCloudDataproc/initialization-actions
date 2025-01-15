@@ -246,10 +246,10 @@ function set_driver_version() {
     if [[ "${CUDA_URL_DRIVER_VERSION}" =~ ^[0-9]+.*[0-9]$ ]] ; then
       major_driver_version="${CUDA_URL_DRIVER_VERSION%%.*}"
       driver_max_maj_version=${DRIVER_SUBVER["${major_driver_version}"]}
-      if curl -s --head "https://download.nvidia.com/XFree86/Linux-x86_64/${CUDA_URL_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${CUDA_URL_DRIVER_VERSION}.run" | grep -E -q '^HTTP.*200\s*$' ; then
+      if curl -s --head "https://us.download.nvidia.com/XFree86/Linux-x86_64/${CUDA_URL_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${CUDA_URL_DRIVER_VERSION}.run" | grep -E -q '^HTTP.*200\s*$' ; then
         # use the version indicated by the cuda url as the default if it exists
 	DEFAULT_DRIVER="${CUDA_URL_DRIVER_VERSION}"
-      elif curl -s --head "https://download.nvidia.com/XFree86/Linux-x86_64/${driver_max_maj_version}/NVIDIA-Linux-x86_64-${driver_max_maj_version}.run" | grep -E -q '^HTTP.*200\s*$' ; then
+      elif curl -s --head "https://us.download.nvidia.com/XFree86/Linux-x86_64/${driver_max_maj_version}/NVIDIA-Linux-x86_64-${driver_max_maj_version}.run" | grep -E -q '^HTTP.*200\s*$' ; then
         # use the maximum sub-version available for the major version indicated in cuda url as the default
 	DEFAULT_DRIVER="${driver_max_maj_version}"
       fi
@@ -268,7 +268,7 @@ function set_driver_version() {
 
   export DRIVER_VERSION DRIVER
 
-  gpu_driver_url="https://download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
+  gpu_driver_url="https://us.download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
   if ! curl -s --head "${gpu_driver_url}" | grep -E -q '^HTTP.*200\s*$' ; then
     echo "No NVIDIA driver exists for DRIVER_VERSION=${DRIVER_VERSION}"
     exit 1
@@ -302,7 +302,7 @@ readonly DEFAULT_NCCL_VERSION=${NCCL_FOR_CUDA["${CUDA_VERSION}"]}
 readonly NCCL_VERSION=$(get_metadata_attribute 'nccl-version' ${DEFAULT_NCCL_VERSION})
 
 # Parameters for NVIDIA-provided Debian GPU driver
-readonly DEFAULT_USERSPACE_URL="https://download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
+readonly DEFAULT_USERSPACE_URL="https://us.download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
 
 readonly USERSPACE_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_USERSPACE_URL}")
 
@@ -383,7 +383,7 @@ function set_cuda_runfile_url() {
   fi
 
   # driver version named in cuda runfile filename
-  # (these may not be actual driver versions - see https://download.nvidia.com/XFree86/Linux-x86_64/)
+  # (these may not be actual driver versions - see https://us.download.nvidia.com/XFree86/Linux-x86_64/)
   readonly -A drv_for_cuda=(
       ["10.0.130"]="410.48"
       ["10.1.234"]="418.87.00"
@@ -401,7 +401,7 @@ function set_cuda_runfile_url() {
       ["12.1.0"]="530.30.02" ["12.1.1"]="530.30.02"
       ["12.2.0"]="535.54.03" ["12.2.1"]="535.86.10" ["12.2.2"]="535.104.05"
       ["12.3.0"]="545.23.06" ["12.3.1"]="545.23.08" ["12.3.2"]="545.23.08"
-      ["12.4.0"]="550.54.14" ["12.4.1"]="550.54.15" # 550.54.15 is not a driver indexed at https://download.nvidia.com/XFree86/Linux-x86_64/
+      ["12.4.0"]="550.54.14" ["12.4.1"]="550.54.15" # 550.54.15 is not a driver indexed at https://us.download.nvidia.com/XFree86/Linux-x86_64/
       ["12.5.0"]="555.42.02" ["12.5.1"]="555.42.06" # 555.42.02 is indexed, 555.42.06 is not
       ["12.6.0"]="560.28.03" ["12.6.1"]="560.35.03" ["12.6.2"]="560.35.03"
   )
@@ -1599,11 +1599,11 @@ function main() {
         echo "{\"name\": \"gpu\", \"addresses\":[$ADDRS]}" | tee "/var/run/nvidia-gpu-index.txt"
 	chmod a+r "/var/run/nvidia-gpu-index.txt"
       fi
-      MIG_GPU_LIST="$(nvsmi -L | grep -e MIG -e P100 -e V100 -e A100 -e H100 || echo -n "")"
+      MIG_GPU_LIST="$(nvsmi -L | grep -E '(MIG|[PVAH]100)' || echo -n "")"
       NUM_MIG_GPUS="$(test -n "${MIG_GPU_LIST}" && echo "${MIG_GPU_LIST}" | wc -l || echo "0")"
       if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
         # enable MIG on every GPU
-	for GPU_ID in $(echo ${MIG_GPU_LIST} | awk -F'[: ]' -e '{print $2}') ; do
+	for GPU_ID in $(echo ${MIG_GPU_LIST} | awk -F'[: ]' '{print $2}') ; do
           if version_le "${CUDA_VERSION}" "11.6" ; then
             nvsmi -i "${GPU_ID}" --multi-instance-gpu=1
           else
