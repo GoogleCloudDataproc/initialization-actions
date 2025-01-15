@@ -142,7 +142,7 @@ readonly -A DRIVER_FOR_CUDA=(
     ["11.4"]="470.256.02" ["11.5"]="495.46" ["11.6"]="510.108.03"
     ["11.7"]="515.65.01" ["11.8"]="525.147.05" ["12.0"]="525.147.05"
     ["12.1"]="530.30.02" ["12.2"]="535.216.01" ["12.3"]="545.23.08"
-    ["12.4"]="550.135" ["12.5"]="555.42.02" ["12.6"]="560.35.03"
+    ["12.4"]="550.135" ["12.5"]="550.142" ["12.6"]="550.142"
 )
 readonly -A DRIVER_SUBVER=(
     ["410"]="410.104" ["415"]="415.27" ["418"]="418.113"
@@ -403,7 +403,7 @@ function set_cuda_runfile_url() {
       ["12.3.0"]="545.23.06" ["12.3.1"]="545.23.08" ["12.3.2"]="545.23.08"
       ["12.4.0"]="550.54.14" ["12.4.1"]="550.54.15" # 550.54.15 is not a driver indexed at https://us.download.nvidia.com/XFree86/Linux-x86_64/
       ["12.5.0"]="555.42.02" ["12.5.1"]="555.42.06" # 555.42.02 is indexed, 555.42.06 is not
-      ["12.6.0"]="560.28.03" ["12.6.1"]="560.35.03" ["12.6.2"]="560.35.03"
+      ["12.6.0"]="560.28.03" ["12.6.1"]="560.35.03" ["12.6.2"]="560.35.03" ["12.6.3"]="560.35.05"
   )
 
   # Verify that the file with the indicated combination exists
@@ -413,15 +413,19 @@ function set_cuda_runfile_url() {
   local DEFAULT_NVIDIA_CUDA_URL="${CUDA_RELEASE_BASE_URL}/local_installers/${CUDA_RUNFILE}"
 
   NVIDIA_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_CUDA_URL}")
+
+  if ! curl -s --head "${NVIDIA_CUDA_URL}" | grep -E -q '^HTTP.*200\s*$' ; then
+    echo "No CUDA distribution exists for this combination of DRIVER_VERSION=${drv_ver}, CUDA_VERSION=${CUDA_FULL_VERSION}"
+    if [[ "${DEFAULT_NVIDIA_CUDA_URL}" != "${NVIDIA_CUDA_URL}" ]]; then
+      echo "consider [${DEFAULT_NVIDIA_CUDA_URL}] instead"
+    fi
+    exit 1
+  fi
+
   readonly NVIDIA_CUDA_URL
 
   CUDA_RUNFILE="$(echo ${NVIDIA_CUDA_URL} | perl -pe 's{^.+/}{}')"
   readonly CUDA_RUNFILE
-
-  if ! curl -s --head "${NVIDIA_CUDA_URL}" | grep -E -q '^HTTP.*200\s*$' ; then
-    echo "No CUDA distribution exists for this combination of DRIVER_VERSION=${drv_ver}, CUDA_VERSION=${CUDA_FULL_VERSION}"
-    exit 1
-  fi
 
   if ( version_lt "${CUDA_FULL_VERSION}" "12.3.0" && ge_debian12 ) ; then
     echo "CUDA 12.3.0 is the minimum CUDA 12 version supported on Debian 12"
@@ -588,7 +592,7 @@ function install_local_cudnn8_repo() {
 
   # cache the cudnn package
   cache_fetched_package "${local_deb_url}" \
-                        "${pkg_bucket}/${CUDNN8_CUDA_VER}/${deb_fn}" \
+                        "${pkg_bucket}/nvidia/cudnn/${CUDNN8_CUDA_VER}/${deb_fn}" \
                         "${local_deb_fn}"
 
   local cudnn_path="$(dpkg -c ${local_deb_fn} | perl -ne 'if(m{(/var/cudnn-local-repo-.*)/\s*$}){print $1}')"
@@ -639,7 +643,7 @@ function install_nvidia_nccl() {
   test -d "${workdir}/nccl/build" || {
     local build_tarball="nccl-build_${_shortname}_${nccl_version}.tar.gz"
     local local_tarball="${workdir}/${build_tarball}"
-    local gcs_tarball="${pkg_bucket}/${_shortname}/${build_tarball}"
+    local gcs_tarball="${pkg_bucket}/nvidia/nccl/${_shortname}/${build_tarball}"
 
     output=$(gsutil ls "${gcs_tarball}" 2>&1 || echo '')
     if echo "${output}" | grep -q "${gcs_tarball}" ; then
@@ -773,6 +777,48 @@ function install_nvidia_cudnn() {
 
   touch "${workdir}/complete/cudnn"
   echo "NVIDIA cuDNN successfully installed for ${OS_NAME}."
+}
+
+function install_pytorch() {
+  if test -f "${workdir}/complete/pytorch" ; then return ; fi
+  local env
+  env=$(get_metadata_attribute 'gpu-conda-env' 'dpgce')
+  local mc3=/opt/conda/miniconda3
+  local envpath="${mc3}/envs/${env}"
+  # Set numa node to 0 for all GPUs
+  for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node) ; do echo 0 > ${f} ; done
+  local verb=create
+  if test -d "${envpath}" ; then verb=install ; fi
+
+  readonly USE_PYTORCH=$(get_metadata_attribute 'use-pytorch' 'no')
+  case "${USE_PYTORCH^^}" in
+    "1" | "YES" | "TRUE" )
+      local build_tarball="pytorch_${_shortname}_cuda${CUDA_VERSION}.tar.gz"
+      local local_tarball="${workdir}/${build_tarball}"
+      local gcs_tarball="${pkg_bucket}/conda/${_shortname}/${build_tarball}"
+
+      output=$(gsutil ls "${gcs_tarball}" 2>&1 || echo '')
+      if echo "${output}" | grep -q "${gcs_tarball}" ; then
+        # cache hit - unpack from cache
+        echo "cache hit"
+        mkdir -p "${envpath}"
+        gcloud storage cat "${gcs_tarball}" | tar -C "${envpath}" -xz
+      else
+	cudart_spec="cuda-cudart"
+        if le_cuda11 ; then cudart_spec="cudatoolkit" ; fi
+        "${mc3}/bin/mamba" "${verb}" -n "${env}" \
+	  -c conda-forge -c nvidia -c rapidsai \
+          numba pytorch tensorflow[and-cuda] rapids pyspark \
+          "cuda-version<=${CUDA_VERSION}" "${cudart_spec}"
+        pushd "${envpath}"
+        tar czf "${local_tarball}" .
+	popd
+	gcloud storage cp "${local_tarball}" "${gcs_tarball}"
+      fi
+      ;;
+    * ) echo "skip pytorch install" ;;
+  esac
+  touch "${workdir}/complete/pytorch"
 }
 
 function configure_dkms_certs() {
@@ -927,7 +973,7 @@ function build_driver_from_github() {
       then build_dir="${modulus_md5sum}"
       else build_dir="unsigned" ; fi
 
-    local gcs_tarball="${pkg_bucket}/${_shortname}/${uname_r}/${build_dir}/${build_tarball}"
+    local gcs_tarball="${pkg_bucket}/nvidia/kmod/${_shortname}/${uname_r}/${build_dir}/${build_tarball}"
 
     if gsutil ls "${gcs_tarball}" 2>&1 | grep -q "${gcs_tarball}" ; then
       echo "cache hit"
@@ -1021,7 +1067,7 @@ function install_nvidia_userspace_runfile() {
   local local_fn="${tmpdir}/userspace.run"
 
   cache_fetched_package "${USERSPACE_URL}" \
-                        "${pkg_bucket}/${USERSPACE_FILENAME}" \
+                        "${pkg_bucket}/nvidia/${USERSPACE_FILENAME}" \
                         "${local_fn}"
 
   local runfile_args
@@ -1039,7 +1085,7 @@ function install_nvidia_userspace_runfile() {
         then build_dir="${modulus_md5sum}"
         else build_dir="unsigned" ; fi
 
-      local gcs_tarball="${pkg_bucket}/${_shortname}/${uname_r}/${build_dir}/${build_tarball}"
+      local gcs_tarball="${pkg_bucket}/nvidia/kmod/${_shortname}/${uname_r}/${build_dir}/${build_tarball}"
 
       if gsutil ls "${gcs_tarball}" 2>&1 | grep -q "${gcs_tarball}" ; then
         cache_hit="1"
@@ -1098,7 +1144,7 @@ function install_cuda_runfile() {
   local local_fn="${tmpdir}/cuda.run"
 
   cache_fetched_package "${NVIDIA_CUDA_URL}" \
-			"${pkg_bucket}/${CUDA_RUNFILE}" \
+			"${pkg_bucket}/nvidia/${CUDA_RUNFILE}" \
                         "${local_fn}"
 
   execute_with_retries bash "${local_fn}" --toolkit --no-opengl-libs --silent --tmpdir="${tmpdir}"
@@ -1578,6 +1624,7 @@ function main() {
       if [[ -n ${CUDNN_VERSION} ]]; then
         install_nvidia_nccl
         install_nvidia_cudnn
+        install_pytorch
       fi
       #Install GPU metrics collection in Stackdriver if needed
       if [[ "${INSTALL_GPU_AGENT}" == "true" ]]; then
