@@ -347,10 +347,6 @@ exit 1 unless $cert eq lc $kmod
     if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
       self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
-    if pkg_resources.parse_version(cuda_version) <= pkg_resources.parse_version("12.0") \
-    and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest( "Kernel driver FTBFS with older CUDA versions on image version >= 2.2" )
-
     if configuration == 'SINGLE' \
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
