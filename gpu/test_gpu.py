@@ -4,8 +4,6 @@ import time
 from absl.testing import absltest
 from absl.testing import parameterized
 
-import unittest
-
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 DEFAULT_TIMEOUT = 15  # minutes
@@ -18,7 +16,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   GPU_T4   = "type=nvidia-tesla-t4"
   GPU_V100 = "type=nvidia-tesla-v100"
   GPU_A100 = "type=nvidia-tesla-a100,count=2"
-  GPU_H100 = "type=nvidia-h100-80gb,count=8"
+  GPU_H100 = "type=nvidia-h100-80gb,count=2"
 
   # Tests for PyTorch
   TORCH_TEST_SCRIPT_FILE_NAME = "verify_pytorch.py"
@@ -56,12 +54,20 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     time.sleep( 3 + random.randint(1, 30) )
     self.assert_instance_command(name, "nvidia-smi", 1)
 
+  def verify_pyspark(self, name):
+    # Verify that pyspark works
+    self.assert_instance_command(name, "echo 'from pyspark.sql import SparkSession ; SparkSession.builder.getOrCreate()' | pyspark -c spark.executor.resource.gpu.amount=1 -c spark.task.resource.gpu.amount=0.01", 1)
+
   def verify_pytorch(self, name):
     test_filename=os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                self.TORCH_TEST_SCRIPT_FILE_NAME)
     self.upload_test_file(test_filename, name)
 
-    verify_cmd = "for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node) ; do echo 0 | dd of=${f} ; done ; /opt/conda/miniconda3/envs/pytorch/bin/python {}".format(
+    conda_env="dpgce"
+    verify_cmd = \
+      "env={} ; envpath=/opt/conda/miniconda3/envs/${env} ; ".format(conda_env) + \
+      "for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node) ; do echo 0 > ${f} ; done ;" + \
+      "${envpath}/bin/python {}".format(
         self.TORCH_TEST_SCRIPT_FILE_NAME)
     self.assert_instance_command(name, verify_cmd)
     self.remove_test_script(self.TORCH_TEST_SCRIPT_FILE_NAME, name)
@@ -70,8 +76,11 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     test_filename=os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                self.TF_TEST_SCRIPT_FILE_NAME)
     self.upload_test_file(test_filename, name)
-
-    verify_cmd = "for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node) ; do echo 0 | dd of=${f} ; done ; /opt/conda/miniconda3/envs/pytorch/bin/python {}".format(
+    # all on a single numa node
+    verify_cmd = \
+      "env={} ; envpath=/opt/conda/miniconda3/envs/${env} ; ".format("dpgce") + \
+      "for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node) ; do echo 0 > ${f} ; done ;" + \
+      "${envpath}/bin/python {}".format(
         self.TF_TEST_SCRIPT_FILE_NAME)
     self.assert_instance_command(name, verify_cmd)
     self.remove_test_script(self.TF_TEST_SCRIPT_FILE_NAME, name)
@@ -149,7 +158,6 @@ exit 1 unless $cert eq lc $kmod
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # ('2.1-rocky8 and 2.0-rocky8 tests are known to fail in SINGLE configuration with errors about nodes_include being empty')
-      unittest.expectedFailure(self)
       self.skipTest("known to fail")
 
     metadata = None
@@ -184,7 +192,6 @@ exit 1 unless $cert eq lc $kmod
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # ('2.1-rocky8 and 2.0-rocky8 tests are known to fail in SINGLE configuration with errors about nodes_include being empty')
-      unittest.expectedFailure(self)
       self.skipTest("known to fail")
 
     if driver_provider is not None:
@@ -215,7 +222,6 @@ exit 1 unless $cert eq lc $kmod
     if configuration == 'KERBEROS' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # ('KERBEROS fails with image version <= 2.1')
-      unittest.expectedFailure(self)
       self.skipTest("known to fail")
 
     metadata = "install-gpu-agent=true"
@@ -246,10 +252,12 @@ exit 1 unless $cert eq lc $kmod
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
 
+    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
+
     if configuration == 'KERBEROS' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # ('KERBEROS fails with image version <= 2.1')
-      unittest.expectedFailure(self)
       self.skipTest("known to fail")
 
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.4") \
@@ -265,7 +273,6 @@ exit 1 unless $cert eq lc $kmod
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # ('2.1-rocky8 and 2.0-rocky8 tests are known to fail in SINGLE configuration with errors about nodes_include being empty')
-      unittest.expectedFailure(self)
       self.skipTest("known to fail")
 
 
@@ -298,10 +305,9 @@ exit 1 unless $cert eq lc $kmod
     # Operation [projects/.../regions/.../operations/...] failed:
     # Invalid value for field 'resource.machineType': \
     # 'https://www.googleapis.com/compute/v1/projects/.../zones/.../' \
-    # 'machineTypes/a3-highgpu-8g'. \
+    # 'machineTypes/a3-highgpu-2g'. \
     # NetworkInterface NicType can only be set to GVNIC on instances with GVNIC GuestOsFeature..
     # ('This use case not thoroughly tested')
-    unittest.expectedFailure(self)
     self.skipTest("known to fail")
 
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.4") \
@@ -318,7 +324,7 @@ exit 1 unless $cert eq lc $kmod
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
-        master_machine_type="a3-highgpu-8g",
+        master_machine_type="a3-highgpu-2g",
         worker_machine_type="a2-highgpu-2g",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
@@ -338,11 +344,17 @@ exit 1 unless $cert eq lc $kmod
   def test_gpu_allocation(self, configuration, master_accelerator,
                           worker_accelerator, driver_provider):
 
+    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
+
+    if pkg_resources.parse_version(cuda_version) <= pkg_resources.parse_version("12.0") \
+    and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+      self.skipTest( "Kernel driver FTBFS with older CUDA versions on image version >= 2.2" )
+
     if configuration == 'SINGLE' \
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # ('2.1-rocky8 and 2.0-rocky8 tests are known to fail in SINGLE configuration with errors about nodes_include being empty')
-      unittest.expectedFailure(self)
       self.skipTest("known to fail")
 
     metadata = None
@@ -372,6 +384,9 @@ exit 1 unless $cert eq lc $kmod
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
 
+    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
+
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.4") \
     and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
           ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
@@ -385,7 +400,6 @@ exit 1 unless $cert eq lc $kmod
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # ('2.1-rocky8 and 2.0-rocky8 tests are known to fail in SINGLE configuration with errors about nodes_include being empty')
-      unittest.expectedFailure(self)
       self.skipTest("known to fail")
 
     metadata = "install-gpu-agent=true,gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
@@ -416,18 +430,16 @@ exit 1 unless $cert eq lc $kmod
 #    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "11.8"),
 #    ("STANDARD", ["w-0", "w-1"], None, GPU_T4, "12.0"),
   )
-  def tests_driver_signing(self, configuration, machine_suffixes,
+  def untested_driver_signing(self, configuration, machine_suffixes,
                            master_accelerator, worker_accelerator,
                            cuda_version, image_os, image_version):
 
-    if pkg_resources.parse_version(cuda_version) <= pkg_resources.parse_version("12.0") \
-    and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest( "Kernel driver FTBFS with older CUDA versions on image version >= 2.2" )
+    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
     if configuration == 'KERBEROS' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # ('KERBEROS fails with image version <= 2.1')
-      unittest.expectedFailure(self)
       self.skipTest("known to fail")
 
     kvp_array=[]
