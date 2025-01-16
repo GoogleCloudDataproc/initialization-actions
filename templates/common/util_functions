@@ -554,7 +554,7 @@ function prepare_common_env() {
 
   if is_debuntu ; then
     clean_up_sources_lists
-    apt-get update -qq
+    apt-get update -qq --allow-releaseinfo-change
     apt-get -y clean
     apt-get -o DPkg::Lock::Timeout=60 -y autoremove
     if ge_debian12 ; then

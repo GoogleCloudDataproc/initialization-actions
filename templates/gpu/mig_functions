@@ -66,13 +66,36 @@ function enable_mig() {
   is_complete enable-mig && return
 
   # Start persistenced if it's not already running
-  if ! ( ps auwx | grep -i nvidia\\-persistenced ) ; then ( nvidia-persistenced & ) ; fi
+#  if ! ( ps auwx | grep -i nvidia\\-persistenced ) ; then ( nvidia-persistenced & ) ; fi
   for f in /sys/module/nvidia/drivers/pci:nvidia/*/numa_node ; do
     # Write an ascii zero to the numa node indicator
     echo "0" | dd of="${f}" status=none
   done
-  time nvsmi --gpu-reset # 30s
+  # nvidia-smi --query-compute-apps=pid --format=csv,noheader
+  for svc in resourcemanager nodemanager; do
+    if [[ "$(systemctl show hadoop-yarn-${svc}.service -p SubState --value)" == 'running' ]]; then
+      systemctl stop "hadoop-yarn-${svc}.service"
+    fi
+  done
+  time nvsmi --gpu-reset || { # 30s
+    echo "unable to reset gpu.  Trying to stop services and kernel modules which may have a lock."
+    # TODO: find a way to reset the A100 without reboot
+    for tryno in {1..25} ; do ; removed="1"
+      for mod in nvidia_drm nvidia_modeset nvidia_uvm nvidia ; do
+        if lsmod | grep -q "${mod}" ; then rmmod $mod > /dev/null 2>&1 || removed="0" ; fi ; done
+      if [[ "${removed}" == "1" ]] ; then
+        echo "modules removed successfully"
+        nvsmi --gpu-reset
+        break
+      fi
+    done
+  }
   nvsmi -mig 1
+  for svc in resourcemanager nodemanager; do
+    if [[ "$(systemctl show hadoop-yarn-${svc}.service -p SubState --value)" == 'running' ]]; then
+      systemctl start "hadoop-yarn-${svc}.service"
+    fi
+  done
   clear_nvsmi_cache
 
   mark_complete enable-mig

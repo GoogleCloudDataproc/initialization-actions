@@ -46,7 +46,7 @@ function set_cuda_runfile_url() {
   local MAX_DRIVER_VERSION
   local MAX_CUDA_VERSION
 
-  local MIN_OPEN_DRIVER_VER="515.48.07"
+  MIN_OPEN_DRIVER_VER="515.43.04"
   local MIN_DRIVER_VERSION="${MIN_OPEN_DRIVER_VER}"
   local MIN_CUDA_VERSION="11.7.1" # matches MIN_OPEN_DRIVER_VER
 
@@ -84,7 +84,33 @@ function set_cuda_runfile_url() {
 
   # driver version named in cuda runfile filename
   # (these may not be actual driver versions - see https://download.nvidia.com/XFree86/Linux-x86_64/)
+#          10.0.130/410.48   =https://developer.nvidia.com/compute/cuda/10.0/Prod/local_installers/cuda_10.0.130_410.48_linux
+#          10.1.234/418.87.00=https://developer.download.nvidia.com/compute/cuda/10.1/Prod/local_installers/cuda_10.1.243_418.87.00_linux.run
+#          10.2.89/440.33.01 =https://developer.download.nvidia.com/compute/cuda/10.2/Prod/local_installers/cuda_10.2.89_440.33.01_linux.run
+#          11.0.3/450.51.06  =https://developer.download.nvidia.com/compute/cuda/11.0.3/local_installers/cuda_11.0.3_450.51.06_linux.run
+#          11.1.1/455.42.00  =https://developer.download.nvidia.com/compute/cuda/11.1.1/local_installers/cuda_11.1.1_455.32.00_linux.run
+#          11.2.2/460.32.03  =https://developer.download.nvidia.com/compute/cuda/11.2.2/local_installers/cuda_11.2.2_460.32.03_linux.run
+#          11.3.1/465.19.01  =https://developer.download.nvidia.com/compute/cuda/11.3.1/local_installers/cuda_11.3.1_465.19.01_linux.run
+#          11.4.4/470.82.01  =https://developer.download.nvidia.com/compute/cuda/11.4.4/local_installers/cuda_11.4.4_470.82.01_linux.run
+#          11.5.2/495.29.05  =https://developer.download.nvidia.com/compute/cuda/11.5.2/local_installers/cuda_11.5.2_495.29.05_linux.run
+#          11.6.2/510.47.03  =https://developer.download.nvidia.com/compute/cuda/11.6.2/local_installers/cuda_11.6.2_510.47.03_linux.run
+#          11.7.1/515.65.01  =https://developer.download.nvidia.com/compute/cuda/11.7.1/local_installers/cuda_11.7.1_515.65.01_linux.run
+#          11.8.0/520.61.05  =https://developer.download.nvidia.com/compute/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run
+#          12.0.1/525.85.12  =https://developer.download.nvidia.com/compute/cuda/12.0.1/local_installers/cuda_12.0.1_525.85.12_linux.run
+#          12.1.1/530.30.02  =https://developer.download.nvidia.com/compute/cuda/12.1.1/local_installers/cuda_12.1.1_530.30.02_linux.run
+#          12.2.2/535.104.05 =https://developer.download.nvidia.com/compute/cuda/12.2.2/local_installers/cuda_12.2.2_535.104.05_linux.run
+#          12.3.2/545.23.08  =https://developer.download.nvidia.com/compute/cuda/12.3.2/local_installers/cuda_12.3.2_545.23.08_linux.run
   readonly -A drv_for_cuda=(
+          ["10.0.130"]="410.48"
+          ["10.1.234"]="418.87.00"
+          ["10.2.89"]="440.33.01"
+          ["11.0.3"]="450.51.06"
+          ["11.1.1"]="455.42.00"
+          ["11.2.2"]="460.32.03"
+          ["11.3.1"]="465.19.01"
+          ["11.4.4"]="470.82.01"
+          ["11.5.2"]="495.29.05"
+          ["11.6.2"]="510.47.03"
           ["11.7.0"]="515.43.04" ["11.7.1"]="515.65.01"
           ["11.8.0"]="520.61.05"
           ["12.0.0"]="525.60.13" ["12.0.1"]="525.85.12"
@@ -108,7 +134,8 @@ function set_cuda_runfile_url() {
   CUDA_RUNFILE="$(echo ${NVIDIA_CUDA_URL} | perl -pe 's{^.+/}{}')"
   readonly CUDA_RUNFILE
 
-  if ! curl -s --head "${NVIDIA_CUDA_URL}" | grep -E -q '^HTTP.*200\s*$' ; then
+  # version naming and archive url were erratic prior to 11.0.3
+  if ( version_ge "${CUDA_FULL_VERSION}" "11.0.3" &&  ! curl -s --head "${NVIDIA_CUDA_URL}" | grep -E -q '^HTTP.*200\s*$' ) ; then
     echo "No CUDA distribution exists for this combination of DRIVER_VERSION=${drv_ver}, CUDA_VERSION=${CUDA_FULL_VERSION}"
     exit 1
   fi
@@ -292,13 +319,13 @@ function install_nvidia_nccl() {
   # Hopper:    SM_90,SM_90a       compute_90,compute_90a
   # Blackwell: SM_100,            compute_100
                   NVCC_GENCODE="-gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_72,code=sm_72"
-  NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_87,code=sm_87"
+  NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86"
+  if version_gt "${CUDA_VERSION}" "11.6" ; then
+    NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_87,code=sm_87" ; fi
   if version_ge "${CUDA_VERSION}" "11.8" ; then
-    NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_89,code=sm_89"
-  fi
+    NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_89,code=sm_89" ; fi
   if version_ge "${CUDA_VERSION}" "12.0" ; then
-    NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_90a,code=compute_90a"
-  fi
+    NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_90a,code=compute_90a" ; fi
 
   mkdir -p "${workdir}"
   pushd "${workdir}"
@@ -464,8 +491,8 @@ function add_repo_cuda() {
 }
 
 function build_driver_from_github() {
-  # non-GPL driver will have been built on rocky8
-  if is_rocky8 ; then return 0 ; fi
+  # non-GPL driver will have been built on rocky8 or if driver version is prior to open kernel version
+  if ( is_rocky8 || version_lt "${DRIVER_VERSION}" "515.43.04" ) ; then return 0 ; fi
   pushd "${workdir}"
 
   test -d "${workdir}/open-gpu-kernel-modules" || {
@@ -592,7 +619,7 @@ function install_nvidia_userspace_runfile() {
   local cache_hit="0"
   local local_tarball
 
-  if is_rocky8 ; then
+  if ( is_rocky8 || version_lt "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" ) ; then
     local nvidia_ko_path="$(find /lib/modules/$(uname -r)/ -name 'nvidia.ko')"
     test -n "${nvidia_ko_path}" && test -f "${nvidia_ko_path}" || {
       local build_tarball="kmod_${_shortname}_${DRIVER_VERSION}.tar.gz"
@@ -604,7 +631,9 @@ function install_nvidia_userspace_runfile() {
 
       if gsutil ls "${gcs_tarball}" 2>&1 | grep -q "${gcs_tarball}" ; then
         cache_hit="1"
-        runfile_args="--no-kernel-modules"
+        if version_ge "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" ; then
+          runfile_args="${runfile_args} --no-kernel-modules"
+        fi
         echo "cache hit"
       else
         install_build_dependencies
@@ -619,10 +648,13 @@ function install_nvidia_userspace_runfile() {
           --module-signing-script \"/lib/modules/${uname_r}/build/scripts/sign-file\" \
           "
         fi
-        runfile_args="--no-dkms ${signing_options}"
+        runfile_args="${signing_options}"
+        if version_ge "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" ; then
+          runfile_args="${runfile_args} --no-dkms"
+        fi
       fi
     }
-  else
+  elif version_ge "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" ; then
     runfile_args="--no-kernel-modules"
   fi
 
@@ -632,7 +664,7 @@ function install_nvidia_userspace_runfile() {
     --install-libglvnd \
     --tmpdir="${tmpdir}"
 
-  if is_rocky8 ; then
+  if ( is_rocky8 || version_lt "${DRIVER_VERSION}" "515.43.04" ) ; then
     if [[ "${cache_hit}" == "1" ]] ; then
       gcloud storage cat "${gcs_tarball}" | tar -C / -xzv
       depmod -a
