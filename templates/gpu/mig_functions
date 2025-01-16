@@ -65,38 +65,81 @@ function configure_mig_cgi() {
 function enable_mig() {
   is_complete enable-mig && return
 
-  # Start persistenced if it's not already running
-#  if ! ( ps auwx | grep -i nvidia\\-persistenced ) ; then ( nvidia-persistenced & ) ; fi
+  # All devices on the same numa node
   for f in /sys/module/nvidia/drivers/pci:nvidia/*/numa_node ; do
     # Write an ascii zero to the numa node indicator
     echo "0" | dd of="${f}" status=none
   done
+
+  echo "Stopping services and kernel modules in preparation for enabling mig."
+  if ( ps auwx | grep -i nvidia\\-persistenced ) ; then killall -9 nvidia-persistenced ; fi
+
   # nvidia-smi --query-compute-apps=pid --format=csv,noheader
   for svc in resourcemanager nodemanager; do
     if [[ "$(systemctl show hadoop-yarn-${svc}.service -p SubState --value)" == 'running' ]]; then
       systemctl stop "hadoop-yarn-${svc}.service"
     fi
   done
+  # can lsof be used to determine what processes have a file with name =~ /nvidia/ under the /dev/ directory ?
+  # if so, stop the service which launches the process with the open filehandle
+
+  MIG_GPU_LIST="`nvsmi -L | grep -E '(MIG|[PVAH]100)' || echo -n ""`"
+  NUM_MIG_GPUS="$(test -n "${MIG_GPU_LIST}" && echo "${MIG_GPU_LIST}" | wc -l || echo "0")"
+
+# root@cluster-1718310842-m:/tmp# for m in nvidia_drm nvidia_modeset nvidia_uvm nvidia ; do sudo rmmod $m ; done
+# rmmod: ERROR: Module nvidia_drm is not currently loaded
+# rmmod: ERROR: Module nvidia_modeset is not currently loaded
+# rmmod: ERROR: Module nvidia_uvm is not currently loaded
+# rmmod: ERROR: Module nvidia is not currently loaded
+# root@cluster-1718310842-m:/tmp# nvidia-smi -i 0 --gpu-reset
+# Resetting GPU 00000000:00:04.0 is not supported.
+# root@cluster-1718310842-m:/tmp# nvidia-smi -i 0 --multi-instance-gpu=1
+# Warning: MIG mode is in pending enable state for GPU 00000000:00:04.0:Not Supported
+# Reboot the system or try nvidia-smi --gpu-reset to make MIG mode effective on GPU 00000000:00:04.0
+# All done.
+# root@cluster-1718310842-m:/tmp# echo $?
+# 0
+# root@cluster-1718310842-m:/tmp# /usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader
+# Disabled
+
+  if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
+
   time nvsmi --gpu-reset || { # 30s
-    echo "unable to reset gpu.  Trying to stop services and kernel modules which may have a lock."
     # TODO: find a way to reset the A100 without reboot
+    removed="1"
     for tryno in {1..25} ; do ; removed="1"
       for mod in nvidia_drm nvidia_modeset nvidia_uvm nvidia ; do
         if lsmod | grep -q "${mod}" ; then rmmod $mod > /dev/null 2>&1 || removed="0" ; fi ; done
       if [[ "${removed}" == "1" ]] ; then
         echo "modules removed successfully"
-        nvsmi --gpu-reset
-        break
+        nvsmi --gpu-reset && break
       fi
     done
   }
-  nvsmi -mig 1
+
+  if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
+    for GPU_ID in $(echo ${MIG_GPU_LIST} | awk -F'[: ]' '{print $2}') ; do
+      if version_le "${CUDA_VERSION}" "11.6" ; then
+        nvsmi -i "${GPU_ID}" --multi-instance-gpu=1
+      else
+        nvsmi -i "${GPU_ID}" --multi-instance-gpu 1
+      fi
+    done
+  fi
+  if test -n "$(nvsmi -L)" ; then
+    # cache the result of the gpu query
+    ADDRS=$(nvsmi --query-gpu=index --format=csv,noheader | perl -e 'print(join(q{,},map{chomp; qq{"$_"}}<STDIN>))')
+    echo "{\"name\": \"gpu\", \"addresses\":[$ADDRS]}" | tee "/var/run/nvidia-gpu-index.txt"
+    chmod a+r "/var/run/nvidia-gpu-index.txt"
+  fi
   for svc in resourcemanager nodemanager; do
     if [[ "$(systemctl show hadoop-yarn-${svc}.service -p SubState --value)" == 'running' ]]; then
       systemctl start "hadoop-yarn-${svc}.service"
     fi
   done
   clear_nvsmi_cache
+  # Start persistenced if it's not already running
+  if ! ( ps auwx | grep -i nvidia\\-persistenced ) ; then ( nvidia-persistenced & ) ; fi
 
   mark_complete enable-mig
 }

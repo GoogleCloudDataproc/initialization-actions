@@ -200,10 +200,11 @@ function prepare_gpu_env(){
     readonly DEFAULT_RAPIDS_RUNTIME='SPARK'
   fi
 
-  # Verify SPARK compatability
-  RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' "${DEFAULT_RAPIDS_RUNTIME}")
+  # Set variables from metadata
+  RAPIDS_RUNTIME="$(get_metadata_attribute 'rapids-runtime' "${DEFAULT_RAPIDS_RUNTIME}")"
   INCLUDE_GPUS="$(get_metadata_attribute include-gpus "")"
-  readonly RAPIDS_RUNTIME INCLUDE_GPUS
+  INCLUDE_PYTORCH="$(get_metadata_attribute 'include-pytorch' 'no')"
+  readonly RAPIDS_RUNTIME INCLUDE_GPUS INCLUDE_PYTORCH
 
   # determine whether we have nvidia-smi installed and working
   nvsmi
