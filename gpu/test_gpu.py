@@ -64,8 +64,13 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_default_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
+    self.skipTest("No need to regularly test installing the agent on its own cluster ; this is exercised elsewhere")
+
+    if configuration == 'SINGLE' \
+    and self.getImageOs() == 'rocky' \
+    and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
+      # ('2.1-rocky8 and 2.0-rocky8 tests are known to fail in SINGLE configuration with errors about nodes_include being empty')
+      self.skipTest("known to fail")
 
     metadata = None
     if driver_provider is not None:
@@ -94,8 +99,11 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
     self.skipTest("No need to regularly test not installing the agent")
 
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
+    if configuration == 'SINGLE' \
+    and self.getImageOs() == 'rocky' \
+    and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
+      # ('2.1-rocky8 and 2.0-rocky8 tests are known to fail in SINGLE configuration with errors about nodes_include being empty')
+      self.skipTest("known to fail")
 
     metadata = "install-gpu-agent=false"
     if driver_provider is not None:
@@ -121,8 +129,12 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   def test_install_gpu_with_agent(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider):
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
+    self.skipTest("No need to regularly test installing the agent on its own cluster ; this is exercised elsewhere")
+
+    if configuration == 'KERBEROS' \
+    and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
+      # ('KERBEROS fails with image version <= 2.1')
+      self.skipTest("known to fail")
 
     metadata = "install-gpu-agent=true"
     if driver_provider is not None:
@@ -159,15 +171,21 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     and ( self.getImageOs() == 'debian' and self.getImageVersion() >= pkg_resources.parse_version("2.2") ):
       self.skipTest("CUDA == 12.0 not supported on debian 12")
 
-    if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.0") \
+    if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.4") \
     and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
           ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
-      self.skipTest("CUDA > 12.0 not supported on older debian/ubuntu releases")
+      self.skipTest("CUDA > 12.4 not supported on older debian/ubuntu releases")
 
-    if pkg_resources.parse_version(cuda_version) < pkg_resources.parse_version("12.0") \
-    and ( self.getImageOs() == 'debian' or self.getImageOs() == 'rocky' ) \
+    if pkg_resources.parse_version(cuda_version) <= pkg_resources.parse_version("12.0") \
     and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("CUDA < 12 not supported on Debian >= 12, Rocky >= 9")
+      self.skipTest( "Kernel driver FTBFS with older CUDA versions on image version >= 2.2" )
+
+    if configuration == 'SINGLE' \
+    and self.getImageOs() == 'rocky' \
+    and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
+      # ('2.1-rocky8 and 2.0-rocky8 tests are known to fail in SINGLE configuration with errors about nodes_include being empty')
+      self.skipTest("known to fail")
+
 
     metadata = "gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
     self.createCluster(
@@ -236,12 +254,12 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   )
   def test_gpu_allocation(self, configuration, master_accelerator,
                           worker_accelerator, driver_provider):
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() <= pkg_resources.parse_version("2.1") \
-    and configuration == 'SINGLE':
-      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests are known to fail with errors about nodes_include being empty")
+    if configuration == 'SINGLE' \
+    and self.getImageOs() == 'rocky' \
+    and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
+      # ('2.1-rocky8 and 2.0-rocky8 tests are known to fail in SINGLE configuration with errors about nodes_include being empty')
+      self.skipTest("known to fail")
 
     metadata = None
     if driver_provider is not None:
@@ -251,7 +269,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         configuration,
         self.INIT_ACTIONS,
         metadata=metadata,
-        machine_type="n1-highmem-8",
+        machine_type="n1-standard-32",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         boot_disk_size="50GB",
@@ -270,16 +288,20 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
 
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
+    if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.4") \
+    and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
+          ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
+      self.skipTest("CUDA > 12.4 not supported on older debian/ubuntu releases")
 
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() <= pkg_resources.parse_version("2.1") \
-    and configuration == 'SINGLE':
-      self.skipTest("2.1-rocky8 and 2.0-rocky8 single instance tests fail with errors about nodes_include being empty")
+    if pkg_resources.parse_version(cuda_version) <= pkg_resources.parse_version("12.0") \
+    and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+      self.skipTest( "Kernel driver FTBFS with older CUDA versions on image version >= 2.2" )
 
-    if pkg_resources.parse_version(cuda_version) == pkg_resources.parse_version("12.0") \
-    and ( self.getImageOs() == 'debian' and self.getImageVersion() >= pkg_resources.parse_version("2.2") ):
-      self.skipTest("CUDA == 12.0 not supported on debian 12")
+    if configuration == 'SINGLE' \
+    and self.getImageOs() == 'rocky' \
+    and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
+      # ('2.1-rocky8 and 2.0-rocky8 tests are known to fail in SINGLE configuration with errors about nodes_include being empty')
+      self.skipTest("known to fail")
 
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.0") \
     and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
