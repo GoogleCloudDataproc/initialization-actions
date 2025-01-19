@@ -490,6 +490,24 @@ function prepare_conda_env() {
   fi
 }
 
+function harden_sshd_config() {
+  # disable sha1 use in kex and kex-gss features
+  declare -rA feature_map=(["kex"]="kexalgorithms" ["kex-gss"]="gssapikexalgorithms")
+  for ftr in "${!feature_map[@]}" ; do
+    export feature=${feature_map[$ftr]}
+    sshd_config_line=$(
+      (sshd -T | awk "/^${feature} / {print \$2}" | sed -e 's/,/\n/g';
+       ssh -Q "${ftr}" ) \
+      | sort | uniq | grep -iv sha1 | perl -e '@a=<STDIN>;
+      print("$ENV{feature} ",join(q",",map{ chomp; $_ }@a), $/) if @a')
+    grep -v "^${feature} " /etc/ssh/sshd_config > /tmp/sshd_config_new
+    echo "$sshd_config_line" >> /tmp/sshd_config_new
+    # TODO: test whether sshd will reload with this change before mv
+    mv /tmp/sshd_config_new /etc/ssh/sshd_config
+  done
+  systemctl reload ssh
+}
+
 function prepare_common_env() {
   SPARK_NLP_VERSION="3.2.1" # Must include subminor version here
   SPARK_JARS_DIR=/usr/lib/spark/jars
@@ -550,9 +568,10 @@ function prepare_common_env() {
 
   is_complete prepare.common && return
 
-  repair_old_backports
+  harden_sshd_config
 
   if is_debuntu ; then
+    repair_old_backports
     clean_up_sources_lists
     apt-get update -qq --allow-releaseinfo-change
     apt-get -y clean
