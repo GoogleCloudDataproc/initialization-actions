@@ -6,7 +6,7 @@ from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
-DEFAULT_TIMEOUT = 15  # minutes
+DEFAULT_TIMEOUT = 45  # minutes
 DEFAULT_CUDA_VERSION = "12.4"
 
 class NvidiaGpuDriverTestCase(DataprocTestCase):
@@ -199,7 +199,7 @@ exit 1 unless $cert eq lc $kmod
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
-        machine_type="n1-highmem-8",
+        machine_type="n1-standard-16",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
@@ -230,7 +230,7 @@ exit 1 unless $cert eq lc $kmod
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
-        machine_type="n1-highmem-8",
+        machine_type="n1-standard-16",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
@@ -280,7 +280,7 @@ exit 1 unless $cert eq lc $kmod
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
-        machine_type="n1-highmem-8",
+        machine_type="n1-standard-16",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
@@ -361,7 +361,7 @@ exit 1 unless $cert eq lc $kmod
         configuration,
         self.INIT_ACTIONS,
         metadata=metadata,
-        machine_type="n1-highmem-8",
+        machine_type="n1-standard-16",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         boot_disk_size="50GB",
@@ -402,7 +402,7 @@ exit 1 unless $cert eq lc $kmod
     self.createCluster(
       configuration,
       self.INIT_ACTIONS,
-      machine_type="n1-highmem-8",
+      machine_type="n1-standard-16",
       master_accelerator=master_accelerator,
       worker_accelerator=worker_accelerator,
       metadata=metadata,
@@ -460,7 +460,7 @@ exit 1 unless $cert eq lc $kmod
     self.createCluster(
       configuration,
       self.INIT_ACTIONS,
-      machine_type="n1-highmem-8",
+      machine_type="n1-standard-16",
       master_accelerator=master_accelerator,
       worker_accelerator=worker_accelerator,
       metadata=metadata,

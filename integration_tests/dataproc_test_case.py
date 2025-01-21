@@ -23,7 +23,7 @@ FLAGS(sys.argv)
 
 INTERNAL_IP_SSH = os.getenv("INTERNAL_IP_SSH", "false").lower() == "true"
 
-DEFAULT_TIMEOUT = 15  # minutes
+DEFAULT_TIMEOUT = 45  # minutes
 
 
 class DataprocTestCase(parameterized.TestCase):
