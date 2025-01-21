@@ -389,7 +389,7 @@ function set_cuda_runfile_url() {
       ["10.1.234"]="418.87.00"
       ["10.2.89"]="440.33.01"
       ["11.0.3"]="450.51.06"
-      ["11.1.1"]="455.42.00"
+      ["11.1.1"]="455.32.00"
       ["11.2.2"]="460.32.03"
       ["11.3.1"]="465.19.01"
       ["11.4.4"]="470.82.01"
@@ -1944,7 +1944,8 @@ function mount_ramdisk(){
 
 function harden_sshd_config() {
   # disable sha1 and md5 use in kex and kex-gss features
-  declare -rA feature_map=(["kex"]="kexalgorithms" ["kex-gss"]="gssapikexalgorithms")
+  declare -A feature_map=(["kex"]="kexalgorithms")
+  if ( ! is_ubuntu || ge_ubuntu20 ) ; then feature_map["kex-gss"]="gssapikexalgorithms" ; fi
   for ftr in "${!feature_map[@]}" ; do
     export feature=${feature_map[$ftr]}
     sshd_config_line=$(
