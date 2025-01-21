@@ -787,36 +787,31 @@ function install_pytorch() {
   local envpath="${mc3}/envs/${env}"
   # Set numa node to 0 for all GPUs
   for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node) ; do echo 0 > ${f} ; done
-  local verb=create
-  if test -d "${envpath}" ; then verb=install ; fi
 
-  case "${INCLUDE_PYTORCH^^}" in
-    "1" | "YES" | "TRUE" )
-      local build_tarball="pytorch_${_shortname}_cuda${CUDA_VERSION}.tar.gz"
-      local local_tarball="${workdir}/${build_tarball}"
-      local gcs_tarball="${pkg_bucket}/conda/${_shortname}/${build_tarball}"
+  local build_tarball="pytorch_${_shortname}_cuda${CUDA_VERSION}.tar.gz"
+  local local_tarball="${workdir}/${build_tarball}"
+  local gcs_tarball="${pkg_bucket}/conda/${_shortname}/${build_tarball}"
 
-      output=$(gsutil ls "${gcs_tarball}" 2>&1 || echo '')
-      if echo "${output}" | grep -q "${gcs_tarball}" ; then
-        # cache hit - unpack from cache
-        echo "cache hit"
-        mkdir -p "${envpath}"
-        gcloud storage cat "${gcs_tarball}" | tar -C "${envpath}" -xz
-      else
-	cudart_spec="cuda-cudart"
-        if le_cuda11 ; then cudart_spec="cudatoolkit" ; fi
-        "${mc3}/bin/mamba" "${verb}" -n "${env}" \
-	  -c conda-forge -c nvidia -c rapidsai \
-          numba pytorch tensorflow[and-cuda] rapids pyspark \
-          "cuda-version<=${CUDA_VERSION}" "${cudart_spec}"
-        pushd "${envpath}"
-        tar czf "${local_tarball}" .
-	popd
-	gcloud storage cp "${local_tarball}" "${gcs_tarball}"
-      fi
-      ;;
-    * ) echo "skip pytorch install" ;;
-  esac
+  output=$(gsutil ls "${gcs_tarball}" 2>&1 || echo '')
+  if echo "${output}" | grep -q "${gcs_tarball}" ; then
+    # cache hit - unpack from cache
+    echo "cache hit"
+    mkdir -p "${envpath}"
+    gcloud storage cat "${gcs_tarball}" | tar -C "${envpath}" -xz
+  else
+    local verb=create
+    if test -d "${envpath}" ; then verb=install ; fi
+    cudart_spec="cuda-cudart"
+    if le_cuda11 ; then cudart_spec="cudatoolkit" ; fi
+    "${mc3}/bin/mamba" "${verb}" -n "${env}" \
+      -c conda-forge -c nvidia -c rapidsai \
+      numba pytorch tensorflow[and-cuda] rapids pyspark \
+      "cuda-version<=${CUDA_VERSION}" "${cudart_spec}"
+    pushd "${envpath}"
+    tar czf "${local_tarball}" .
+    popd
+    gcloud storage cp "${local_tarball}" "${gcs_tarball}"
+  fi
   touch "${workdir}/complete/pytorch"
 }
 
@@ -1947,6 +1942,24 @@ function mount_ramdisk(){
   fi
 }
 
+function harden_sshd_config() {
+  # disable sha1 and md5 use in kex and kex-gss features
+  declare -rA feature_map=(["kex"]="kexalgorithms" ["kex-gss"]="gssapikexalgorithms")
+  for ftr in "${!feature_map[@]}" ; do
+    export feature=${feature_map[$ftr]}
+    sshd_config_line=$(
+      (sshd -T | awk "/^${feature} / {print \$2}" | sed -e 's/,/\n/g';
+       ssh -Q "${ftr}" ) \
+      | sort -u | perl -e '@a=grep{!/(sha1|md5)/ig}<STDIN>;
+      print("$ENV{feature} ",join(q",",map{ chomp; $_ }@a), $/) if "@a"')
+    grep -iv "^${feature} " /etc/ssh/sshd_config > /tmp/sshd_config_new
+    echo "$sshd_config_line" >> /tmp/sshd_config_new
+    # TODO: test whether sshd will reload with this change before mv
+    mv /tmp/sshd_config_new /etc/ssh/sshd_config
+  done
+  systemctl reload ssh
+}
+
 function prepare_to_install(){
   # Verify OS compatability and Secure boot state
   check_os
@@ -1971,9 +1984,10 @@ function prepare_to_install(){
 
   if test -f "${workdir}/complete/prepare" ; then return ; fi
 
-  repair_old_backports
+  harden_sshd_config
 
   if is_debuntu ; then
+    repair_old_backports
     clean_up_sources_lists
     apt-get --allow-releaseinfo-change update
     apt-get -y clean
