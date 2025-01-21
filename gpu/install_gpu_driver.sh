@@ -790,8 +790,7 @@ function install_pytorch() {
   local verb=create
   if test -d "${envpath}" ; then verb=install ; fi
 
-  readonly USE_PYTORCH=$(get_metadata_attribute 'use-pytorch' 'no')
-  case "${USE_PYTORCH^^}" in
+  case "${INCLUDE_PYTORCH^^}" in
     "1" | "YES" | "TRUE" )
       local build_tarball="pytorch_${_shortname}_cuda${CUDA_VERSION}.tar.gz"
       local local_tarball="${workdir}/${build_tarball}"
@@ -1548,6 +1547,9 @@ function prepare_gpu_env(){
 
   if   is_cuda11 ; then gcc_ver="11"
   elif is_cuda12 ; then gcc_ver="12" ; fi
+
+  INCLUDE_PYTORCH=$(get_metadata_attribute 'include-pytorch' 'no')
+  readonly INCLUDE_PYTORCH
 }
 
 # Hold all NVIDIA-related packages from upgrading unintenionally or services like unattended-upgrades
@@ -1624,8 +1626,10 @@ function main() {
       if [[ -n ${CUDNN_VERSION} ]]; then
         install_nvidia_nccl
         install_nvidia_cudnn
-        install_pytorch
       fi
+      case "${INCLUDE_PYTORCH^^}" in
+        "1" | "YES" | "TRUE" ) install_pytorch ;;
+      esac
       #Install GPU metrics collection in Stackdriver if needed
       if [[ "${INSTALL_GPU_AGENT}" == "true" ]]; then
         #install_ops_agent
