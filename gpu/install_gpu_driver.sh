@@ -1960,7 +1960,7 @@ function harden_sshd_config() {
     mv /tmp/sshd_config_new /etc/ssh/sshd_config
   done
   local svc=ssh
-  if ge_rocky9 ; then svc="sshd" ; fi
+  if is_rocky ; then svc="sshd" ; fi
   systemctl reload "${svc}"
 }
 
