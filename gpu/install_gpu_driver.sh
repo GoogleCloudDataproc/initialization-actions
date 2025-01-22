@@ -1945,7 +1945,8 @@ function mount_ramdisk(){
 function harden_sshd_config() {
   # disable sha1 and md5 use in kex and kex-gss features
   declare -A feature_map=(["kex"]="kexalgorithms")
-  if ( ! is_ubuntu || ge_ubuntu20 ) ; then feature_map["kex-gss"]="gssapikexalgorithms" ; fi
+  if ( is_rocky || version_ge "${DATAPROC_IMAGE_VERSION}" "2.1" ) ; then
+    feature_map["kex-gss"]="gssapikexalgorithms" ; fi
   for ftr in "${!feature_map[@]}" ; do
     export feature=${feature_map[$ftr]}
     sshd_config_line=$(
