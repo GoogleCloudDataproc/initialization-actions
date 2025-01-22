@@ -1958,7 +1958,9 @@ function harden_sshd_config() {
     # TODO: test whether sshd will reload with this change before mv
     mv /tmp/sshd_config_new /etc/ssh/sshd_config
   done
-  systemctl reload ssh
+  local svc=ssh
+  if ge_rocky9 ; then svc="sshd" ; fi
+  systemctl reload "${svc}"
 }
 
 function prepare_to_install(){
