@@ -717,6 +717,7 @@ function is_src_os()     ( set +x ; [[ "${GPU_DRIVER_PROVIDER}" == "OS" ]] ; )
 
 function install_nvidia_cudnn() {
   if test -f "${workdir}/complete/cudnn" ; then return ; fi
+  if le_debian10 ; then return ; fi
   local major_version
   major_version="${CUDNN_VERSION%%.*}"
   local cudnn_pkg_version
