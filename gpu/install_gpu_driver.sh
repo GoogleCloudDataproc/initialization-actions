@@ -1404,9 +1404,15 @@ function configure_gpu_script() {
 #
 # Example output: {"name": "gpu", "addresses":["0","1","2","3","4","5","6","7"]}
 
+set -e
+resources_json="/dev/shm/nvidia/gpusResources.json"
+if test -f "${resources_json}" ; then cat "${resources_json}" ; exit 0 ; fi
+
+mkdir -p "$(dirname ${resources_json})"
+
 ADDRS=$(nvidia-smi --query-gpu=index --format=csv,noheader | perl -e 'print(join(q{,},map{chomp; qq{"$_"}}<STDIN>))')
 
-echo {\"name\": \"gpu\", \"addresses\":[${ADDRS}]}
+echo {\"name\": \"gpu\", \"addresses\":[${ADDRS}]} | tee "${resources_json}"
 EOF
 
   chmod a+rx "${gpus_resources_script}"
