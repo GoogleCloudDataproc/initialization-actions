@@ -1566,7 +1566,6 @@ function prepare_gpu_env(){
   gpu_count="$(grep -i PCI_ID=10DE /sys/bus/pci/devices/*/uevent | wc -l)"
   set -e
 
-  readonly DEFAULT_XGBOOST_VERSION="1.7.6" # try 2.1.1
   nvsmi_works="0"
 
   if   is_cuda11 ; then gcc_ver="11"
@@ -1708,6 +1707,8 @@ function main() {
     fi
 
     configure_yarn_nodemanager
+    if [[ "${RAPIDS_RUNTIME}" == "SPARK" ]]; then
+      install_spark_rapids ; fi
     configure_gpu_script
     configure_gpu_isolation
   elif [[ "${ROLE}" == "Master" ]]; then
@@ -2148,6 +2149,43 @@ function os_add_repo() {
 
 
 readonly _shortname="$(os_id)$(os_version|perl -pe 's/(\d+).*/$1/')"
+
+function install_spark_rapids() {
+  # Update SPARK RAPIDS config
+  local DEFAULT_SPARK_RAPIDS_VERSION="24.08.1"
+  local DEFAULT_XGBOOST_VERSION="1.7.6" # 2.1.3
+
+  # https://mvnrepository.com/artifact/ml.dmlc/xgboost4j-spark-gpu
+  local -r scala_ver="2.12"
+
+  if [[ "${DATAPROC_IMAGE_VERSION}" == "2.0" ]] ; then
+    local DEFAULT_SPARK_RAPIDS_VERSION="23.08.2" # Final release to support spark 3.1.3
+  fi
+
+  readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
+  readonly XGBOOST_VERSION=$(get_metadata_attribute 'xgboost-version' ${DEFAULT_XGBOOST_VERSION})
+
+  local -r rapids_repo_url='https://repo1.maven.org/maven2/ai/rapids'
+  local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
+  local -r dmlc_repo_url='https://repo.maven.apache.org/maven2/ml/dmlc'
+
+  local jar_basename
+
+  jar_basename="xgboost4j-spark-gpu_${scala_ver}-${XGBOOST_VERSION}.jar"
+  cache_fetched_package "${dmlc_repo_url}/xgboost4j-spark-gpu_${scala_ver}/${XGBOOST_VERSION}/${jar_basename}" \
+                        "${pkg_bucket}/xgboost4j-spark-gpu_${scala_ver}/${XGBOOST_VERSION}/${jar_basename}" \
+                        "/usr/lib/spark/jars/${jar_basename}"
+
+  jar_basename="xgboost4j-gpu_${scala_ver}-${XGBOOST_VERSION}.jar"
+  cache_fetched_package "${dmlc_repo_url}/xgboost4j-gpu_${scala_ver}/${XGBOOST_VERSION}/${jar_basename}" \
+                        "${pkg_bucket}/xgboost4j-gpu_${scala_ver}/${XGBOOST_VERSION}/${jar_basename}" \
+                        "/usr/lib/spark/jars/${jar_basename}"
+
+  jar_basename="rapids-4-spark_${scala_ver}-${SPARK_RAPIDS_VERSION}.jar"
+  cache_fetched_package "${nvidia_repo_url}/rapids-4-spark_${scala_ver}/${SPARK_RAPIDS_VERSION}/${jar_basename}" \
+                        "${pkg_bucket}/rapids-4-spark_${scala_ver}/${SPARK_RAPIDS_VERSION}/${jar_basename}" \
+                        "/usr/lib/spark/jars/${jar_basename}"
+}
 
 prepare_to_install
 
