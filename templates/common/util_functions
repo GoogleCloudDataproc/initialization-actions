@@ -466,11 +466,11 @@ function install_dependencies() {
 }
 
 function prepare_pip_env() {
-  # Clear pip cache
-  # TODO: make this conditional on which OSs have pip without cache purge
-  test -d "${workdir}/python-venv" || python3 -m venv "${workdir}/python-venv"
+  test -d "${workdir}/python-venv" || /opt/conda/miniconda3/bin/python3 -m venv "${workdir}/python-venv"
   source "${workdir}/python-venv/bin/activate"
 
+  # Clear pip cache
+  # TODO: make this conditional on which OSs have pip without cache purge
   pip cache purge || echo "unable to purge pip cache"
   if is_ramdisk ; then
     # Download pip packages to tmpfs
@@ -491,21 +491,25 @@ function prepare_conda_env() {
 }
 
 function harden_sshd_config() {
-  # disable sha1 use in kex and kex-gss features
-  declare -rA feature_map=(["kex"]="kexalgorithms" ["kex-gss"]="gssapikexalgorithms")
+  # disable sha1 and md5 use in kex and kex-gss features
+  declare -A feature_map=(["kex"]="kexalgorithms")
+  if ( is_rocky || version_ge "${DATAPROC_IMAGE_VERSION}" "2.1" ) ; then
+    feature_map["kex-gss"]="gssapikexalgorithms" ; fi
   for ftr in "${!feature_map[@]}" ; do
     export feature=${feature_map[$ftr]}
     sshd_config_line=$(
       (sshd -T | awk "/^${feature} / {print \$2}" | sed -e 's/,/\n/g';
        ssh -Q "${ftr}" ) \
-      | sort | uniq | grep -iv sha1 | perl -e '@a=<STDIN>;
-      print("$ENV{feature} ",join(q",",map{ chomp; $_ }@a), $/) if @a')
-    grep -v "^${feature} " /etc/ssh/sshd_config > /tmp/sshd_config_new
+      | sort -u | perl -e '@a=grep{!/(sha1|md5)/ig}<STDIN>;
+      print("$ENV{feature} ",join(",",map{ chomp; $_ }@a), $/) if "@a"')
+    grep -iv "^${feature} " /etc/ssh/sshd_config > /tmp/sshd_config_new
     echo "$sshd_config_line" >> /tmp/sshd_config_new
     # TODO: test whether sshd will reload with this change before mv
     mv /tmp/sshd_config_new /etc/ssh/sshd_config
   done
-  systemctl reload ssh
+  local svc=ssh
+  if is_rocky ; then svc="sshd" ; fi
+  systemctl reload "${svc}"
 }
 
 function prepare_common_env() {

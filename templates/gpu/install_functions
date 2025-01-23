@@ -4,16 +4,15 @@ function set_cudnn_version() {
   readonly DEFAULT_CUDNN9_VERSION="9.1.0.70"
 
   # Parameters for NVIDIA-provided cuDNN library
-  DEFAULT_CUDNN_VERSION=${CUDNN_FOR_CUDA["${CUDA_VERSION}"]}
-  readonly DEFAULT_CUDNN_VERSION
+  readonly DEFAULT_CUDNN_VERSION=${CUDNN_FOR_CUDA["${CUDA_VERSION}"]}
   CUDNN_VERSION=$(get_metadata_attribute 'cudnn-version' "${DEFAULT_CUDNN_VERSION}")
   # The minimum cuDNN version supported by rocky is ${MIN_ROCKY8_CUDNN8_VERSION}
   if ( is_rocky  && version_le "${CUDNN_VERSION}" "${MIN_ROCKY8_CUDNN8_VERSION}" ) ; then
     CUDNN_VERSION="${MIN_ROCKY8_CUDNN8_VERSION}"
-  elif (ge_ubuntu20 || ge_debian12) && [[ "${CUDNN_VERSION%%.*}" == "8" ]] ; then
+  elif (ge_ubuntu20 || ge_debian12) && is_cudnn8 ; then
     # cuDNN v8 is not distribution for ubuntu20+, debian12
     CUDNN_VERSION="${DEFAULT_CUDNN9_VERSION}"
-  elif (le_ubuntu18 || le_debian11) && [[ "${CUDNN_VERSION%%.*}" == "9" ]] ; then
+  elif (le_ubuntu18 || le_debian11) && is_cudnn9 ; then
     # cuDNN v9 is not distributed for ubuntu18, debian10, debian11 ; fall back to 8
     CUDNN_VERSION="8.8.0.121"
   fi
@@ -106,7 +105,7 @@ function set_cuda_runfile_url() {
           ["10.1.234"]="418.87.00"
           ["10.2.89"]="440.33.01"
           ["11.0.3"]="450.51.06"
-          ["11.1.1"]="455.42.00"
+          ["11.1.1"]="455.32.00"
           ["11.2.2"]="460.32.03"
           ["11.3.1"]="465.19.01"
           ["11.4.4"]="470.82.01"
@@ -130,16 +129,20 @@ function set_cuda_runfile_url() {
   local DEFAULT_NVIDIA_CUDA_URL="${CUDA_RELEASE_BASE_URL}/local_installers/${CUDA_RUNFILE}"
 
   NVIDIA_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_CUDA_URL}")
+
+  # version naming and archive url were erratic prior to 11.0.3
+  if ! curl -s --head "${NVIDIA_CUDA_URL}" | grep -E -q '^HTTP.*200\s*$' ; then
+    echo "No CUDA distribution exists for this combination of DRIVER_VERSION=${drv_ver}, CUDA_VERSION=${CUDA_FULL_VERSION}"
+    if [[ "${DEFAULT_NVIDIA_CUDA_URL}" != "${NVIDIA_CUDA_URL}" ]]; then
+      echo "consider [${DEFAULT_NVIDIA_CUDA_URL}] instead"
+    fi
+    exit 1
+  fi
+
   readonly NVIDIA_CUDA_URL
 
   CUDA_RUNFILE="$(echo ${NVIDIA_CUDA_URL} | perl -pe 's{^.+/}{}')"
   readonly CUDA_RUNFILE
-
-  # version naming and archive url were erratic prior to 11.0.3
-  if ( version_ge "${CUDA_FULL_VERSION}" "11.0.3" &&  ! curl -s --head "${NVIDIA_CUDA_URL}" | grep -E -q '^HTTP.*200\s*$' ) ; then
-    echo "No CUDA distribution exists for this combination of DRIVER_VERSION=${drv_ver}, CUDA_VERSION=${CUDA_FULL_VERSION}"
-    exit 1
-  fi
 
   if ( version_lt "${CUDA_FULL_VERSION}" "12.3.0" && ge_debian12 ) ; then
     echo "CUDA 12.3.0 is the minimum CUDA 12 version supported on Debian 12"
@@ -152,50 +155,24 @@ function set_cuda_runfile_url() {
   fi
 }
 
-function set_cudnn_tarball_url() {
-CUDNN_TARBALL="cudnn-${CUDA_VERSION}-linux-x64-v${CUDNN_VERSION}.tgz"
-CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN_VERSION%.*}/${CUDNN_TARBALL}"
-if ( version_ge "${CUDNN_VERSION}" "8.3.1.22" ); then
-  # When version is greater than or equal to 8.3.1.22 but less than 8.4.1.50 use this format
-  CUDNN_TARBALL="cudnn-linux-x86_64-${CUDNN_VERSION}_cuda${CUDA_VERSION%.*}-archive.tar.xz"
-  if ( version_le "${CUDNN_VERSION}" "8.4.1.50" ); then
-    # When cuDNN version is greater than or equal to 8.4.1.50 use this format
-    CUDNN_TARBALL="cudnn-linux-x86_64-${CUDNN_VERSION}_cuda${CUDA_VERSION}-archive.tar.xz"
-  fi
-  # Use legacy url format with one of the tarball name formats depending on version as above
-  CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/redist/cudnn/v${CUDNN_VERSION%.*}/local_installers/${CUDA_VERSION}/${CUDNN_TARBALL}"
-fi
-if ( version_ge "${CUDA_VERSION}" "12.0" ); then
-  # Use modern url format When cuda version is greater than or equal to 12.0
-  CUDNN_TARBALL="cudnn-linux-x86_64-${CUDNN_VERSION}_cuda${CUDA_VERSION%%.*}-archive.tar.xz"
-  CUDNN_TARBALL_URL="${NVIDIA_BASE_DL_URL}/cudnn/redist/cudnn/linux-x86_64/${CUDNN_TARBALL}"
-fi
-readonly CUDNN_TARBALL
-readonly CUDNN_TARBALL_URL
-}
-
 function install_cuda_keyring_pkg() {
-  if ( test -v CUDA_KEYRING_PKG_INSTALLED &&
-       [[ "${CUDA_KEYRING_PKG_INSTALLED}" == "1" ]] ); then return ; fi
+  is_complete cuda-keyring-installed && return
   local kr_ver=1.1
   curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
     "${NVIDIA_REPO_URL}/cuda-keyring_${kr_ver}-1_all.deb" \
     -o "${tmpdir}/cuda-keyring.deb"
   dpkg -i "${tmpdir}/cuda-keyring.deb"
   rm -f "${tmpdir}/cuda-keyring.deb"
-  CUDA_KEYRING_PKG_INSTALLED="1"
+  mark_complete cuda-keyring-installed
 }
 
 function uninstall_cuda_keyring_pkg() {
   apt-get purge -yq cuda-keyring
-  CUDA_KEYRING_PKG_INSTALLED="0"
+  mark_incomplete cuda-keyring-installed
 }
 
 function install_local_cuda_repo() {
   is_complete install-local-cuda-repo && return
-
-  if [[ "${CUDA_LOCAL_REPO_INSTALLED}" == "1" ]]; then return ; fi
-  CUDA_LOCAL_REPO_INSTALLED="1"
   pkgname="cuda-repo-${shortname}-${CUDA_VERSION//./-}-local"
   CUDA_LOCAL_REPO_PKG_NAME="${pkgname}"
   readonly LOCAL_INSTALLER_DEB="${pkgname}_${CUDA_FULL_VERSION}-${DRIVER_VERSION}-1_amd64.deb"
@@ -219,7 +196,7 @@ function install_local_cuda_repo() {
 }
 function uninstall_local_cuda_repo(){
   apt-get purge -yq "${CUDA_LOCAL_REPO_PKG_NAME}"
-  rm -f "${workdir}/complete/install-local-cuda-repo"
+  mark_incomplete install-local-cuda-repo
 }
 
 function install_local_cudnn_repo() {
@@ -268,7 +245,7 @@ function install_local_cudnn8_repo() {
 
   # cache the cudnn package
   cache_fetched_package "${local_deb_url}" \
-                        "${pkg_bucket}/${CUDNN8_CUDA_VER}/${deb_fn}" \
+                        "${pkg_bucket}/nvidia/cudnn/${CUDNN8_CUDA_VER}/${deb_fn}" \
                         "${local_deb_fn}"
 
   local cudnn_path="$(dpkg -c ${local_deb_fn} | perl -ne 'if(m{(/var/cudnn-local-repo-.*)/\s*$}){print $1}')"
@@ -322,41 +299,42 @@ function install_nvidia_nccl() {
   test -d "${workdir}/nccl/build" || {
     local build_tarball="nccl-build_${_shortname}_${nccl_version}.tar.gz"
     local local_tarball="${workdir}/${build_tarball}"
-    local gcs_tarball="${pkg_bucket}/${_shortname}/${build_tarball}"
-
-    # https://github.com/NVIDIA/nccl/blob/master/README.md
-    # https://arnon.dk/matching-sm-architectures-arch-and-gencode-for-various-nvidia-cards/
-    # Fermi:     SM_20,             compute_30
-    # Kepler:    SM_30,SM_35,SM_37, compute_30,compute_35,compute_37
-    # Maxwell:   SM_50,SM_52,SM_53, compute_50,compute_52,compute_53
-    # Pascal:    SM_60,SM_61,SM_62, compute_60,compute_61,compute_62
-
-    # The following architectures are suppored by open kernel driver
-    # Volta:     SM_70,SM_72,       compute_70,compute_72
-    # Ampere:    SM_80,SM_86,SM_87, compute_80,compute_86,compute_87
-
-    # The following architectures are supported by CUDA v11.8+
-    # Ada:       SM_89,             compute_89
-    # Hopper:    SM_90,SM_90a       compute_90,compute_90a
-    # Blackwell: SM_100,            compute_100
-                    NVCC_GENCODE="-gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_72,code=sm_72"
-    NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86"
-    if version_gt "${CUDA_VERSION}" "11.6" ; then
-      NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_87,code=sm_87" ; fi
-    if version_ge "${CUDA_VERSION}" "11.8" ; then
-      NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_89,code=sm_89" ; fi
-    if version_ge "${CUDA_VERSION}" "12.0" ; then
-      NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_90a,code=compute_90a" ; fi
+    local gcs_tarball="${pkg_bucket}/nvidia/nccl/${_shortname}/${build_tarball}"
 
     output=$(gsutil ls "${gcs_tarball}" 2>&1 || echo '')
     if echo "${output}" | grep -q "${gcs_tarball}" ; then
       # cache hit - unpack from cache
       echo "cache hit"
+      gcloud storage cat "${gcs_tarball}" | tar xvz
     else
       # build and cache
       pushd nccl
       # https://github.com/NVIDIA/nccl?tab=readme-ov-file#install
       install_build_dependencies
+      # https://github.com/NVIDIA/nccl/blob/master/README.md
+      # https://arnon.dk/matching-sm-architectures-arch-and-gencode-for-various-nvidia-cards/
+      # Fermi:     SM_20,             compute_30
+      # Kepler:    SM_30,SM_35,SM_37, compute_30,compute_35,compute_37
+      # Maxwell:   SM_50,SM_52,SM_53, compute_50,compute_52,compute_53
+      # Pascal:    SM_60,SM_61,SM_62, compute_60,compute_61,compute_62
+
+      # The following architectures are suppored by open kernel driver
+      # Volta:     SM_70,SM_72,       compute_70,compute_72
+      # Ampere:    SM_80,SM_86,SM_87, compute_80,compute_86,compute_87
+
+      # The following architectures are supported by CUDA v11.8+
+      # Ada:       SM_89,             compute_89
+      # Hopper:    SM_90,SM_90a       compute_90,compute_90a
+      # Blackwell: SM_100,            compute_100
+                      NVCC_GENCODE="-gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_72,code=sm_72"
+      NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86"
+      if version_gt "${CUDA_VERSION}" "11.6" ; then
+        NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_87,code=sm_87" ; fi
+      if version_ge "${CUDA_VERSION}" "11.8" ; then
+        NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_89,code=sm_89" ; fi
+      if version_ge "${CUDA_VERSION}" "12.0" ; then
+        NVCC_GENCODE="${NVCC_GENCODE} -gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_90a,code=compute_90a" ; fi
+
       if is_debuntu ; then
         # These packages are required to build .deb packages from source
         execute_with_retries \
@@ -391,8 +369,8 @@ function install_nvidia_nccl() {
 }
 
 function install_nvidia_cudnn() {
+  if le_debian10 ; then return ; fi
   is_complete cudnn && return
-
   local major_version
   major_version="${CUDNN_VERSION%%.*}"
   local cudnn_pkg_version
@@ -427,9 +405,10 @@ function install_nvidia_cudnn() {
           apt-get -y install --no-install-recommends \
             "libcudnn8=${cudnn_pkg_version}" \
             "libcudnn8-dev=${cudnn_pkg_version}"
-	sync
+
+        sync
       elif is_cudnn9 ; then
-	install_cuda_keyring_pkg
+        install_cuda_keyring_pkg
 
         apt-get update -qq
 
@@ -438,7 +417,8 @@ function install_nvidia_cudnn() {
           "libcudnn9-cuda-${CUDA_VERSION%%.*}" \
           "libcudnn9-dev-cuda-${CUDA_VERSION%%.*}" \
           "libcudnn9-static-cuda-${CUDA_VERSION%%.*}"
-	sync
+
+        sync
       else
         echo "Unsupported cudnn version: [${CUDNN_VERSION}]"
       fi
@@ -462,8 +442,6 @@ function install_pytorch() {
   local envpath="${mc3}/envs/${env}"
   # Set numa node to 0 for all GPUs
   for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node) ; do echo 0 > ${f} ; done
-  local verb=create
-  if test -d "${envpath}" ; then verb=install ; fi
 
   readonly INCLUDE_PYTORCH=$(get_metadata_attribute 'include-pytorch' 'no')
   case "${INCLUDE_PYTORCH^^}" in
@@ -479,6 +457,8 @@ function install_pytorch() {
         mkdir -p "${envpath}"
         gcloud storage cat "${gcs_tarball}" | tar -C "${envpath}" -xz
       else
+        local verb=create
+        if test -d "${envpath}" ; then verb=install ; fi
         cudart_spec="cuda-cudart"
         if le_cuda11 ; then cudart_spec="cudatoolkit" ; fi
         "${mc3}/bin/mamba" "${verb}" -n "${env}" \
@@ -536,7 +516,7 @@ function add_repo_cuda() {
 
 function build_driver_from_github() {
   # non-GPL driver will have been built on rocky8 or if driver version is prior to open kernel version
-  if ( is_rocky8 || version_lt "${DRIVER_VERSION}" "515.43.04" ) ; then return 0 ; fi
+  if ( is_rocky8 || version_lt "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" ) ; then return 0 ; fi
   pushd "${workdir}"
 
   test -d "${workdir}/open-gpu-kernel-modules" || {
@@ -554,7 +534,7 @@ function build_driver_from_github() {
     local def_dir="${modulus_md5sum:-unsigned}"
     local build_dir=$(get_metadata_attribute modulus_md5sum "${def_dir}")
 
-    local gcs_tarball="${pkg_bucket}/${_shortname}/${uname_r}/${build_dir}/${build_tarball}"
+    local gcs_tarball="${pkg_bucket}/nvidia/kmod/${_shortname}/${uname_r}/${build_dir}/${build_tarball}"
 
     if gsutil ls "${gcs_tarball}" 2>&1 | grep -q "${gcs_tarball}" ; then
       echo "cache hit"
@@ -618,6 +598,7 @@ function build_driver_from_packages() {
     add_contrib_component
     apt-get update -qq
     execute_with_retries apt-get install -y -qq --no-install-recommends dkms
+    configure_dkms_certs
     execute_with_retries apt-get install -y -qq --no-install-recommends "${pkglist[@]}"
     sync
 
@@ -629,6 +610,7 @@ function build_driver_from_packages() {
     fi
     sync
   fi
+  clear_dkms_key
 }
 
 function install_nvidia_userspace_runfile() {
@@ -708,7 +690,7 @@ function install_nvidia_userspace_runfile() {
     --install-libglvnd \
     --tmpdir="${tmpdir}"
 
-  if ( is_rocky8 || version_lt "${DRIVER_VERSION}" "515.43.04" ) ; then
+  if ( is_rocky8 || version_lt "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" ) ; then
     if [[ "${cache_hit}" == "1" ]] ; then
       gcloud storage cat "${gcs_tarball}" | tar -C / -xzv
       depmod -a
@@ -732,7 +714,7 @@ function install_cuda_runfile() {
   local local_fn="${tmpdir}/cuda.run"
 
   cache_fetched_package "${NVIDIA_CUDA_URL}" \
-			"${pkg_bucket}/${CUDA_RUNFILE}" \
+                        "${pkg_bucket}/${CUDA_RUNFILE}" \
                         "${local_fn}"
 
   execute_with_retries bash "${local_fn}" --toolkit --no-opengl-libs --silent --tmpdir="${tmpdir}"

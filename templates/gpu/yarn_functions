@@ -52,6 +52,7 @@ EOF
   chmod a+rx "${gpus_resources_script}"
 
   local spark_defaults_conf="/etc/spark/conf.dist/spark-defaults.conf"
+  if version_lt "${SPARK_VERSION}" "3.0" ; then return ; fi
 
   local executor_cores
   executor_cores="$(nproc | perl -MPOSIX -pe '$_ = POSIX::floor( $_ * 0.75 ); $_-- if $_ % 2')"
@@ -75,9 +76,9 @@ EOF
 # query explain output won't show GPU operator, if the user has doubts
 # they can uncomment the line before seeing the GPU plan explain;
 # having AQE enabled gives user the best performance.
+spark.executor.resource.gpu.discoveryScript=${gpus_resources_script}
 spark.executor.resource.gpu.amount=${gpu_count}
 spark.plugins=com.nvidia.spark.SQLPlugin
-spark.executor.resource.gpu.discoveryScript=${gpus_resources_script}
 spark.executor.cores=${executor_cores}
 spark.executor.memory=${executor_memory_gb}G
 spark.dynamicAllocation.enabled=false
