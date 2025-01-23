@@ -134,8 +134,7 @@ readonly ROLE
 
 # Minimum supported version for open kernel driver is 515.43.04
 # https://github.com/NVIDIA/open-gpu-kernel-modules/tags
-# Rocky8: 12.0: 525.147.05
-latest="$(curl -s https://download.nvidia.com/XFree86/Linux-x86_64/latest.txt | awk '{print $1}')"
+latest="$(curl -s https://us.download.nvidia.com/XFree86/Linux-x86_64/latest.txt | awk '{print $1}')"
 readonly -A DRIVER_FOR_CUDA=(
     ["10.0"]="410.48" ["10.1"]="418.87.00" ["10.2"]="440.33.01"
     ["11.1"]="455.45.01" ["11.2"]="460.91.03" ["11.3"]="465.31"
@@ -165,7 +164,6 @@ readonly -A CUDNN_FOR_CUDA=(
     ["12.6"]="9.6.0.74"
 )
 # https://developer.nvidia.com/nccl/nccl-download
-# 12.2: 2.19.3, 12.5: 2.21.5
 readonly -A NCCL_FOR_CUDA=(
     ["10.0"]="2.3.7" ["10.1"]= ["11.0"]="2.7.8" ["11.1"]="2.8.3"
     ["11.2"]="2.8.4" ["11.3"]="2.9.9" ["11.4"]="2.11.4"
@@ -184,10 +182,16 @@ readonly -A CUDA_SUBVER=(
     ["12.6"]="12.6.3"
 )
 
-# Verify SPARK compatability
-RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
-
 function set_cuda_version() {
+  case "${DATAPROC_IMAGE_VERSION}" in
+    "2.0" ) DEFAULT_CUDA_VERSION="12.1.1" ;; # Cuda 12.1.1 - Driver v530.30.02 is the latest version supported by Ubuntu 18)
+    "2.1" ) DEFAULT_CUDA_VERSION="12.4.1" ;;
+    "2.2" ) DEFAULT_CUDA_VERSION="12.6.2" ;;
+    *   )
+      echo "unrecognized Dataproc image version: ${DATAPROC_IMAGE_VERSION}"
+      exit 1
+      ;;
+  esac
   local cuda_url
   cuda_url=$(get_metadata_attribute 'cuda-url' '')
   if [[ -n "${cuda_url}" ]] ; then
@@ -195,13 +199,8 @@ function set_cuda_version() {
     local CUDA_URL_VERSION
     CUDA_URL_VERSION="$(echo "${cuda_url}" | perl -pe 's{^.*/cuda_(\d+\.\d+\.\d+)_\d+\.\d+\.\d+_linux.run$}{$1}')"
     if [[ "${CUDA_URL_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] ; then
-      DEFAULT_CUDA_VERSION="${CUDA_URL_VERSION%.*}"
-      CUDA_FULL_VERSION="${CUDA_URL_VERSION}"
+      DEFAULT_CUDA_VERSION="${CUDA_URL_VERSION}"
     fi
-  fi
-
-  if ( ! test -v DEFAULT_CUDA_VERSION ) ; then
-    DEFAULT_CUDA_VERSION='12.4'
   fi
   readonly DEFAULT_CUDA_VERSION
 
@@ -215,7 +214,6 @@ function set_cuda_version() {
     CUDA_FULL_VERSION=${CUDA_SUBVER["${CUDA_VERSION}"]}
   fi
   readonly CUDA_FULL_VERSION
-
 }
 
 set_cuda_version
@@ -264,7 +262,7 @@ function set_driver_version() {
   DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' "${DEFAULT_DRIVER}")
 
   readonly DRIVER_VERSION
-  readonly DRIVER=${DRIVER_VERSION%%.*}
+  readonly DRIVER="${DRIVER_VERSION%%.*}"
 
   export DRIVER_VERSION DRIVER
 
@@ -498,25 +496,24 @@ function execute_with_retries() (
   return 1
 )
 
-CUDA_KEYRING_PKG_INSTALLED="0"
 function install_cuda_keyring_pkg() {
-  if [[ "${CUDA_KEYRING_PKG_INSTALLED}" == "1" ]]; then return ; fi
+  is_complete cuda-keyring-installed && return
   local kr_ver=1.1
   curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
     "${NVIDIA_REPO_URL}/cuda-keyring_${kr_ver}-1_all.deb" \
     -o "${tmpdir}/cuda-keyring.deb"
   dpkg -i "${tmpdir}/cuda-keyring.deb"
   rm -f "${tmpdir}/cuda-keyring.deb"
-  CUDA_KEYRING_PKG_INSTALLED="1"
+  mark_complete cuda-keyring-installed
 }
 
 function uninstall_cuda_keyring_pkg() {
   apt-get purge -yq cuda-keyring
-  CUDA_KEYRING_PKG_INSTALLED="0"
+  mark_incomplete cuda-keyring-installed
 }
 
 function install_local_cuda_repo() {
-  if test -f "${workdir}/complete/install-local-cuda-repo" ; then return ; fi
+  is_complete install-local-cuda-repo && return
 
   pkgname="cuda-repo-${shortname}-${CUDA_VERSION//./-}-local"
   CUDA_LOCAL_REPO_PKG_NAME="${pkgname}"
@@ -537,16 +534,15 @@ function install_local_cuda_repo() {
       -o /etc/apt/preferences.d/cuda-repository-pin-600
   fi
 
-  touch "${workdir}/complete/install-local-cuda-repo"
+  mark_complete install-local-cuda-repo
 }
 function uninstall_local_cuda_repo(){
   apt-get purge -yq "${CUDA_LOCAL_REPO_PKG_NAME}"
-  rm -f "${workdir}/complete/install-local-cuda-repo"
+  mark_incomplete install-local-cuda-repo
 }
 
-CUDNN_PKG_NAME=""
 function install_local_cudnn_repo() {
-  if test -f "${workdir}/complete/install-local-cudnn-repo" ; then return ; fi
+  is_complete install-local-cudnn-repo && return
   pkgname="cudnn-local-repo-${shortname}-${CUDNN_VERSION%.*}"
   CUDNN_PKG_NAME="${pkgname}"
   local_deb_fn="${pkgname}_1.0-1_amd64.deb"
@@ -562,18 +558,16 @@ function install_local_cudnn_repo() {
 
   cp /var/cudnn-local-repo-*-${CUDNN_VERSION%.*}*/cudnn-local-*-keyring.gpg /usr/share/keyrings
 
-  touch "${workdir}/complete/install-local-cudnn-repo"
+  mark_complete install-local-cudnn-repo
 }
 
 function uninstall_local_cudnn_repo() {
   apt-get purge -yq "${CUDNN_PKG_NAME}"
-  rm -f "${workdir}/complete/install-local-cudnn-repo"
+  mark_incomplete install-local-cudnn-repo
 }
 
-CUDNN8_LOCAL_REPO_INSTALLED="0"
-CUDNN8_PKG_NAME=""
 function install_local_cudnn8_repo() {
-  if test -f "${workdir}/complete/install-local-cudnn8-repo" ; then return ; fi
+  is_complete install-local-cudnn8-repo && return
 
   if   is_ubuntu ; then cudnn8_shortname="ubuntu2004"
   elif is_debian ; then cudnn8_shortname="debian11"
@@ -607,16 +601,16 @@ function install_local_cudnn8_repo() {
   rm -f "${local_deb_fn}"
 
   cp "${cudnn_path}"/cudnn-local-*-keyring.gpg /usr/share/keyrings
-  touch "${workdir}/complete/install-local-cudnn8-repo"
+  mark_complete install-local-cudnn8-repo
 }
 
 function uninstall_local_cudnn8_repo() {
   apt-get purge -yq "${CUDNN8_PKG_NAME}"
-  rm -f "${workdir}/complete/install-local-cudnn8-repo"
+  mark_incomplete install-local-cudnn8-repo
 }
 
 function install_nvidia_nccl() {
-  if test -f "${workdir}/complete/nccl" ; then return ; fi
+  is_complete nccl && return
 
   if is_cuda11 && is_debian12 ; then
     echo "NCCL cannot be compiled for CUDA 11 on ${_shortname}"
@@ -709,14 +703,14 @@ function install_nvidia_nccl() {
   fi
 
   popd
-  touch "${workdir}/complete/nccl"
+  mark_complete nccl
 }
 
 function is_src_nvidia() ( set +x ; [[ "${GPU_DRIVER_PROVIDER}" == "NVIDIA" ]] ; )
 function is_src_os()     ( set +x ; [[ "${GPU_DRIVER_PROVIDER}" == "OS" ]] ; )
 
 function install_nvidia_cudnn() {
-  if test -f "${workdir}/complete/cudnn" ; then return ; fi
+  is_complete cudnn && return
   if le_debian10 ; then return ; fi
   local major_version
   major_version="${CUDNN_VERSION%%.*}"
@@ -764,6 +758,7 @@ function install_nvidia_cudnn() {
           "libcudnn9-cuda-${CUDA_VERSION%%.*}" \
           "libcudnn9-dev-cuda-${CUDA_VERSION%%.*}" \
           "libcudnn9-static-cuda-${CUDA_VERSION%%.*}"
+
 	sync
       else
         echo "Unsupported cudnn version: [${CUDNN_VERSION}]"
@@ -776,8 +771,8 @@ function install_nvidia_cudnn() {
 
   ldconfig
 
-  touch "${workdir}/complete/cudnn"
   echo "NVIDIA cuDNN successfully installed for ${OS_NAME}."
+  mark_complete cudnn
 }
 
 function install_pytorch() {
@@ -948,7 +943,7 @@ function add_repo_cuda() {
 readonly uname_r=$(uname -r)
 
 function build_driver_from_github() {
-  # non-GPL driver will have been built on rocky8
+  # non-GPL driver will have been built on rocky8 or if driver version is prior to open kernel version
   if ( is_rocky8 || version_lt "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" ) ; then return 0 ; fi
   pushd "${workdir}"
   test -d "${workdir}/open-gpu-kernel-modules" || {
@@ -976,7 +971,7 @@ function build_driver_from_github() {
       # build the kernel modules
       pushd open-gpu-kernel-modules
       install_build_dependencies
-      if is_cuda11 && is_ubuntu22 ; then
+      if ( is_cuda11 && is_ubuntu22 ) ; then
         echo "Kernel modules cannot be compiled for CUDA 11 on ${_shortname}"
         exit 1
       fi
@@ -985,12 +980,14 @@ function build_driver_from_github() {
         2> kernel-open/build_error.log
       # Sign kernel modules
       if [[ -n "${PSN}" ]]; then
+        configure_dkms_certs
         for module in $(find open-gpu-kernel-modules/kernel-open -name '*.ko'); do
           "/lib/modules/${uname_r}/build/scripts/sign-file" sha256 \
           "${mok_key}" \
           "${mok_der}" \
           "${module}"
         done
+        clear_dkms_key
       fi
       make modules_install \
         >>  kernel-open/build.log \
@@ -1030,12 +1027,12 @@ function build_driver_from_packages() {
     add_contrib_component
     apt-get update -qq
     execute_with_retries apt-get install -y -qq --no-install-recommends dkms
-    #configure_dkms_certs
+    configure_dkms_certs
     execute_with_retries apt-get install -y -qq --no-install-recommends "${pkglist[@]}"
     sync
 
   elif is_rocky ; then
-    #configure_dkms_certs
+    configure_dkms_certs
     if execute_with_retries dnf -y -q module install "nvidia-driver:${DRIVER}-dkms" ; then
       echo "nvidia-driver:${DRIVER}-dkms installed successfully"
     else
@@ -1043,7 +1040,7 @@ function build_driver_from_packages() {
     fi
     sync
   fi
-  #clear_dkms_key
+  clear_dkms_key
 }
 
 function install_nvidia_userspace_runfile() {
@@ -1058,7 +1055,7 @@ function install_nvidia_userspace_runfile() {
   #
   # wget https://us.download.nvidia.com/XFree86/Linux-x86_64/560.35.03/NVIDIA-Linux-x86_64-560.35.03.run
   # sh ./NVIDIA-Linux-x86_64-560.35.03.run -x # this will allow you to review the contents of the package without installing it.
-  if test -f "${workdir}/complete/userspace" ; then return ; fi
+  is_complete userspace && return
   local local_fn="${tmpdir}/userspace.run"
 
   cache_fetched_package "${USERSPACE_URL}" \
@@ -1090,7 +1087,7 @@ function install_nvidia_userspace_runfile() {
         echo "cache hit"
       else
         install_build_dependencies
-
+        configure_dkms_certs
         local signing_options
         signing_options=""
         if [[ -n "${PSN}" ]]; then
@@ -1117,11 +1114,12 @@ function install_nvidia_userspace_runfile() {
     --install-libglvnd \
     --tmpdir="${tmpdir}"
 
-  if is_rocky8 ; then
+  if ( is_rocky8 || version_lt "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" ) ; then
     if [[ "${cache_hit}" == "1" ]] ; then
       gcloud storage cat "${gcs_tarball}" | tar -C / -xzv
       depmod -a
     else
+      clear_dkms_key
       tar czvf "${local_tarball}" \
         /var/log/nvidia-installer.log \
         $(find /lib/modules/${uname_r}/ -iname 'nvidia*.ko')
@@ -1130,21 +1128,22 @@ function install_nvidia_userspace_runfile() {
   fi
 
   rm -f "${local_fn}"
-  touch "${workdir}/complete/userspace"
+  mark_complete userspace
   sync
 }
 
 function install_cuda_runfile() {
-  if test -f "${workdir}/complete/cuda" ; then return ; fi
+  is_complete cuda && return
+
   local local_fn="${tmpdir}/cuda.run"
 
   cache_fetched_package "${NVIDIA_CUDA_URL}" \
-			"${pkg_bucket}/nvidia/${CUDA_RUNFILE}" \
+                        "${pkg_bucket}/nvidia/${CUDA_RUNFILE}" \
                         "${local_fn}"
 
   execute_with_retries bash "${local_fn}" --toolkit --no-opengl-libs --silent --tmpdir="${tmpdir}"
   rm -f "${local_fn}"
-  touch "${workdir}/complete/cuda"
+  mark_complete cuda
   sync
 }
 
@@ -1170,7 +1169,9 @@ function install_cuda_toolkit() {
 function load_kernel_module() {
   # for some use cases, the kernel module needs to be removed before first use of nvidia-smi
   for module in nvidia_uvm nvidia_drm nvidia_modeset nvidia ; do
-    rmmod ${module} > /dev/null 2>&1 || echo "unable to rmmod ${module}"
+    ( set +e
+      rmmod ${module} > /dev/null 2>&1 || echo "unable to rmmod ${module}"
+    )
   done
 
   depmod -a
@@ -1182,7 +1183,8 @@ function load_kernel_module() {
 }
 
 function install_cuda(){
-  if test -f "${workdir}/complete/cuda-repo" ; then return ; fi
+  is_complete cuda-repo && return
+  if [[ "${gpu_count}" == "0" ]] ; then return ; fi
 
   if ( ge_debian12 && is_src_os ) ; then
     echo "installed with the driver on ${_shortname}"
@@ -1195,10 +1197,12 @@ function install_cuda(){
   # Includes CUDA packages
   add_repo_cuda
 
-  touch "${workdir}/complete/cuda-repo"
+  mark_complete cuda-repo
 }
 
 function install_nvidia_container_toolkit() {
+  is_complete install-nvtk && return
+
   local container_runtime_default
     if command -v docker     ; then container_runtime_default='docker'
   elif command -v containerd ; then container_runtime_default='containerd'
@@ -1214,11 +1218,14 @@ function install_nvidia_container_toolkit() {
     execute_with_retries dnf     install -y -q nvidia-container-toolkit ; fi
   nvidia-ctk runtime configure --runtime="${CONTAINER_RUNTIME}"
   systemctl restart "${CONTAINER_RUNTIME}"
+
+  mark_complete install-nvtk
 }
 
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
-  if test -f "${workdir}/complete/gpu-driver" ; then return ; fi
+  is_complete gpu-driver && return
+  if [[ "${gpu_count}" == "0" ]] ; then return ; fi
 
   if ( ge_debian12 && is_src_os ) ; then
     add_nonfree_components
@@ -1240,11 +1247,11 @@ function install_nvidia_gpu_driver() {
   build_driver_from_github
 
   echo "NVIDIA GPU driver provided by NVIDIA was installed successfully"
-  touch "${workdir}/complete/gpu-driver"
+  mark_complete gpu-driver
 }
 
 function install_ops_agent(){
-  if test -f "${workdir}/ops-agent-complete" ; then return ; fi
+  is_complete ops-agent && return
 
   mkdir -p /opt/google
   cd /opt/google
@@ -1252,7 +1259,7 @@ function install_ops_agent(){
   curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
   execute_with_retries bash add-google-cloud-ops-agent-repo.sh --also-install
 
-  touch "${workdir}/complete/ops-agent"
+  mark_complete ops-agent
 }
 
 # Collects 'gpu_utilization' and 'gpu_memory_utilization' metrics
@@ -1272,7 +1279,7 @@ function install_gpu_agent() {
     | sed -e 's/-u --format=/--format=/' \
     | dd status=none of="${install_dir}/report_gpu_metrics.py"
   local venv="${install_dir}/venv"
-  python3 -m venv "${venv}"
+  /opt/conda/miniconda3/bin/python3 -m venv "${venv}"
 (
   source "${venv}/bin/activate"
   python3 -m pip install --upgrade pip
@@ -1329,11 +1336,12 @@ function configure_yarn_resources() {
 
 # This configuration should be applied only if GPU is attached to the node
 function configure_yarn_nodemanager() {
+  if [[ "${gpu_count}" == "0" ]] ; then return ; fi
   set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
   set_hadoop_property 'yarn-site.xml' \
     'yarn.nodemanager.resource-plugins.gpu.allowed-gpu-devices' 'auto'
   set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.resource-plugins.gpu.path-to-discovery-executables' $NVIDIA_SMI_PATH
+    'yarn.nodemanager.resource-plugins.gpu.path-to-discovery-executables' "${NVIDIA_SMI_PATH}"
   set_hadoop_property 'yarn-site.xml' \
     'yarn.nodemanager.linux-container-executor.cgroups.mount' 'true'
   set_hadoop_property 'yarn-site.xml' \
@@ -1358,13 +1366,12 @@ function configure_yarn_nodemanager() {
 }
 
 function configure_gpu_exclusive_mode() {
-  # check if running spark 3, if not, enable GPU exclusive mode
-  local spark_version
-  spark_version=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
-  if [[ ${spark_version} != 3.* ]]; then
-    # include exclusive mode on GPU
-    nvidia-smi -c EXCLUSIVE_PROCESS
-  fi
+  if [[ "${gpu_count}" == "0" ]] ; then return ; fi
+  # only run this function when spark < 3.0
+  if version_ge "${SPARK_VERSION}" "3.0" ; then return 0 ; fi
+  # include exclusive mode on GPU
+  nvsmi -c EXCLUSIVE_PROCESS
+  clear_nvsmi_cache
 }
 
 function fetch_mig_scripts() {
@@ -1376,6 +1383,7 @@ function fetch_mig_scripts() {
 }
 
 function configure_gpu_script() {
+  if [[ "${gpu_count}" == "0" ]] ; then return ; fi
   # Download GPU discovery script
   local -r spark_gpu_script_dir='/usr/lib/spark/scripts/gpu'
   mkdir -p ${spark_gpu_script_dir}
@@ -1402,6 +1410,7 @@ function configure_gpu_script() {
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# Example output: {"name": "gpu", "addresses":["0","1","2","3","4","5","6","7"]}
 
 ADDRS=$(nvidia-smi --query-gpu=index --format=csv,noheader | perl -e 'print(join(q{,},map{chomp; qq{"$_"}}<STDIN>))')
 
@@ -1411,18 +1420,18 @@ EOF
   chmod a+rx "${gpus_resources_script}"
 
   local spark_defaults_conf="/etc/spark/conf.dist/spark-defaults.conf"
-  if version_ge "${SPARK_VERSION}" "3.0" ; then
-    local gpu_count
-    gpu_count="$(lspci | grep NVIDIA | wc -l)"
-    local executor_cores
-    executor_cores="$(nproc | perl -MPOSIX -pe '$_ = POSIX::floor( $_ * 0.75 ); $_-- if $_ % 2')"
-    local executor_memory
-    executor_memory_gb="$(awk '/^MemFree/ {print $2}' /proc/meminfo | perl -MPOSIX -pe '$_ *= 0.75; $_ = POSIX::floor( $_ / (1024*1024) )')"
-    local task_cpus=2
-    local gpu_amount
-    gpu_amount="$(echo $executor_cores | perl -pe "\$_ = ( ${gpu_count} / (\$_ / ${task_cpus}) )")"
+  if version_lt "${SPARK_VERSION}" "3.0" ; then return ; fi
 
-    cat >>"${spark_defaults_conf}" <<EOF
+  local executor_cores
+  executor_cores="$(nproc | perl -MPOSIX -pe '$_ = POSIX::floor( $_ * 0.75 ); $_-- if $_ % 2')"
+  local executor_memory
+  executor_memory_gb="$(awk '/^MemFree/ {print $2}' /proc/meminfo | perl -MPOSIX -pe '$_ *= 0.75; $_ = POSIX::floor( $_ / (1024*1024) )')"
+  local task_cpus=2
+  local gpu_amount
+#  gpu_amount="$(echo $executor_cores | perl -pe "\$_ = ( ${gpu_count} / (\$_ / ${task_cpus}) )")"
+  gpu_amount="$(perl -e "print 1 / ${executor_cores}")"
+
+  cat >>"${spark_defaults_conf}" <<EOF
 ###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
 # Rapids Accelerator for Spark can utilize AQE, but when the plan is not finalized,
 # query explain output won't show GPU operator, if the user has doubts
@@ -1430,6 +1439,7 @@ EOF
 # having AQE enabled gives user the best performance.
 spark.executor.resource.gpu.discoveryScript=${gpus_resources_script}
 spark.executor.resource.gpu.amount=${gpu_count}
+spark.plugins=com.nvidia.spark.SQLPlugin
 spark.executor.cores=${executor_cores}
 spark.executor.memory=${executor_memory_gb}G
 spark.dynamicAllocation.enabled=false
@@ -1439,10 +1449,10 @@ spark.task.cpus=2
 spark.yarn.unmanagedAM.enabled=false
 ###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
 EOF
-  fi
 }
 
 function configure_gpu_isolation() {
+  if [[ "${gpu_count}" == "0" ]] ; then return ; fi
   # enable GPU isolation
   sed -i "s/yarn\.nodemanager\.linux\-container\-executor\.group\=.*$/yarn\.nodemanager\.linux\-container\-executor\.group\=yarn/g" "${HADOOP_CONF_DIR}/container-executor.cfg"
   if [[ $IS_MIG_ENABLED -ne 0 ]]; then
@@ -1477,7 +1487,7 @@ function nvsmi() {
   elif ! eval "${nvsmi} > /dev/null" ; then echo "nvidia-smi fails" >&2 ; return 0
   else nvsmi_works="1" ; fi
 
-  if [[ "$1" == "-L" ]] ; then
+  if test -v 1 && [[ "$1" == "-L" ]] ; then
     local NV_SMI_L_CACHE_FILE="/var/run/nvidia-smi_-L.txt"
     if [[ -f "${NV_SMI_L_CACHE_FILE}" ]]; then cat "${NV_SMI_L_CACHE_FILE}"
     else "${nvsmi}" $* | tee "${NV_SMI_L_CACHE_FILE}" ; fi
@@ -1489,7 +1499,7 @@ function nvsmi() {
 }
 
 function install_build_dependencies() {
-  if test -f "${workdir}/complete/build-dependencies" ; then return ; fi
+  is_complete build-dependencies && return
 
   if is_debuntu ; then
     if is_ubuntu22 && is_cuda12 ; then
@@ -1527,16 +1537,38 @@ function install_build_dependencies() {
 
     execute_with_retries "${dnf_cmd}"
   fi
-  touch "${workdir}/complete/build-dependencies"
+  mark_complete build-dependencies
+}
+
+function is_complete() {
+  phase="$1"
+  test -f "${workdir}/complete/${phase}"
+}
+
+function mark_complete() {
+  phase="$1"
+  touch "${workdir}/complete/${phase}"
+}
+
+function mark_incomplete() {
+  phase="$1"
+  rm -f "${workdir}/complete/${phase}"
 }
 
 function install_dependencies() {
+  is_complete install-dependencies && return 0
+
   pkg_list="pciutils screen"
   if is_debuntu ; then execute_with_retries apt-get -y -q install ${pkg_list}
   elif is_rocky ; then execute_with_retries dnf     -y -q install ${pkg_list} ; fi
+  mark_complete install-dependencies
 }
 
 function prepare_gpu_env(){
+
+  set +e
+  gpu_count="$(grep -i PCI_ID=10DE /sys/bus/pci/devices/*/uevent | wc -l)"
+  set -e
 
   readonly DEFAULT_XGBOOST_VERSION="1.7.6" # try 2.1.1
   nvsmi_works="0"
@@ -1544,8 +1576,18 @@ function prepare_gpu_env(){
   if   is_cuda11 ; then gcc_ver="11"
   elif is_cuda12 ; then gcc_ver="12" ; fi
 
-  INCLUDE_PYTORCH=$(get_metadata_attribute 'include-pytorch' 'no')
-  readonly INCLUDE_PYTORCH
+  if ! test -v DEFAULT_RAPIDS_RUNTIME ; then
+    readonly DEFAULT_RAPIDS_RUNTIME='SPARK'
+  fi
+
+  # Set variables from metadata
+  RAPIDS_RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
+  INCLUDE_GPUS="$(get_metadata_attribute include-gpus "")"
+  INCLUDE_PYTORCH="$(get_metadata_attribute 'include-pytorch' 'no')"
+  readonly RAPIDS_RUNTIME INCLUDE_GPUS INCLUDE_PYTORCH
+
+  # determine whether we have nvidia-smi installed and working
+  nvsmi
 }
 
 # Hold all NVIDIA-related packages from upgrading unintenionally or services like unattended-upgrades
@@ -1584,8 +1626,6 @@ function check_secure_boot() {
                       mok_der=/var/lib/shim-signed/mok/MOK.der
                  else mok_key=/var/lib/dkms/mok.key
                       mok_der=/var/lib/dkms/mok.pub ; fi
-
-  configure_dkms_certs
 }
 
 
@@ -1836,15 +1876,12 @@ function exit_handler() {
       /usr/lib/{pig,hive,hadoop,jvm,spark,google-cloud-sdk,x86_64-linux-gnu} \
       /usr/lib \
       /opt/nvidia/* \
-      /usr/local/cuda-1?.? \
       /opt/conda/miniconda3 | sort -h
   elif is_debian ; then
     du -x -hs \
-      /usr/lib/{pig,hive,hadoop,jvm,spark,google-cloud-sdk,x86_64-linux-gnu} \
+      /usr/lib/{pig,hive,hadoop,jvm,spark,google-cloud-sdk,x86_64-linux-gnu,} \
       /var/lib/{docker,mysql,} \
-      /usr/lib \
       /opt/nvidia/* \
-      /usr/local/cuda-1?.? \
       /opt/{conda,google-cloud-ops-agent,install-nvidia,} \
       /usr/bin \
       /usr \
@@ -1853,11 +1890,9 @@ function exit_handler() {
   else
     du -hs \
       /var/lib/docker \
-      /usr/lib/{pig,hive,hadoop,firmware,jvm,spark,atlas} \
+      /usr/lib/{pig,hive,hadoop,firmware,jvm,spark,atlas,} \
       /usr/lib64/google-cloud-sdk \
-      /usr/lib \
       /opt/nvidia/* \
-      /usr/local/cuda-1?.? \
       /opt/conda/miniconda3
   fi
 
@@ -1874,11 +1909,12 @@ function exit_handler() {
   perl -e '@siz=( sort { $a => $b }
                    map { (split)[2] =~ /^(\d+)/ }
                   grep { m:^/: } <STDIN> );
-$max=$siz[0]; $min=$siz[-1]; $inc=$max-$min;
+$max=$siz[0]; $min=$siz[-1]; $starting="unknown"; $inc=q{$max-$starting};
 print( "    samples-taken: ", scalar @siz, $/,
-       "maximum-disk-used: $max", $/,
-       "minimum-disk-used: $min", $/,
-       "     increased-by: $inc", $/ )' < "/run/disk-usage.log"
+       "starting-disk-used: $starting", $/,
+       "maximum-disk-used:  $max", $/,
+       "minimum-disk-used:  $min", $/,
+       "     increased-by:  $inc", $/ )' < "/run/disk-usage.log"
 
   echo "exit_handler has completed"
 
@@ -1987,18 +2023,21 @@ function prepare_to_install(){
 
   readonly install_log="${tmpdir}/install.log"
 
-  if test -f "${workdir}/complete/prepare" ; then return ; fi
+  is_complete prepare.common && return
 
   harden_sshd_config
 
   if is_debuntu ; then
     repair_old_backports
     clean_up_sources_lists
-    apt-get --allow-releaseinfo-change update
+    apt-get update -qq --allow-releaseinfo-change
     apt-get -y clean
     apt-get -o DPkg::Lock::Timeout=60 -y autoremove
     if ge_debian12 ; then
     apt-mark unhold systemd libsystemd0 ; fi
+    if is_ubuntu ; then
+      while ! command -v gcloud ; do sleep 5s ; done
+    fi
   else
     dnf clean all
   fi
@@ -2016,7 +2055,7 @@ function prepare_to_install(){
   screen -d -m -LUS keep-running-df \
     bash -c "while [[ -f /run/keep-running-df ]] ; do df / | tee -a /run/disk-usage.log ; sleep 5s ; done"
 
-  touch "${workdir}/complete/prepare"
+  mark_complete prepare.common
 }
 
 function check_os() {
