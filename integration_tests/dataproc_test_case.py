@@ -178,9 +178,9 @@ class DataprocTestCase(parameterized.TestCase):
           args.append("--zone={}".format(self.cluster_zone))
 
         if not FLAGS.skip_cleanup:
-          args.append("--max-age=60m")
+          args.append("--max-age=120m")
 
-        args.append("--max-idle=45m")
+        args.append("--max-idle=60m")
 
         cmd = "{} dataproc clusters create {} {}".format(
             "gcloud beta" if beta else "gcloud", self.name, " ".join(args))

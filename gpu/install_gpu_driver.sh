@@ -624,6 +624,14 @@ function install_nvidia_nccl() {
     local local_tarball="${workdir}/${build_tarball}"
     local gcs_tarball="${pkg_bucket}/nvidia/nccl/${_shortname}/${build_tarball}"
 
+    if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
+      # do not build in tests with < 32 cores
+      sleep $(( ( RANDOM % 11 ) + 10 ))
+      while gsutil ls "${gcs_tarball}.building" 2>&1 | grep -q "${gcs_tarball}.building" ; do
+        sleep 5m
+      done
+    fi
+
     output=$(gsutil ls "${gcs_tarball}" 2>&1 || echo '')
     if echo "${output}" | grep -q "${gcs_tarball}" ; then
       # cache hit - unpack from cache
@@ -631,6 +639,8 @@ function install_nvidia_nccl() {
       gcloud storage cat "${gcs_tarball}" | tar xvz
     else
       # build and cache
+      touch "${local_tarball}.building"
+      gcloud storage cp "${local_tarball}.building" "${gcs_tarball}.building"
       pushd nccl
       # https://github.com/NVIDIA/nccl?tab=readme-ov-file#install
       install_build_dependencies
@@ -677,6 +687,7 @@ function install_nvidia_nccl() {
       popd
       tar xzvf "${local_tarball}"
       gcloud storage cp "${local_tarball}" "${gcs_tarball}"
+      gcloud storage rm "${gcs_tarball}.building"
       rm "${local_tarball}"
     fi
   }
@@ -773,6 +784,14 @@ function install_pytorch() {
   local local_tarball="${workdir}/${build_tarball}"
   local gcs_tarball="${pkg_bucket}/conda/${_shortname}/${build_tarball}"
 
+  if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
+    # do not build in tests with < 32 cores
+    sleep $(( ( RANDOM % 11 ) + 10 ))
+    while gsutil ls "${gcs_tarball}.building" 2>&1 | grep -q "${gcs_tarball}.building" ; do
+      sleep 5m
+    done
+  fi
+
   output=$(gsutil ls "${gcs_tarball}" 2>&1 || echo '')
   if echo "${output}" | grep -q "${gcs_tarball}" ; then
     # cache hit - unpack from cache
@@ -780,6 +799,8 @@ function install_pytorch() {
     mkdir -p "${envpath}"
     gcloud storage cat "${gcs_tarball}" | tar -C "${envpath}" -xz
   else
+    touch "${local_tarball}.building"
+    gcloud storage cp "${local_tarball}.building" "${gcs_tarball}.building"
     local verb=create
     if test -d "${envpath}" ; then verb=install ; fi
     cudart_spec="cuda-cudart"
@@ -792,6 +813,7 @@ function install_pytorch() {
     tar czf "${local_tarball}" .
     popd
     gcloud storage cp "${local_tarball}" "${gcs_tarball}"
+    gcloud storage rm "${gcs_tarball}.building"
   fi
   touch "${workdir}/complete/pytorch"
 }
@@ -950,10 +972,20 @@ function build_driver_from_github() {
 
     local gcs_tarball="${pkg_bucket}/nvidia/kmod/${_shortname}/${uname_r}/${build_dir}/${build_tarball}"
 
+    if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
+      # do not build in tests with < 32 cores
+      sleep $(( ( RANDOM % 11 ) + 10 ))
+      while gsutil ls "${gcs_tarball}.building" 2>&1 | grep -q "${gcs_tarball}.building" ; do
+        sleep 5m
+      done
+    fi
+
     if gsutil ls "${gcs_tarball}" 2>&1 | grep -q "${gcs_tarball}" ; then
       echo "cache hit"
     else
       # build the kernel modules
+      touch "${local_tarball}.building"
+      gcloud storage cp "${local_tarball}.building" "${gcs_tarball}.building"
       pushd open-gpu-kernel-modules
       install_build_dependencies
       if ( is_cuda11 && is_ubuntu22 ) ; then
@@ -982,6 +1014,7 @@ function build_driver_from_github() {
         "${workdir}/open-gpu-kernel-modules/kernel-open/"*.log \
         $(find /lib/modules/${uname_r}/ -iname 'nvidia*.ko')
       gcloud storage cp "${local_tarball}" "${gcs_tarball}"
+      gcloud storage rm "${gcs_tarball}.building"
       rm "${local_tarball}"
       make clean
       popd
@@ -1071,6 +1104,14 @@ function install_nvidia_userspace_runfile() {
 
       local gcs_tarball="${pkg_bucket}/nvidia/kmod/${_shortname}/${uname_r}/${build_dir}/${build_tarball}"
 
+      if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
+        # do not build in tests with < 32 cores
+        sleep $(( ( RANDOM % 11 ) + 10 ))
+        while gsutil ls "${gcs_tarball}.building" 2>&1 | grep -q "${gcs_tarball}.building" ; do
+          sleep 5m
+        done
+      fi
+
       if gsutil ls "${gcs_tarball}" 2>&1 | grep -q "${gcs_tarball}" ; then
         cache_hit="1"
         if version_ge "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" ; then
@@ -1078,6 +1119,9 @@ function install_nvidia_userspace_runfile() {
         fi
         echo "cache hit"
       else
+        # build the kernel modules
+        touch "${local_tarball}.building"
+        gcloud storage cp "${local_tarball}.building" "${gcs_tarball}.building"
         install_build_dependencies
         configure_dkms_certs
         local signing_options
@@ -1116,6 +1160,7 @@ function install_nvidia_userspace_runfile() {
         /var/log/nvidia-installer.log \
         $(find /lib/modules/${uname_r}/ -iname 'nvidia*.ko')
       gcloud storage cp "${local_tarball}" "${gcs_tarball}"
+      gcloud storage rm "${gcs_tarball}.building"
     fi
   fi
 
@@ -1429,6 +1474,13 @@ EOF
 #  gpu_amount="$(echo $executor_cores | perl -pe "\$_ = ( ${gpu_count} / (\$_ / ${task_cpus}) )")"
   gpu_amount="$(perl -e "print 1 / ${executor_cores}")"
 
+  plugin_line=""
+  if [[ "${RAPIDS_RUNTIME}" == "SPARK" ]]; then
+    if version_ge "${DATAPROC_IMAGE_VERSION}" 2.1 ; then
+      plugin_line="spark.plugins=com.nvidia.spark.SQLPlugin"
+    fi
+  fi
+
   cat >>"${spark_defaults_conf}" <<EOF
 ###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
 # Rapids Accelerator for Spark can utilize AQE, but when the plan is not finalized,
@@ -1437,7 +1489,6 @@ EOF
 # having AQE enabled gives user the best performance.
 spark.executor.resource.gpu.discoveryScript=${gpus_resources_script}
 spark.executor.resource.gpu.amount=${gpu_count}
-spark.plugins=com.nvidia.spark.SQLPlugin
 spark.executor.cores=${executor_cores}
 spark.executor.memory=${executor_memory_gb}G
 spark.dynamicAllocation.enabled=false
@@ -1445,6 +1496,7 @@ spark.dynamicAllocation.enabled=false
 spark.task.resource.gpu.amount=${gpu_amount}
 spark.task.cpus=2
 spark.yarn.unmanagedAM.enabled=false
+${plugin_line}
 ###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
 EOF
 }
@@ -1714,7 +1766,10 @@ function main() {
 
     configure_yarn_nodemanager
     if [[ "${RAPIDS_RUNTIME}" == "SPARK" ]]; then
-      install_spark_rapids ; fi
+      if version_ge "${DATAPROC_IMAGE_VERSION}" 2.1 ; then
+        install_spark_rapids
+      fi
+    fi
     configure_gpu_script
     configure_gpu_isolation
   elif [[ "${ROLE}" == "Master" ]]; then
