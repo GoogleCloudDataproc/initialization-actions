@@ -687,7 +687,7 @@ function install_nvidia_nccl() {
       popd
       tar xzvf "${local_tarball}"
       gcloud storage cp "${local_tarball}" "${gcs_tarball}"
-      gcloud storage rm "${gcs_tarball}.building"
+      if gcloud storage ls "${gcs_tarball}.building" ; then gcloud storage rm "${gcs_tarball}.building" || true ; fi
       rm "${local_tarball}"
     fi
   }
@@ -813,7 +813,7 @@ function install_pytorch() {
     tar czf "${local_tarball}" .
     popd
     gcloud storage cp "${local_tarball}" "${gcs_tarball}"
-    gcloud storage rm "${gcs_tarball}.building"
+    if gcloud storage ls "${gcs_tarball}.building" ; then gcloud storage rm "${gcs_tarball}.building" || true ; fi
   fi
   touch "${workdir}/complete/pytorch"
 }
@@ -941,7 +941,16 @@ function add_repo_nvidia_container_toolkit() {
 
 function add_repo_cuda() {
   if is_debuntu ; then
-    install_cuda_keyring_pkg # 11.7+, 12.0+
+    if version_le "${CUDA_VERSION}" 11.6 ; then
+      local kr_path=/usr/share/keyrings/cuda-archive-keyring.gpg
+      local sources_list_path="/etc/apt/sources.list.d/cuda-${shortname}-x86_64.list"
+      echo "deb [signed-by=${kr_path}] https://developer.download.nvidia.com/compute/cuda/repos/${shortname}/x86_64/ /" \
+      | sudo tee "${sources_list_path}"
+      curl "${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64/cuda-archive-keyring.gpg" \
+        -o "${kr_path}"
+    else
+      install_cuda_keyring_pkg # 11.7+, 12.0+
+    fi
   elif is_rocky ; then
     execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPO_URL}"
   fi
@@ -1014,7 +1023,7 @@ function build_driver_from_github() {
         "${workdir}/open-gpu-kernel-modules/kernel-open/"*.log \
         $(find /lib/modules/${uname_r}/ -iname 'nvidia*.ko')
       gcloud storage cp "${local_tarball}" "${gcs_tarball}"
-      gcloud storage rm "${gcs_tarball}.building"
+      if gcloud storage ls "${gcs_tarball}.building" ; then gcloud storage rm "${gcs_tarball}.building" || true ; fi
       rm "${local_tarball}"
       make clean
       popd
@@ -1160,7 +1169,7 @@ function install_nvidia_userspace_runfile() {
         /var/log/nvidia-installer.log \
         $(find /lib/modules/${uname_r}/ -iname 'nvidia*.ko')
       gcloud storage cp "${local_tarball}" "${gcs_tarball}"
-      gcloud storage rm "${gcs_tarball}.building"
+      if gcloud storage ls "${gcs_tarball}.building" ; then gcloud storage rm "${gcs_tarball}.building" || true ; fi
     fi
   fi
 
@@ -1369,13 +1378,32 @@ function configure_yarn_resources() {
     'org.apache.hadoop.yarn.util.resource.DominantResourceCalculator'
 
   set_hadoop_property 'yarn-site.xml' 'yarn.resource-types' 'yarn.io/gpu'
+
+  # Older CapacityScheduler does not permit use of gpu resources ; switch to FairScheduler on 2.0 and below
+  if version_lt "${DATAPROC_IMAGE_VERSION}" "2.1" ; then
+    fs_xml="$HADOOP_CONF_DIR/fair-scheduler.xml"
+    set_hadoop_property 'yarn-site.xml' \
+      'yarn.resourcemanager.scheduler.class' 'org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler'
+    set_hadoop_property 'yarn-site.xml' \
+      "yarn.scheduler.fair.user-as-default-queue" "false"
+    set_hadoop_property 'yarn-site.xml' \
+      "yarn.scheduler.fair.allocation.file" "${fs_xml}"
+    set_hadoop_property 'yarn-site.xml' \
+      'yarn.scheduler.fair.resource-calculator' 'org.apache.hadoop.yarn.util.resource.DominantResourceCalculator'
+    cat > "${fs_xml}" <<EOF
+<!-- ${fs_xml} -->
+<allocations>
+  <queueMaxAppsDefault>1</queueMaxAppsDefault>
+</allocations>
+EOF
+  fi
 }
 
 # This configuration should be applied only if GPU is attached to the node
 function configure_yarn_nodemanager() {
   if [[ "${gpu_count}" == "0" ]] ; then return ; fi
-
-  set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
   set_hadoop_property 'yarn-site.xml' \
     'yarn.nodemanager.resource-plugins.gpu.allowed-gpu-devices' 'auto'
   set_hadoop_property 'yarn-site.xml' \
@@ -1387,9 +1415,9 @@ function configure_yarn_nodemanager() {
   set_hadoop_property 'yarn-site.xml' \
     'yarn.nodemanager.linux-container-executor.cgroups.hierarchy' 'yarn'
   set_hadoop_property 'yarn-site.xml' \
-    'yarn.nodemanager.container-executor.class' \
-    'org.apache.hadoop.yarn.server.nodemanager.LinuxContainerExecutor'
-  set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.linux-container-executor.group' 'yarn'
+    'yarn.nodemanager.container-executor.class' 'org.apache.hadoop.yarn.server.nodemanager.LinuxContainerExecutor'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.linux-container-executor.group' 'yarn'
 
   # Fix local dirs access permissions
   local yarn_local_dirs=()
