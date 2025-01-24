@@ -1374,6 +1374,7 @@ function configure_yarn_resources() {
 # This configuration should be applied only if GPU is attached to the node
 function configure_yarn_nodemanager() {
   if [[ "${gpu_count}" == "0" ]] ; then return ; fi
+
   set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
   set_hadoop_property 'yarn-site.xml' \
     'yarn.nodemanager.resource-plugins.gpu.allowed-gpu-devices' 'auto'
@@ -1474,13 +1475,6 @@ EOF
 #  gpu_amount="$(echo $executor_cores | perl -pe "\$_ = ( ${gpu_count} / (\$_ / ${task_cpus}) )")"
   gpu_amount="$(perl -e "print 1 / ${executor_cores}")"
 
-  plugin_line=""
-  if [[ "${RAPIDS_RUNTIME}" == "SPARK" ]]; then
-    if version_ge "${DATAPROC_IMAGE_VERSION}" 2.1 ; then
-      plugin_line="spark.plugins=com.nvidia.spark.SQLPlugin"
-    fi
-  fi
-
   cat >>"${spark_defaults_conf}" <<EOF
 ###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
 # Rapids Accelerator for Spark can utilize AQE, but when the plan is not finalized,
@@ -1496,7 +1490,7 @@ spark.dynamicAllocation.enabled=false
 spark.task.resource.gpu.amount=${gpu_amount}
 spark.task.cpus=2
 spark.yarn.unmanagedAM.enabled=false
-${plugin_line}
+spark.plugins=com.nvidia.spark.SQLPlugin
 ###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
 EOF
 }
@@ -1765,11 +1759,7 @@ function main() {
     fi
 
     configure_yarn_nodemanager
-    if [[ "${RAPIDS_RUNTIME}" == "SPARK" ]]; then
-      if version_ge "${DATAPROC_IMAGE_VERSION}" 2.1 ; then
-        install_spark_rapids
-      fi
-    fi
+    install_spark_rapids
     configure_gpu_script
     configure_gpu_isolation
   elif [[ "${ROLE}" == "Master" ]]; then
@@ -2016,12 +2006,12 @@ function set_proxy(){
 function mount_ramdisk(){
   local free_mem
   free_mem="$(awk '/^MemFree/ {print $2}' /proc/meminfo)"
-  if [[ ${free_mem} -lt 10500000 ]]; then return 0 ; fi
+  if [[ ${free_mem} -lt 20500000 ]]; then return 0 ; fi
 
   # Write to a ramdisk instead of churning the persistent disk
 
   tmpdir="/mnt/shm"
-  mkdir -p "${tmpdir}"
+  mkdir -p "${tmpdir}/pkgs_dirs"
   mount -t tmpfs tmpfs "${tmpdir}"
 
   # Download conda packages to tmpfs
@@ -2212,15 +2202,18 @@ function os_add_repo() {
 readonly _shortname="$(os_id)$(os_version|perl -pe 's/(\d+).*/$1/')"
 
 function install_spark_rapids() {
+  if [[ "${RAPIDS_RUNTIME}" != "SPARK" ]]; then return ; fi
+
   # Update SPARK RAPIDS config
-  local DEFAULT_SPARK_RAPIDS_VERSION="24.08.1"
+  local DEFAULT_SPARK_RAPIDS_VERSION
+  DEFAULT_SPARK_RAPIDS_VERSION="24.08.1"
   local DEFAULT_XGBOOST_VERSION="1.7.6" # 2.1.3
 
   # https://mvnrepository.com/artifact/ml.dmlc/xgboost4j-spark-gpu
   local -r scala_ver="2.12"
 
   if [[ "${DATAPROC_IMAGE_VERSION}" == "2.0" ]] ; then
-    local DEFAULT_SPARK_RAPIDS_VERSION="23.08.2" # Final release to support spark 3.1.3
+    DEFAULT_SPARK_RAPIDS_VERSION="23.08.2" # Final release to support spark 3.1.3
   fi
 
   readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
