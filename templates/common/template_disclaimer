@@ -1,0 +1,8 @@
+#
+# Google Cloud Dataproc Initialization Actions v[% IA_VERSION %]
+#
+# This initialization action is generated from
+# initialization-actions/templates/[% template_path %].in
+#
+# Modifications made directly to generated files will be lost when the
+# templates are next evaluated.
