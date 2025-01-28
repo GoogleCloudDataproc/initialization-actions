@@ -772,15 +772,18 @@ function install_nvidia_cudnn() {
 }
 
 function install_pytorch() {
-  if test -f "${workdir}/complete/pytorch" ; then return ; fi
+  is_complete pytorch && return
+
   local env
   env=$(get_metadata_attribute 'gpu-conda-env' 'dpgce')
   local mc3=/opt/conda/miniconda3
   local envpath="${mc3}/envs/${env}"
+  if [[ "${env}" == "base" ]]; then
+    echo "WARNING: installing to base environment known to cause solve issues" ; envpath="${mc3}" ; fi
   # Set numa node to 0 for all GPUs
   for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node) ; do echo 0 > ${f} ; done
 
-  local build_tarball="pytorch_${_shortname}_cuda${CUDA_VERSION}.tar.gz"
+  local build_tarball="pytorch_${env}_${_shortname}_cuda${CUDA_VERSION}.tar.gz"
   local local_tarball="${workdir}/${build_tarball}"
   local gcs_tarball="${pkg_bucket}/conda/${_shortname}/${build_tarball}"
 
@@ -805,17 +808,28 @@ function install_pytorch() {
     if test -d "${envpath}" ; then verb=install ; fi
     cudart_spec="cuda-cudart"
     if le_cuda11 ; then cudart_spec="cudatoolkit" ; fi
+
+    # Install pytorch and company to this environment
     "${mc3}/bin/mamba" "${verb}" -n "${env}" \
       -c conda-forge -c nvidia -c rapidsai \
       numba pytorch tensorflow[and-cuda] rapids pyspark \
       "cuda-version<=${CUDA_VERSION}" "${cudart_spec}"
+
+    # Install jupyter kernel in this environment
+    "${envpath}/bin/python3" -m pip install ipykernel
+
+    # package environment and cache in GCS
     pushd "${envpath}"
     tar czf "${local_tarball}" .
     popd
     gcloud storage cp "${local_tarball}" "${gcs_tarball}"
     if gcloud storage ls "${gcs_tarball}.building" ; then gcloud storage rm "${gcs_tarball}.building" || true ; fi
   fi
-  touch "${workdir}/complete/pytorch"
+
+  # register the environment as a selectable kernel
+  "${envpath}/bin/python3" -m ipykernel install --name "${env}" --display-name "Python (${env})"
+
+  mark_complete pytorch
 }
 
 function configure_dkms_certs() {
@@ -2067,11 +2081,11 @@ function harden_sshd_config() {
     feature_map["kex-gss"]="gssapikexalgorithms" ; fi
   for ftr in "${!feature_map[@]}" ; do
     export feature=${feature_map[$ftr]}
-    sshd_config_line=$(
+    sshd_config_line="${feature} $(
       (sshd -T | awk "/^${feature} / {print \$2}" | sed -e 's/,/\n/g';
        ssh -Q "${ftr}" ) \
-      | sort -u | perl -e '@a=grep{!/(sha1|md5)/ig}<STDIN>;
-      print("$ENV{feature} ",join(q",",map{ chomp; $_ }@a), $/) if "@a"')
+      | sort -u | grep -v -ie sha1 -e md5 | paste -sd "," -)"
+
     grep -iv "^${feature} " /etc/ssh/sshd_config > /tmp/sshd_config_new
     echo "$sshd_config_line" >> /tmp/sshd_config_new
     # TODO: test whether sshd will reload with this change before mv
