@@ -60,7 +60,7 @@ function set_cuda_version() {
   case "${DATAPROC_IMAGE_VERSION}" in
     "2.0" ) DEFAULT_CUDA_VERSION="12.1.1" ;; # Cuda 12.1.1 - Driver v530.30.02 is the latest version supported by Ubuntu 18)
     "2.1" ) DEFAULT_CUDA_VERSION="12.4.1" ;;
-    "2.2" ) DEFAULT_CUDA_VERSION="12.6.2" ;;
+    "2.2" ) DEFAULT_CUDA_VERSION="12.6.3" ;;
     *   )
       echo "unrecognized Dataproc image version: ${DATAPROC_IMAGE_VERSION}"
       exit 1

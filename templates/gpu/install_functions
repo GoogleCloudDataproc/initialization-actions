@@ -119,7 +119,7 @@ function set_cuda_runfile_url() {
           ["12.3.0"]="545.23.06" ["12.3.1"]="545.23.08" ["12.3.2"]="545.23.08"
           ["12.4.0"]="550.54.14" ["12.4.1"]="550.54.15" # 550.54.15 is not a driver indexed at https://download.nvidia.com/XFree86/Linux-x86_64/
           ["12.5.0"]="555.42.02" ["12.5.1"]="555.42.06" # 555.42.02 is indexed, 555.42.06 is not
-          ["12.6.0"]="560.28.03" ["12.6.1"]="560.35.03" ["12.6.2"]="560.35.03"
+          ["12.6.0"]="560.28.03" ["12.6.1"]="560.35.03" ["12.6.2"]="560.35.03" ["12.6.3"]="560.35.05"
   )
 
   # Verify that the file with the indicated combination exists
@@ -200,6 +200,7 @@ function uninstall_local_cuda_repo(){
 }
 
 function install_local_cudnn_repo() {
+  # https://docs.nvidia.com/deeplearning/cudnn/sla/index.html
   is_complete install-local-cudnn-repo && return
 
   pkgname="cudnn-local-repo-${shortname}-${CUDNN_VERSION%.*}"
@@ -368,6 +369,7 @@ function install_nvidia_nccl() {
   mark_complete nccl
 }
 
+# https://docs.nvidia.com/deeplearning/cudnn/sla/index.html
 function install_nvidia_cudnn() {
   if le_debian10 ; then return ; fi
   is_complete cudnn && return
@@ -435,45 +437,64 @@ function install_nvidia_cudnn() {
 }
 
 function install_pytorch() {
-  if test -f "${workdir}/complete/pytorch" ; then return ; fi
+  is_complete pytorch && return
+
   local env
   env=$(get_metadata_attribute 'gpu-conda-env' 'dpgce')
   local mc3=/opt/conda/miniconda3
   local envpath="${mc3}/envs/${env}"
+  if [[ "${env}" == "base" ]]; then
+    echo "WARNING: installing to base environment known to cause solve issues" ; envpath="${mc3}" ; fi
   # Set numa node to 0 for all GPUs
   for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node) ; do echo 0 > ${f} ; done
 
-  readonly INCLUDE_PYTORCH=$(get_metadata_attribute 'include-pytorch' 'no')
-  case "${INCLUDE_PYTORCH^^}" in
-    "1" | "YES" | "TRUE" )
-      local build_tarball="pytorch_${_shortname}_cuda${CUDA_VERSION}.tar.gz"
-      local local_tarball="${workdir}/${build_tarball}"
-      local gcs_tarball="${pkg_bucket}/conda/${_shortname}/${build_tarball}"
+  local build_tarball="pytorch_${env}_${_shortname}_cuda${CUDA_VERSION}.tar.gz"
+  local local_tarball="${workdir}/${build_tarball}"
+  local gcs_tarball="${pkg_bucket}/conda/${_shortname}/${build_tarball}"
 
-      output=$(gsutil ls "${gcs_tarball}" 2>&1 || echo '')
-      if echo "${output}" | grep -q "${gcs_tarball}" ; then
-        # cache hit - unpack from cache
-        echo "cache hit"
-        mkdir -p "${envpath}"
-        gcloud storage cat "${gcs_tarball}" | tar -C "${envpath}" -xz
-      else
-        local verb=create
-        if test -d "${envpath}" ; then verb=install ; fi
-        cudart_spec="cuda-cudart"
-        if le_cuda11 ; then cudart_spec="cudatoolkit" ; fi
-        "${mc3}/bin/mamba" "${verb}" -n "${env}" \
-          -c conda-forge -c nvidia -c rapidsai \
-          numba pytorch tensorflow[and-cuda] rapids pyspark \
-          "cuda-version<=${CUDA_VERSION}" "${cudart_spec}"
-        pushd "${envpath}"
-        tar czf "${local_tarball}" .
-        popd
-        gcloud storage cp "${local_tarball}" "${gcs_tarball}"
-      fi
-      ;;
-    * ) echo "skip pytorch install" ;;
-  esac
-  touch "${workdir}/complete/pytorch"
+  if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
+    # do not build in tests with < 32 cores
+    sleep $(( ( RANDOM % 11 ) + 10 ))
+    while gsutil ls "${gcs_tarball}.building" 2>&1 | grep -q "${gcs_tarball}.building" ; do
+      sleep 5m
+    done
+  fi
+
+  output=$(gsutil ls "${gcs_tarball}" 2>&1 || echo '')
+  if echo "${output}" | grep -q "${gcs_tarball}" ; then
+    # cache hit - unpack from cache
+    echo "cache hit"
+    mkdir -p "${envpath}"
+    gcloud storage cat "${gcs_tarball}" | tar -C "${envpath}" -xz
+  else
+    touch "${local_tarball}.building"
+    gcloud storage cp "${local_tarball}.building" "${gcs_tarball}.building"
+    local verb=create
+    if test -d "${envpath}" ; then verb=install ; fi
+    cudart_spec="cuda-cudart"
+    if le_cuda11 ; then cudart_spec="cudatoolkit" ; fi
+
+    # Install pytorch and company to this environment
+    "${mc3}/bin/mamba" "${verb}" -n "${env}" \
+      -c conda-forge -c nvidia -c rapidsai \
+      numba pytorch tensorflow[and-cuda] rapids pyspark \
+      "cuda-version<=${CUDA_VERSION}" "${cudart_spec}"
+
+    # Install jupyter kernel in this environment
+    "${envpath}/bin/python3" -m pip install ipykernel
+
+    # package environment and cache in GCS
+    pushd "${envpath}"
+    tar czf "${local_tarball}" .
+    popd
+    gcloud storage cp "${local_tarball}" "${gcs_tarball}"
+    if gcloud storage ls "${gcs_tarball}.building" ; then gcloud storage rm "${gcs_tarball}.building" || true ; fi
+  fi
+
+  # register the environment as a selectable kernel
+  "${envpath}/bin/python3" -m ipykernel install --name "${env}" --display-name "Python (${env})"
+
+  mark_complete pytorch
 }
 
 function add_nonfree_components() {
@@ -508,7 +529,16 @@ function add_repo_nvidia_container_toolkit() {
 
 function add_repo_cuda() {
   if is_debuntu ; then
-    install_cuda_keyring_pkg # 11.7+, 12.0+
+    if version_le "${CUDA_VERSION}" 11.6 ; then
+      local kr_path=/usr/share/keyrings/cuda-archive-keyring.gpg
+      local sources_list_path="/etc/apt/sources.list.d/cuda-${shortname}-x86_64.list"
+      echo "deb [signed-by=${kr_path}] https://developer.download.nvidia.com/compute/cuda/repos/${shortname}/x86_64/ /" \
+      | sudo tee "${sources_list_path}"
+      curl "${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64/cuda-archive-keyring.gpg" \
+        -o "${kr_path}"
+    else
+      install_cuda_keyring_pkg # 11.7+, 12.0+
+    fi
   elif is_rocky ; then
     execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPO_URL}"
   fi

@@ -7,9 +7,9 @@ function os_codename() ( set +x ;  grep '^VERSION_CODENAME=' /etc/os-release | c
 # ( version_ge 2.0 2.1 ) evaluates to false
 # ( version_ge 2.2 2.1 ) evaluates to true
 function version_ge() ( set +x ;  [ "$1" = "$(echo -e "$1\n$2" | sort -V | tail -n1)" ] ; )
-function version_gt() ( set +x ;  [ "$1" = "$2" ] && return 1 || version_ge $1 $2 ; )
+function version_gt() ( set +x ;  [ "$1" = "$2" ] && return 1 || version_ge "$1" "$2" ; )
 function version_le() ( set +x ;  [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ] ; )
-function version_lt() ( set +x ;  [ "$1" = "$2" ] && return 1 || version_le $1 $2 ; )
+function version_lt() ( set +x ;  [ "$1" = "$2" ] && return 1 || version_le "$1" "$2" ; )
 
 function define_os_comparison_functions() {
 
@@ -500,8 +500,7 @@ function harden_sshd_config() {
     sshd_config_line=$(
       (sshd -T | awk "/^${feature} / {print \$2}" | sed -e 's/,/\n/g';
        ssh -Q "${ftr}" ) \
-      | sort -u | perl -e '@a=grep{!/(sha1|md5)/ig}<STDIN>;
-      print("$ENV{feature} ",join(",",map{ chomp; $_ }@a), $/) if "@a"')
+      | sort -u | grep -v -ie sha1 -e md5 | paste -sd "," -)
     grep -iv "^${feature} " /etc/ssh/sshd_config > /tmp/sshd_config_new
     echo "$sshd_config_line" >> /tmp/sshd_config_new
     # TODO: test whether sshd will reload with this change before mv

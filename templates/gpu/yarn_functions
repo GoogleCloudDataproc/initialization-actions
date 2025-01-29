@@ -12,6 +12,25 @@ function configure_yarn_gpu_resources() {
     'org.apache.hadoop.yarn.util.resource.DominantResourceCalculator'
 
   set_hadoop_property 'yarn-site.xml' 'yarn.resource-types' 'yarn.io/gpu'
+
+  # Older CapacityScheduler does not permit use of gpu resources ; switch to FairScheduler on 2.0 and below
+  if version_lt "${DATAPROC_IMAGE_VERSION}" "2.1" ; then
+    fs_xml="$HADOOP_CONF_DIR/fair-scheduler.xml"
+    set_hadoop_property 'yarn-site.xml' \
+      'yarn.resourcemanager.scheduler.class' 'org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler'
+    set_hadoop_property 'yarn-site.xml' \
+      "yarn.scheduler.fair.user-as-default-queue" "false"
+    set_hadoop_property 'yarn-site.xml' \
+      "yarn.scheduler.fair.allocation.file" "${fs_xml}"
+    set_hadoop_property 'yarn-site.xml' \
+      'yarn.scheduler.fair.resource-calculator' 'org.apache.hadoop.yarn.util.resource.DominantResourceCalculator'
+    cat > "${fs_xml}" <<EOF
+<!-- ${fs_xml} -->
+<allocations>
+  <queueMaxAppsDefault>1</queueMaxAppsDefault>
+</allocations>
+EOF
+  fi
 }
 
 function configure_gpu_script() {
@@ -44,9 +63,15 @@ function configure_gpu_script() {
 #
 # Example output: {"name": "gpu", "addresses":["0","1","2","3","4","5","6","7"]}
 
+set -e
+resources_json="/dev/shm/nvidia/gpusResources.json"
+if test -f "${resources_json}" ; then cat "${resources_json}" ; exit 0 ; fi
+
+mkdir -p "$(dirname ${resources_json})"
+
 ADDRS=$(nvidia-smi --query-gpu=index --format=csv,noheader | perl -e 'print(join(q{,},map{chomp; qq{"$_"}}<STDIN>))')
 
-echo {\"name\": \"gpu\", \"addresses\":[${ADDRS}]}
+echo {\"name\": \"gpu\", \"addresses\":[${ADDRS}]} | tee "${resources_json}"
 EOF
 
   chmod a+rx "${gpus_resources_script}"
@@ -78,7 +103,6 @@ EOF
 # having AQE enabled gives user the best performance.
 spark.executor.resource.gpu.discoveryScript=${gpus_resources_script}
 spark.executor.resource.gpu.amount=${gpu_count}
-spark.plugins=com.nvidia.spark.SQLPlugin
 spark.executor.cores=${executor_cores}
 spark.executor.memory=${executor_memory_gb}G
 spark.dynamicAllocation.enabled=false
@@ -86,6 +110,7 @@ spark.dynamicAllocation.enabled=false
 spark.task.resource.gpu.amount=${gpu_amount}
 spark.task.cpus=2
 spark.yarn.unmanagedAM.enabled=false
+spark.plugins=com.nvidia.spark.SQLPlugin
 ###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
 EOF
 }
@@ -97,6 +122,7 @@ function configure_yarn_nodemanager_gpu() {
     'yarn.nodemanager.resource-plugins.gpu.allowed-gpu-devices' 'auto'
   set_hadoop_property 'yarn-site.xml' \
     'yarn.nodemanager.resource-plugins.gpu.path-to-discovery-executables' "${NVIDIA_SMI_PATH}"
+
   configure_yarn_nodemanager
 }
 
