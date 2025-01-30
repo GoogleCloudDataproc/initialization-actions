@@ -138,14 +138,16 @@ py_library(
 
 py_test(
     name = "test_hive_lineage",
-    size = "small",
+    size = "enormous",
     srcs = ["hive-lineage/test_hive_lineage.py"],
     data = [
         "hive-lineage/hive-lineage.sh",
         "hive-lineage/hivetest.hive",
     ],
     local = True,
+    shard_count = 3,
     deps = [
         "//integration_tests:dataproc_test_case",
+        "@io_abseil_py//absl/testing:parameterized",
     ],
 )

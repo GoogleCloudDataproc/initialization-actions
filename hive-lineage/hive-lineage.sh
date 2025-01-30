@@ -1,5 +1,7 @@
 #!/bin/bash
 #
+# Copyright 2025 Google LLC and contributors
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,14 +19,15 @@
 
 set -euxo pipefail
 
-export HIVE_HOME="/usr/lib/hive"
-export HIVE_CONF_DIR="/etc/hive/conf"
-export HIVE_CONF_FILE="$HIVE_CONF_DIR/hive-site.xml"
-export HIVE_LIB_DIR="/usr/lib/hive/lib"
-export INSTALLATION_SOURCE="gs://hadoop-lib/hive-lineage"
-export HIVE_OL_HOOK_VERSION="1.0.0-preview"
-export HIVE_OL_HOOK="io.openlineage.hive.hooks.HiveOpenLineageHook"
-
+function prepare_env() {
+  export HIVE_HOME="/usr/lib/hive"
+  export HIVE_CONF_DIR="/etc/hive/conf"
+  export HIVE_CONF_FILE="$HIVE_CONF_DIR/hive-site.xml"
+  export HIVE_LIB_DIR="$HIVE_HOME/lib"
+  export INSTALLATION_SOURCE="gs://hadoop-lib/hive-lineage"
+  export HIVE_OL_HOOK_VERSION="1.0.0-preview"
+  export HIVE_OL_HOOK="io.openlineage.hive.hooks.HiveOpenLineageHook"
+}
 
 function set_hive_lineage_conf() {
   declare -A properties=(
@@ -44,7 +47,7 @@ function set_hive_lineage_conf() {
 
 function install_jars() {
   echo "Installing openlineage-hive hook"
-  gsutil cp -P "$INSTALLATION_SOURCE/hive-openlineage-hook-$HIVE_HIVE_OL_HOOK_VERSION.jar" "$HIVE_LIB_DIR/hive-openlineage-hook.jar"
+  gsutil cp -P "$INSTALLATION_SOURCE/hive-openlineage-hook-$HIVE_OL_HOOK_VERSION.jar" "$HIVE_LIB_DIR/hive-openlineage-hook.jar"
 }
 
 function restart_hive_server2_master() {
@@ -55,6 +58,7 @@ function restart_hive_server2_master() {
   fi
 }
 
+prepare_env
 install_jars
 set_hive_lineage_conf
 restart_hive_server2_master
