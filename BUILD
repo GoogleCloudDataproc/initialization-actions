@@ -6,8 +6,8 @@ test_suite(
         ":test_cloud_sql_proxy",
         ":test_dr_elephant",
         ":test_hive_hcatalog",
-        ":test_starburst_presto",
         ":test_spark_rapids",
+        ":test_starburst_presto",
         "//alluxio:test_alluxio",
         "//atlas:test_atlas",
         "//bigtable:test_bigtable",
@@ -60,7 +60,10 @@ py_test(
     name = "test_cloud_sql_proxy",
     size = "enormous",
     srcs = ["cloud-sql-proxy/test_cloud_sql_proxy.py"],
-    data = ["cloud-sql-proxy/cloud-sql-proxy.sh", "cloud-sql-proxy/hivetest.hive"],
+    data = [
+        "cloud-sql-proxy/cloud-sql-proxy.sh",
+        "cloud-sql-proxy/hivetest.hive",
+    ],
     local = True,
     shard_count = 4,
     deps = [
@@ -114,10 +117,10 @@ py_test(
     size = "enormous",
     srcs = ["spark-rapids/test_spark_rapids.py"],
     data = [
+        "spark-rapids/mig.sh",
         "spark-rapids/spark-rapids.sh",
         "spark-rapids/verify_xgboost_spark_rapids.scala",
         "spark-rapids/verify_xgboost_spark_rapids_sql.scala",
-        "spark-rapids/mig.sh",
     ],
     local = True,
     shard_count = 3,
@@ -131,4 +134,18 @@ py_library(
     name = "pyspark_metastore_test",
     testonly = True,
     srcs = ["cloud-sql-proxy/pyspark_metastore_test.py"],
+)
+
+py_test(
+    name = "test_hive_lineage",
+    size = "small",
+    srcs = ["hive-lineage/test_hive_lineage.py"],
+    data = [
+        "hive-lineage/hive-lineage.sh",
+        "hive-lineage/hivetest.hive",
+    ],
+    local = True,
+    deps = [
+        "//integration_tests:dataproc_test_case",
+    ],
 )
