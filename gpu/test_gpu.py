@@ -64,6 +64,12 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     self.upload_test_file(test_filename, name)
 
     conda_env="dpgce"
+
+    # until the numa node is selected, every time the GPU is accessed
+    # from pytorch, log noise about numa node not being selected is
+    # printed to the console. Selecting numa node before the python is
+    # executed improves readability of the diagnostic information.
+
     verify_cmd = \
       "env={} ; envpath=/opt/conda/miniconda3/envs/${env} ; ".format(conda_env) + \
       "for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node) ; do echo 0 > ${f} ; done ;" + \
@@ -77,8 +83,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                self.TF_TEST_SCRIPT_FILE_NAME)
     self.upload_test_file(test_filename, name)
     # all on a single numa node
+    conda_env="dpgce"
     verify_cmd = \
-      "env={} ; envpath=/opt/conda/miniconda3/envs/${env} ; ".format("dpgce") + \
+      "env={} ; envpath=/opt/conda/miniconda3/envs/${env} ; ".format(conda_env) + \
       "for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node) ; do echo 0 > ${f} ; done ;" + \
       "${envpath}/bin/python {}".format(
         self.TF_TEST_SCRIPT_FILE_NAME)
@@ -143,41 +150,6 @@ exit 1 unless $cert eq lc $kmod
 '
 """
     self.assert_instance_command( name, cert_verification_cmd.format(cert_path) )
-
-  @parameterized.parameters(
-      ("SINGLE",   ["m"], GPU_T4, None, None),
-#      ("STANDARD", ["m"], GPU_T4, None, None),
-      ("STANDARD", ["m", "w-0", "w-1"], GPU_T4, GPU_T4, "NVIDIA"),
-  )
-  def test_install_gpu_default_agent(self, configuration, machine_suffixes,
-                                     master_accelerator, worker_accelerator,
-                                     driver_provider):
-    self.skipTest("No need to regularly test installing the agent on its own cluster ; this is exercised elsewhere")
-
-    if configuration == 'SINGLE' \
-    and self.getImageOs() == 'rocky' \
-    and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
-      # ('2.1-rocky8 and 2.0-rocky8 tests are known to fail in SINGLE configuration with errors about nodes_include being empty')
-      self.skipTest("known to fail")
-
-    metadata = None
-    if driver_provider is not None:
-      metadata = "gpu-driver-provider={}".format(driver_provider)
-    self.createCluster(
-        configuration,
-        self.INIT_ACTIONS,
-        machine_type="n1-highmem-32",
-        master_accelerator=master_accelerator,
-        worker_accelerator=worker_accelerator,
-        metadata=metadata,
-        timeout_in_minutes=90, # This cluster is sized and timed correctly to build the driver and nccl
-        boot_disk_size="60GB")
-    for machine_suffix in machine_suffixes:
-      machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
-      self.verify_instance(machine_name)
-      self.verify_instance_nvcc(machine_name, DEFAULT_CUDA_VERSION)
-      self.verify_instance_pyspark(machine_name)
-      self.verify_instance_spark()
 
   @parameterized.parameters(
       ("SINGLE", ["m"], GPU_T4, None, None),
@@ -251,9 +223,6 @@ exit 1 unless $cert eq lc $kmod
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
-
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
     if configuration == 'KERBEROS' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
@@ -344,9 +313,6 @@ exit 1 unless $cert eq lc $kmod
   def test_gpu_allocation(self, configuration, master_accelerator,
                           worker_accelerator, driver_provider):
 
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
-
     if configuration == 'SINGLE' \
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
@@ -379,9 +345,6 @@ exit 1 unless $cert eq lc $kmod
   def test_install_gpu_cuda_nvidia_with_spark_job(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
-
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.4") \
     and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
@@ -429,9 +392,6 @@ exit 1 unless $cert eq lc $kmod
   def untested_driver_signing(self, configuration, machine_suffixes,
                            master_accelerator, worker_accelerator,
                            cuda_version, image_os, image_version):
-
-    if ( self.getImageOs() == 'rocky' ) and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("GPU drivers are currently FTBFS on Rocky 9 ; base dataproc image out of date")
 
     if configuration == 'KERBEROS' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
