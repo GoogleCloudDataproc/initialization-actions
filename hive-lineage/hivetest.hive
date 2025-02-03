@@ -1,0 +1,23 @@
+DROP TABLE IF EXISTS validate_hive_tbl;
+DROP TABLE IF EXISTS grouped_tbl;
+
+CREATE EXTERNAL TABLE validate_hive_tbl (
+  shell_user STRING,
+  dummy STRING,
+  uid INT,
+  gid INT,
+  name STRING,
+  home STRING,
+  shell STRING
+)
+ROW FORMAT DELIMITED
+    FIELDS TERMINATED BY ':';
+
+CREATE TABLE grouped_tbl
+  ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+AS SELECT shell, COUNT(*) shell_count
+  FROM validate_hive_tbl
+  GROUP BY shell
+  ORDER BY shell_count DESC, shell DESC;
+
+SELECT * from grouped_tbl;
