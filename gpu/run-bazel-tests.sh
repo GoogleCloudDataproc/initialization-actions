@@ -17,7 +17,6 @@ declare -a TESTS_TO_RUN=('gpu:test_gpu')
 time bazel test \
   --jobs="${max_parallel_tests}" \
   --local_test_jobs="${max_parallel_tests}" \
-  --flaky_test_attempts=3 \
   --action_env="INTERNAL_IP_SSH=true" \
   --test_output="errors" \
   --test_arg="--image_version=${IMAGE_VERSION}" \
