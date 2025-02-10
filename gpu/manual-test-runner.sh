@@ -4,16 +4,15 @@
 #
 # To run the script, the following will bootstrap
 #
-# git clone git@github.com:GoogleCloudDataproc/initialization-actions
+# git clone git@github.com:LLC-Technologies-Collier/initialization-actions
+# git checkout gpu-20241121
 # cd initialization-actions
-# git checkout 2024.12
 # cp gpu/env.json.sample env.json
 # vi env.json
 # docker build -f gpu/Dockerfile -t gpu-init-actions-runner:latest .
 # time docker run -it gpu-init-actions-runner:latest gpu/manual-test-runner.sh
 #
 # The bazel run(s) happen in separate screen windows.
-#  To create a new screen window, press ^a c
 #  To see a list of screen windows, press ^a "
 # Num Name
 #

@@ -23,7 +23,7 @@ FLAGS(sys.argv)
 
 INTERNAL_IP_SSH = os.getenv("INTERNAL_IP_SSH", "false").lower() == "true"
 
-DEFAULT_TIMEOUT = 45  # minutes
+DEFAULT_TIMEOUT = 15  # minutes
 
 
 class DataprocTestCase(parameterized.TestCase):
@@ -178,9 +178,9 @@ class DataprocTestCase(parameterized.TestCase):
           args.append("--zone={}".format(self.cluster_zone))
 
         if not FLAGS.skip_cleanup:
-          args.append("--max-age=120m")
+          args.append("--max-age=60m")
 
-        args.append("--max-idle=60m")
+        args.append("--max-idle=25m")
 
         cmd = "{} dataproc clusters create {} {}".format(
             "gcloud beta" if beta else "gcloud", self.name, " ".join(args))
