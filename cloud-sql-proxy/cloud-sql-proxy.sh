@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2016 Google, Inc.
+# Copyright 2016 Google LLC and contributors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,6 +20,81 @@
 
 # Do not use "set -x" to avoid printing passwords in clear in the logs
 set -euo pipefail
+
+function os_id()       ( set +x ;  grep '^ID=' /etc/os-release | cut -d= -f2 | xargs ; )
+function os_version()  ( set +x ;  grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs ; )
+function os_codename() ( set +x ;  grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs ; )
+
+function version_ge() ( set +x ;  [ "$1" = "$(echo -e "$1\n$2" | sort -V | tail -n1)" ] ; )
+function version_gt() ( set +x ;  [ "$1" = "$2" ] && return 1 || version_ge $1 $2 ; )
+function version_le() ( set +x ;  [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ] ; )
+function version_lt() ( set +x ;  [ "$1" = "$2" ] && return 1 || version_le $1 $2 ; )
+
+readonly -A supported_os=(
+  ['debian']="10 11 12"
+  ['rocky']="8 9"
+  ['ubuntu']="18.04 20.04 22.04"
+)
+
+# dynamically define OS version test utility functions
+if [[ "$(os_id)" == "rocky" ]];
+then _os_version=$(os_version | sed -e 's/[^0-9].*$//g')
+else _os_version="$(os_version)"; fi
+for os_id_val in 'rocky' 'ubuntu' 'debian' ; do
+  eval "function is_${os_id_val}() ( set +x ;  [[ \"$(os_id)\" == '${os_id_val}' ]] ; )"
+
+  for osver in $(echo "${supported_os["${os_id_val}"]}") ; do
+    eval "function is_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && [[ \"${_os_version}\" == \"${osver}\" ]] ; )"
+    eval "function ge_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && version_ge \"${_os_version}\" \"${osver}\" ; )"
+    eval "function le_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && version_le \"${_os_version}\" \"${osver}\" ; )"
+  done
+done
+
+function is_debuntu()  ( set +x ;  is_debian || is_ubuntu ; )
+
+function print_metadata_value() {
+  local readonly tmpfile=$(mktemp)
+  http_code=$(curl -f "${1}" -H "Metadata-Flavor: Google" -w "%{http_code}" \
+    -s -o ${tmpfile} 2>/dev/null)
+  local readonly return_code=$?
+  # If the command completed successfully, print the metadata value to stdout.
+  if [[ ${return_code} == 0 && ${http_code} == 200 ]]; then
+    cat ${tmpfile}
+  fi
+  rm -f ${tmpfile}
+  return ${return_code}
+}
+
+function print_metadata_value_if_exists() {
+  local return_code=1
+  local readonly url=$1
+  print_metadata_value ${url}
+  return_code=$?
+  return ${return_code}
+}
+
+function get_metadata_value() (
+  set +x
+  local readonly varname=$1
+  local -r MDS_PREFIX=http://metadata.google.internal/computeMetadata/v1
+  # Print the instance metadata value.
+  print_metadata_value_if_exists ${MDS_PREFIX}/instance/${varname}
+  return_code=$?
+  # If the instance doesn't have the value, try the project.
+  if [[ ${return_code} != 0 ]]; then
+    print_metadata_value_if_exists ${MDS_PREFIX}/project/${varname}
+    return_code=$?
+  fi
+
+  return ${return_code}
+)
+
+function get_metadata_attribute() (
+  set +x
+  local -r attribute_name="$1"
+  local -r default_value="${2:-}"
+  get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
+)
 
 # Detect dataproc image version from its various names
 if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
@@ -69,22 +144,25 @@ readonly METASTORE_INSTANCE
 ADDITIONAL_INSTANCES="$(/usr/share/google/get_metadata_value ${ADDITIONAL_INSTANCES_KEY} || echo '')"
 readonly ADDITIONAL_INSTANCES
 
-function remove_old_backports {
+function repair_old_backports {
+  if ! is_debuntu ; then return ; fi
   # This script uses 'apt-get update' and is therefore potentially dependent on
   # backports repositories which have been archived.  In order to mitigate this
-  # problem, we will remove any reference to backports repos older than oldstable
+  # problem, we will use archive.debian.org for the oldoldstable repo
 
   # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
-  oldstable=$(curl -s https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
-  stable=$(curl -s https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
+  debdists="https://deb.debian.org/debian/dists"
+  oldoldstable=$(curl -s "${debdists}/oldoldstable/Release" | awk '/^Codename/ {print $2}');
+  oldstable=$(   curl -s "${debdists}/oldstable/Release"    | awk '/^Codename/ {print $2}');
+  stable=$(      curl -s "${debdists}/stable/Release"       | awk '/^Codename/ {print $2}');
 
-  matched_files=( $(grep -rsil '\-backports' /etc/apt/sources.list*||:) )
-  if [[ -n "$matched_files" ]]; then
-    for filename in "${matched_files[@]}"; do
-      grep -e "$oldstable-backports" -e "$stable-backports" "$filename" || \
-        sed -i -e 's/^.*-backports.*$//' "$filename"
-    done
-  fi
+  matched_files=( $(test -d /etc/apt && grep -rsil '\-backports' /etc/apt/sources.list*||:) )
+
+  for filename in "${matched_files[@]}"; do
+    # Fetch from archive.debian.org for ${oldoldstable}-backports
+    perl -pi -e "s{^(deb[^\s]*) https?://[^/]+/debian ${oldoldstable}-backports }
+                  {\$1 https://archive.debian.org/debian ${oldoldstable}-backports }g" "${filename}"
+  done
 }
 
 # Get metastore DB instance type, result be one of MYSQL, POSTGRES, SQLSERVER
@@ -627,15 +705,113 @@ function update_worker() {
   fi
 }
 
+function clean_up_sources_lists() {
+  if ! is_debuntu ; then return ; fi
+  #
+  # bigtop (primary)
+  #
+  local -r dataproc_repo_file="/etc/apt/sources.list.d/dataproc.list"
+
+  if [[ -f "${dataproc_repo_file}" ]] && ! grep -q signed-by "${dataproc_repo_file}" ; then
+    region="$(get_metadata_value zone | perl -p -e 's:.*/:: ; s:-[a-z]+$::')"
+
+    local regional_bigtop_repo_uri
+    regional_bigtop_repo_uri=$(cat ${dataproc_repo_file} |
+      sed "s#/dataproc-bigtop-repo/#/goog-dataproc-bigtop-repo-${region}/#" |
+      grep "deb .*goog-dataproc-bigtop-repo-${region}.* dataproc contrib" |
+      cut -d ' ' -f 2 |
+      head -1)
+
+    if [[ "${regional_bigtop_repo_uri}" == */ ]]; then
+      local -r bigtop_key_uri="${regional_bigtop_repo_uri}archive.key"
+    else
+      local -r bigtop_key_uri="${regional_bigtop_repo_uri}/archive.key"
+    fi
+
+    local -r bigtop_kr_path="/usr/share/keyrings/bigtop-keyring.gpg"
+    rm -f "${bigtop_kr_path}"
+    curl -fsS --retry-connrefused --retry 10 --retry-max-time 30 \
+      "${bigtop_key_uri}" | gpg --dearmor -o "${bigtop_kr_path}"
+
+    sed -i -e "s:deb https:deb [signed-by=${bigtop_kr_path}] https:g" "${dataproc_repo_file}"
+    sed -i -e "s:deb-src https:deb-src [signed-by=${bigtop_kr_path}] https:g" "${dataproc_repo_file}"
+  fi
+
+  #
+  # adoptium
+  #
+  # https://adoptium.net/installation/linux/#_deb_installation_on_debian_or_ubuntu
+  local -r key_url="https://packages.adoptium.net/artifactory/api/gpg/key/public"
+  local -r adoptium_kr_path="/usr/share/keyrings/adoptium.gpg"
+  rm -f "${adoptium_kr_path}"
+  curl -fsS --retry-connrefused --retry 10 --retry-max-time 30 "${key_url}" \
+   | gpg --dearmor -o "${adoptium_kr_path}"
+  echo "deb [signed-by=${adoptium_kr_path}] https://packages.adoptium.net/artifactory/deb/ $(os_codename) main" \
+   > /etc/apt/sources.list.d/adoptium.list
+
+
+  #
+  # docker
+  #
+  local docker_kr_path="/usr/share/keyrings/docker-keyring.gpg"
+  local docker_repo_file="/etc/apt/sources.list.d/docker.list"
+  local -r docker_key_url="https://download.docker.com/linux/$(os_id)/gpg"
+
+  rm -f "${docker_kr_path}"
+  curl -fsS --retry-connrefused --retry 10 --retry-max-time 30 "${docker_key_url}" \
+    | gpg --dearmor -o "${docker_kr_path}"
+  echo "deb [signed-by=${docker_kr_path}] https://download.docker.com/linux/$(os_id) $(os_codename) stable" \
+    > ${docker_repo_file}
+
+  #
+  # google cloud + logging/monitoring
+  #
+  if ls /etc/apt/sources.list.d/google-cloud*.list ; then
+    rm -f /usr/share/keyrings/cloud.google.gpg
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+    for list in google-cloud google-cloud-logging google-cloud-monitoring ; do
+      list_file="/etc/apt/sources.list.d/${list}.list"
+      if [[ -f "${list_file}" ]]; then
+        sed -i -e 's:deb https:deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https:g' "${list_file}"
+      fi
+    done
+  fi
+
+  #
+  # cran-r
+  #
+  if [[ -f /etc/apt/sources.list.d/cran-r.list ]]; then
+    keyid="0x95c0faf38db3ccad0c080a7bdc78b2ddeabc47b7"
+    if is_ubuntu18 ; then keyid="0x51716619E084DAB9"; fi
+    rm -f /usr/share/keyrings/cran-r.gpg
+    curl "https://keyserver.ubuntu.com/pks/lookup?op=get&search=${keyid}" | \
+      gpg --dearmor -o /usr/share/keyrings/cran-r.gpg
+    sed -i -e 's:deb http:deb [signed-by=/usr/share/keyrings/cran-r.gpg] http:g' /etc/apt/sources.list.d/cran-r.list
+  fi
+
+  #
+  # mysql
+  #
+  if [[ -f /etc/apt/sources.list.d/mysql.list ]]; then
+    rm -f /usr/share/keyrings/mysql.gpg
+    curl 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xBCA43417C3B485DD128EC6D4B7B3B788A8D3785C' | \
+      gpg --dearmor -o /usr/share/keyrings/mysql.gpg
+    sed -i -e 's:deb https:deb [signed-by=/usr/share/keyrings/mysql.gpg] https:g' /etc/apt/sources.list.d/mysql.list
+  fi
+
+  if [[ -f /etc/apt/trusted.gpg ]] ; then mv /etc/apt/trusted.gpg /etc/apt/old-trusted.gpg ; fi
+
+}
+
 function main() {
   local role
   role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 
   validate
 
-  if [[ ${OS_NAME} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
-    remove_old_backports
-  fi
+  repair_old_backports
+
+  clean_up_sources_lists
 
   if [[ "${role}" == 'Master' ]]; then
     update_master
