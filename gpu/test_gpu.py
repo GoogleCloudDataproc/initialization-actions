@@ -125,14 +125,37 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       self.getClusterName(),
       "spark",
       "--jars=file:///usr/lib/spark/examples/jars/spark-examples.jar " \
+      + "--class=org.apache.spark.examples.SparkPi " \
+      + " -- 1000"
+    )
+    self.assert_dataproc_job(
+      self.getClusterName(),
+      "spark",
+      "--jars=file:///usr/lib/spark/examples/jars/spark-examples.jar " \
       + "--class=org.apache.spark.examples.ml.JavaIndexToStringExample " \
-      + "--properties="                           \
-      +   "spark.executor.resource.gpu.amount=1," \
-      +   "spark.executor.cores=6,"               \
-      +   "spark.executor.memory=4G,"             \
-      +   "spark.task.resource.gpu.amount=0.333," \
-      +   "spark.task.cpus=2,"                    \
+      + "--properties="\
+      +   "spark.executor.resource.gpu.amount=1,"\
+      +   "spark.executor.cores=6,"\
+      +   "spark.executor.memory=4G,"\
+      +   "spark.plugins=com.nvidia.spark.SQLPlugin,"\
+      +   "spark.executor.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh,"\
+      +   "spark.dynamicAllocation.enabled=false,"\
+      +   "spark.sql.autoBroadcastJoinThreshold=10m,"\
+      +   "spark.sql.files.maxPartitionBytes=512m,"\
+      +   "spark.task.resource.gpu.amount=0.333,"\
+      +   "spark.task.cpus=2,"\
       +   "spark.yarn.unmanagedAM.enabled=false"
+    )
+    self.assert_dataproc_job(
+      self.getClusterName(),
+      "spark",
+      "--jars=file:///usr/lib/spark/examples/jars/spark-examples.jar " \
+      + "--class=org.apache.spark.examples.ml.JavaIndexToStringExample " \
+      + "--properties="\
+      + "spark.driver.resource.gpu.amount=1,"\
+      + "spark.driver.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh,"\
+      + "spark.executor.resource.gpu.amount=1,"\
+      + "spark.executor.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh"
     )
 
   def verify_driver_signature(self, name):

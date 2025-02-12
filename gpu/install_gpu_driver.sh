@@ -1445,25 +1445,6 @@ function configure_yarn_resources() {
     'org.apache.hadoop.yarn.util.resource.DominantResourceCalculator'
 
   set_hadoop_property 'yarn-site.xml' 'yarn.resource-types' 'yarn.io/gpu'
-
-  # Older CapacityScheduler does not permit use of gpu resources ; switch to FairScheduler on 2.0 and below
-  if version_lt "${DATAPROC_IMAGE_VERSION}" "2.1" ; then
-    fs_xml="$HADOOP_CONF_DIR/fair-scheduler.xml"
-    set_hadoop_property 'yarn-site.xml' \
-      'yarn.resourcemanager.scheduler.class' 'org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler'
-    set_hadoop_property 'yarn-site.xml' \
-      "yarn.scheduler.fair.user-as-default-queue" "false"
-    set_hadoop_property 'yarn-site.xml' \
-      "yarn.scheduler.fair.allocation.file" "${fs_xml}"
-    set_hadoop_property 'yarn-site.xml' \
-      'yarn.scheduler.fair.resource-calculator' 'org.apache.hadoop.yarn.util.resource.DominantResourceCalculator'
-    cat > "${fs_xml}" <<EOF
-<!-- ${fs_xml} -->
-<allocations>
-  <queueMaxAppsDefault>1</queueMaxAppsDefault>
-</allocations>
-EOF
-  fi
 }
 
 # This configuration should be applied only if GPU is attached to the node
@@ -1560,6 +1541,9 @@ EOF
   local spark_defaults_conf="/etc/spark/conf.dist/spark-defaults.conf"
   if version_lt "${SPARK_VERSION}" "3.0" ; then return ; fi
 
+  if ! grep spark.executor.resource.gpu.discoveryScript "${spark_defaults_conf}" ; then
+    echo "spark.executor.resource.gpu.discoveryScript=${gpus_resources_script}" >> "${spark_defaults_conf}"
+  fi
   local executor_cores
   executor_cores="$(nproc | perl -MPOSIX -pe '$_ = POSIX::floor( $_ * 0.75 ); $_-- if $_ % 2')"
   local executor_memory
@@ -1575,16 +1559,17 @@ EOF
 # query explain output won't show GPU operator, if the user has doubts
 # they can uncomment the line before seeing the GPU plan explain;
 # having AQE enabled gives user the best performance.
-spark.executor.resource.gpu.discoveryScript=${gpus_resources_script}
+#spark.sql.autoBroadcastJoinThreshold=10m
+#spark.sql.files.maxPartitionBytes=512m
 spark.executor.resource.gpu.amount=${gpu_count}
-spark.executor.cores=${executor_cores}
-spark.executor.memory=${executor_memory_gb}G
-spark.dynamicAllocation.enabled=false
+#spark.executor.cores=${executor_cores}
+#spark.executor.memory=${executor_memory_gb}G
+#spark.dynamicAllocation.enabled=false
 # please update this config according to your application
-spark.task.resource.gpu.amount=${gpu_amount}
-spark.task.cpus=2
-spark.yarn.unmanagedAM.enabled=false
-spark.plugins=com.nvidia.spark.SQLPlugin
+#spark.task.resource.gpu.amount=${gpu_amount}
+#spark.task.cpus=2
+#spark.yarn.unmanagedAM.enabled=false
+#spark.plugins=com.nvidia.spark.SQLPlugin
 ###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
 EOF
 }
