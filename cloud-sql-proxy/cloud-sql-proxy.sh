@@ -717,8 +717,8 @@ function clean_up_sources_lists() {
 
     local regional_bigtop_repo_uri
     regional_bigtop_repo_uri=$(cat ${dataproc_repo_file} |
-      sed "s#/dataproc-bigtop-repo/#/goog-dataproc-bigtop-repo-${region}/#" |
-      grep "deb .*goog-dataproc-bigtop-repo-${region}.* dataproc contrib" |
+      sed -E "s#/dataproc-bigtop-repo(-dev)?/#/goog-dataproc-bigtop-repo\\1-${region}/#" |
+      grep -E "deb .*goog-dataproc-bigtop-repo(-dev)?-${region}.* dataproc contrib" |
       cut -d ' ' -f 2 |
       head -1)
 
