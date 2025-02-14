@@ -65,11 +65,7 @@ class CloudSqlProxyTestCase(DataprocTestCase):
     metadata = 'hive-metastore-instance={}:{},hive-metastore-db=metastore'.format(self.PROJECT_METADATA,
                                                       self.DB_NAME)
     self.createCluster(
-        configuration,
-        self.INIT_ACTIONS,
-        machine_type="n1-standard-8",
-        metadata=metadata,
-        scopes='sql-admin')
+        configuration, self.INIT_ACTIONS, metadata=metadata, scopes='sql-admin')
 
     self.verify_cluster(self.getClusterName())
 
