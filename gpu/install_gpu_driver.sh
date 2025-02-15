@@ -449,7 +449,7 @@ GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'NVIDIA')
 readonly GPU_DRIVER_PROVIDER
 
 # Whether to install GPU monitoring agent that sends GPU metrics to Stackdriver
-INSTALL_GPU_AGENT=$(get_metadata_attribute 'install-gpu-agent' 'false')
+INSTALL_GPU_AGENT=$(get_metadata_attribute 'install-gpu-agent' 'true')
 readonly INSTALL_GPU_AGENT
 
 # Dataproc configurations
@@ -987,8 +987,11 @@ function add_repo_cuda() {
       local sources_list_path="/etc/apt/sources.list.d/cuda-${shortname}-x86_64.list"
       echo "deb [signed-by=${kr_path}] https://developer.download.nvidia.com/compute/cuda/repos/${shortname}/x86_64/ /" \
       | sudo tee "${sources_list_path}"
-      curl ${curl_retry_args} "${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64/cuda-archive-keyring.gpg" \
-        -o "${kr_path}"
+
+      for keyid in "0xae09fe4bbd223a84b2ccfce3f60f4b3d7fa2af80" "0xeb693b3035cd5710e231e123a4b469963bf863cc" ; do
+        curl ${curl_retry_args} "https://keyserver.ubuntu.com/pks/lookup?op=get&search=${keyid}" \
+        | gpg --import --no-default-keyring --keyring "${kr_path}"
+      done
     else
       install_cuda_keyring_pkg # 11.7+, 12.0+
     fi
@@ -996,8 +999,6 @@ function add_repo_cuda() {
     execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPO_URL}"
   fi
 }
-
-readonly uname_r=$(uname -r)
 
 function build_driver_from_github() {
   # non-GPL driver will have been built on rocky8 or if driver version is prior to open kernel version
@@ -1370,6 +1371,8 @@ function install_ops_agent(){
   cd /opt/google
   # https://cloud.google.com/stackdriver/docs/solutions/agents/ops-agent/installation
   curl ${curl_retry_args} -O https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
+  local expected="038d98644e4c4a7969d26da790946720d278c8d49bb82b677f550c2a2b858411  add-google-cloud-ops-agent-repo.sh"
+
   execute_with_retries bash add-google-cloud-ops-agent-repo.sh --also-install
 
   mark_complete ops-agent
@@ -1434,7 +1437,12 @@ function set_hadoop_property() {
 }
 
 function configure_yarn_resources() {
-  if [[ ! -d "${HADOOP_CONF_DIR}" ]] ; then return 0 ; fi # pre-init scripts
+  if [[ ! -d "${HADOOP_CONF_DIR}" ]] ; then
+    # TODO: when running this script to customize an image, this file
+    # needs to be written *after* bdutil completes
+
+    return 0
+  fi # pre-init scripts
   if [[ ! -f "${HADOOP_CONF_DIR}/resource-types.xml" ]]; then
     printf '<?xml version="1.0" ?>\n<configuration/>' >"${HADOOP_CONF_DIR}/resource-types.xml"
   fi
@@ -1553,6 +1561,9 @@ EOF
 #  gpu_amount="$(echo $executor_cores | perl -pe "\$_ = ( ${gpu_count} / (\$_ / ${task_cpus}) )")"
   gpu_amount="$(perl -e "print 1 / ${executor_cores}")"
 
+  # TODO: when running this script to customize an image, this file
+  # needs to be written *after* bdutil completes
+
   cat >>"${spark_defaults_conf}" <<EOF
 ###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
 # Rapids Accelerator for Spark can utilize AQE, but when the plan is not finalized,
@@ -1561,7 +1572,7 @@ EOF
 # having AQE enabled gives user the best performance.
 #spark.sql.autoBroadcastJoinThreshold=10m
 #spark.sql.files.maxPartitionBytes=512m
-spark.executor.resource.gpu.amount=${gpu_count}
+spark.executor.resource.gpu.amount=1
 #spark.executor.cores=${executor_cores}
 #spark.executor.memory=${executor_memory_gb}G
 #spark.dynamicAllocation.enabled=false
@@ -1632,6 +1643,10 @@ function install_build_dependencies() {
       update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 11
       update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
       update-alternatives --set gcc /usr/bin/gcc-12
+    elif is_ubuntu22 && version_lt "${CUDA_VERSION}" "11.7" ; then
+      # On cuda less than 11.7, the kernel driver does not build on ubuntu22
+      # https://forums.developer.nvidia.com/t/latest-nvidia-driver-470-63-01-installation-fails-with-latest-linux-kernel-5-16-5-100/202972
+      echo "N.B.: Older CUDA 11 known bad on ${_shortname}"
     fi
 
   elif is_rocky ; then
@@ -1697,8 +1712,27 @@ function prepare_gpu_env(){
   set_driver_version
 
   set +e
-  gpu_count="$(grep -i PCI_ID=10DE /sys/bus/pci/devices/*/uevent | wc -l)"
+  # NV vendor ID is 10DE
+  pci_vendor_id="10DE"
+  gpu_count="$(grep -i PCI_ID=${pci_vendor_id} /sys/bus/pci/devices/*/uevent | wc -l)"
   set -e
+
+  if [[ "${gpu_count}" > "0" ]] ; then
+    # N.B.: https://pci-ids.ucw.cz/v2.2/pci.ids.xz
+    pci_device_id="$(grep -h -i PCI_ID=10DE /sys/bus/pci/devices/*/uevent | head -1 | awk -F: '{print $2}')"
+    pci_device_id_int="$((16#${pci_device_id}))"
+    case "${pci_device_id}" in
+      "15F8" ) gpu_type="nvidia-tesla-p100" ;;
+      "1BB3" ) gpu_type="nvidia-tesla-p4"   ;;
+      "1DB1" ) gpu_type="nvidia-tesla-v100" ;;
+      "1EB8" ) gpu_type="nvidia-tesla-t4"   ;;
+      "20*"  ) gpu_type="nvidia-tesla-a100" ;;
+      "23*"  ) gpu_type="nvidia-h100"       ;; # install does not begin with image 2.0.68-debian10/cuda11.1
+      "27B8" ) gpu_type="nvidia-l4"         ;; # install does not complete with image 2.0.68-debian10/cuda11.1
+    esac
+
+    ACCELERATOR="type=${gpu_type},count=${gpu_count}"
+  fi
 
   nvsmi_works="0"
 
@@ -1881,8 +1915,8 @@ function clean_up_sources_lists() {
 
     local regional_bigtop_repo_uri
     regional_bigtop_repo_uri=$(cat ${dataproc_repo_file} |
-      sed "s#/dataproc-bigtop-repo/#/goog-dataproc-bigtop-repo-${region}/#" |
-      grep "deb .*goog-dataproc-bigtop-repo-${region}.* dataproc contrib" |
+      sed -E "s#/dataproc-bigtop-repo(-dev)?/#/goog-dataproc-bigtop-repo\\1-${region}/#" |
+      grep -E "deb .*goog-dataproc-bigtop-repo(-dev)?-${region}.* dataproc contrib" |
       cut -d ' ' -f 2 |
       head -1)
 
@@ -2046,15 +2080,19 @@ function exit_handler() {
 #/dev/vda2        7096908 2611344   4182932  39% /
   df / | tee -a "/run/disk-usage.log"
 
-  perl -e '@siz=( sort { $a => $b }
-                   map { (split)[2] =~ /^(\d+)/ }
-                  grep { m:^/: } <STDIN> );
-$max=$siz[0]; $min=$siz[-1]; $starting="unknown"; $inc=q{$max-$starting};
-print( "    samples-taken: ", scalar @siz, $/,
+  perl -e '($first, @samples) = grep { m:^/: } <STDIN>;
+           unshift(@samples,$first); $final=$samples[-1];
+           ($starting)=(split(/\s+/,$first))[2] =~ /^(\d+)/;
+             ($ending)=(split(/\s+/,$final))[2] =~ /^(\d+)/;
+           @siz=( sort { $a => $b }
+                   map { (split)[2] =~ /^(\d+)/ } @samples );
+$max=$siz[0]; $min=$siz[-1]; $inc=$max-$starting;
+print( "     samples-taken: ", scalar @siz, $/,
        "starting-disk-used: $starting", $/,
-       "maximum-disk-used:  $max", $/,
-       "minimum-disk-used:  $min", $/,
-       "     increased-by:  $inc", $/ )' < "/run/disk-usage.log"
+       "  ending-disk-used: $ending", $/,
+       " maximum-disk-used: $max", $/,
+       " minimum-disk-used: $min", $/,
+       "      increased-by: $inc", $/ )' < "/run/disk-usage.log"
 
   echo "exit_handler has completed"
 
@@ -2144,6 +2182,7 @@ function harden_sshd_config() {
 }
 
 function prepare_to_install(){
+  readonly uname_r=$(uname -r)
   # Verify OS compatability and Secure boot state
   check_os
   check_secure_boot
