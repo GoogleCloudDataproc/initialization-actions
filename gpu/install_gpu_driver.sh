@@ -628,15 +628,20 @@ function install_nvidia_nccl() {
     if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
       # when running with fewer than 32 cores, yield to in-progress build
       sleep $(( ( RANDOM % 11 ) + 10 ))
-      if gcloud storage ls -j "${gcs_tarball}.building" > "${local_tarball}.building.json" ; then
-        local build_start_time="$(jq -r .[0].metadata.timeCreated "${local_tarball}.building.json")"
-        local build_start_epoch="$(date -d "${build_start_time}" +%s)"
-        local timeout_epoch=$((build_start_epoch + 2700)) # 45 minutes
-        while gsutil ls -L "${gcs_tarball}.building" ; do
+      if ${gsutil_cmd} ls "${gcs_tarball}.building" ; then
+        local build_start_time build_start_epoch timeout_epoch
+        if [[ "${gsutil_cmd}" =~ "gsutil" ]] ; then
+          build_start_time="$(${gsutil_cmd} ls -L "${gcs_tarball}.building" | awk -F': +' '/Creation time/ {print $2}')"
+        else
+          build_start_time="$(${gsutil_cmd} ls -j "${gcs_tarball}.building" | jq -r .[0].metadata.timeCreated "${local_tarball}.building.json")"
+        fi
+        build_start_epoch="$(date -d "${build_start_time}" +%s)"
+        timeout_epoch=$((build_start_epoch + 2700)) # 45 minutes
+        while ${gsutil_cmd} ls -L "${gcs_tarball}.building" ; do
           local now_epoch="$(date -u +%s)"
           if (( now_epoch > timeout_epoch )) ; then
             # detect unexpected build failure after 45m
-            gsutil rm "${gcs_tarball}.building"
+            ${gsutil_cmd} rm "${gcs_tarball}.building"
             break
           fi
           sleep 5m
@@ -644,15 +649,15 @@ function install_nvidia_nccl() {
       fi
     fi
 
-    output=$(gsutil ls "${gcs_tarball}" 2>&1 || echo '')
+    output=$(${gsutil_cmd} ls "${gcs_tarball}" 2>&1 || echo '')
     if echo "${output}" | grep -q "${gcs_tarball}" ; then
       # cache hit - unpack from cache
       echo "cache hit"
-      gcloud storage cat "${gcs_tarball}" | tar xvz
+      ${gsutil_cmd} cat "${gcs_tarball}" | tar xvz
     else
       # build and cache
       touch "${local_tarball}.building"
-      gcloud storage cp "${local_tarball}.building" "${gcs_tarball}.building"
+      ${gsutil_cmd} cp "${local_tarball}.building" "${gcs_tarball}.building"
       building_file="${gcs_tarball}.building"
       pushd nccl
       # https://github.com/NVIDIA/nccl?tab=readme-ov-file#install
@@ -699,8 +704,8 @@ function install_nvidia_nccl() {
       make clean
       popd
       tar xzvf "${local_tarball}"
-      gcloud storage cp "${local_tarball}" "${gcs_tarball}"
-      if gcloud storage ls "${gcs_tarball}.building" ; then gcloud storage rm "${gcs_tarball}.building" || true ; fi
+      ${gsutil_cmd} cp "${local_tarball}" "${gcs_tarball}"
+      if ${gsutil_cmd} ls "${gcs_tarball}.building" ; then ${gsutil_cmd} rm "${gcs_tarball}.building" || true ; fi
       building_file=""
       rm "${local_tarball}"
     fi
@@ -804,15 +809,20 @@ function install_pytorch() {
   if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
     # when running with fewer than 32 cores, yield to in-progress build
     sleep $(( ( RANDOM % 11 ) + 10 ))
-    if gcloud storage ls -j "${gcs_tarball}.building" > "${local_tarball}.building.json" ; then
-      local build_start_time="$(jq -r .[0].metadata.timeCreated "${local_tarball}.building.json")"
-      local build_start_epoch="$(date -d "${build_start_time}" +%s)"
-      local timeout_epoch=$((build_start_epoch + 2700)) # 45 minutes
-      while gsutil ls -L "${gcs_tarball}.building" ; do
+    if ${gsutil_cmd} ls -j "${gcs_tarball}.building" > "${local_tarball}.building.json" ; then
+      local build_start_time build_start_epoch timeout_epoch
+      if [[ "${gsutil_cmd}" =~ "gsutil" ]] ; then
+        build_start_time="$(${gsutil_cmd} ls -L "${gcs_tarball}.building" | awk -F': +' '/Creation time/ {print $2}')"
+      else
+        build_start_time="$(${gsutil_cmd} ls -j "${gcs_tarball}.building" | jq -r .[0].metadata.timeCreated "${local_tarball}.building.json")"
+      fi
+      build_start_epoch="$(date -d "${build_start_time}" +%s)"
+      timeout_epoch=$((build_start_epoch + 2700)) # 45 minutes
+      while ${gsutil_cmd} ls -L "${gcs_tarball}.building" ; do
         local now_epoch="$(date -u +%s)"
         if (( now_epoch > timeout_epoch )) ; then
           # detect unexpected build failure after 45m
-          gsutil rm "${gcs_tarball}.building"
+          ${gsutil_cmd} rm "${gcs_tarball}.building"
           break
         fi
         sleep 5m
@@ -820,15 +830,15 @@ function install_pytorch() {
     fi
   fi
 
-  output=$(gsutil ls "${gcs_tarball}" 2>&1 || echo '')
+  output=$(${gsutil_cmd} ls "${gcs_tarball}" 2>&1 || echo '')
   if echo "${output}" | grep -q "${gcs_tarball}" ; then
     # cache hit - unpack from cache
     echo "cache hit"
     mkdir -p "${envpath}"
-    gcloud storage cat "${gcs_tarball}" | tar -C "${envpath}" -xz
+    ${gsutil_cmd} cat "${gcs_tarball}" | tar -C "${envpath}" -xz
   else
     touch "${local_tarball}.building"
-    gcloud storage cp "${local_tarball}.building" "${gcs_tarball}.building"
+    ${gsutil_cmd} cp "${local_tarball}.building" "${gcs_tarball}.building"
     building_file="${gcs_tarball}.building"
     local verb=create
     if test -d "${envpath}" ; then verb=install ; fi
@@ -848,8 +858,8 @@ function install_pytorch() {
     pushd "${envpath}"
     tar czf "${local_tarball}" .
     popd
-    gcloud storage cp "${local_tarball}" "${gcs_tarball}"
-    if gcloud storage ls "${gcs_tarball}.building" ; then gcloud storage rm "${gcs_tarball}.building" || true ; fi
+    ${gsutil_cmd} cp "${local_tarball}" "${gcs_tarball}"
+    if ${gsutil_cmd} ls "${gcs_tarball}.building" ; then ${gsutil_cmd} rm "${gcs_tarball}.building" || true ; fi
     building_file=""
   fi
 
@@ -1001,8 +1011,12 @@ function add_repo_cuda() {
 }
 
 function build_driver_from_github() {
-  # non-GPL driver will have been built on rocky8 or if driver version is prior to open kernel version
-  if ( is_rocky8 || version_lt "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" ) ; then return 0 ; fi
+  # non-GPL driver will have been built on rocky8, or when driver
+  # version is prior to open driver min, or GPU architecture is prior
+  # to Turing
+  if ( is_rocky8 \
+    || version_lt "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" \
+    || [[ "$((16#${pci_device_id}))" < "$((16#1E00))" ]] ) ; then return 0 ; fi
   pushd "${workdir}"
   test -d "${workdir}/open-gpu-kernel-modules" || {
     tarball_fn="${DRIVER_VERSION}.tar.gz"
@@ -1026,15 +1040,20 @@ function build_driver_from_github() {
     if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
       # when running with fewer than 32 cores, yield to in-progress build
       sleep $(( ( RANDOM % 11 ) + 10 ))
-      if gcloud storage ls -j "${gcs_tarball}.building" > "${local_tarball}.building.json" ; then
-        local build_start_time="$(jq -r .[0].metadata.timeCreated "${local_tarball}.building.json")"
-        local build_start_epoch="$(date -d "${build_start_time}" +%s)"
-        local timeout_epoch=$((build_start_epoch + 2700)) # 45 minutes
-        while gsutil ls -L "${gcs_tarball}.building" ; do
+      if ${gsutil_cmd} ls -j "${gcs_tarball}.building" > "${local_tarball}.building.json" ; then
+        local build_start_time build_start_epoch timeout_epoch
+        if [[ "${gsutil_cmd}" =~ "gsutil" ]] ; then
+          build_start_time="$(${gsutil_cmd} ls -L "${gcs_tarball}.building" | awk -F': +' '/Creation time/ {print $2}')"
+        else
+          build_start_time="$(${gsutil_cmd} ls -j "${gcs_tarball}.building" | jq -r .[0].metadata.timeCreated "${local_tarball}.building.json")"
+        fi
+        build_start_epoch="$(date -d "${build_start_time}" +%s)"
+        timeout_epoch=$((build_start_epoch + 2700)) # 45 minutes
+        while ${gsutil_cmd} ls -L "${gcs_tarball}.building" ; do
           local now_epoch="$(date -u +%s)"
           if (( now_epoch > timeout_epoch )) ; then
             # detect unexpected build failure after 45m
-            gsutil rm "${gcs_tarball}.building"
+            ${gsutil_cmd} rm "${gcs_tarball}.building"
             break
           fi
           sleep 5m
@@ -1042,12 +1061,12 @@ function build_driver_from_github() {
       fi
     fi
 
-    if gsutil ls "${gcs_tarball}" 2>&1 | grep -q "${gcs_tarball}" ; then
+    if ${gsutil_cmd} ls "${gcs_tarball}" 2>&1 ; then
       echo "cache hit"
     else
       # build the kernel modules
       touch "${local_tarball}.building"
-      gcloud storage cp "${local_tarball}.building" "${gcs_tarball}.building"
+      ${gsutil_cmd} cp "${local_tarball}.building" "${gcs_tarball}.building"
       building_file="${gcs_tarball}.building"
       pushd open-gpu-kernel-modules
       install_build_dependencies
@@ -1076,14 +1095,14 @@ function build_driver_from_github() {
       tar czvf "${local_tarball}" \
         "${workdir}/open-gpu-kernel-modules/kernel-open/"*.log \
         $(find /lib/modules/${uname_r}/ -iname 'nvidia*.ko')
-      gcloud storage cp "${local_tarball}" "${gcs_tarball}"
-      if gcloud storage ls "${gcs_tarball}.building" ; then gcloud storage rm "${gcs_tarball}.building" || true ; fi
+      ${gsutil_cmd} cp "${local_tarball}" "${gcs_tarball}"
+      if ${gsutil_cmd} ls "${gcs_tarball}.building" ; then ${gsutil_cmd} rm "${gcs_tarball}.building" || true ; fi
       building_file=""
       rm "${local_tarball}"
       make clean
       popd
     fi
-    gcloud storage cat "${gcs_tarball}" | tar -C / -xzv
+    ${gsutil_cmd} cat "${gcs_tarball}" | tar -C / -xzv
     depmod -a
   }
 
@@ -1156,10 +1175,15 @@ function install_nvidia_userspace_runfile() {
   local cache_hit="0"
   local local_tarball
 
-  if ( is_rocky8 || version_lt "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" ) ; then
+  # Build nonfree driver on rocky8, or when driver version is prior to
+  # open driver min, or when GPU architecture is prior to Turing
+  if ( is_rocky8 \
+    || version_lt "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" \
+    || [[ "$((16#${pci_device_id}))" < "$((16#1E00))" ]] )
+  then
     local nvidia_ko_path="$(find /lib/modules/$(uname -r)/ -name 'nvidia.ko')"
     test -n "${nvidia_ko_path}" && test -f "${nvidia_ko_path}" || {
-      local build_tarball="kmod_${_shortname}_${DRIVER_VERSION}.tar.gz"
+      local build_tarball="kmod_${_shortname}_${DRIVER_VERSION}_nonfree.tar.gz"
       local_tarball="${workdir}/${build_tarball}"
       local build_dir
       if test -v modulus_md5sum && [[ -n "${modulus_md5sum}" ]]
@@ -1171,15 +1195,20 @@ function install_nvidia_userspace_runfile() {
       if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
         # when running with fewer than 32 cores, yield to in-progress build
         sleep $(( ( RANDOM % 11 ) + 10 ))
-        if gcloud storage ls -j "${gcs_tarball}.building" > "${local_tarball}.building.json" ; then
-          local build_start_time="$(jq -r .[0].metadata.timeCreated "${local_tarball}.building.json")"
-          local build_start_epoch="$(date -d "${build_start_time}" +%s)"
-          local timeout_epoch=$((build_start_epoch + 2700)) # 45 minutes
-          while gsutil ls -L "${gcs_tarball}.building" ; do
+        if ${gsutil_cmd} ls -j "${gcs_tarball}.building" > "${local_tarball}.building.json" ; then
+          local build_start_time build_start_epoch timeout_epoch
+          if [[ "${gsutil_cmd}" =~ "gsutil" ]] ; then
+            build_start_time="$(${gsutil_cmd} ls -L "${gcs_tarball}.building" | awk -F': +' '/Creation time/ {print $2}')"
+          else
+            build_start_time="$(${gsutil_cmd} ls -j "${gcs_tarball}.building" | jq -r .[0].metadata.timeCreated "${local_tarball}.building.json")"
+          fi
+          build_start_epoch="$(date -d "${build_start_time}" +%s)"
+          timeout_epoch=$((build_start_epoch + 2700)) # 45 minutes
+          while ${gsutil_cmd} ls -L "${gcs_tarball}.building" ; do
             local now_epoch="$(date -u +%s)"
             if (( now_epoch > timeout_epoch )) ; then
               # detect unexpected build failure after 45m
-              gsutil rm "${gcs_tarball}.building"
+              ${gsutil_cmd} rm "${gcs_tarball}.building"
               break
             fi
             sleep 5m
@@ -1187,7 +1216,7 @@ function install_nvidia_userspace_runfile() {
         fi
       fi
 
-      if gsutil ls "${gcs_tarball}" 2>&1 | grep -q "${gcs_tarball}" ; then
+      if ${gsutil_cmd} ls "${gcs_tarball}" ; then
         cache_hit="1"
         if version_ge "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" ; then
           runfile_args="${runfile_args} --no-kernel-modules"
@@ -1196,7 +1225,7 @@ function install_nvidia_userspace_runfile() {
       else
         # build the kernel modules
         touch "${local_tarball}.building"
-        gcloud storage cp "${local_tarball}.building" "${gcs_tarball}.building"
+        ${gsutil_cmd} cp "${local_tarball}.building" "${gcs_tarball}.building"
         building_file="${gcs_tarball}.building"
         install_build_dependencies
         configure_dkms_certs
@@ -1226,17 +1255,20 @@ function install_nvidia_userspace_runfile() {
     --install-libglvnd \
     --tmpdir="${tmpdir}"
 
-  if ( is_rocky8 || version_lt "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" ) ; then
+  # On rocky8, or when driver version is prior to open driver min, or when GPU architecture is prior to Turing
+  if ( is_rocky8 \
+    || version_lt "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" \
+    || [[ "$((16#${pci_device_id}))" < "$((16#1E00))" ]] ) ; then
     if [[ "${cache_hit}" == "1" ]] ; then
-      gcloud storage cat "${gcs_tarball}" | tar -C / -xzv
+      ${gsutil_cmd} cat "${gcs_tarball}" | tar -C / -xzv
       depmod -a
     else
       clear_dkms_key
       tar czvf "${local_tarball}" \
         /var/log/nvidia-installer.log \
         $(find /lib/modules/${uname_r}/ -iname 'nvidia*.ko')
-      gcloud storage cp "${local_tarball}" "${gcs_tarball}"
-      if gcloud storage ls "${gcs_tarball}.building" ; then gcloud storage rm "${gcs_tarball}.building" || true ; fi
+      ${gsutil_cmd} cp "${local_tarball}" "${gcs_tarball}"
+      if ${gsutil_cmd} ls "${gcs_tarball}.building" ; then ${gsutil_cmd} rm "${gcs_tarball}.building" || true ; fi
       building_file=""
     fi
   fi
@@ -1315,7 +1347,7 @@ function install_cuda(){
 }
 
 function install_nvidia_container_toolkit() {
-  is_complete install-nvtk && return
+  is_complete install-nvctk && return
 
   local container_runtime_default
     if command -v docker     ; then container_runtime_default='docker'
@@ -1333,7 +1365,7 @@ function install_nvidia_container_toolkit() {
   nvidia-ctk runtime configure --runtime="${CONTAINER_RUNTIME}"
   systemctl restart "${CONTAINER_RUNTIME}"
 
-  mark_complete install-nvtk
+  mark_complete install-nvctk
 }
 
 # Install NVIDIA GPU driver provided by NVIDIA
@@ -1546,9 +1578,10 @@ EOF
 
   chmod a+rx "${gpus_resources_script}"
 
-  local spark_defaults_conf="/etc/spark/conf.dist/spark-defaults.conf"
   if version_lt "${SPARK_VERSION}" "3.0" ; then return ; fi
 
+  local spark_defaults_conf="/etc/spark/conf.dist/spark-defaults.conf"
+  local spark_defaults_dir="$(dirname "${spark_defaults_conf}")"
   if ! grep spark.executor.resource.gpu.discoveryScript "${spark_defaults_conf}" ; then
     echo "spark.executor.resource.gpu.discoveryScript=${gpus_resources_script}" >> "${spark_defaults_conf}"
   fi
@@ -1896,11 +1929,11 @@ function cache_fetched_package() {
   local gcs_fn="$2"
   local local_fn="$3"
 
-  if gsutil ls "${gcs_fn}" 2>&1 | grep -q "${gcs_fn}" ; then
-    time gcloud storage cp "${gcs_fn}" "${local_fn}"
+  if ${gsutil_cmd} ls "${gcs_fn}" 2>&1 ; then
+    time ${gsutil_cmd} cp "${gcs_fn}" "${local_fn}"
   else
     time ( curl ${curl_retry_args} "${src_url}" -o "${local_fn}" && \
-           gcloud storage cp "${local_fn}" "${gcs_fn}" ; )
+           ${gsutil_cmd} cp "${local_fn}" "${gcs_fn}" ; )
   fi
 }
 
@@ -1942,11 +1975,16 @@ function clean_up_sources_lists() {
   local -r key_url="https://packages.adoptium.net/artifactory/api/gpg/key/public"
   local -r adoptium_kr_path="/usr/share/keyrings/adoptium.gpg"
   rm -f "${adoptium_kr_path}"
-  curl ${curl_retry_args} "${key_url}" \
-   | gpg --dearmor -o "${adoptium_kr_path}"
+  local -r old_adoptium_list="/etc/apt/sources.list.d/adoptopenjdk.list"
+  if test -f "${old_adoptium_list}" ; then
+    rm -f "${old_adoptium_list}"
+  fi
+  for keyid in "0x3b04d753c9050d9a5d343f39843c48a565f8f04b" "0x35baa0b33e9eb396f59ca838c0ba5ce6dc6315a3" ; do
+    curl ${curl_retry_args} "https://keyserver.ubuntu.com/pks/lookup?op=get&search=${keyid}" \
+    | gpg --import --no-default-keyring --keyring "${adoptium_kr_path}"
+  done
   echo "deb [signed-by=${adoptium_kr_path}] https://packages.adoptium.net/artifactory/deb/ $(os_codename) main" \
    > /etc/apt/sources.list.d/adoptium.list
-
 
   #
   # docker
@@ -1957,20 +1995,22 @@ function clean_up_sources_lists() {
 
   rm -f "${docker_kr_path}"
   curl ${curl_retry_args} "${docker_key_url}" \
-    | gpg --dearmor -o "${docker_kr_path}"
+    | gpg --import --no-default-keyring --keyring "${docker_kr_path}"
   echo "deb [signed-by=${docker_kr_path}] https://download.docker.com/linux/$(os_id) $(os_codename) stable" \
     > ${docker_repo_file}
 
   #
   # google cloud + logging/monitoring
   #
-  if ls /etc/apt/sources.list.d/google-cloud*.list ; then
-    rm -f /usr/share/keyrings/cloud.google.gpg
-    curl ${curl_retry_args} https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+  local gcloud_kr_path="/usr/share/keyrings/cloud.google.gpg"
+  if ls /etc/apt/sources.list.d/google-clou*.list ; then
+    rm -f "${gcloud_kr_path}"
+    curl ${curl_retry_args} https://packages.cloud.google.com/apt/doc/apt-key.gpg \
+      | gpg --import --no-default-keyring --keyring "${gcloud_kr_path}"
     for list in google-cloud google-cloud-logging google-cloud-monitoring ; do
       list_file="/etc/apt/sources.list.d/${list}.list"
       if [[ -f "${list_file}" ]]; then
-        sed -i -e 's:deb https:deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https:g' "${list_file}"
+        sed -i -e "s:deb https:deb [signed-by=${gcloud_kr_path}] https:g" "${list_file}"
       fi
     done
   fi
@@ -1979,12 +2019,13 @@ function clean_up_sources_lists() {
   # cran-r
   #
   if [[ -f /etc/apt/sources.list.d/cran-r.list ]]; then
-    keyid="0x95c0faf38db3ccad0c080a7bdc78b2ddeabc47b7"
-    if is_ubuntu18 ; then keyid="0x51716619E084DAB9"; fi
-    rm -f /usr/share/keyrings/cran-r.gpg
-    curl ${curl_retry_args} "https://keyserver.ubuntu.com/pks/lookup?op=get&search=${keyid}" | \
-      gpg --dearmor -o /usr/share/keyrings/cran-r.gpg
-    sed -i -e 's:deb http:deb [signed-by=/usr/share/keyrings/cran-r.gpg] http:g' /etc/apt/sources.list.d/cran-r.list
+    local cranr_kr_path="/usr/share/keyrings/cran-r.gpg"
+    rm -f "${cranr_kr_path}"
+    for keyid in "0x95c0faf38db3ccad0c080a7bdc78b2ddeabc47b7" "0xe298a3a825c0d65dfd57cbb651716619e084dab9" ; do
+      curl ${curl_retry_args} "https://keyserver.ubuntu.com/pks/lookup?op=get&search=${keyid}" \
+      | gpg --import --no-default-keyring --keyring "${cranr_kr_path}"
+    done
+    sed -i -e "s:deb http:deb [signed-by=${cranr_kr_path}] http:g" /etc/apt/sources.list.d/cran-r.list
   fi
 
   #
@@ -2007,7 +2048,7 @@ function exit_handler() {
 
   # clean up incomplete build indicators
   if test -n "${building_file}" ; then
-    if gcloud storage ls "${building_file}" ; then gcloud storage rm "${building_file}" || true ; fi
+    if ${gsutil_cmd} ls "${building_file}" ; then ${gsutil_cmd} rm "${building_file}" || true ; fi
   fi
 
   set +ex
@@ -2112,7 +2153,6 @@ function set_proxy(){
 
   if [[ -z "${METADATA_HTTP_PROXY}" ]] ; then return ; fi
 
-  export METADATA_HTTP_PROXY
   export http_proxy="${METADATA_HTTP_PROXY}"
   export https_proxy="${METADATA_HTTP_PROXY}"
   export HTTP_PROXY="${METADATA_HTTP_PROXY}"
@@ -2187,6 +2227,13 @@ function prepare_to_install(){
   check_os
   check_secure_boot
 
+  # With the 402.0.0 release of gcloud sdk, `gcloud storage` can be
+  # used as a more performant replacement for `gsutil`
+  gsutil_cmd="gcloud storage"
+  gcloud_sdk_version="$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print $2}')"
+  if version_lt "${gcloud_sdk_version}" "402.0.0" ; then
+    gsutil_cmd="gsutil -o GSUtil:check_hashes=never"
+  fi
   curl_retry_args="-fsSL --retry-connrefused --retry 10 --retry-max-time 30"
 
   prepare_gpu_env
