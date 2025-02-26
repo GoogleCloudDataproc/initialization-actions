@@ -34,7 +34,8 @@ function set_hive_lineage_conf() {
     ["hive.exec.post.hooks"]="$HIVE_OL_HOOK"
     ["hive.exec.failure.hooks"]="$HIVE_OL_HOOK"
     ["hive.openlineage.transport.type"]="gcplineage"
-    ["hive.conf.validation"]="false" # to allow custom properties, like hive.openlineage.namespace
+    ["hive.security.authorization.sqlstd.confwhitelist.append"]="tez.application.tags|hive.openlineage.*"
+    ["hive.conf.validation"]="false"
   )
   echo "Setting hive conf to enable lineage"
   for key in "${!properties[@]}"; do

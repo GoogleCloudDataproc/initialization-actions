@@ -9,15 +9,20 @@ class HiveLineageTestCase(DataprocTestCase):
   TEST_SCRIPT_FILE = "hive-lineage/hivetest.hive"
 
   def __submit_hive_job(self, cluster_name):
-    self.assert_dataproc_job(
-        cluster_name, 'hive', '--file={}/{}'.format(self.INIT_ACTIONS_REPO,
-                                                    self.TEST_SCRIPT_FILE))
+    properties = "hive.openlineage.namespace=init-actions-test"
+    self.assert_dataproc_job(cluster_name, 'hive',
+                             '--file={}/{} --properties={}'.format(
+                                 self.INIT_ACTIONS_REPO,
+                                 self.TEST_SCRIPT_FILE,
+                                 properties))
+
   def verify_cluster(self, name):
     self.__submit_hive_job(name)
 
   @parameterized.parameters(
       'STANDARD',
       'HA',
+      'KERBEROS',
   )
   def test_hive_job_success(self, configuration):
     self.createCluster(configuration,
