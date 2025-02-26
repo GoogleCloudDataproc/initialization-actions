@@ -18,6 +18,7 @@ class HiveLineageTestCase(DataprocTestCase):
   @parameterized.parameters(
       'STANDARD',
       'HA',
+      'KERBEROS',
   )
   def test_hive_job_success(self, configuration):
     self.createCluster(configuration,
