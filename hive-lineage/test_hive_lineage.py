@@ -10,8 +10,8 @@ class HiveLineageTestCase(DataprocTestCase):
 
   def __submit_hive_job(self, cluster_name):
     self.assert_dataproc_job(
-        cluster_name, 'hive', '--file={}/{}'.format(self.INIT_ACTIONS_REPO,
-                                                    self.TEST_SCRIPT_FILE))
+        cluster_name, 'hive', '--file={}/{} --properties={}={}'.format(self.INIT_ACTIONS_REPO,
+                                                    self.TEST_SCRIPT_FILE, "hive.openlineage.namespace", "init-actions-test"))
   def verify_cluster(self, name):
     self.__submit_hive_job(name)
 
