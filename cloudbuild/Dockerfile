@@ -22,7 +22,8 @@ RUN /usr/bin/curl -s https://bazel.build/bazel-release.pub.gpg | \
     dd of="${bazel_repo_file}" status=none && \
     apt-get update -qq
 RUN apt-get autoremove -y -qq > /dev/null 2>&1 && \
-    apt-get install -y -qq default-jdk python3-setuptools bazel-${bazel_version} > /dev/null 2>&1 && \
+    apt-get install -y -qq default-jdk python3-setuptools bazel-${bazel_version} \
+                           libtemplate-perl > /dev/null 2>&1 && \
     apt-get clean
 
 # Set bazel-${bazel_version} as the default bazel alternative in this container
