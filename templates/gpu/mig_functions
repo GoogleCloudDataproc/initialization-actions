@@ -1,0 +1,97 @@
+function fetch_mig_scripts() {
+  mkdir -p /usr/local/yarn-mig-scripts
+  chmod 755 /usr/local/yarn-mig-scripts
+  wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.10/examples/MIG-Support/yarn-unpatched/scripts/nvidia-smi
+  wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.10/examples/MIG-Support/yarn-unpatched/scripts/mig2gpu.sh
+  chmod 755 /usr/local/yarn-mig-scripts/*
+}
+
+function delete_mig_instances() (
+  # delete all instances
+  set +e
+  nvidia-smi mig -dci
+
+  case "${?}" in
+    "0" ) echo "compute instances deleted"            ;;
+    "2" ) echo "invalid argument"                     ;;
+    "6" ) echo "No compute instances found to delete" ;;
+    *   ) echo "unrecognized return code"             ;;
+  esac
+
+  nvidia-smi mig -dgi
+  case "${?}" in
+    "0" ) echo "compute instances deleted"        ;;
+    "2" ) echo "invalid argument"                 ;;
+    "6" ) echo "No GPU instances found to delete" ;;
+    *   ) echo "unrecognized return code"         ;;
+  esac
+)
+
+# https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/gpu-operator-mig.html#configuring-mig-profiles
+function configure_mig_cgi() {
+  delete_mig_instances
+  META_MIG_CGI_VALUE="$(get_metadata_attribute 'MIG_CGI')"
+  if test -n "${META_MIG_CGI_VALUE}"; then
+    nvidia-smi mig -cgi "${META_MIG_CGI_VALUE}" -C
+  else
+    # https://pci-ids.ucw.cz/v2.2/pci.ids
+    local pci_id_list="$(grep -iH PCI_ID=10DE /sys/bus/pci/devices/*/uevent)"
+    if echo "${pci_id_list}" | grep -q -i 'PCI_ID=10DE:23' ; then
+      # run the following command to list placement profiles
+      # nvidia-smi mig -lgipp
+      #
+      # This is the result when using H100 instances on 20241220
+      # GPU  0 Profile ID 19 Placements: {0,1,2,3,4,5,6}:1
+      # GPU  0 Profile ID 20 Placements: {0,1,2,3,4,5,6}:1
+      # GPU  0 Profile ID 15 Placements: {0,2,4,6}:2
+      # GPU  0 Profile ID 14 Placements: {0,2,4}:2
+      # GPU  0 Profile ID  9 Placements: {0,4}:4
+      # GPU  0 Profile ID  5 Placement : {0}:4
+      # GPU  0 Profile ID  0 Placement : {0}:8
+
+      # For H100 3D controllers, consider profile 19, 7x1G instances
+      nvidia-smi mig -cgi 9,9 -C
+    elif echo "${pci_id_list}" | grep -q -i 'PCI_ID=10DE:20' ; then
+      # Dataproc only supports H100s right now ; split in 2 if not specified
+      # https://docs.nvidia.com/datacenter/tesla/mig-user-guide/#creating-gpu-instances
+      nvidia-smi mig -cgi 9,9 -C
+    else
+      echo "unrecognized 3D controller"
+    fi
+  fi
+  clear_nvsmi_cache
+}
+
+function enable_mig() {
+  is_complete enable-mig && return
+
+  # Start persistenced if it's not already running
+  if ! ( ps auwx | grep -i nvidia\\-persistenced ) ; then ( nvidia-persistenced & ) ; fi
+  for f in /sys/module/nvidia/drivers/pci:nvidia/*/numa_node ; do
+    # Write an ascii zero to the numa node indicator
+    echo "0" | dd of="${f}" status=none
+  done
+  time nvsmi --gpu-reset # 30s
+  nvsmi -mig 1
+  clear_nvsmi_cache
+
+  mark_complete enable-mig
+}
+
+function enable_and_configure_mig() {
+  # default MIG to on when this script is used
+  META_MIG_VALUE=$(get_metadata_attribute 'ENABLE_MIG' "1")
+
+  if [[ ${META_MIG_VALUE} -eq 0 ]]; then echo "Not enabling MIG" ; return ; fi
+
+  enable_mig
+  query_nvsmi
+  local xpath='//nvidia_smi_log/*/mig_mode/current_mig/text()'
+  mig_mode_current="$("${xmllint}" --xpath "${xpath}" "${nvsmi_query_xml}")"
+
+  if [[ "$(echo "${mig_mode_current}" | uniq | wc -l)" -ne "1" ]] ; then echo "MIG is NOT enabled on all on GPUs.  Failing" ; exit 1 ; fi
+  if ! (echo "${mig_mode_current}" | grep Enabled)                ; then echo "MIG is configured but NOT enabled.  Failing" ; exit 1 ; fi
+
+  echo "MIG is fully enabled"
+  configure_mig_cgi
+}
