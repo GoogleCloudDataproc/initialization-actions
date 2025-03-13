@@ -144,13 +144,13 @@ function start_services() {
 function configure_hadoop() {
   cat <<EOF >/etc/hadoop/conf/hadoop-metrics2.properties
 resourcemanager.sink.statsd.class=org.apache.hadoop.metrics2.sink.StatsDSink
-resourcemanager.sink.statsd.server.host=${HOSTNAME}
+resourcemanager.sink.statsd.server.host=$(hostname -s)
 resourcemanager.sink.statsd.server.port=9125
 resourcemanager.sink.statsd.skip.hostname=true
 resourcemanager.sink.statsd.service.name=RM
 
 mrappmaster.sink.statsd.class=org.apache.hadoop.metrics2.sink.StatsDSink
-mrappmaster.sink.statsd.server.host=${HOSTNAME}
+mrappmaster.sink.statsd.server.host=$(hostname -s)
 mrappmaster.sink.statsd.server.port=9125
 mrappmaster.sink.statsd.skip.hostname=true
 mrappmaster.sink.statsd.service.name=MRAPP
