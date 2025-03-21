@@ -183,6 +183,7 @@ readonly -A CUDA_SUBVER=(
 
 function set_cuda_version() {
   case "${DATAPROC_IMAGE_VERSION}" in
+    "1.5" ) DEFAULT_CUDA_VERSION="11.6.2" ;;
     "2.0" ) DEFAULT_CUDA_VERSION="12.1.1" ;; # Cuda 12.1.1 - Driver v530.30.02 is the latest version supported by Ubuntu 18)
     "2.1" ) DEFAULT_CUDA_VERSION="12.4.1" ;;
     "2.2" ) DEFAULT_CUDA_VERSION="12.6.3" ;;
@@ -243,10 +244,10 @@ function set_driver_version() {
     if [[ "${CUDA_URL_DRIVER_VERSION}" =~ ^[0-9]+.*[0-9]$ ]] ; then
       major_driver_version="${CUDA_URL_DRIVER_VERSION%%.*}"
       driver_max_maj_version=${DRIVER_SUBVER["${major_driver_version}"]}
-      if curl ${curl_retry_args} --head "${nv_xf86_x64_base}/${CUDA_URL_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${CUDA_URL_DRIVER_VERSION}.run" | grep -E -q '^HTTP.*200\s*$' ; then
+      if curl ${curl_retry_args} --head "${nv_xf86_x64_base}/${CUDA_URL_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${CUDA_URL_DRIVER_VERSION}.run" | grep -E -q 'HTTP.*200' ; then
         # use the version indicated by the cuda url as the default if it exists
         DEFAULT_DRIVER="${CUDA_URL_DRIVER_VERSION}"
-      elif curl ${curl_retry_args} --head "${nv_xf86_x64_base}/${driver_max_maj_version}/NVIDIA-Linux-x86_64-${driver_max_maj_version}.run" | grep -E -q '^HTTP.*200\s*$' ; then
+      elif curl ${curl_retry_args} --head "${nv_xf86_x64_base}/${driver_max_maj_version}/NVIDIA-Linux-x86_64-${driver_max_maj_version}.run" | grep -E -q 'HTTP.*200' ; then
         # use the maximum sub-version available for the major version indicated in cuda url as the default
         DEFAULT_DRIVER="${driver_max_maj_version}"
       fi
@@ -266,7 +267,7 @@ function set_driver_version() {
   export DRIVER_VERSION DRIVER
 
   gpu_driver_url="${nv_xf86_x64_base}/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
-  if ! curl ${curl_retry_args} --head "${gpu_driver_url}" | grep -E -q '^HTTP.*200\s*$' ; then
+  if ! curl ${curl_retry_args} --head "${gpu_driver_url}" | grep -E -q 'HTTP.*200' ; then
     echo "No NVIDIA driver exists for DRIVER_VERSION=${DRIVER_VERSION}"
     exit 1
   fi
@@ -398,7 +399,7 @@ function set_cuda_runfile_url() {
 
   NVIDIA_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_CUDA_URL}")
 
-  if ! curl ${curl_retry_args} --head "${NVIDIA_CUDA_URL}" | grep -E -q '^HTTP.*200\s*$' ; then
+  if ! curl ${curl_retry_args} --head "${NVIDIA_CUDA_URL}" | grep -E -q 'HTTP.*200' ; then
     echo "No CUDA distribution exists for this combination of DRIVER_VERSION=${drv_ver}, CUDA_VERSION=${CUDA_FULL_VERSION}"
     if [[ "${DEFAULT_NVIDIA_CUDA_URL}" != "${NVIDIA_CUDA_URL}" ]]; then
       echo "consider [${DEFAULT_NVIDIA_CUDA_URL}] instead"
@@ -628,16 +629,13 @@ function install_nvidia_nccl() {
     if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
       # when running with fewer than 32 cores, yield to in-progress build
       sleep $(( ( RANDOM % 11 ) + 10 ))
-      if ${gsutil_cmd} ls "${gcs_tarball}.building" ; then
+      local output="$(${gsutil_stat_cmd} "${gcs_tarball}.building")"
+      if [[ "$?" == "0" ]] ; then
         local build_start_time build_start_epoch timeout_epoch
-        if [[ "${gsutil_cmd}" =~ "gsutil" ]] ; then
-          build_start_time="$(${gsutil_cmd} ls -L "${gcs_tarball}.building" | awk -F': +' '/Creation time/ {print $2}')"
-        else
-          build_start_time="$(${gsutil_cmd} ls -j "${gcs_tarball}.building" | jq -r .[0].metadata.timeCreated "${local_tarball}.building.json")"
-        fi
-        build_start_epoch="$(date -d "${build_start_time}" +%s)"
+        build_start_time="$(echo ${output} | awk -F': +' '/.reation.time/ {print $2}')"
+        build_start_epoch="$(date -u -d "${build_start_time}" +%s)"
         timeout_epoch=$((build_start_epoch + 2700)) # 45 minutes
-        while ${gsutil_cmd} ls -L "${gcs_tarball}.building" ; do
+        while ${gsutil_stat_cmd} "${gcs_tarball}.building" ; do
           local now_epoch="$(date -u +%s)"
           if (( now_epoch > timeout_epoch )) ; then
             # detect unexpected build failure after 45m
@@ -649,8 +647,7 @@ function install_nvidia_nccl() {
       fi
     fi
 
-    output=$(${gsutil_cmd} ls "${gcs_tarball}" 2>&1 || echo '')
-    if echo "${output}" | grep -q "${gcs_tarball}" ; then
+    if ${gsutil_stat_cmd} "${gcs_tarball}" ; then
       # cache hit - unpack from cache
       echo "cache hit"
       ${gsutil_cmd} cat "${gcs_tarball}" | tar xvz
@@ -705,7 +702,7 @@ function install_nvidia_nccl() {
       popd
       tar xzvf "${local_tarball}"
       ${gsutil_cmd} cp "${local_tarball}" "${gcs_tarball}"
-      if ${gsutil_cmd} ls "${gcs_tarball}.building" ; then ${gsutil_cmd} rm "${gcs_tarball}.building" || true ; fi
+      if ${gsutil_stat_cmd} "${gcs_tarball}.building" ; then ${gsutil_cmd} rm "${gcs_tarball}.building" || true ; fi
       building_file=""
       rm "${local_tarball}"
     fi
@@ -796,6 +793,7 @@ function install_pytorch() {
   local env
   env=$(get_metadata_attribute 'gpu-conda-env' 'dpgce')
   local mc3=/opt/conda/miniconda3
+  [[ -d ${mc3} ]] || return
   local envpath="${mc3}/envs/${env}"
   if [[ "${env}" == "base" ]]; then
     echo "WARNING: installing to base environment known to cause solve issues" ; envpath="${mc3}" ; fi
@@ -809,16 +807,12 @@ function install_pytorch() {
   if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
     # when running with fewer than 32 cores, yield to in-progress build
     sleep $(( ( RANDOM % 11 ) + 10 ))
-    if ${gsutil_cmd} ls -j "${gcs_tarball}.building" > "${local_tarball}.building.json" ; then
+    if ${gsutil_stat_cmd} "${gcs_tarball}.building" ; then
       local build_start_time build_start_epoch timeout_epoch
-      if [[ "${gsutil_cmd}" =~ "gsutil" ]] ; then
-        build_start_time="$(${gsutil_cmd} ls -L "${gcs_tarball}.building" | awk -F': +' '/Creation time/ {print $2}')"
-      else
-        build_start_time="$(${gsutil_cmd} ls -j "${gcs_tarball}.building" | jq -r .[0].metadata.timeCreated "${local_tarball}.building.json")"
-      fi
-      build_start_epoch="$(date -d "${build_start_time}" +%s)"
+      build_start_time="$(${gsutil_stat_cmd} "${gcs_tarball}.building" | awk -F': +' '/.reation.time/ {print $2}')"
+      build_start_epoch="$(date -u -d "${build_start_time}" +%s)"
       timeout_epoch=$((build_start_epoch + 2700)) # 45 minutes
-      while ${gsutil_cmd} ls -L "${gcs_tarball}.building" ; do
+      while ${gsutil_stat_cmd} "${gcs_tarball}.building" ; do
         local now_epoch="$(date -u +%s)"
         if (( now_epoch > timeout_epoch )) ; then
           # detect unexpected build failure after 45m
@@ -830,8 +824,7 @@ function install_pytorch() {
     fi
   fi
 
-  output=$(${gsutil_cmd} ls "${gcs_tarball}" 2>&1 || echo '')
-  if echo "${output}" | grep -q "${gcs_tarball}" ; then
+  if ${gsutil_stat_cmd} "${gcs_tarball}" ; then
     # cache hit - unpack from cache
     echo "cache hit"
     mkdir -p "${envpath}"
@@ -859,7 +852,7 @@ function install_pytorch() {
     tar czf "${local_tarball}" .
     popd
     ${gsutil_cmd} cp "${local_tarball}" "${gcs_tarball}"
-    if ${gsutil_cmd} ls "${gcs_tarball}.building" ; then ${gsutil_cmd} rm "${gcs_tarball}.building" || true ; fi
+    if ${gsutil_stat_cmd} "${gcs_tarball}.building" ; then ${gsutil_cmd} rm "${gcs_tarball}.building" || true ; fi
     building_file=""
   fi
 
@@ -1040,16 +1033,12 @@ function build_driver_from_github() {
     if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
       # when running with fewer than 32 cores, yield to in-progress build
       sleep $(( ( RANDOM % 11 ) + 10 ))
-      if ${gsutil_cmd} ls -j "${gcs_tarball}.building" > "${local_tarball}.building.json" ; then
+      if ${gsutil_stat_cmd} "${gcs_tarball}.building" ; then
         local build_start_time build_start_epoch timeout_epoch
-        if [[ "${gsutil_cmd}" =~ "gsutil" ]] ; then
-          build_start_time="$(${gsutil_cmd} ls -L "${gcs_tarball}.building" | awk -F': +' '/Creation time/ {print $2}')"
-        else
-          build_start_time="$(${gsutil_cmd} ls -j "${gcs_tarball}.building" | jq -r .[0].metadata.timeCreated "${local_tarball}.building.json")"
-        fi
-        build_start_epoch="$(date -d "${build_start_time}" +%s)"
+        build_start_time="$(${gsutil_stat_cmd} "${gcs_tarball}.building" | awk -F': +' '/.reation.time/ {print $2}')"
+        build_start_epoch="$(date -u -d "${build_start_time}" +%s)"
         timeout_epoch=$((build_start_epoch + 2700)) # 45 minutes
-        while ${gsutil_cmd} ls -L "${gcs_tarball}.building" ; do
+        while ${gsutil_stat_cmd} "${gcs_tarball}.building" ; do
           local now_epoch="$(date -u +%s)"
           if (( now_epoch > timeout_epoch )) ; then
             # detect unexpected build failure after 45m
@@ -1061,7 +1050,7 @@ function build_driver_from_github() {
       fi
     fi
 
-    if ${gsutil_cmd} ls "${gcs_tarball}" 2>&1 ; then
+    if ${gsutil_stat_cmd} "${gcs_tarball}" 2>&1 ; then
       echo "cache hit"
     else
       # build the kernel modules
@@ -1096,7 +1085,7 @@ function build_driver_from_github() {
         "${workdir}/open-gpu-kernel-modules/kernel-open/"*.log \
         $(find /lib/modules/${uname_r}/ -iname 'nvidia*.ko')
       ${gsutil_cmd} cp "${local_tarball}" "${gcs_tarball}"
-      if ${gsutil_cmd} ls "${gcs_tarball}.building" ; then ${gsutil_cmd} rm "${gcs_tarball}.building" || true ; fi
+      if ${gsutil_stat_cmd} "${gcs_tarball}.building" ; then ${gsutil_cmd} rm "${gcs_tarball}.building" || true ; fi
       building_file=""
       rm "${local_tarball}"
       make clean
@@ -1195,16 +1184,13 @@ function install_nvidia_userspace_runfile() {
       if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
         # when running with fewer than 32 cores, yield to in-progress build
         sleep $(( ( RANDOM % 11 ) + 10 ))
-        if ${gsutil_cmd} ls -j "${gcs_tarball}.building" > "${local_tarball}.building.json" ; then
+        local output="$(${gsutil_stat_cmd} "${gcs_tarball}.building")"
+        if [[ $? == "0" ]] ; then
           local build_start_time build_start_epoch timeout_epoch
-          if [[ "${gsutil_cmd}" =~ "gsutil" ]] ; then
-            build_start_time="$(${gsutil_cmd} ls -L "${gcs_tarball}.building" | awk -F': +' '/Creation time/ {print $2}')"
-          else
-            build_start_time="$(${gsutil_cmd} ls -j "${gcs_tarball}.building" | jq -r .[0].metadata.timeCreated "${local_tarball}.building.json")"
-          fi
-          build_start_epoch="$(date -d "${build_start_time}" +%s)"
+          build_start_time="$(echo ${output} | awk -F': +' '/.reation.time/ {print $2}')"
+          build_start_epoch="$(date -u -d "${build_start_time}" +%s)"
           timeout_epoch=$((build_start_epoch + 2700)) # 45 minutes
-          while ${gsutil_cmd} ls -L "${gcs_tarball}.building" ; do
+          while ${gsutil_stat_cmd} "${gcs_tarball}.building" ; do
             local now_epoch="$(date -u +%s)"
             if (( now_epoch > timeout_epoch )) ; then
               # detect unexpected build failure after 45m
@@ -1216,7 +1202,7 @@ function install_nvidia_userspace_runfile() {
         fi
       fi
 
-      if ${gsutil_cmd} ls "${gcs_tarball}" ; then
+      if ${gsutil_stat_cmd} "${gcs_tarball}" ; then
         cache_hit="1"
         if version_ge "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" ; then
           runfile_args="${runfile_args} --no-kernel-modules"
@@ -1268,7 +1254,8 @@ function install_nvidia_userspace_runfile() {
         /var/log/nvidia-installer.log \
         $(find /lib/modules/${uname_r}/ -iname 'nvidia*.ko')
       ${gsutil_cmd} cp "${local_tarball}" "${gcs_tarball}"
-      if ${gsutil_cmd} ls "${gcs_tarball}.building" ; then ${gsutil_cmd} rm "${gcs_tarball}.building" || true ; fi
+
+      if ${gsutil_stat_cmd} "${gcs_tarball}.building" ; then ${gsutil_cmd} rm "${gcs_tarball}.building" || true ; fi
       building_file=""
     fi
   fi
@@ -1427,7 +1414,9 @@ function install_gpu_agent() {
     | sed -e 's/-u --format=/--format=/' \
     | dd status=none of="${install_dir}/report_gpu_metrics.py"
   local venv="${install_dir}/venv"
-  /opt/conda/miniconda3/bin/python3 -m venv "${venv}"
+  python_interpreter="/opt/conda/miniconda3/bin/python3"
+  [[ -f "${python_interpreter}" ]] || python_interpreter="$(command -v python3)"
+  "${python_interpreter}" -m venv "${venv}"
 (
   source "${venv}/bin/activate"
   python3 -m pip install --upgrade pip
@@ -1755,13 +1744,17 @@ function prepare_gpu_env(){
     pci_device_id="$(grep -h -i PCI_ID=10DE /sys/bus/pci/devices/*/uevent | head -1 | awk -F: '{print $2}')"
     pci_device_id_int="$((16#${pci_device_id}))"
     case "${pci_device_id}" in
-      "15F8" ) gpu_type="nvidia-tesla-p100" ;;
-      "1BB3" ) gpu_type="nvidia-tesla-p4"   ;;
-      "1DB1" ) gpu_type="nvidia-tesla-v100" ;;
-      "1EB8" ) gpu_type="nvidia-tesla-t4"   ;;
-      "20*"  ) gpu_type="nvidia-tesla-a100" ;;
-      "23*"  ) gpu_type="nvidia-h100"       ;; # install does not begin with image 2.0.68-debian10/cuda11.1
-      "27B8" ) gpu_type="nvidia-l4"         ;; # install does not complete with image 2.0.68-debian10/cuda11.1
+      "15F8" ) gpu_type="nvidia-tesla-p100"      ;;
+      "1BB3" ) gpu_type="nvidia-tesla-p4"        ;;
+      "1DB1" ) gpu_type="nvidia-tesla-v100"      ;;
+      "1EB8" ) gpu_type="nvidia-tesla-t4"        ;;
+      "20B2" | \
+      "20B5" | \
+      "20F3" | \
+      "20F5" ) gpu_type="nvidia-tesla-a100-80gb" ;;
+      "20*"  ) gpu_type="nvidia-tesla-a100"      ;;
+      "23*"  ) gpu_type="nvidia-h100"            ;; # NB: install does not begin with legacy image 2.0.68-debian10/cuda11.1
+      "27B8" ) gpu_type="nvidia-l4"              ;; # NB: install does not complete with legacy image 2.0.68-debian10/cuda11.1
     esac
 
     ACCELERATOR="type=${gpu_type},count=${gpu_count}"
@@ -1929,7 +1922,7 @@ function cache_fetched_package() {
   local gcs_fn="$2"
   local local_fn="$3"
 
-  if ${gsutil_cmd} ls "${gcs_fn}" 2>&1 ; then
+  if ${gsutil_stat_cmd} "${gcs_fn}" 2>&1 ; then
     time ${gsutil_cmd} cp "${gcs_fn}" "${local_fn}"
   else
     time ( curl ${curl_retry_args} "${src_url}" -o "${local_fn}" && \
@@ -2048,7 +2041,7 @@ function exit_handler() {
 
   # clean up incomplete build indicators
   if test -n "${building_file}" ; then
-    if ${gsutil_cmd} ls "${building_file}" ; then ${gsutil_cmd} rm "${building_file}" || true ; fi
+    if ${gsutil_stat_cmd} "${building_file}" ; then ${gsutil_cmd} rm "${building_file}" || true ; fi
   fi
 
   set +ex
@@ -2180,7 +2173,9 @@ function mount_ramdisk(){
   mount -t tmpfs tmpfs "${tmpdir}"
 
   # Download conda packages to tmpfs
-  /opt/conda/miniconda3/bin/conda config --add pkgs_dirs "${tmpdir}"
+  if [[ -f /opt/conda/miniconda3/bin/conda ]] ; then
+    /opt/conda/miniconda3/bin/conda config --add pkgs_dirs "${tmpdir}"
+  fi
 
   # Clear pip cache
   # TODO: make this conditional on which OSs have pip without cache purge
@@ -2230,9 +2225,11 @@ function prepare_to_install(){
   # With the 402.0.0 release of gcloud sdk, `gcloud storage` can be
   # used as a more performant replacement for `gsutil`
   gsutil_cmd="gcloud storage"
+  gsutil_stat_cmd="gcloud storage objects describe"
   gcloud_sdk_version="$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print $2}')"
   if version_lt "${gcloud_sdk_version}" "402.0.0" ; then
     gsutil_cmd="gsutil -o GSUtil:check_hashes=never"
+    gsutil_stat_cmd="gsutil stat"
   fi
   curl_retry_args="-fsSL --retry-connrefused --retry 10 --retry-max-time 30"
 
@@ -2302,7 +2299,7 @@ function check_os() {
 
   SPARK_VERSION="$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)"
   readonly SPARK_VERSION
-  if version_lt "${SPARK_VERSION}" "3.1" || \
+  if version_lt "${SPARK_VERSION}" "2.4" || \
      version_ge "${SPARK_VERSION}" "4.0" ; then
     echo "Error: Your Spark version is not supported. Please upgrade Spark to one of the supported versions."
     exit 1
@@ -2316,7 +2313,8 @@ function check_os() {
       # When building custom-images, neither of the above variables
       # are defined and we need to make a reasonable guess
 
-      if   version_lt "${SPARK_VERSION}" "3.2" ; then DATAPROC_IMAGE_VERSION="2.0"
+      if   version_lt "${SPARK_VERSION}" "2.5" ; then DATAPROC_IMAGE_VERSION="1.5"
+      elif version_lt "${SPARK_VERSION}" "3.2" ; then DATAPROC_IMAGE_VERSION="2.0"
       elif version_lt "${SPARK_VERSION}" "3.4" ; then DATAPROC_IMAGE_VERSION="2.1"
       elif version_lt "${SPARK_VERSION}" "3.6" ; then DATAPROC_IMAGE_VERSION="2.2"
       else echo "Unknown dataproc image version" ; exit 1 ; fi
@@ -2386,6 +2384,9 @@ function install_spark_rapids() {
   # Update SPARK RAPIDS config
   local DEFAULT_SPARK_RAPIDS_VERSION
   DEFAULT_SPARK_RAPIDS_VERSION="24.08.1"
+  if version_ge "${DATAPROC_IMAGE_VERSION}" "2.2" ; then
+    DEFAULT_SPARK_RAPIDS_VERSION="25.02.1"
+  fi
   local DEFAULT_XGBOOST_VERSION="1.7.6" # 2.1.3
 
   # https://mvnrepository.com/artifact/ml.dmlc/xgboost4j-spark-gpu

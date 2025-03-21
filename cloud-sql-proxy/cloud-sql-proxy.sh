@@ -288,6 +288,7 @@ function get_java_property() {
 function get_dataproc_property() {
   local property_name=$1
   local property_value
+  [[ -f /etc/google-dataproc/dataproc.properties ]] || return
   property_value=$(get_java_property \
     /etc/google-dataproc/dataproc.properties "${property_name}")
   echo "${property_value}"
