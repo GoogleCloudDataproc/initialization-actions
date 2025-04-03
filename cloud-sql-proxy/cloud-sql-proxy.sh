@@ -25,10 +25,10 @@ function os_id()       ( set +x ;  grep '^ID=' /etc/os-release | cut -d= -f2 | x
 function os_version()  ( set +x ;  grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs ; )
 function os_codename() ( set +x ;  grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs ; )
 
-function version_ge() ( set +x ;  [ "$1" = "$(echo -e "$1\n$2" | sort -V | tail -n1)" ] ; )
-function version_gt() ( set +x ;  [ "$1" = "$2" ] && return 1 || version_ge $1 $2 ; )
-function version_le() ( set +x ;  [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ] ; )
-function version_lt() ( set +x ;  [ "$1" = "$2" ] && return 1 || version_le $1 $2 ; )
+function version_ge(){ [[ "$1" = "$(echo -e "$1\n$2"|sort -V|tail -n1)" ]]; }
+function version_gt(){ [[ "$1" = "$2" ]]&& return 1 || version_ge "$1" "$2";}
+function version_le(){ [[ "$1" = "$(echo -e "$1\n$2"|sort -V|head -n1)" ]]; }
+function version_lt(){ [[ "$1" = "$2" ]]&& return 1 || version_le "$1" "$2";}
 
 readonly -A supported_os=(
   ['debian']="10 11 12"
@@ -209,12 +209,18 @@ fi
 readonly CLOUDSQL_INSTANCE_TYPE
 
 METASTORE_PROXY_PORT="$(/usr/share/google/get_metadata_value attributes/metastore-proxy-port || echo '')"
-if [[ "${METASTORE_INSTANCE}" =~ =tcp:[0-9]+$ ]]; then
-  METASTORE_PROXY_PORT="${METASTORE_INSTANCE##*:}"
-else
-  METASTORE_PROXY_PORT=${DEFAULT_DB_PORT["${CLOUDSQL_INSTANCE_TYPE}"]}
+if [[ -z "${METASTORE_PROXY_PORT}" ]] ; then
+  if [[ "${METASTORE_INSTANCE}" =~ =tcp:[0-9]+$ ]]; then
+    METASTORE_PROXY_PORT="${METASTORE_INSTANCE##*:}"
+  else
+    METASTORE_PROXY_PORT=${DEFAULT_DB_PORT["${CLOUDSQL_INSTANCE_TYPE}"]}
+  fi
 fi
 readonly METASTORE_PROXY_PORT
+
+# Allow users to specify hive password using secret manager
+DB_HIVE_SECRET="$(/usr/share/google/get_metadata_value attributes/db-hive-secret || echo '')"
+DB_ADMIN_SECRET="$(/usr/share/google/get_metadata_value attributes/db-admin-secret || echo '')"
 
 # Database user to use to access metastore.
 DB_HIVE_USER="$(/usr/share/google/get_metadata_value attributes/db-hive-user || echo 'hive')"
@@ -233,39 +239,46 @@ readonly KMS_KEY_URI
 DB_ADMIN_PASSWORD_URI="$(/usr/share/google/get_metadata_value attributes/db-admin-password-uri || echo '')"
 readonly DB_ADMIN_PASSWORD_URI
 
-DB_ADMIN_PASSWORD=''
-if [[ -n "${DB_ADMIN_PASSWORD_URI}" ]]; then
+if [[ -n "${DB_ADMIN_SECRET}" ]] ; then
+  gcloud secrets versions access "${DB_ADMIN_SECRET#*:}" \
+      --project="${METASTORE_INSTANCE%%:*}" \
+      --secret="${DB_ADMIN_SECRET%:*}" > /dev/shm/db-pw
+elif [[ -n "${DB_ADMIN_PASSWORD_URI}" ]]; then
   # Decrypt password
-  DB_ADMIN_PASSWORD="$(gsutil cat "${DB_ADMIN_PASSWORD_URI}" |
+  gsutil cat "${DB_ADMIN_PASSWORD_URI}" |
     gcloud kms decrypt \
       --ciphertext-file - \
-      --plaintext-file - \
-      --key "${KMS_KEY_URI}")"
+      --plaintext-file /dev/shm/db-pw \
+      --key "${KMS_KEY_URI}"
+else
+  touch /dev/shm/db-pw
 fi
-if [[ "${CLOUDSQL_INSTANCE_TYPE}" == "POSTGRES" && -z "${DB_ADMIN_PASSWORD}" ]]; then
+if [[ "${CLOUDSQL_INSTANCE_TYPE}" == "POSTGRES" ]] && [[ "$(perl -pe 'chomp' < /dev/shm/db-pw | wc -c)" != "0" ]]; then
   log 'POSTGRES DB admin password is not set'
 fi
-readonly DB_ADMIN_PASSWORD
 
 # Database password used to access metastore.
 DB_HIVE_PASSWORD_URI="$(/usr/share/google/get_metadata_value attributes/db-hive-password-uri || echo '')"
 readonly DB_HIVE_PASSWORD_URI
-if [[ -n "${DB_HIVE_PASSWORD_URI}" ]]; then
+if [[ -n "${DB_HIVE_SECRET}" ]] ; then
+  gcloud secrets versions access "${DB_HIVE_SECRET#*:}" \
+      --project="${METASTORE_INSTANCE%%:*}" \
+      --secret="${DB_HIVE_SECRET%:*}" > /dev/shm/hive-pw
+elif [[ -n "${DB_HIVE_PASSWORD_URI}" ]]; then
   # Decrypt password
-  DB_HIVE_PASSWORD="$(gsutil cat "${DB_HIVE_PASSWORD_URI}" |
+  gsutil cat "${DB_HIVE_PASSWORD_URI}" |
     gcloud kms decrypt \
       --ciphertext-file - \
-      --plaintext-file - \
-      --key "${KMS_KEY_URI}")"
-  readonly DB_HIVE_PASSWORD
+      --plaintext-file /dev/shm/hive-pw \
+      --key "${KMS_KEY_URI}"
 else
-  db_hive_pwd=$(bdconfig get_property_value \
+  /usr/local/bin/bdconfig get_property_value \
     --configuration_file "/etc/hive/conf/hive-site.xml" \
-    --name "javax.jdo.option.ConnectionPassword" 2>/dev/null)
-  if [[ "${db_hive_pwd}" == "None" ]]; then
-    db_hive_pwd="hive-password"
-  fi
-  readonly DB_HIVE_PASSWORD=${db_hive_pwd}
+    --name "javax.jdo.option.ConnectionPassword" 2>/dev/null > /dev/shm/hive-pw
+fi
+
+if perl -e '$l=<STDIN>; chomp $l; exit( $l eq "None" ? 0 : 1 )' < /dev/shm/hive-pw; then
+  echo "hive-password" > /dev/shm/hive-pw
 fi
 
 # Name of MySQL database to use for the metastore.
@@ -394,13 +407,6 @@ function install_cloud_sql_proxy() {
   local proxy_flags
   proxy_flags="$(get_proxy_flags)"
 
-  # Validate db_hive_password and escape invalid xml characters if found.
-  local db_hive_password_xml_escaped
-  db_hive_password_xml_escaped=${DB_HIVE_PASSWORD//&/&amp;}
-  db_hive_password_xml_escaped=${db_hive_password_xml_escaped//</&lt;}
-  db_hive_password_xml_escaped=${db_hive_password_xml_escaped//>/&gt;}
-  db_hive_password_xml_escaped=${db_hive_password_xml_escaped//'"'/&quot;}
-
   # Install proxy as systemd service for reboot tolerance.
   cat <<EOF >${INIT_SCRIPT}
 [Unit]
@@ -443,12 +449,12 @@ EOF
   </property>
   <property>
     <name>javax.jdo.option.ConnectionPassword</name>
-    <value>${db_hive_password_xml_escaped}</value>
+    <value>$(perl -pe 'chomp ; s:<:&lt;:g; s:>:&gt;:g ; s:":&quot;:g' < /dev/shm/hive-pw)</value>
   </property>
 </configuration>
 EOF
 
-    bdconfig merge_configurations \
+    /usr/local/bin/bdconfig merge_configurations \
       --configuration_file /etc/hive/conf/hive-site.xml \
       --source_configuration_file hive-template.xml \
       --clobber
@@ -457,32 +463,65 @@ EOF
   log 'Cloud SQL Proxy installation succeeded'
 }
 
+function admin_mysql() {
+  local admin_defaults_file="/dev/shm/admin-db.cnf"
+  local db_password_param="--defaults-file=${admin_defaults_file}"
+  mysql "${db_password_param}" $*
+}
+
+function hive_mysql() {
+  local hive_defaults_file="/dev/shm/hive-db.cnf"
+  local db_hive_password_param="--defaults-file=${hive_defaults_file}"
+  mysql "${db_hive_password_param}" $*
+}
+
 function initialize_mysql_metastore_db() {
-  log 'Initialzing MYSQL DB for Hive metastore ...'
-  local db_password_param='--password='
-  if [[ -n ${DB_ADMIN_PASSWORD} ]]; then
-      db_password_param+=${DB_ADMIN_PASSWORD}
-  fi
-  local db_hive_password_param=''
-  if [[ -n ${DB_HIVE_PASSWORD} ]]; then
-    db_hive_password_param+="-p${DB_HIVE_PASSWORD}"
-  fi
+  log 'Initialzing MySQL DB for Hive metastore ...'
+  local admin_defaults_file="/dev/shm/admin-db.cnf"
+  local hive_defaults_file="/dev/shm/hive-db.cnf"
+  local db_password_param="--defaults-file=${admin_defaults_file}"
+  local db_hive_password_param="--defaults-file=${hive_defaults_file}"
+
+  (
+    printf "[client]\nhost=127.0.0.1\nport=${METASTORE_PROXY_PORT}\nuser=${DB_ADMIN_USER}\npassword=\""
+    perl -pe 'chomp' < /dev/shm/db-pw
+    echo '"'
+  ) > "${admin_defaults_file}"
+  (
+    printf "[client]\nhost=127.0.0.1\nport=${METASTORE_PROXY_PORT}\nuser=${DB_HIVE_USER}\npassword=\""
+    perl -pe 'chomp' < /dev/shm/hive-pw
+    echo '"'
+  ) > "${hive_defaults_file}"
+  (
+    echo -n "CREATE USER IF NOT EXISTS '${DB_HIVE_USER}'@'cloudsqlproxy~%' IDENTIFIED BY '"
+    perl -pe 'chomp' < /dev/shm/hive-pw
+    echo -n "';"
+  ) > /dev/shm/create_hive_user.sql
+
+  # create hive user if it does not exist
+  hive_mysql -e '' || \
+    admin_mysql < /dev/shm/create_hive_user.sql
 
   # Check if metastore is initialized.
-  if ! mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_HIVE_USER}" "${db_hive_password_param}" -e ''; then
-    mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_ADMIN_USER}" "${db_password_param}" -e \
-      "CREATE USER '${DB_HIVE_USER}' IDENTIFIED BY '${DB_HIVE_PASSWORD}';"
-  fi
-  if ! mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_HIVE_USER}" "${db_hive_password_param}" -e "use ${METASTORE_DB}"; then
+  if ! hive_mysql -e "use ${METASTORE_DB}"; then
     # Initialize a Hive metastore DB
-    mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_ADMIN_USER}" "${db_password_param}" -e \
-      "CREATE DATABASE ${METASTORE_DB};
-       GRANT ALL PRIVILEGES ON ${METASTORE_DB}.* TO '${DB_HIVE_USER}';"
-    /usr/lib/hive/bin/schematool -dbType mysql -initSchema ||
+    admin_mysql -e \
+      "CREATE DATABASE IF NOT EXISTS ${METASTORE_DB};
+       GRANT ALL PRIVILEGES ON ${METASTORE_DB}.* TO '${DB_HIVE_USER}'@'cloudsqlproxy~%';"
+    /usr/lib/hive/bin/schematool -dbType mysql -initSchema || {
+      rm -f /dev/shm/*-db.cnf /dev/shm/*.sql
       err 'Failed to set mysql schema.'
+    }
   fi
   log 'MYSQL DB initialized for Hive metastore'
+  rm -f /dev/shm/*-db.cnf /dev/shm/*.sql
 }
+
+function exit_handler() {
+  rm -f /dev/shm/*-pw /dev/shm/*-db.cnf /dev/shm/*.sql
+}
+
+trap exit_handler EXIT
 
 function initialize_postgres_metastore_db() {
   log 'Initialzing POSTGRES DB for Hive metastore ...'
