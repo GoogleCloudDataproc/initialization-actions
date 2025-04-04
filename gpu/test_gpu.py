@@ -180,8 +180,6 @@ exit 1 unless $cert eq lc $kmod
   def test_install_gpu_without_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
-    self.skipTest("No need to regularly test not installing the agent")
-
     metadata = "install-gpu-agent=false"
     if configuration == 'SINGLE' \
     and self.getImageOs() == 'rocky' \
