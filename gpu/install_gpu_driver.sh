@@ -15,16 +15,16 @@
 #
 # This script installs NVIDIA GPU drivers and collects GPU utilization metrics.
 
-set -euxo pipefail
+set -euo pipefail
 
-function os_id()       ( set +x ;  grep '^ID=' /etc/os-release | cut -d= -f2 | xargs ; )
-function os_version()  ( set +x ;  grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs ; )
-function os_codename() ( set +x ;  grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs ; )
+function os_id()       { grep '^ID='               /etc/os-release | cut -d= -f2 | xargs ; }
+function os_version()  { grep '^VERSION_ID='       /etc/os-release | cut -d= -f2 | xargs ; }
+function os_codename() { grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs ; }
 
-function version_ge() ( set +x ;  [ "$1" = "$(echo -e "$1\n$2" | sort -V | tail -n1)" ] ; )
-function version_gt() ( set +x ;  [ "$1" = "$2" ] && return 1 || version_ge $1 $2 ; )
-function version_le() ( set +x ;  [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ] ; )
-function version_lt() ( set +x ;  [ "$1" = "$2" ] && return 1 || version_le $1 $2 ; )
+function version_ge(){ [[ "$1" = "$(echo -e "$1\n$2"|sort -V|tail -n1)" ]]; }
+function version_gt(){ [[ "$1" = "$2" ]]&& return 1 || version_ge "$1" "$2";}
+function version_le(){ [[ "$1" = "$(echo -e "$1\n$2"|sort -V|head -n1)" ]]; }
+function version_lt(){ [[ "$1" = "$2" ]]&& return 1 || version_le "$1" "$2";}
 
 readonly -A supported_os=(
   ['debian']="10 11 12"
@@ -34,24 +34,25 @@ readonly -A supported_os=(
 
 # dynamically define OS version test utility functions
 if [[ "$(os_id)" == "rocky" ]];
-then _os_version=$(os_version | sed -e 's/[^0-9].*$//g')
-else _os_version="$(os_version)"; fi
+  then _os_version=$(os_version | sed -e 's/[^0-9].*$//g')
+  else _os_version="$(os_version)"
+fi
 for os_id_val in 'rocky' 'ubuntu' 'debian' ; do
-  eval "function is_${os_id_val}() ( set +x ;  [[ \"$(os_id)\" == '${os_id_val}' ]] ; )"
+  eval "function is_${os_id_val}() { [[ \"$(os_id)\" == '${os_id_val}' ]] ; }"
 
   for osver in $(echo "${supported_os["${os_id_val}"]}") ; do
-    eval "function is_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && [[ \"${_os_version}\" == \"${osver}\" ]] ; )"
-    eval "function ge_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && version_ge \"${_os_version}\" \"${osver}\" ; )"
-    eval "function le_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && version_le \"${_os_version}\" \"${osver}\" ; )"
+    eval "function is_${os_id_val}${osver%%.*}() { is_${os_id_val} && [[ \"${_os_version}\" == \"${osver}\" ]] ; }"
+    eval "function ge_${os_id_val}${osver%%.*}() { is_${os_id_val} && version_ge \"${_os_version}\" \"${osver}\" ; }"
+    eval "function le_${os_id_val}${osver%%.*}() { is_${os_id_val} && version_le \"${_os_version}\" \"${osver}\" ; }"
   done
 done
 
-function is_debuntu()  ( set +x ;  is_debian || is_ubuntu ; )
+function is_debuntu()  {  is_debian || is_ubuntu ; }
 
-function os_vercat()   ( set +x
+function os_vercat()   {
   if   is_ubuntu ; then os_version | sed -e 's/[^0-9]//g'
   elif is_rocky  ; then os_version | sed -e 's/[^0-9].*$//g'
-                   else os_version ; fi ; )
+                   else os_version ; fi ; }
 
 function repair_old_backports {
   if ! is_debuntu ; then return ; fi
@@ -96,8 +97,7 @@ function print_metadata_value_if_exists() {
 }
 
 # replicates /usr/share/google/get_metadata_value
-function get_metadata_value() (
-  set +x
+function get_metadata_value() {
   local readonly varname=$1
   local -r MDS_PREFIX=http://metadata.google.internal/computeMetadata/v1
   # Print the instance metadata value.
@@ -110,14 +110,13 @@ function get_metadata_value() (
   fi
 
   return ${return_code}
-)
+}
 
-function get_metadata_attribute() (
-  set +x
+function get_metadata_attribute() {
   local -r attribute_name="$1"
   local -r default_value="${2:-}"
   get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
-)
+}
 
 OS_NAME="$(lsb_release -is | tr '[:upper:]' '[:lower:]')"
 distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
@@ -216,13 +215,13 @@ function set_cuda_version() {
   readonly CUDA_FULL_VERSION
 }
 
-function is_cuda12() ( set +x ; [[ "${CUDA_VERSION%%.*}" == "12" ]] ; )
-function le_cuda12() ( set +x ; version_le "${CUDA_VERSION%%.*}" "12" ; )
-function ge_cuda12() ( set +x ; version_ge "${CUDA_VERSION%%.*}" "12" ; )
+function is_cuda12() { [[ "${CUDA_VERSION%%.*}" == "12" ]] ; }
+function le_cuda12() { version_le "${CUDA_VERSION%%.*}" "12" ; }
+function ge_cuda12() { version_ge "${CUDA_VERSION%%.*}" "12" ; }
 
-function is_cuda11() ( set +x ; [[ "${CUDA_VERSION%%.*}" == "11" ]] ; )
-function le_cuda11() ( set +x ; version_le "${CUDA_VERSION%%.*}" "11" ; )
-function ge_cuda11() ( set +x ; version_ge "${CUDA_VERSION%%.*}" "11" ; )
+function is_cuda11() { [[ "${CUDA_VERSION%%.*}" == "11" ]] ; }
+function le_cuda11() { version_le "${CUDA_VERSION%%.*}" "11" ; }
+function ge_cuda11() { version_ge "${CUDA_VERSION%%.*}" "11" ; }
 
 function set_driver_version() {
   local gpu_driver_url
@@ -463,7 +462,6 @@ MIG_MAJOR_CAPS=0
 IS_MIG_ENABLED=0
 
 function execute_with_retries() (
-  set +x
   local -r cmd="$*"
 
   if [[ "$cmd" =~ "^apt-get install" ]] ; then
@@ -471,9 +469,7 @@ function execute_with_retries() (
     apt-get -o DPkg::Lock::Timeout=60 -y autoremove
   fi
   for ((i = 0; i < 3; i++)); do
-    set -x
     time eval "$cmd" > "${install_log}" 2>&1 && retval=$? || { retval=$? ; cat "${install_log}" ; }
-    set +x
     if [[ $retval == 0 ]] ; then return 0 ; fi
     sleep 5
   done
@@ -718,8 +714,8 @@ function install_nvidia_nccl() {
   mark_complete nccl
 }
 
-function is_src_nvidia() ( set +x ; [[ "${GPU_DRIVER_PROVIDER}" == "NVIDIA" ]] ; )
-function is_src_os()     ( set +x ; [[ "${GPU_DRIVER_PROVIDER}" == "OS" ]] ; )
+function is_src_nvidia() { [[ "${GPU_DRIVER_PROVIDER}" == "NVIDIA" ]] ; }
+function is_src_os()     { [[ "${GPU_DRIVER_PROVIDER}" == "OS" ]] ; }
 
 function install_nvidia_cudnn() {
   is_complete cudnn && return
@@ -1576,12 +1572,20 @@ EOF
   fi
   local executor_cores
   executor_cores="$(nproc | perl -MPOSIX -pe '$_ = POSIX::floor( $_ * 0.75 ); $_-- if $_ % 2')"
+  [[ "${executor_cores}" == "0" ]] && executor_cores=1
   local executor_memory
   executor_memory_gb="$(awk '/^MemFree/ {print $2}' /proc/meminfo | perl -MPOSIX -pe '$_ *= 0.75; $_ = POSIX::floor( $_ / (1024*1024) )')"
   local task_cpus=2
+  [[ "${task_cpus}" -gt "${executor_cores}" ]] && task_cpus="${executor_cores}"
   local gpu_amount
 #  gpu_amount="$(echo $executor_cores | perl -pe "\$_ = ( ${gpu_count} / (\$_ / ${task_cpus}) )")"
   gpu_amount="$(perl -e "print 1 / ${executor_cores}")"
+
+  # the gpu.amount properties are not appropriate for the version of
+  # spark shipped with 1.5 images using the capacity scheduler.  TODO:
+  # In order to get spark rapids GPU accelerated SQL working on 1.5
+  # images, we must configure the Fair scheduler
+  version_ge "${DATAPROC_IMAGE_VERSION}" "2.0" || return
 
   # TODO: when running this script to customize an image, this file
   # needs to be written *after* bdutil completes
@@ -2044,7 +2048,7 @@ function exit_handler() {
     if ${gsutil_stat_cmd} "${building_file}" ; then ${gsutil_cmd} rm "${building_file}" || true ; fi
   fi
 
-  set +ex
+  set +e
   echo "Exit handler invoked"
 
   # Clear pip cache
