@@ -518,32 +518,58 @@ function initialize_mysql_metastore_db() {
 }
 
 function exit_handler() {
-  rm -f /dev/shm/*-pw /dev/shm/*-db.cnf /dev/shm/*.sql
+  rm -f /dev/shm/*-pw /dev/shm/*-db.cnf /dev/shm/*_passfile /dev/shm/*.sql
 }
 
 trap exit_handler EXIT
 
+function admin_psql() {
+  PGPASSFILE="/dev/shm/admin_passfile" psql $*
+}
+
+function hive_psql() {
+  PGPASSFILE="/dev/shm/hive_passfile" psql $*
+}
+
 function initialize_postgres_metastore_db() {
-  log 'Initialzing POSTGRES DB for Hive metastore ...'
-  local admin_connection=postgresql://"${DB_ADMIN_USER}":"${DB_ADMIN_PASSWORD}"@127.0.0.1:"${METASTORE_PROXY_PORT}"/
-  local hive_connection=postgresql://"${DB_HIVE_USER}":"${DB_HIVE_PASSWORD}"@127.0.0.1:"${METASTORE_PROXY_PORT}"/postgres
+  log 'Initialzing PostgreSQL DB for Hive metastore ...'
+  local admin_pgpass=/dev/shm/admin_passfile
+  local hive_pgpass=/dev/shm/hive_passfile
+  (
+    echo -n "postgresql://${DB_ADMIN_USER}:"
+    perl -pe 'chomp' < /dev/shm/db-pw
+    echo -n "@127.0.0.1:${METASTORE_PROXY_PORT}/"
+  ) > "${admin_pgpass}"
+  (
+    echo -n "postgresql://${DB_HIVE_USER}:"
+    perl -pe 'chomp' < /dev/shm/hive-pw
+    echo -n "@127.0.0.1:${METASTORE_PROXY_PORT}/postgres"
+  ) > "${hive_pgpass}"
+  (
+    echo -n "CREATE USER ${DB_HIVE_USER} WITH PASSWORD '"
+    perl -pe 'chomp' < /dev/shm/hive-pw
+    echo -n "';"
+  ) > /dev/shm/create_hive_user.sql
 
   # Check if metastore is initialized.
-  if ! psql "${hive_connection}" -c ''; then
+  if ! hive_psql -c ''; then
     log 'Create DB Hive user...'
-    psql "${admin_connection}" -c "CREATE USER ${DB_HIVE_USER} WITH PASSWORD '${DB_HIVE_PASSWORD}';"
+    admin_psql < /dev/shm/create_hive_user.sql
   fi
-  if ! psql "${hive_connection}" -c '\c "${METASTORE_DB}" ' ; then
+  if ! hive_psql -c '\c "${METASTORE_DB}" ' ; then
     log 'Create Hive Metastore database...'
-    psql "${admin_connection}" -c "CREATE DATABASE ${METASTORE_DB};"
-    psql "${hive_connection}" -c '\c "${METASTORE_DB}" '
-    psql "${admin_connection}" -c "GRANT ALL PRIVILEGES ON DATABASE ${METASTORE_DB} TO ${DB_HIVE_USER} ;"
+    admin_psql -c "CREATE DATABASE ${METASTORE_DB};"
+    hive_psql -c '\c "${METASTORE_DB}" '
+    admin_psql -c "GRANT ALL PRIVILEGES ON DATABASE ${METASTORE_DB} TO ${DB_HIVE_USER} ;"
 
     log 'Create Hive Metastore schema...'
-    /usr/lib/hive/bin/schematool -dbType postgres -initSchema ||
+    /usr/lib/hive/bin/schematool -dbType postgres -initSchema || {
       err 'Failed to set postgres schema.'
+      rm -f /dev/shm/*_passfile /dev/shm/*.sql
+    }
   fi
-  log 'POSTGRES DB initialized for Hive metastore'
+  log 'PostgreSQL DB initialized for Hive metastore'
+  rm -f /dev/shm/*_passfile /dev/shm/*.sql
 }
 
 function initialize_metastore_db() {
