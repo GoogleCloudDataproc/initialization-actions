@@ -21,9 +21,9 @@
 # Do not use "set -x" to avoid printing passwords in clear in the logs
 set -euo pipefail
 
-function os_id()       ( set +x ;  grep '^ID=' /etc/os-release | cut -d= -f2 | xargs ; )
-function os_version()  ( set +x ;  grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs ; )
-function os_codename() ( set +x ;  grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs ; )
+function os_id()      { grep '^ID=' /etc/os-release | cut -d= -f2 | xargs ; }
+function os_version() { grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | xargs ; }
+function os_codename(){ grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs ; }
 
 function version_ge(){ [[ "$1" = "$(echo -e "$1\n$2"|sort -V|tail -n1)" ]]; }
 function version_gt(){ [[ "$1" = "$2" ]]&& return 1 || version_ge "$1" "$2";}
@@ -41,16 +41,16 @@ if [[ "$(os_id)" == "rocky" ]];
 then _os_version=$(os_version | sed -e 's/[^0-9].*$//g')
 else _os_version="$(os_version)"; fi
 for os_id_val in 'rocky' 'ubuntu' 'debian' ; do
-  eval "function is_${os_id_val}() ( set +x ;  [[ \"$(os_id)\" == '${os_id_val}' ]] ; )"
+  eval "function is_${os_id_val}() {  [[ \"$(os_id)\" == '${os_id_val}' ]] ; }"
 
   for osver in $(echo "${supported_os["${os_id_val}"]}") ; do
-    eval "function is_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && [[ \"${_os_version}\" == \"${osver}\" ]] ; )"
-    eval "function ge_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && version_ge \"${_os_version}\" \"${osver}\" ; )"
-    eval "function le_${os_id_val}${osver%%.*}() ( set +x ; is_${os_id_val} && version_le \"${_os_version}\" \"${osver}\" ; )"
+    eval "function is_${os_id_val}${osver%%.*}() { is_${os_id_val} && [[ \"${_os_version}\" == \"${osver}\" ]] ; }"
+    eval "function ge_${os_id_val}${osver%%.*}() { is_${os_id_val} && version_ge \"${_os_version}\" \"${osver}\" ; }"
+    eval "function le_${os_id_val}${osver%%.*}() { is_${os_id_val} && version_le \"${_os_version}\" \"${osver}\" ; }"
   done
 done
 
-function is_debuntu()  ( set +x ;  is_debian || is_ubuntu ; )
+function is_debuntu()  { is_debian || is_ubuntu ; }
 
 function print_metadata_value() {
   local readonly tmpfile=$(mktemp)
@@ -73,8 +73,7 @@ function print_metadata_value_if_exists() {
   return ${return_code}
 }
 
-function get_metadata_value() (
-  set +x
+function get_metadata_value() {
   local readonly varname=$1
   local -r MDS_PREFIX=http://metadata.google.internal/computeMetadata/v1
   # Print the instance metadata value.
@@ -87,14 +86,13 @@ function get_metadata_value() (
   fi
 
   return ${return_code}
-)
+}
 
-function get_metadata_attribute() (
-  set +x
+function get_metadata_attribute() {
   local -r attribute_name="$1"
   local -r default_value="${2:-}"
   get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
-)
+}
 
 # Detect dataproc image version from its various names
 if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
@@ -466,13 +464,13 @@ EOF
 function admin_mysql() {
   local admin_defaults_file="/dev/shm/admin-db.cnf"
   local db_password_param="--defaults-file=${admin_defaults_file}"
-  mysql "${db_password_param}" $*
+  mysql "${db_password_param}" "$*"
 }
 
 function hive_mysql() {
   local hive_defaults_file="/dev/shm/hive-db.cnf"
   local db_hive_password_param="--defaults-file=${hive_defaults_file}"
-  mysql "${db_hive_password_param}" $*
+  mysql "${db_hive_password_param}" "$*"
 }
 
 function initialize_mysql_metastore_db() {
@@ -524,11 +522,11 @@ function exit_handler() {
 trap exit_handler EXIT
 
 function admin_psql() {
-  PGPASSFILE="/dev/shm/admin_passfile" psql $*
+  PGPASSFILE="/dev/shm/admin_passfile" psql "$*"
 }
 
 function hive_psql() {
-  PGPASSFILE="/dev/shm/hive_passfile" psql $*
+  PGPASSFILE="/dev/shm/hive_passfile" psql "$*"
 }
 
 function initialize_postgres_metastore_db() {
