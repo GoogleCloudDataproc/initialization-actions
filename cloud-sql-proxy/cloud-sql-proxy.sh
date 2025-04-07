@@ -240,7 +240,8 @@ readonly DB_ADMIN_PASSWORD_URI
 if [[ -n "${DB_ADMIN_SECRET}" ]] ; then
   gcloud secrets versions access "${DB_ADMIN_SECRET#*:}" \
       --project="${METASTORE_INSTANCE%%:*}" \
-      --secret="${DB_ADMIN_SECRET%:*}" > /dev/shm/db-pw
+      --secret="${DB_ADMIN_SECRET%:*}" \
+      --out-file=/dev/shm/db-pw
 elif [[ -n "${DB_ADMIN_PASSWORD_URI}" ]]; then
   # Decrypt password
   gsutil cat "${DB_ADMIN_PASSWORD_URI}" |
@@ -251,7 +252,9 @@ elif [[ -n "${DB_ADMIN_PASSWORD_URI}" ]]; then
 else
   touch /dev/shm/db-pw
 fi
-if [[ "${CLOUDSQL_INSTANCE_TYPE}" == "POSTGRES" ]] && [[ "$(perl -pe 'chomp' < /dev/shm/db-pw | wc -c)" != "0" ]]; then
+if [[ "${CLOUDSQL_INSTANCE_TYPE}" == "POSTGRES" ]] &&
+   [[ "$(perl -e 'chomp($l=<STDIN>); print length $l;' < /dev/shm/db-pw)" == "0" ]]
+then
   log 'POSTGRES DB admin password is not set'
 fi
 
@@ -261,7 +264,8 @@ readonly DB_HIVE_PASSWORD_URI
 if [[ -n "${DB_HIVE_SECRET}" ]] ; then
   gcloud secrets versions access "${DB_HIVE_SECRET#*:}" \
       --project="${METASTORE_INSTANCE%%:*}" \
-      --secret="${DB_HIVE_SECRET%:*}" > /dev/shm/hive-pw
+      --secret="${DB_HIVE_SECRET%:*}" \
+      --out-file=/dev/shm/hive-pw
 elif [[ -n "${DB_HIVE_PASSWORD_URI}" ]]; then
   # Decrypt password
   gsutil cat "${DB_HIVE_PASSWORD_URI}" |
@@ -275,7 +279,7 @@ else
     --name "javax.jdo.option.ConnectionPassword" 2>/dev/null > /dev/shm/hive-pw
 fi
 
-if perl -e '$l=<STDIN>; chomp $l; exit( $l eq "None" ? 0 : 1 )' < /dev/shm/hive-pw; then
+if perl -e 'chomp($l=<STDIN>); exit( $l eq "None" ? 0 : 1 )' < /dev/shm/hive-pw; then
   echo "hive-password" > /dev/shm/hive-pw
 fi
 
