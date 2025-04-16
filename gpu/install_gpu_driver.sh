@@ -1930,10 +1930,10 @@ function cache_fetched_package() {
   local local_fn="$3"
 
   if ${gsutil_stat_cmd} "${gcs_fn}" 2>&1 ; then
-    time ${gsutil_cmd} cp "${gcs_fn}" "${local_fn}"
+    execute_with_retries ${gsutil_cmd} cp "${gcs_fn}" "${local_fn}"
   else
     time ( curl ${curl_retry_args} "${src_url}" -o "${local_fn}" && \
-           ${gsutil_cmd} cp "${local_fn}" "${gcs_fn}" ; )
+           execute_with_retries ${gsutil_cmd} cp "${local_fn}" "${gcs_fn}" ; )
   fi
 }
 
