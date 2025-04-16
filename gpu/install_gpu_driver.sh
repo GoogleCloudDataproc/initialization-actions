@@ -15,7 +15,7 @@
 #
 # This script installs NVIDIA GPU drivers and collects GPU utilization metrics.
 
-set -euo pipefail
+set -xeuo pipefail
 
 function os_id()       { grep '^ID='               /etc/os-release | cut -d= -f2 | xargs ; }
 function os_version()  { grep '^VERSION_ID='       /etc/os-release | cut -d= -f2 | xargs ; }
@@ -293,6 +293,8 @@ function set_cudnn_version() {
   readonly CUDNN_VERSION
 }
 
+function is_cudnn8() { [[ "${CUDNN_VERSION%%.*}" == "8" ]] ; }
+function is_cudnn9() { [[ "${CUDNN_VERSION%%.*}" == "9" ]] ; }
 
 # Short name for urls
 if is_ubuntu22  ; then
@@ -622,13 +624,13 @@ function install_nvidia_nccl() {
     local local_tarball="${workdir}/${build_tarball}"
     local gcs_tarball="${pkg_bucket}/nvidia/nccl/${_shortname}/${build_tarball}"
 
-    if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
+    if [[ "$(hostname -s)" =~ ^test-gpu && "$(nproc)" < 32 ]] ; then
       # when running with fewer than 32 cores, yield to in-progress build
       sleep $(( ( RANDOM % 11 ) + 10 ))
-      local output="$(${gsutil_stat_cmd} "${gcs_tarball}.building")"
+      local output="$(${gsutil_stat_cmd} "${gcs_tarball}.building"|grep '.reation.time')"
       if [[ "$?" == "0" ]] ; then
         local build_start_time build_start_epoch timeout_epoch
-        build_start_time="$(echo ${output} | awk -F': +' '/.reation.time/ {print $2}')"
+        build_start_time="$(echo ${output} | awk -F': +' '{print $2}')"
         build_start_epoch="$(date -u -d "${build_start_time}" +%s)"
         timeout_epoch=$((build_start_epoch + 2700)) # 45 minutes
         while ${gsutil_stat_cmd} "${gcs_tarball}.building" ; do
@@ -803,9 +805,10 @@ function install_pytorch() {
   if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
     # when running with fewer than 32 cores, yield to in-progress build
     sleep $(( ( RANDOM % 11 ) + 10 ))
-    if ${gsutil_stat_cmd} "${gcs_tarball}.building" ; then
+    local output="$(${gsutil_stat_cmd} "${gcs_tarball}.building"|grep '.reation.time')"
+    if [[ "$?" == "0" ]] ; then
       local build_start_time build_start_epoch timeout_epoch
-      build_start_time="$(${gsutil_stat_cmd} "${gcs_tarball}.building" | awk -F': +' '/.reation.time/ {print $2}')"
+      build_start_time="$(echo ${output} | awk -F': +' '{print $2}')"
       build_start_epoch="$(date -u -d "${build_start_time}" +%s)"
       timeout_epoch=$((build_start_epoch + 2700)) # 45 minutes
       while ${gsutil_stat_cmd} "${gcs_tarball}.building" ; do
@@ -988,8 +991,7 @@ function add_repo_cuda() {
       | sudo tee "${sources_list_path}"
 
       for keyid in "0xae09fe4bbd223a84b2ccfce3f60f4b3d7fa2af80" "0xeb693b3035cd5710e231e123a4b469963bf863cc" ; do
-        curl ${curl_retry_args} "https://keyserver.ubuntu.com/pks/lookup?op=get&search=${keyid}" \
-        | gpg --import --no-default-keyring --keyring "${kr_path}"
+        gpg --keyserver keyserver.ubuntu.com --no-default-keyring --keyring "${kr_path}" --recv-keys "${keyid}"
       done
     else
       install_cuda_keyring_pkg # 11.7+, 12.0+
@@ -1029,9 +1031,10 @@ function build_driver_from_github() {
     if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
       # when running with fewer than 32 cores, yield to in-progress build
       sleep $(( ( RANDOM % 11 ) + 10 ))
-      if ${gsutil_stat_cmd} "${gcs_tarball}.building" ; then
+      local output="$(${gsutil_stat_cmd} "${gcs_tarball}.building"|grep '.reation.time')"
+      if [[ "$?" == "0" ]] ; then
         local build_start_time build_start_epoch timeout_epoch
-        build_start_time="$(${gsutil_stat_cmd} "${gcs_tarball}.building" | awk -F': +' '/.reation.time/ {print $2}')"
+        build_start_time="$(echo ${output} | awk -F': +' '{print $2}')"
         build_start_epoch="$(date -u -d "${build_start_time}" +%s)"
         timeout_epoch=$((build_start_epoch + 2700)) # 45 minutes
         while ${gsutil_stat_cmd} "${gcs_tarball}.building" ; do
@@ -1180,10 +1183,10 @@ function install_nvidia_userspace_runfile() {
       if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
         # when running with fewer than 32 cores, yield to in-progress build
         sleep $(( ( RANDOM % 11 ) + 10 ))
-        local output="$(${gsutil_stat_cmd} "${gcs_tarball}.building")"
-        if [[ $? == "0" ]] ; then
+        local output="$(${gsutil_stat_cmd} "${gcs_tarball}.building"|grep '.reation.time')"
+        if [[ "$?" == "0" ]] ; then
           local build_start_time build_start_epoch timeout_epoch
-          build_start_time="$(echo ${output} | awk -F': +' '/.reation.time/ {print $2}')"
+          build_start_time="$(echo ${output} | awk -F': +' '{print $2}')"
           build_start_epoch="$(date -u -d "${build_start_time}" +%s)"
           timeout_epoch=$((build_start_epoch + 2700)) # 45 minutes
           while ${gsutil_stat_cmd} "${gcs_tarball}.building" ; do
