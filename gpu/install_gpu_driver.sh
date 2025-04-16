@@ -990,9 +990,9 @@ function add_repo_cuda() {
       echo "deb [signed-by=${kr_path}] https://developer.download.nvidia.com/compute/cuda/repos/${shortname}/x86_64/ /" \
       | sudo tee "${sources_list_path}"
 
-      for keyid in "0xae09fe4bbd223a84b2ccfce3f60f4b3d7fa2af80" "0xeb693b3035cd5710e231e123a4b469963bf863cc" ; do
-        gpg --keyserver keyserver.ubuntu.com --no-default-keyring --keyring "${kr_path}" --recv-keys "${keyid}"
-      done
+      gpg --keyserver keyserver.ubuntu.com \
+        --no-default-keyring --keyring "${kr_path}" \
+        --recv-keys "0xae09fe4bbd223a84b2ccfce3f60f4b3d7fa2af80" "0xeb693b3035cd5710e231e123a4b469963bf863cc"
     else
       install_cuda_keyring_pkg # 11.7+, 12.0+
     fi
