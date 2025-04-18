@@ -1755,13 +1755,14 @@ function prepare_gpu_env(){
       "1BB3" ) gpu_type="nvidia-tesla-p4"        ;;
       "1DB1" ) gpu_type="nvidia-tesla-v100"      ;;
       "1EB8" ) gpu_type="nvidia-tesla-t4"        ;;
-      "20B2" | \
-      "20B5" | \
-      "20F3" | \
+      "20B2" ) gpu_type="nvidia-tesla-a100-80gb" ;;
+      "20B5" ) gpu_type="nvidia-tesla-a100-80gb" ;;
+      "20F3" ) gpu_type="nvidia-tesla-a100-80gb" ;;
       "20F5" ) gpu_type="nvidia-tesla-a100-80gb" ;;
-      "20*"  ) gpu_type="nvidia-tesla-a100"      ;;
-      "23*"  ) gpu_type="nvidia-h100"            ;; # NB: install does not begin with legacy image 2.0.68-debian10/cuda11.1
+      "20"*  ) gpu_type="nvidia-tesla-a100"      ;;
+      "23"*  ) gpu_type="nvidia-h100"            ;; # NB: install does not begin with legacy image 2.0.68-debian10/cuda11.1
       "27B8" ) gpu_type="nvidia-l4"              ;; # NB: install does not complete with legacy image 2.0.68-debian10/cuda11.1
+      *      ) gpu_type="unrecognized"
     esac
 
     ACCELERATOR="type=${gpu_type},count=${gpu_count}"
