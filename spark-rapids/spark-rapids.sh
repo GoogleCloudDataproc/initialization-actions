@@ -299,8 +299,12 @@ spark.executor.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusRe
 spark.dynamicAllocation.enabled=false
 spark.sql.autoBroadcastJoinThreshold=10m
 spark.sql.files.maxPartitionBytes=512m
-# please update this config according to your application
-spark.task.resource.gpu.amount=0.25
+# For Spark SQL, we want the scheduler to use the number of CPU cores as the
+# limiting resource (the number of tasks we can run in parallel is the number of cores).
+# We therefore set the per task GPU amount to a small number, telling the scheduler
+# to ignore the GPU when limiting parallel tasks, so we should see "number of cores" tasks
+# in parallel able to submit work to the GPU.
+spark.task.resource.gpu.amount=0.00001
 ###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
 EOF
   else
