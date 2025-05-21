@@ -372,9 +372,6 @@ function install_nvidia_gpu_driver() {
 
     export DEBIAN_FRONTEND=noninteractive
 
-    # Unhold NVIDIA packages to allow upgrades (see issue #1321)
-    unhold_nvidia_packages
-
     execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
 
     curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
