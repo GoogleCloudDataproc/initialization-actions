@@ -343,11 +343,17 @@ readonly NVIDIA_REPO_URL="${NVIDIA_BASE_DL_URL}/cuda/repos/${shortname}/x86_64"
 # Hold all NVIDIA-related packages from upgrading unintenionally or services like unattended-upgrades
 # Users should run apt-mark unhold before they wish to upgrade these packages
 function hold_nvidia_packages() {
-  apt-mark hold nvidia-*
-  apt-mark hold libnvidia-*
+  apt-mark hold nvidia-* > /dev/null 2>&1
+  apt-mark hold libnvidia-* > /dev/null 2>&1
   if dpkg -l | grep -q "xserver-xorg-video-nvidia"; then
-    apt-mark hold xserver-xorg-video-nvidia*
+    apt-mark hold xserver-xorg-video-nvidia* > /dev/null 2>&1
   fi
+}
+
+function unhold_nvidia_packages() {
+  apt-mark unhold nvidia-*    > /dev/null 2>&1
+  apt-mark unhold libnvidia-* > /dev/null 2>&1
+  apt-mark unhold xserver-xorg-video-nvidia* > /dev/null 2>&1
 }
 
 # Install NVIDIA GPU driver provided by NVIDIA
@@ -401,6 +407,9 @@ function install_nvidia_gpu_driver() {
     hold_nvidia_packages
 
   elif is_ubuntu ; then
+
+    # Unhold NVIDIA packages to allow upgrades (see issue #1321)
+    unhold_nvidia_packages
 
     execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
 
