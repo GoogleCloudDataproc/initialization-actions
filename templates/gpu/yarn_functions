@@ -1,0 +1,177 @@
+[% INSERT common/yarn_functions %]
+
+function configure_yarn_gpu_resources() {
+  if [[ ! -d "${HADOOP_CONF_DIR}" ]] ; then return 0 ; fi # pre-init scripts
+  if [[ ! -f "${HADOOP_CONF_DIR}/resource-types.xml" ]]; then
+    printf '<?xml version="1.0" ?>\n<configuration/>' >"${HADOOP_CONF_DIR}/resource-types.xml"
+  fi
+  set_hadoop_property 'resource-types.xml' 'yarn.resource-types' 'yarn.io/gpu'
+
+  set_hadoop_property 'capacity-scheduler.xml' \
+    'yarn.scheduler.capacity.resource-calculator' \
+    'org.apache.hadoop.yarn.util.resource.DominantResourceCalculator'
+
+  set_hadoop_property 'yarn-site.xml' 'yarn.resource-types' 'yarn.io/gpu'
+
+  # Older CapacityScheduler does not permit use of gpu resources ; switch to FairScheduler on 2.0 and below
+  if version_lt "${DATAPROC_IMAGE_VERSION}" "2.1" ; then
+    fs_xml="$HADOOP_CONF_DIR/fair-scheduler.xml"
+    set_hadoop_property 'yarn-site.xml' \
+      'yarn.resourcemanager.scheduler.class' 'org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler'
+    set_hadoop_property 'yarn-site.xml' \
+      "yarn.scheduler.fair.user-as-default-queue" "false"
+    set_hadoop_property 'yarn-site.xml' \
+      "yarn.scheduler.fair.allocation.file" "${fs_xml}"
+    set_hadoop_property 'yarn-site.xml' \
+      'yarn.scheduler.fair.resource-calculator' 'org.apache.hadoop.yarn.util.resource.DominantResourceCalculator'
+    cat > "${fs_xml}" <<EOF
+<!-- ${fs_xml} -->
+<allocations>
+  <queueMaxAppsDefault>1</queueMaxAppsDefault>
+</allocations>
+EOF
+  fi
+}
+
+function configure_gpu_script() {
+  if [[ "${gpu_count}" == "0" ]] ; then return ; fi
+  # Download GPU discovery script
+  local -r spark_gpu_script_dir='/usr/lib/spark/scripts/gpu'
+  mkdir -p ${spark_gpu_script_dir}
+  # need to update the getGpusResources.sh script to look for MIG devices since if multiple GPUs nvidia-smi still
+  # lists those because we only disable the specific GIs via CGROUPs. Here we just create it based off of:
+  # https://raw.githubusercontent.com/apache/spark/master/examples/src/main/scripts/getGpusResources.sh
+  local -r gpus_resources_script="${spark_gpu_script_dir}/getGpusResources.sh"
+  cat > "${gpus_resources_script}" <<'EOF'
+#!/usr/bin/env bash
+
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Example output: {"name": "gpu", "addresses":["0","1","2","3","4","5","6","7"]}
+
+set -e
+resources_json="/dev/shm/nvidia/gpusResources.json"
+if test -f "${resources_json}" ; then cat "${resources_json}" ; exit 0 ; fi
+
+mkdir -p "$(dirname ${resources_json})"
+
+ADDRS=$(nvidia-smi --query-gpu=index --format=csv,noheader | perl -e 'print(join(q{,},map{chomp; qq{"$_"}}<STDIN>))')
+
+echo {\"name\": \"gpu\", \"addresses\":[${ADDRS}]} | tee "${resources_json}"
+EOF
+
+  chmod a+rx "${gpus_resources_script}"
+
+  local spark_defaults_conf="/etc/spark/conf.dist/spark-defaults.conf"
+  if version_lt "${SPARK_VERSION}" "3.0" ; then return ; fi
+
+  local executor_cores
+  executor_cores="$(nproc | perl -MPOSIX -pe '$_ = POSIX::floor( $_ * 0.75 ); $_-- if $_ % 2')"
+  local executor_memory
+  executor_memory_gb="$(awk '/^MemFree/ {print $2}' /proc/meminfo | perl -MPOSIX -pe '$_ *= 0.75; $_ = POSIX::floor( $_ / (1024*1024) )')"
+  local task_cpus=2
+  local gpu_amount
+
+  # The current setting of spark.task.resource.gpu.amount (0.333) is
+  # not ideal to get the best performance from the RAPIDS Accelerator
+  # plugin. It's recommended to be 1/{executor core count} unless you
+  # have a special use case.
+#  gpu_amount="$(echo $executor_cores | perl -pe "\$_ = ( ${gpu_count} / (\$_ / ${task_cpus}) )")"
+  gpu_amount="$(perl -e "print 1 / ${executor_cores}")"
+
+# cannot run on GPU because GPU does not currently support the operator class org.apache.spark.sql.execution.aggregate.ComplexTypedAggregateExpression
+
+  cat >>"${spark_defaults_conf}" <<EOF
+###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
+# Rapids Accelerator for Spark can utilize AQE, but when the plan is not finalized,
+# query explain output won't show GPU operator, if the user has doubts
+# they can uncomment the line before seeing the GPU plan explain;
+# having AQE enabled gives user the best performance.
+spark.executor.resource.gpu.discoveryScript=${gpus_resources_script}
+spark.executor.resource.gpu.amount=${gpu_count}
+spark.executor.cores=${executor_cores}
+spark.executor.memory=${executor_memory_gb}G
+spark.dynamicAllocation.enabled=false
+# please update this config according to your application
+spark.task.resource.gpu.amount=${gpu_amount}
+spark.task.cpus=2
+spark.yarn.unmanagedAM.enabled=false
+spark.plugins=com.nvidia.spark.SQLPlugin
+###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
+EOF
+}
+
+function configure_yarn_nodemanager_gpu() {
+  if [[ "${gpu_count}" == "0" ]] ; then return ; fi
+  set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.resource-plugins.gpu.allowed-gpu-devices' 'auto'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.resource-plugins.gpu.path-to-discovery-executables' "${NVIDIA_SMI_PATH}"
+
+  configure_yarn_nodemanager
+}
+
+function configure_gpu_isolation() {
+  if [[ "${gpu_count}" == "0" ]] ; then return ; fi
+  # enable GPU isolation
+  sed -i "s/yarn\.nodemanager\.linux\-container\-executor\.group\=.*$/yarn\.nodemanager\.linux\-container\-executor\.group\=yarn/g" "${HADOOP_CONF_DIR}/container-executor.cfg"
+  if [[ $IS_MIG_ENABLED -ne 0 ]]; then
+    # configure the container-executor.cfg to have major caps
+    printf '\n[gpu]\nmodule.enabled=true\ngpu.major-device-number=%s\n\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' $MIG_MAJOR_CAPS >> "${HADOOP_CONF_DIR}/container-executor.cfg"
+    printf 'export MIG_AS_GPU_ENABLED=1\n' >> "${HADOOP_CONF_DIR}/yarn-env.sh"
+    printf 'export ENABLE_MIG_GPUS_FOR_CGROUPS=1\n' >> "${HADOOP_CONF_DIR}/yarn-env.sh"
+  else
+    printf '\n[gpu]\nmodule.enabled=true\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' >> "${HADOOP_CONF_DIR}/container-executor.cfg"
+  fi
+
+  # Configure a systemd unit to ensure that permissions are set on restart
+  cat >/etc/systemd/system/dataproc-cgroup-device-permissions.service<<EOF
+[Unit]
+Description=Set permissions to allow YARN to access device directories
+
+[Service]
+ExecStart=/bin/bash -c "chmod a+rwx -R /sys/fs/cgroup/cpu,cpuacct; chmod a+rwx -R /sys/fs/cgroup/devices"
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  systemctl enable dataproc-cgroup-device-permissions
+  systemctl start dataproc-cgroup-device-permissions
+}
+
+function setup_gpu_yarn() {
+  # This configuration should be run on all nodes
+  # regardless if they have attached GPUs
+  configure_yarn_gpu_resources
+
+  # When there is no GPU, but the installer is executing on a master node:
+  if [[ "${gpu_count}" == "0" ]] ; then
+    if [[ "${ROLE}" == "Master" ]]; then
+      configure_yarn_nodemanager
+    fi
+    return 0
+  fi
+
+  install_nvidia_container_toolkit
+  configure_yarn_nodemanager_gpu
+  if [[ "${RAPIDS_RUNTIME}" == "SPARK" ]]; then
+    configure_gpu_script
+  fi
+  configure_gpu_isolation
+}
