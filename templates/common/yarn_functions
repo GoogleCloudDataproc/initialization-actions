@@ -1,0 +1,36 @@
+# This configuration should be applied only if GPU is attached to the node
+function configure_yarn_nodemanager() {
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.linux-container-executor.cgroups.mount' 'true'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.linux-container-executor.cgroups.mount-path' '/sys/fs/cgroup'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.linux-container-executor.cgroups.hierarchy' 'yarn'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.container-executor.class' \
+    'org.apache.hadoop.yarn.server.nodemanager.LinuxContainerExecutor'
+  set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.linux-container-executor.group' 'yarn'
+
+  # Fix local dirs access permissions
+  local yarn_local_dirs=()
+
+  readarray -d ',' yarn_local_dirs < <("${bdcfg}" get_property_value \
+    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
+    --name "yarn.nodemanager.local-dirs" 2>/dev/null | tr -d '\n')
+
+  if [[ "${#yarn_local_dirs[@]}" -ne "0" && "${yarn_local_dirs[@]}" != "None" ]]; then
+    chown yarn:yarn -R "${yarn_local_dirs[@]/,/}"
+  fi
+}
+
+function yarn_exit_handler() {
+  # Restart YARN services if they are running already
+  for svc in resourcemanager nodemanager; do
+    if [[ "$(systemctl show hadoop-yarn-${svc}.service -p SubState --value)" == 'running' ]]; then
+      systemctl  stop "hadoop-yarn-${svc}.service"
+      systemctl start "hadoop-yarn-${svc}.service"
+    fi
+  done
+  # restart services stopped during preparation stage
+  # systemctl list-units | perl -n -e 'qx(systemctl start $1) if /^.*? ((hadoop|knox|hive|mapred|yarn|hdfs)\S*).service/'
+}
