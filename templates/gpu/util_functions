@@ -1,0 +1,231 @@
+function set_support_matrix() {
+  # CUDA version and Driver version
+  # https://docs.nvidia.com/deploy/cuda-compatibility/
+  # https://docs.nvidia.com/deeplearning/frameworks/support-matrix/index.html#framework-matrix
+  # https://developer.nvidia.com/cuda-downloads
+
+  # Minimum supported version for open kernel driver is 515.43.04
+  # https://github.com/NVIDIA/open-gpu-kernel-modules/tags
+  local latest
+  latest="$(curl -s https://us.download.nvidia.com/XFree86/Linux-x86_64/latest.txt | awk '{print $1}')"
+  readonly -A DRIVER_FOR_CUDA=(
+      ["10.0"]="410.48" ["10.1"]="418.87.00" ["10.2"]="440.33.01"
+      ["11.1"]="455.45.01" ["11.2"]="460.91.03" ["11.3"]="465.31"
+      ["11.4"]="470.256.02" ["11.5"]="495.46" ["11.6"]="510.108.03"
+      ["11.7"]="515.65.01" ["11.8"]="525.147.05" ["12.0"]="525.147.05"
+      ["12.1"]="530.30.02" ["12.2"]="535.216.01" ["12.3"]="545.23.08"
+      ["12.4"]="550.135" ["12.5"]="555.42.02" ["12.6"]="560.35.03"
+  )
+  readonly -A DRIVER_SUBVER=(
+      ["410"]="410.104" ["415"]="415.27" ["418"]="418.113"
+      ["430"]="430.64" ["435"]="435.21" ["440"]="440.100"
+      ["450"]="450.119.03" ["455"]="455.45.01" ["460"]="460.91.03"
+      ["465"]="465.31" ["470"]="470.256.02" ["495"]="495.46"
+      ["510"]="510.108.03" ["515"]="515.48.07" ["520"]="525.147.05"
+      ["525"]="525.147.05" ["535"]="535.216.01" ["545"]="545.29.06"
+      ["550"]="550.142" ["555"]="555.58.02" ["560"]="560.35.03"
+      ["565"]="565.77"
+  )
+  # https://developer.nvidia.com/cudnn-downloads
+  readonly -A CUDNN_FOR_CUDA=(
+      ["10.0"]="7.4.1" ["10.1"]="7.6.4" ["10.2"]="7.6.5"
+      ["11.0"]="8.0.4" ["11.1"]="8.0.5" ["11.2"]="8.1.1"
+      ["11.3"]="8.2.1" ["11.4"]="8.2.4.15" ["11.5"]="8.3.1.22"
+      ["11.6"]="8.4.0.27" ["11.7"]="8.9.7.29" ["11.8"]="9.5.1.17"
+      ["12.0"]="8.8.1.3" ["12.1"]="8.9.3.28" ["12.2"]="8.9.5"
+      ["12.3"]="9.0.0.306" ["12.4"]="9.1.0.70" ["12.5"]="9.2.1.18"
+      ["12.6"]="9.6.0.74"
+  )
+  # https://developer.nvidia.com/nccl/nccl-download
+  readonly -A NCCL_FOR_CUDA=(
+      ["10.0"]="2.3.7" ["10.1"]= ["11.0"]="2.7.8" ["11.1"]="2.8.3"
+      ["11.2"]="2.8.4" ["11.3"]="2.9.9" ["11.4"]="2.11.4"
+      ["11.5"]="2.11.4" ["11.6"]="2.12.10" ["11.7"]="2.12.12"
+      ["11.8"]="2.21.5" ["12.0"]="2.16.5" ["12.1"]="2.18.3"
+      ["12.2"]="2.19.3" ["12.3"]="2.19.4" ["12.4"]="2.23.4"
+      ["12.5"]="2.22.3" ["12.6"]="2.23.4"
+  )
+  readonly -A CUDA_SUBVER=(
+      ["10.0"]="10.0.130" ["10.1"]="10.1.234" ["10.2"]="10.2.89"
+      ["11.0"]="11.0.3" ["11.1"]="11.1.1" ["11.2"]="11.2.2"
+      ["11.3"]="11.3.1" ["11.4"]="11.4.4" ["11.5"]="11.5.2"
+      ["11.6"]="11.6.2" ["11.7"]="11.7.1" ["11.8"]="11.8.0"
+      ["12.0"]="12.0.1" ["12.1"]="12.1.1" ["12.2"]="12.2.2"
+      ["12.3"]="12.3.2" ["12.4"]="12.4.1" ["12.5"]="12.5.1"
+      ["12.6"]="12.6.3"
+  )
+}
+
+function set_cuda_version() {
+  case "${DATAPROC_IMAGE_VERSION}" in
+    "2.0" ) DEFAULT_CUDA_VERSION="12.1.1" ;; # Cuda 12.1.1 - Driver v530.30.02 is the latest version supported by Ubuntu 18)
+    "2.1" ) DEFAULT_CUDA_VERSION="12.4.1" ;;
+    "2.2" ) DEFAULT_CUDA_VERSION="12.6.3" ;;
+    *   )
+      echo "unrecognized Dataproc image version: ${DATAPROC_IMAGE_VERSION}"
+      exit 1
+      ;;
+  esac
+  local cuda_url
+  cuda_url=$(get_metadata_attribute 'cuda-url' '')
+  if [[ -n "${cuda_url}" ]] ; then
+    # if cuda-url metadata variable has been passed, extract default version from url
+    local CUDA_URL_VERSION
+    CUDA_URL_VERSION="$(echo "${cuda_url}" | perl -pe 's{^.*/cuda_(\d+\.\d+\.\d+)_\d+\.\d+\.\d+_linux.run$}{$1}')"
+    if [[ "${CUDA_URL_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] ; then
+      DEFAULT_CUDA_VERSION="${CUDA_URL_VERSION}"
+    fi
+  fi
+  readonly DEFAULT_CUDA_VERSION
+
+  CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
+  if test -n "$(echo "${CUDA_VERSION}" | perl -ne 'print if /\d+\.\d+\.\d+/')" ; then
+    CUDA_FULL_VERSION="${CUDA_VERSION}"
+    CUDA_VERSION="${CUDA_VERSION%.*}"
+  fi
+  readonly CUDA_VERSION
+  if ( ! test -v CUDA_FULL_VERSION ) ; then
+    CUDA_FULL_VERSION=${CUDA_SUBVER["${CUDA_VERSION}"]}
+  fi
+  readonly CUDA_FULL_VERSION
+}
+
+function is_cuda12() ( set +x ; [[ "${CUDA_VERSION%%.*}" == "12" ]] ; )
+function le_cuda12() ( set +x ; version_le "${CUDA_VERSION%%.*}" "12" ; )
+function ge_cuda12() ( set +x ; version_ge "${CUDA_VERSION%%.*}" "12" ; )
+
+function is_cuda11() ( set +x ; [[ "${CUDA_VERSION%%.*}" == "11" ]] ; )
+function le_cuda11() ( set +x ; version_le "${CUDA_VERSION%%.*}" "11" ; )
+function ge_cuda11() ( set +x ; version_ge "${CUDA_VERSION%%.*}" "11" ; )
+
+function set_driver_version() {
+  local gpu_driver_url
+  gpu_driver_url=$(get_metadata_attribute 'gpu-driver-url' '')
+
+  local cuda_url
+  cuda_url=$(get_metadata_attribute 'cuda-url' '')
+
+  local DEFAULT_DRIVER
+  # Take default from gpu-driver-url metadata value
+  if [[ -n "${gpu_driver_url}" ]] ; then
+    DRIVER_URL_DRIVER_VERSION="$(echo "${gpu_driver_url}" | perl -pe 's{^.*/NVIDIA-Linux-x86_64-(\d+\.\d+\.\d+).run$}{$1}')"
+    if [[ "${DRIVER_URL_DRIVER_VERSION}" =~ ^[0-9]+.*[0-9]$ ]] ; then DEFAULT_DRIVER="${DRIVER_URL_DRIVER_VERSION}" ; fi
+  # Take default from cuda-url metadata value as a backup
+  elif [[ -n "${cuda_url}" ]] ; then
+    local CUDA_URL_DRIVER_VERSION="$(echo "${cuda_url}" | perl -pe 's{^.*/cuda_\d+\.\d+\.\d+_(\d+\.\d+\.\d+)_linux.run$}{$1}')"
+    if [[ "${CUDA_URL_DRIVER_VERSION}" =~ ^[0-9]+.*[0-9]$ ]] ; then
+      major_driver_version="${CUDA_URL_DRIVER_VERSION%%.*}"
+      driver_max_maj_version=${DRIVER_SUBVER["${major_driver_version}"]}
+      if curl -s --head "https://us.download.nvidia.com/XFree86/Linux-x86_64/${CUDA_URL_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${CUDA_URL_DRIVER_VERSION}.run" | grep -E -q '^HTTP.*200\s*$' ; then
+        # use the version indicated by the cuda url as the default if it exists
+	DEFAULT_DRIVER="${CUDA_URL_DRIVER_VERSION}"
+      elif curl -s --head "https://us.download.nvidia.com/XFree86/Linux-x86_64/${driver_max_maj_version}/NVIDIA-Linux-x86_64-${driver_max_maj_version}.run" | grep -E -q '^HTTP.*200\s*$' ; then
+        # use the maximum sub-version available for the major version indicated in cuda url as the default
+	DEFAULT_DRIVER="${driver_max_maj_version}"
+      fi
+    fi
+  fi
+
+  if ( ! test -v DEFAULT_DRIVER ) ; then
+    # If a default driver version has not been extracted, use the default for this version of CUDA
+    DEFAULT_DRIVER=${DRIVER_FOR_CUDA["${CUDA_VERSION}"]}
+  fi
+
+  DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' "${DEFAULT_DRIVER}")
+
+  readonly DRIVER_VERSION
+  readonly DRIVER="${DRIVER_VERSION%%.*}"
+
+  export DRIVER_VERSION DRIVER
+
+  gpu_driver_url="https://us.download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
+  if ! curl -s --head "${gpu_driver_url}" | grep -E -q '^HTTP.*200\s*$' ; then
+    echo "No NVIDIA driver exists for DRIVER_VERSION=${DRIVER_VERSION}"
+    exit 1
+  fi
+}
+
+function is_src_nvidia() ( set +x ; [[ "${GPU_DRIVER_PROVIDER}" == "NVIDIA" ]] ; )
+function is_src_os()     ( set +x ; [[ "${GPU_DRIVER_PROVIDER}" == "OS" ]] ; )
+
+function nvsmi() {
+  local nvsmi="/usr/bin/nvidia-smi"
+  if   [[ "${nvsmi_works}" == "1" ]] ; then echo -n ''
+  elif [[ ! -f "${nvsmi}" ]]         ; then echo "nvidia-smi not installed" >&2 ; return 0
+  elif ! eval "${nvsmi} > /dev/null" ; then echo "nvidia-smi fails" >&2 ; return 0
+  else nvsmi_works="1" ; fi
+
+  if test -v 1 && [[ "$1" == "-L" ]] ; then
+    local NV_SMI_L_CACHE_FILE="/var/run/nvidia-smi_-L.txt"
+    if [[ -f "${NV_SMI_L_CACHE_FILE}" ]]; then cat "${NV_SMI_L_CACHE_FILE}"
+    else "${nvsmi}" $* | tee "${NV_SMI_L_CACHE_FILE}" ; fi
+
+    return 0
+  fi
+
+  "${nvsmi}" $*
+}
+
+function clear_nvsmi_cache() {
+  if ( test -v nvsmi_query_xml && test -f "${nvsmi_query_xml}" ) ; then
+    rm "${nvsmi_query_xml}"
+  fi
+}
+
+function query_nvsmi() {
+  if [[ "${nvsmi_works}" != "1" ]] ; then return ; fi
+  if ( test -v nvsmi_query_xml && test -f "${nvsmi_query_xml}" ) ; then return ; fi
+  nvsmi -q -x --dtd > "${nvsmi_query_xml}"
+}
+
+function prepare_gpu_env(){
+  set_support_matrix
+
+  set_cuda_version
+  set_driver_version
+
+  set +e
+  gpu_count="$(grep -i PCI_ID=10DE /sys/bus/pci/devices/*/uevent | wc -l)"
+  set -e
+  echo "gpu_count=[${gpu_count}]"
+  nvsmi_works="0"
+  nvsmi_query_xml="${tmpdir}/nvsmi.xml"
+  xmllint="/opt/conda/miniconda3/bin/xmllint"
+  NVIDIA_SMI_PATH='/usr/bin'
+  MIG_MAJOR_CAPS=0
+  IS_MIG_ENABLED=0
+  CUDNN_PKG_NAME=""
+  CUDNN8_PKG_NAME=""
+  CUDA_LOCAL_REPO_INSTALLED="0"
+
+  if ! test -v DEFAULT_RAPIDS_RUNTIME ; then
+    readonly DEFAULT_RAPIDS_RUNTIME='SPARK'
+  fi
+
+  # Set variables from metadata
+  RAPIDS_RUNTIME="$(get_metadata_attribute 'rapids-runtime' "${DEFAULT_RAPIDS_RUNTIME}")"
+  INCLUDE_GPUS="$(get_metadata_attribute include-gpus "")"
+  INCLUDE_PYTORCH="$(get_metadata_attribute 'include-pytorch' 'no')"
+  readonly RAPIDS_RUNTIME INCLUDE_GPUS INCLUDE_PYTORCH
+
+  # determine whether we have nvidia-smi installed and working
+  nvsmi
+}
+
+# Hold all NVIDIA-related packages from upgrading either unintenionally or
+# through use of services like unattended-upgrades
+#
+# Users should run apt-mark unhold before upgrading these packages
+function hold_nvidia_packages() {
+  if ! is_debuntu ; then return ; fi
+
+  apt-mark hold nvidia-*    > /dev/null 2>&1
+  apt-mark hold libnvidia-* > /dev/null 2>&1
+  if dpkg -l | grep -q "xserver-xorg-video-nvidia"; then
+    apt-mark hold xserver-xorg-video-nvidia*
+  fi
+}
+
+function gpu_exit_handler() {
+  echo "no operations in gpu exit handler"
+}
