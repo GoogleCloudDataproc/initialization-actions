@@ -988,7 +988,14 @@ function add_repo_nvidia_container_toolkit() {
     # "${repo_name}" "${signing_key_url}" "${repo_data}" "${4:-yes}" "${kr_path}" "${6:-}"
     local -r repo_name="nvidia-container-toolkit"
     local -r kr_path="/usr/share/keyrings/${repo_name}.gpg"
+    GPG_PROXY_ARGS=""
+    if [[ -n "${HTTP_PROXY}" ]] ; then
+      GPG_PROXY="--keyserver-options http-proxy=${HTTP_PROXY}"
+    elif [[ -n "${http_proxy}" ]] ; then
+      GPG_PROXY="--keyserver-options http-proxy=${http_proxy}"
+    fi
     execute_with_retries gpg --keyserver keyserver.ubuntu.com \
+      ${GPG_PROXY_ARGS} \
       --no-default-keyring --keyring "${kr_path}" \
       --recv-keys "0xae09fe4bbd223a84b2ccfce3f60f4b3d7fa2af80" "0xeb693b3035cd5710e231e123a4b469963bf863cc" "0xc95b321b61e88c1809c4f759ddcae044f796ecb0"
     local -r repo_data="${nvctk_root}/stable/deb/\$(ARCH) /"
@@ -1013,7 +1020,13 @@ function add_repo_cuda() {
       echo "deb [signed-by=${kr_path}] https://developer.download.nvidia.com/compute/cuda/repos/${shortname}/x86_64/ /" \
       | sudo tee "${sources_list_path}"
 
-      gpg --keyserver keyserver.ubuntu.com \
+      GPG_PROXY_ARGS=""
+      if [[ -n "${HTTP_PROXY}" ]] ; then
+        GPG_PROXY="--keyserver-options http-proxy=${HTTP_PROXY}"
+      elif [[ -n "${http_proxy}" ]] ; then
+        GPG_PROXY="--keyserver-options http-proxy=${http_proxy}"
+      fi
+      execute_with_retries gpg --keyserver keyserver.ubuntu.com ${GPG_PROXY_ARGS} \
         --no-default-keyring --keyring "${kr_path}" \
         --recv-keys "0xae09fe4bbd223a84b2ccfce3f60f4b3d7fa2af80" "0xeb693b3035cd5710e231e123a4b469963bf863cc"
     else
@@ -1155,14 +1168,32 @@ function build_driver_from_packages() {
   clear_dkms_key
 }
 
+readonly -A recognized_hashes=(
+    ["cuda_11.5.2_495.29.05_linux.run"]="74959abf02bcba526f0a3aae322c7641b25da040ccd6236d07038f81997b73a6"
+    ["cuda_11.6.2_510.47.03_linux.run"]="99b7a73dcc52a52cef4c1fceb4a60c3015ac9b6404082c1677d9efdaba1d4593"
+    ["cuda_12.1.1_530.30.02_linux.run"]="d74022d41d80105319dfa21beea39b77a5b9919539c0487a05caaf2446d6a70e"
+    ["cuda_12.4.1_550.54.15_linux.run"]="367d2299b3a4588ab487a6d27276ca5d9ead6e394904f18bccb9e12433b9c4fb"
+    ["cuda_12.6.3_560.35.05_linux.run"]="81d60e48044796d7883aa8a049afe6501b843f2c45639b3703b2378de30d55d3"
+    ["cuda_12.8.1_570.124.06_linux.run"]="228f6bcaf5b7618d032939f431914fc92d0e5ed39ebe37098a24502f26a19797"
+    ["cuda_12.9.0_575.51.03_linux.run"]="bbce2b760fe2096ca1c86f729e03bf377c1519add7b2755ecc4e9b0a9e07ee43"
+    ["NVIDIA-Linux-x86_64-495.46.run"]="d83b77d17da0c54667aa5b13d6ea95a5c51304257b1ecf2f8d4a3b5ae31c62f5"
+    ["NVIDIA-Linux-x86_64-510.108.03.run"]="410a515e78df29c2cba4ac0b497889ce0ff1b04cfc711ff889e2dfc80f0da0d8"
+    ["NVIDIA-Linux-x86_64-530.30.02.run"]="47fddbbd7a22ba661923dbce6e7f51eec54df68050c406cc0490c3bfbede7963"
+    ["NVIDIA-Linux-x86_64-470.256.02.run"]="d6451862deb695bb0447f3b7cd6268f73e81168c10e2c10597ff3fa01349b1de"
+    ["NVIDIA-Linux-x86_64-550.135.run"]="112047f5644005690e762141a55b422195ca6b90ef4024a47bad4c9e818788a9"
+    ["NVIDIA-Linux-x86_64-550.142.run"]="6dd5498af04b42d95253b66b7bda1509e01b024d2cd745983d4dd29feb1792a1"
+    ["NVIDIA-Linux-x86_64-560.35.03.run"]="f2932c92fadd43c5b2341be453fc4f73f0ad7185c26bb7a43fbde81ae29f1fe3"
+    ["NVIDIA-Linux-x86_64-570.153.02.run"]="148886e4f69576fa8fa67140e6e5dd6e51f90b2ec74a65f1a7a7334dfa5de1b6"
+)
 function install_nvidia_userspace_runfile() {
   # Parameters for NVIDIA-provided Debian GPU driver
-  readonly DEFAULT_USERSPACE_URL="https://us.download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
+  local -r USERSPACE_RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
 
-  readonly USERSPACE_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_USERSPACE_URL}")
+  local -r DEFAULT_USERSPACE_URL="https://us.download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/${USERSPACE_RUNFILE}"
 
-  USERSPACE_FILENAME="$(echo ${USERSPACE_URL} | perl -pe 's{^.+/}{}')"
-  readonly USERSPACE_FILENAME
+  local USERSPACE_URL
+  USERSPACE_URL="$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_USERSPACE_URL}")"
+  readonly USERSPACE_URL
 
   # This .run file contains NV's OpenGL implementation as well as
   # nvidia optimized implementations of the gtk+ 2,3 stack(s) not
@@ -1175,11 +1206,25 @@ function install_nvidia_userspace_runfile() {
   # wget https://us.download.nvidia.com/XFree86/Linux-x86_64/560.35.03/NVIDIA-Linux-x86_64-560.35.03.run
   # sh ./NVIDIA-Linux-x86_64-560.35.03.run -x # this will allow you to review the contents of the package without installing it.
   is_complete userspace && return
-  local local_fn="${tmpdir}/userspace.run"
+  local local_fn="${tmpdir}/${USERSPACE_RUNFILE}"
 
   cache_fetched_package "${USERSPACE_URL}" \
-                        "${pkg_bucket}/nvidia/${USERSPACE_FILENAME}" \
+                        "${pkg_bucket}/nvidia/${USERSPACE_RUNFILE}" \
                         "${local_fn}"
+
+  local runfile_sha256sum="$(cd ${tmpdir} ; sha256sum ${USERSPACE_RUNFILE})"
+  local runfile_hash="$(echo $runfile_sha256sum | awk '{print $1}')"
+  eval '[ ${'$recognized_hashes'[$USERSPACE_RUNFILE]+dpgce} ]'
+  if [[ "$?" == "0" ]]; then
+    local expected_hash_val=${recognized_hashes[$local_fn]}
+    if [[ "${runfile_hash}" != "${expected_hash_val}" ]]; then
+      echo "hash received [${runfile_hash}] is not the hash expected [${expected_hash_val}]"
+      # exit 1
+    fi
+  else
+    echo "hash of file [$local_fn] not recognized.  Submit the following:"
+    echo "# $(echo $runfile_sha256sum | perl -ne 'my($fn,$hash)=split(/\s+/,$_); print(q{ }x6,qq{["$hash"]="$fn"$/})')"
+  fi
 
   local runfile_args
   runfile_args=""
@@ -1290,11 +1335,25 @@ function install_nvidia_userspace_runfile() {
 function install_cuda_runfile() {
   is_complete cuda && return
 
-  local local_fn="${tmpdir}/cuda.run"
+  local local_fn="${tmpdir}/${CUDA_RUNFILE}"
 
   cache_fetched_package "${NVIDIA_CUDA_URL}" \
                         "${pkg_bucket}/nvidia/${CUDA_RUNFILE}" \
                         "${local_fn}"
+
+  local runfile_sha256sum="$(cd ${tmpdir} ; sha256sum ${CUDA_RUNFILE})"
+  local runfile_hash="$(echo $runfile_sha256sum | awk '{print $1}')"
+  eval '[ ${'$recognized_hashes'[$CUDA_RUNFILE]+dpgce} ]'
+  if [[ "$?" == "0" ]]; then
+    local expected_hash_val=${recognized_hashes[$local_fn]}
+    if [[ "${runfile_hash}" != "${expected_hash_val}" ]]; then
+      echo "hash received [${runfile_hash}] is not the hash expected [${expected_hash_val}]"
+      # exit 1
+    fi
+  else
+    echo "hash of file [$local_fn] not recognized.  Submit the following:"
+    echo "# $(echo $runfile_sha256sum | perl -ne 'my($fn,$hash)=split(/\s+/,$_); print(q{ }x6,qq{["$hash"]="$fn"$/})')"
+  fi
 
   execute_with_retries bash "${local_fn}" --toolkit --no-opengl-libs --silent --tmpdir="${tmpdir}"
   rm -f "${local_fn}"
@@ -2567,7 +2626,29 @@ function prepare_to_install(){
     gsutil_cmd="gsutil -o GSUtil:check_hashes=never"
     gsutil_stat_cmd="gsutil stat"
   fi
+
+  # if fetches of nvidia packages fail, apply -k argument to the following.
+
   curl_retry_args="-fsSL --retry-connrefused --retry 10 --retry-max-time 30"
+
+  # After manually verifying the veracity of the asset, take note of sha256sum
+  # of the downloaded files in your gcs bucket and submit these data with an
+  # issue or pull request to the github repository
+  # GoogleCloudDataproc/initialization-actions and we will include those hashes
+  # with this script for manual validation at time of deployment.
+
+  # Please provide hash data in the following format:
+
+#      ["cuda_11.5.2_495.29.05_linux.run"]="2c33591bb5b33a3d4bffafdc7da76fe4"
+#      ["cuda_11.6.2_510.47.03_linux.run"]="2989d2d2a943fa5e2a1f29f660221788"
+#      ["cuda_12.1.1_530.30.02_linux.run"]="2f0a4127bf797bf4eab0be2a547cb8d0"
+#      ["cuda_12.4.1_550.54.15_linux.run"]="afc99bab1d8c6579395d851d948ca3c1"
+#      ["cuda_12.6.3_560.35.05_linux.run"]="29d297908c72b810c9ceaa5177142abd"
+#      ["NVIDIA-Linux-x86_64-495.46.run"]="db1d6b0f9e590249bbf940a99825f000"
+#      ["NVIDIA-Linux-x86_64-510.108.03.run"]="a225bcb0373cbf6c552ed906bc5c614e"
+#      ["NVIDIA-Linux-x86_64-530.30.02.run"]="655b1509b9a9ed0baa1ef6b2bcf80283"
+#      ["NVIDIA-Linux-x86_64-550.135.run"]="a8c3ae0076f11e864745fac74bfdb01f"
+#      ["NVIDIA-Linux-x86_64-550.142.run"]="e507e578ecf10b01a08e5424dddb25b8"
 
   # Setup temporary directories (potentially on RAM disk)
   tmpdir=/tmp/ # Default
