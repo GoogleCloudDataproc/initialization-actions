@@ -1,7 +1,7 @@
 # Continuous Integration via Cloud Build
 
 [Cloud Build](https://cloud.google.com/cloud-build/) is configured to trigger on
-`/gcbrun` comment from maintainer in PR to the `master` branch.
+`/gcbrun` comment from maintainer in PR to the `main` branch.
 
 Cloud Build triggers a set of build steps, configured in a `cloudbuild.yaml`
 config file. These steps are:
