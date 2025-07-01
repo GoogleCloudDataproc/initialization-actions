@@ -35,21 +35,21 @@ initialize_git_repo() {
   git config user.name "ia-tests"
 
   git remote add origin "https://github.com/GoogleCloudDataproc/initialization-actions.git"
-  git fetch origin master
+  git fetch origin main
   # Fetch all PRs to get history for PRs created from forked repos
   git fetch origin +refs/pull/*/merge:refs/remotes/origin/pr/* > /dev/null 2>&1
 
   git reset --hard "${COMMIT_SHA}"
 
-  git rebase origin/master
+  git rebase origin/main
 }
 
 # This function adds all changed files to git "index" and diffs them against master branch
 # to determine all changed files and looks for tests in directories with changed files.
 determine_tests_to_run() {
   # Infer the files that changed
-  mapfile -t DELETED_BUILD_FILES < <(git diff origin/master --name-only --diff-filter=D | grep BUILD)
-  mapfile -t CHANGED_FILES < <(git diff origin/master --name-only)
+  mapfile -t DELETED_BUILD_FILES < <(git diff origin/main --name-only --diff-filter=D | grep BUILD)
+  mapfile -t CHANGED_FILES < <(git diff origin/main --name-only)
   echo "Deleted BUILD files: ${DELETED_BUILD_FILES[*]}"
   echo "Changed files: ${CHANGED_FILES[*]}"
 
