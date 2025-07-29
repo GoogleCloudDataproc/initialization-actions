@@ -6,6 +6,24 @@ node in a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster. It
 also configures the cluster to store [Apache Hive](https://hive.apache.org)
 metadata on a given Cloud SQL instance.
 
+## Cloud SQL Proxy Initialization Action for Dataproc
+
+**⚠️ IMPORTANT COMPATIBILITY NOTICE ⚠️**
+
+**Cloud SQL Proxy V1 (the version that's currently the default in this initialization action) is not fully compatible with newer database versions like MySQL 8.4 and some newer Cloud SQL features.**
+
+Specifically:
+* **MySQL 8.4's updated security model is incompatible with Cloud SQL Proxy V1.**
+* **Enabling "Shared CA"** or **"Customer-managed CA"** features for any Cloud SQL database (including older MySQL versions and PostgreSQL) will break connectivity with Cloud SQL Proxy V1.
+
+
+To avoid connectivity issues, we highly recommend:
+* **Always testing your Cloud SQL Proxy configuration thoroughly** before adopting new Cloud SQL database versions or enabling advanced security features like Shared CA or Customer-managed CA.
+
+* **Consider upgrading to Cloud SQL Proxy V2** as soon as it's available. The Dataproc team is actively working on updating the underlying Cloud SQL clients in Dataproc images to use Cloud SQL Proxy V2.
+
+* This documentation will be updated once the Cloud SQL Proxy V2 is available along with the Dataproc versions where the fix is available. See [Dataproc release notes](https://cloud.google.com/dataproc/docs/release-notes) for upcoming updates.
+
 ## Using this initialization action
 
 **:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
