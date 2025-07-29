@@ -10,14 +10,15 @@ metadata on a given Cloud SQL instance.
 
 **⚠️ IMPORTANT COMPATIBILITY NOTICE ⚠️**
 
-**Cloud SQL Proxy V2 script has been upgraded to use the latest binary client that is compatible with MySQL 8.4 and some newer Cloud SQL features.**
+**The Cloud SQL Proxy script has been upgraded to use the V2 binary client by default, which is compatible with MySQL 8.4 and some newer Cloud SQL features.**
 
-Specifically:
-* **MySQL 8.4 has updated its security model that were incompatible with the earlier version of this CloudSQL Proxy script.**
-
+However, if you choose to use Cloud SQL Proxy V1 (see options below):
+*   **MySQL 8.4's updated security model is incompatible with Cloud SQL Proxy V1.**
+*   **Enabling "Shared CA"** or **"Customer-managed CA"** features for any Cloud SQL database (including older MySQL versions and PostgreSQL) will break connectivity with Cloud SQL Proxy V1.
 
 To avoid connectivity issues, we highly recommend:
-* **Always testing your Cloud SQL Proxy configuration thoroughly** before adopting new Cloud SQL database versions or enabling advanced security features like Shared CA or Customer-managed CA.
+*   **Using the default Cloud SQL Proxy V2.**
+*   **Always testing your Cloud SQL Proxy configuration thoroughly** before adopting new Cloud SQL database versions or enabling advanced security features, especially if not using the default V2 proxy.
 
 * The Dataproc team has updated the underlying Cloud SQL clients in Dataproc images to make use of Cloud SQL Proxy V2. The dataproc versions that are compatible with CloudSQL MySQL 8.4 are Dataproc versions 2.0.147, 2.1.96, 2.2.64 and 2.3.10 released on August 29, 2025.  See [Dataproc release notes](https://cloud.google.com/dataproc/docs/release-notes) for any new updates.
 
