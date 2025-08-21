@@ -270,7 +270,6 @@ function execute_with_retries() {
 }
 
 function install_spark_rapids() {
-  local -r rapids_repo_url='https://repo1.maven.org/maven2/ai/rapids'
   local -r nvidia_repo_url='https://edge.urm.nvidia.com/artifactory/sw-spark-maven/com/nvidia'
   local -r dmlc_repo_url='https://repo.maven.apache.org/maven2/ml/dmlc'
 
