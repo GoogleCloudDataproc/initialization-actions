@@ -216,7 +216,7 @@ else
 fi
 
 # Update SPARK RAPIDS config
-readonly DEFAULT_SPARK_RAPIDS_VERSION="25.06.0"
+readonly DEFAULT_SPARK_RAPIDS_VERSION="25.08.0"
 readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
 readonly XGBOOST_VERSION=$(get_metadata_attribute 'xgboost-version' ${DEFAULT_XGBOOST_VERSION})
 
@@ -271,7 +271,7 @@ function execute_with_retries() {
 
 function install_spark_rapids() {
   local -r rapids_repo_url='https://repo1.maven.org/maven2/ai/rapids'
-  local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
+  local -r nvidia_repo_url='https://edge.urm.nvidia.com/artifactory/sw-spark-maven/com/nvidia'
   local -r dmlc_repo_url='https://repo.maven.apache.org/maven2/ml/dmlc'
 
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
