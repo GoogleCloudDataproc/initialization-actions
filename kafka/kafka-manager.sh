@@ -107,9 +107,9 @@ function remove_old_backports {
 function main(){
    local java_major_version=$(java -version 2>&1 | grep -oP 'version "?(1\.)?\K\d+' || true)
    OS=$(. /etc/os-release && echo "${ID}")
-   if [[ ${OS} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
+#   if [[ ${OS} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
 #     remove_old_backports
-   fi
+#   fi
    if [[ ${java_major_version} -lt 11 ]]; then
       echo "Error: Java 11 or higher is required for CMAK" >&2
       echo "CMAK has not been installed" >&2
