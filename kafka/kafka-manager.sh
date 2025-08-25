@@ -107,9 +107,23 @@ function remove_old_backports {
 function main(){
    local java_major_version=$(java -version 2>&1 | grep -oP 'version "?(1\.)?\K\d+' || true)
    OS=$(. /etc/os-release && echo "${ID}")
-#   if [[ ${OS} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
-#     remove_old_backports
-#   fi
+
+  # The remove_old_backports function is breaking the init action on
+  # Dataproc 2.1 (Debian 11) images.
+  #
+  # The function's logic fetches the current Debian stable (Trixie) and
+  # oldstable (Bookworm) codenames and deletes any backports repository
+  # that does not match.
+  #
+  # This incorrectly removes the essential bullseye-backports repository
+  # on Debian 11 systems, as "bullseye" is no longer stable or oldstable.
+  # This change disables the function to prevent it from damaging the
+  # system's valid apt configuration.
+  #
+  # if [[ ${OS} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
+  #   remove_old_backports
+  # fi
+
    if [[ ${java_major_version} -lt 11 ]]; then
       echo "Error: Java 11 or higher is required for CMAK" >&2
       echo "CMAK has not been installed" >&2
