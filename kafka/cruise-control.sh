@@ -391,7 +391,7 @@ function build_cruise_control() {
 
 function update_kafka_metrics_reporter() {
   if [[ ! -d "${CRUISE_CONTROL_HOME}" ]]; then
-    echo "Kafka is not installed on this node ${HOSTNAME}, skip configuring Cruise Control."
+    echo "Kafka is not installed on this node $(hostname -s), skip configuring Cruise Control."
     return 0
   fi
 
@@ -439,7 +439,7 @@ function start_cruise_control_server() {
     err "Metrics topic __CruiseControlMetrics was not found in the cluster."
   fi
 
-  echo "Start Cruise Control server on ${HOSTNAME}."
+  echo "Start Cruise Control server on $(hostname -s)."
   pushd ${CRUISE_CONTROL_HOME}
   ./kafka-cruise-control-start.sh config/cruisecontrol.properties &
   popd
@@ -451,7 +451,7 @@ function main() {
   build_cruise_control
   update_kafka_metrics_reporter
   # Run CC on the first master node.
-  if [[ "${HOSTNAME}" == *-m || "${HOSTNAME}" == *-m-0 ]]; then
+  if [[ "$(hostname -s)" == *-m || "$(hostname -s)" == *-m-0 ]]; then
     configure_cruise_control_server
     start_cruise_control_server
   fi
