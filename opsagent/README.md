@@ -11,6 +11,8 @@ We provide two variants of this initialization action:
 
 If you are looking to match the behavior of Dataproc image versions up to 2.1 with `--metric-sources=monitoring-agent-defaults`, which did not ingest syslogs from Dataproc cluster nodes, please use `opsagent_nosyslog.sh`.
 
+**:warning: NOTE:** Dataproc clusters now have [cluster-level syslog](https://cloud.google.com/dataproc/docs/guides/logging#cluster-logs) collection enabled by default. To avoid log duplication, you should use opsagent_nosyslog.sh to prevent the Ops Agent from also collecting syslogs.
+
 ## Using this initialization action
 
 **:warning: NOTICE:** See
