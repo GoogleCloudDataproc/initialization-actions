@@ -384,7 +384,7 @@ function get_proxy_flags() {
     if [[ ${PROXY_VERSION} == "1" ]]; then
       proxy_instances_flags+=" --ip_address_types=PRIVATE"
     else
-      proxy_instance_flags+=" --private-ip"
+      proxy_instances_flags+=" --private-ip"
     fi
   fi
   if [[ ${ENABLE_CLOUD_SQL_METASTORE} == "true" ]]; then
