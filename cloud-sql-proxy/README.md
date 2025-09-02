@@ -15,7 +15,6 @@ metadata on a given Cloud SQL instance.
 Specifically:
 * **MySQL 8.4 has updated its security model that were incompatible with the earlier version of this CloudSQL Proxy script.**
 
-
 To avoid connectivity issues, we highly recommend:
 * **Always testing your Cloud SQL Proxy configuration thoroughly** before adopting new Cloud SQL database versions or enabling advanced security features like Shared CA or Customer-managed CA.
 
