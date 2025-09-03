@@ -10,19 +10,15 @@ metadata on a given Cloud SQL instance.
 
 **⚠️ IMPORTANT COMPATIBILITY NOTICE ⚠️**
 
-**Cloud SQL Proxy V1 (the version that's currently the default in this initialization action) is not fully compatible with newer database versions like MySQL 8.4 and some newer Cloud SQL features.**
+**Cloud SQL Proxy V2 script has been upgraded to use the latest binary client that is compatible with MySQL 8.4 and some newer Cloud SQL features.**
 
 Specifically:
-* **MySQL 8.4's updated security model is incompatible with Cloud SQL Proxy V1.**
-* **Enabling "Shared CA"** or **"Customer-managed CA"** features for any Cloud SQL database (including older MySQL versions and PostgreSQL) will break connectivity with Cloud SQL Proxy V1.
-
+* **MySQL 8.4 has updated its security model that were incompatible with the earlier version of this CloudSQL Proxy script.**
 
 To avoid connectivity issues, we highly recommend:
 * **Always testing your Cloud SQL Proxy configuration thoroughly** before adopting new Cloud SQL database versions or enabling advanced security features like Shared CA or Customer-managed CA.
 
-* **Consider upgrading to Cloud SQL Proxy V2** as soon as it's available. The Dataproc team is actively working on updating the underlying Cloud SQL clients in Dataproc images to use Cloud SQL Proxy V2.
-
-* This documentation will be updated once the Cloud SQL Proxy V2 is available along with the Dataproc versions where the fix is available. See [Dataproc release notes](https://cloud.google.com/dataproc/docs/release-notes) for upcoming updates.
+* The Dataproc team has updated the underlying Cloud SQL clients in Dataproc images to make use of Cloud SQL Proxy V2. The dataproc versions that are compatible with CloudSQL MySQL 8.4 are Dataproc versions 2.0.147, 2.1.96, 2.2.64 and 2.3.10 released on August 29, 2025.  See [Dataproc release notes](https://cloud.google.com/dataproc/docs/release-notes) for any new updates.
 
 ## Using this initialization action
 
@@ -71,12 +67,24 @@ shared hive metastore.
         --properties hive:hive.metastore.warehouse.dir=gs://${HIVE_DATA_BUCKET}/hive-warehouse \
         --metadata "hive-metastore-instance=${PROJECT_ID}:${REGION}:${INSTANCE_NAME}"
     ```
+    To use an earlier version of the CloudSQL Binary, add the following property to your Dataproc Cluster Creation
+    ```bash
+        --metadata "cloud_sql_proxy_version=1"
+    ```
+    Or for a specific version of the CloudSQL Binary Client, use:
+    ```bash
+        --metadata "cloud_sql_proxy_version_number=v2.17.1"
+    ```
+    You can obtain the list of all CloudSQL Proxy Client version by running the following command
+    ```
+    curl -s "https://api.github.com/repos/GoogleCloudPlatform/cloud-sql-proxy/releases"|jq -r '.[].tag_name'|grep 'v2'
+    ```
 
-    a. Optionally add other instances, paired with distict TCP ports for further
-    I/O.
+
+    a. Optionally add other instances, paired with distinct TCP ports for further I/O.
 
     ```bash
-    --metadata "additional-cloud-sql-instances=<PROJECT_ID>:<REGION>:<ANOTHER_INSTANCE_NAME>=tcp<PORT_#>[,...]"
+        --metadata "additional-cloud-sql-instances=<PROJECT_ID>:<REGION>:<ANOTHER_INSTANCE_NAME>=tcp<PORT_#>[,...]"
     ```
 
 1.  Submit pyspark_metastore_test.py to the cluster to validate the metatstore
@@ -87,7 +95,7 @@ shared hive metastore.
     ```
 
     a. You can test connections to your other instance(s) using the url
-    `"jdbc:mysql//localhost:<PORT_#>?user=root"`
+    `"jdbc:mysql//localhost:<PORT_#>?allowPublicKeyRetrieval=true&user=root"`
 
 1.  Create another dataproc cluster with the same Cloud SQL metastore.
 
@@ -177,7 +185,7 @@ additional setup.
 
     ```bash
     gcloud sql instances create <INSTANCE_NAME> \
-        --database-version="MYSQL_5_7" \
+        --database-version="MYSQL_8_0" \
         --activation-policy=ALWAYS \
         --zone <ZONE>
     ```

@@ -144,6 +144,15 @@ readonly METASTORE_INSTANCE
 ADDITIONAL_INSTANCES="$(/usr/share/google/get_metadata_value ${ADDITIONAL_INSTANCES_KEY} || echo '')"
 readonly ADDITIONAL_INSTANCES
 
+PROXY_VERSION="$(get_metadata_attribute cloud_sql_proxy_version '2')"
+readonly PROXY_VERSION
+
+# CURRENT_PROXY_VERSION=$(curl -s "https://api.github.com/repos/GoogleCloudPlatform/cloud-sql-proxy/releases"|jq -r '.[].tag_name'|grep 'v2'| head -n 1)
+
+CURRENT_PROXY_VERSION="v2.18.1"
+OVERRIDE_PROXY_VERSION_NUMBER="$(get_metadata_attribute cloud_sql_proxy_version_number '' | tr '[:upper:]' '[:lower:]' || echo '')"
+readonly OVERRIDE_PROXY_VERSION_NUMBER
+
 function repair_old_backports {
   if ! is_debuntu ; then return ; fi
   # This script uses 'apt-get update' and is therefore potentially dependent on
@@ -209,8 +218,12 @@ fi
 readonly CLOUDSQL_INSTANCE_TYPE
 
 METASTORE_PROXY_PORT="$(/usr/share/google/get_metadata_value attributes/metastore-proxy-port || echo '')"
-if [[ "${METASTORE_INSTANCE}" =~ =tcp:[0-9]+$ ]]; then
-  METASTORE_PROXY_PORT="${METASTORE_INSTANCE##*:}"
+if [[ "${METASTORE_INSTANCE}" =~ tcp:[0-9]+$ ]]; then
+  if [[ ${PROXY_VERSION} == "1" ]]; then
+    METASTORE_PROXY_PORT="${METASTORE_INSTANCE##=*:}"
+  else
+    METASTORE_PROXY_PORT="${METASTORE_INSTANCE##?*:}"
+  fi
 else
   METASTORE_PROXY_PORT=${DEFAULT_DB_PORT["${CLOUDSQL_INSTANCE_TYPE}"]}
 fi
@@ -355,7 +368,11 @@ function run_with_retries() {
 function get_metastore_instance() {
   local metastore_instance="${METASTORE_INSTANCE}"
   if ! [[ "${metastore_instance}" =~ =tcp:[0-9]+$ ]]; then
-    metastore_instance+="=tcp:${METASTORE_PROXY_PORT}"
+    if [[ ${PROXY_VERSION} == "1" ]]; then
+      metastore_instance+="=tcp:${METASTORE_PROXY_PORT}"
+    else
+      metastore_instance+="?port=${METASTORE_PROXY_PORT}"
+    fi
   fi
   echo "${metastore_instance}"
 }
@@ -364,17 +381,29 @@ function get_proxy_flags() {
   local proxy_instances_flags=''
   # If a Cloud SQL instance has both public and private IP, use private IP.
   if [[ ${USE_CLOUD_SQL_PRIVATE_IP} == "true" ]]; then
-    proxy_instances_flags+=" --ip_address_types=PRIVATE"
+    if [[ ${PROXY_VERSION} == "1" ]]; then
+      proxy_instances_flags+=" --ip_address_types=PRIVATE"
+    else
+      proxy_instances_flags+=" --private-ip"
+    fi
   fi
   if [[ ${ENABLE_CLOUD_SQL_METASTORE} == "true" ]]; then
     local metastore_instance
     metastore_instance=$(get_metastore_instance)
-    proxy_instances_flags+=" -instances=${metastore_instance}"
+    if [[ ${PROXY_VERSION} == "1" ]]; then
+      proxy_instances_flags+=" -instances=${metastore_instance}"
+    else
+      proxy_instances_flags+=" ${metastore_instance}"
+    fi
   fi
 
   if [[ -n "${ADDITIONAL_INSTANCES}" ]]; then
     # Pass additional instances straight to the proxy.
-    proxy_instances_flags+=" -instances_metadata=instance/${ADDITIONAL_INSTANCES_KEY}"
+    if [[ ${PROXY_VERSION} == "1" ]]; then
+      proxy_instances_flags+=" -instances_metadata=instance/${ADDITIONAL_INSTANCES_KEY}"
+    else
+      proxy_instances_flags+=" instances_metadata=instance/${ADDITIONAL_INSTANCES_KEY}"
+    fi
   fi
 
   echo "${proxy_instances_flags}"
@@ -383,9 +412,24 @@ function get_proxy_flags() {
 function install_cloud_sql_proxy() {
   echo 'Installing Cloud SQL Proxy ...' >&2
   # Install proxy.
-  wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64
-  mv cloud_sql_proxy.linux.amd64 ${PROXY_BIN}
+  local proxy_version
+
+  if [[ ${PROXY_VERSION} == "1" ]]; then
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+      https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 -O /tmp/cloud_sql_proxy.linux.amd64 
+    echo "Using an OUTDATED version of CloudSQL Proxy V1"
+  else
+    if [[ -n ${OVERRIDE_PROXY_VERSION_NUMBER} ]]; then
+      proxy_version="${OVERRIDE_PROXY_VERSION_NUMBER}"
+    else
+      proxy_version="${CURRENT_PROXY_VERSION}"
+    fi
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+      https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/"${proxy_version}"/cloud-sql-proxy.linux.amd64 -O /tmp/cloud_sql_proxy.linux.amd64
+    echo "Using CloudSQL Proxy V2 - Version ${proxy_version}"
+  fi
+  mv /tmp/cloud_sql_proxy.linux.amd64 ${PROXY_BIN}
+
   chmod +x ${PROXY_BIN}
 
   mkdir -p ${PROXY_DIR}
@@ -401,6 +445,11 @@ function install_cloud_sql_proxy() {
   db_hive_password_xml_escaped=${db_hive_password_xml_escaped//>/&gt;}
   db_hive_password_xml_escaped=${db_hive_password_xml_escaped//'"'/&quot;}
 
+  dir_options=""
+  if [[ ${PROXY_VERSION} == "1" ]]; then
+    dir_options="-dir=${PROXY_DIR}"
+  fi
+
   # Install proxy as systemd service for reboot tolerance.
   cat <<EOF >${INIT_SCRIPT}
 [Unit]
@@ -411,8 +460,7 @@ Before=shutdown.target
 
 [Service]
 Type=simple
-ExecStart=/bin/sh -c '${PROXY_BIN} \
-  -dir=${PROXY_DIR} \
+ExecStart=/bin/sh -c '${PROXY_BIN} ${dir_options} \
   ${proxy_flags} >> /var/log/cloud-sql-proxy/cloud-sql-proxy.log 2>&1'
 
 [Install]
@@ -421,7 +469,7 @@ EOF
   chmod a+rw ${INIT_SCRIPT}
 
   if [[ $ENABLE_CLOUD_SQL_METASTORE == "true" ]]; then
-    local db_url=jdbc:${DEFAULT_DB_PROTO["${CLOUDSQL_INSTANCE_TYPE}"]}://localhost:${METASTORE_PROXY_PORT}/${METASTORE_DB}
+    local db_url=jdbc:${DEFAULT_DB_PROTO["${CLOUDSQL_INSTANCE_TYPE}"]}://localhost:${METASTORE_PROXY_PORT}/${METASTORE_DB}?allowPublicKeyRetrieval=true
     local db_driver=${DEFAULT_DB_DRIVER["${CLOUDSQL_INSTANCE_TYPE}"]}
 
     # Update hive-site.xml
@@ -469,13 +517,13 @@ function initialize_mysql_metastore_db() {
   fi
 
   # Check if metastore is initialized.
-  if ! mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_HIVE_USER}" "${db_hive_password_param}" -e ''; then
-    mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_ADMIN_USER}" "${db_password_param}" -e \
+  if ! mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_HIVE_USER}" "${db_hive_password_param}" --get-server-public-key -e ''; then
+    mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_ADMIN_USER}" "${db_password_param}" --get-server-public-key -e \
       "CREATE USER '${DB_HIVE_USER}' IDENTIFIED BY '${DB_HIVE_PASSWORD}';"
   fi
-  if ! mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_HIVE_USER}" "${db_hive_password_param}" -e "use ${METASTORE_DB}"; then
+  if ! mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_HIVE_USER}" "${db_hive_password_param}" --get-server-public-key -e "use ${METASTORE_DB}"; then
     # Initialize a Hive metastore DB
-    mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_ADMIN_USER}" "${db_password_param}" -e \
+    mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_ADMIN_USER}" "${db_password_param}" --get-server-public-key -e \
       "CREATE DATABASE ${METASTORE_DB};
        GRANT ALL PRIVILEGES ON ${METASTORE_DB}.* TO '${DB_HIVE_USER}';"
     /usr/lib/hive/bin/schematool -dbType mysql -initSchema ||
