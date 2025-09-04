@@ -18,7 +18,7 @@ time of writing, the default value for cuda-version, if unspecified is
 
 CUDA | Full Version | Driver    | CuDNN     | NCCL    | Tested Dataproc Image Versions
 -----| ------------ | --------- | --------- | ------- | -------------------
-11.8 | 11.8.0       | 560.35.03 | 8.6.0.163 | 2.15.5  | 2.0, 2.1, 2.2-ubuntu22
+11.8 | 11.8.0       | 560.35.03 | 8.6.0.163 | 2.15.5  | 2.0, 2.1
 12.0 | 12.0.0       | 550.90.07 | 8.8.1.3,  | 2.16.5  | 2.0, 2.1, 2.2-rocky9, 2.2-ubuntu22
 12.4 | 12.4.1       | 550.90.07 | 9.1.0.70  | 2.23.4  | 2.1-ubuntu20, 2.1-rocky8, 2.2
 12.6 | 12.6.2       | 560.35.03 | 9.5.1.17  | 2.23.4  | 2.1-ubuntu20, 2.1-rocky8, 2.2
