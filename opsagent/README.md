@@ -13,7 +13,7 @@ We provide two variants of this initialization action:
 
 To prevent duplicate logs, we recommend using `opsagent_nosyslog.sh`. If you need to disable cluster-level syslog collection entirely, you can set the `dataproc.logging.syslog.enabled` property to `false` during cluster creation. For more details, refer to the [Dataproc Release Notes](https://cloud.google.com/dataproc/docs/release-notes#July_15_2025) and [Dataproc Logs documentation](https://cloud.google.com/dataproc/docs/guides/logging#cluster-logs).
 
-If you are looking to match the behavior of Dataproc image versions up to 2.1 with `--metric-sources=monitoring-agent-defaults` without ingesting syslogs, please use opsagent_nosyslog.sh and additionally set the `dataproc.logging.syslog.enabled` property to `false` during cluster creation.
+If you are looking to match the behavior of Dataproc image versions up to 2.1 with `--metric-sources=monitoring-agent-defaults` without ingesting syslogs, please use `opsagent_nosyslog.sh` and additionally set the `dataproc.logging.syslog.enabled` property to `false` during cluster creation.
 
 ## Using this initialization action
 
