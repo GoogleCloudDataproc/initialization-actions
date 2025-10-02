@@ -501,17 +501,20 @@ function install_nvidia_gpu_driver() {
 
   elif is_rocky ; then
 
-    # Ensure the Correct Kernel Development Packages are Installed
-    execute_with_retries "dnf -y -q update --exclude=systemd*,kernel*"
-    execute_with_retries "dnf -y -q install pciutils kernel-devel gcc"
+    # Install kernel development packages
+    execute_with_retries "dnf install -y kernel-devel-$(uname -r) kernel-headers-$(uname -r)"
 
-    readonly NVIDIA_ROCKY_REPO_URL="${NVIDIA_REPO_URL}/cuda-${shortname}.repo"
-    execute_with_retries "dnf config-manager --add-repo ${NVIDIA_ROCKY_REPO_URL}"
-    execute_with_retries "dnf clean all"
-    configure_dkms_certs
-    execute_with_retries "dnf -y -q module install nvidia-driver:latest-dkms"
-    clear_dkms_key
-    execute_with_retries "dnf -y -q install cuda-toolkit"
+    # Download the CUDA installer run file
+    curl -fsSL --retry-connrefused --retry 3 --retry-max-time 30 -o driver.run \
+        "https://developer.download.nvidia.com/compute/cuda/${CUDA_VERSION}/local_installers/cuda_${CUDA_VERSION}_${NVIDIA_DRIVER_VERSION}_linux.run"
+    
+    # Run the installer in silent mode
+    execute_with_retries "bash driver.run --silent --driver --toolkit --no-opengl-libs"
+
+    # Remove the installer file after installation to clean up
+    rm driver.run
+
+    # Load the NVIDIA kernel module
     modprobe nvidia
 
   else
