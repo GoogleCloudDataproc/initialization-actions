@@ -58,8 +58,8 @@ class SparkRapidsTestCase(DataprocTestCase):
                             ("STANDARD", ["w-0"], GPU_T4))
   def test_spark_rapids(self, configuration, machine_suffixes, accelerator):
 
-    if self.getImageOs() == "rocky":
-      self.skipTest("Not supported for Rocky OS")
+    if self.getImageVersion() > pkg_resources.parse_version("2.0") and self.getImageOs() == "rocky":
+      self.skipTest("Not supported for Rocky 9")
 
     if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in 2.0 and earlier images")
@@ -88,8 +88,8 @@ class SparkRapidsTestCase(DataprocTestCase):
                             ("STANDARD", ["w-0"], GPU_T4))
   def test_spark_rapids_sql(self, configuration, machine_suffixes, accelerator):
 
-    if self.getImageOs() == "rocky":
-      self.skipTest("Not supported for Rocky OS")
+    if self.getImageVersion() > pkg_resources.parse_version("2.0") and self.getImageOs() == "rocky":
+      self.skipTest("Not supported for Rocky 9")
 
     if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in 2.0 and earlier images")
@@ -118,8 +118,8 @@ class SparkRapidsTestCase(DataprocTestCase):
   def test_non_default_cuda_versions(self, configuration, machine_suffixes,
                                      accelerator, cuda_version, driver_version):
 
-    if self.getImageOs() == "rocky":
-      self.skipTest("Not supported for Rocky OS")
+    if self.getImageVersion() > pkg_resources.parse_version("2.0") and self.getImageOs() == "rocky":
+      self.skipTest("Not supported for Rocky 9")
 
     if self.getImageVersion() <= pkg_resources.parse_version("2.0"):
       self.skipTest("Not supported in 2.0 and earlier images")

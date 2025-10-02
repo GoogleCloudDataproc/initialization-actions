@@ -505,11 +505,11 @@ function install_nvidia_gpu_driver() {
     execute_with_retries "dnf install -y kernel-devel-$(uname -r) kernel-headers-$(uname -r)"
 
     # Download the CUDA installer run file
-    curl -o driver.run \
+    curl -fsSL --retry-connrefused --retry 3 --retry-max-time 30 -o driver.run \
         "https://developer.download.nvidia.com/compute/cuda/${CUDA_VERSION}/local_installers/cuda_${CUDA_VERSION}_${NVIDIA_DRIVER_VERSION}_linux.run"
     
     # Run the installer in silent mode
-    bash driver.run --silent
+    execute_with_retries "bash driver.run --silent --driver --toolkit --no-opengl-libs"
 
     # Remove the installer file after installation to clean up
     rm driver.run
