@@ -42,19 +42,46 @@ EOF
 kubectl apply -f $POD_CONFIG
 
 # Delete POD on exit and describe it before deletion if exit was unsuccessful
-trap '[[ $? != 0 ]] && kubectl describe "pod/${POD_NAME}"; kubectl delete pods "${POD_NAME}"' EXIT
+trap 'exit_code=$?
+if [[ ${exit_code} != 0 ]]; then
+  echo "Presubmit failed for ${POD_NAME}. Describing pod..."
+  kubectl describe "pod/${POD_NAME}" || echo "Failed to describe pod."
+
+  PROJECT_ID=$(gcloud config get-value project 2>/dev/null || echo "unknown-project")
+  BUCKET="dataproc-init-actions-test-${PROJECT_ID}"
+  LOG_GCS_PATH="gs://${BUCKET}/${BUILD_ID}/logs/${POD_NAME}.log"
+
+  echo "Attempting to upload logs to ${LOG_GCS_PATH}"
+  if kubectl logs "${POD_NAME}" | gsutil cp - "${LOG_GCS_PATH}"; then
+    echo "Logs for failed pod ${POD_NAME} uploaded to: ${LOG_GCS_PATH}"
+  else
+    echo "Log upload to ${LOG_GCS_PATH} failed."
+  fi
+fi
+echo "Deleting pod ${POD_NAME}..."
+kubectl delete pods "${POD_NAME}" --ignore-not-found=true
+exit ${exit_code}' EXIT
 
 kubectl wait --for=condition=Ready "pod/${POD_NAME}" --timeout=15m
 
+# To mitigate problems with early test failure, retry kubectl logs
+sleep 10s
 while ! kubectl describe "pod/${POD_NAME}" | grep -q Terminated; do
-  kubectl logs -f "${POD_NAME}" --since-time="${LOGS_SINCE_TIME}" --timestamps=true
+  # Try to stream logs, but primary log capture is now in the trap
+  kubectl logs -f "${POD_NAME}" --since-time="${LOGS_SINCE_TIME}" --timestamps=true || true
   LOGS_SINCE_TIME=$(date --iso-8601=seconds)
+  sleep 2 # Short sleep to avoid busy waiting if logs -f exits
 done
 
-EXIT_CODE=$(kubectl get pod "${POD_NAME}" \
-  -o go-template="{{range .status.containerStatuses}}{{.state.terminated.exitCode}}{{end}}")
+# Final check on the pod exit code
+EXIT_CODE=$(kubectl get pod "${POD_NAME}" -o go-template="{{range .status.containerStatuses}}{{.state.terminated.exitCode}}{{end}}" || echo "1")
 
 if [[ ${EXIT_CODE} != 0 ]]; then
-  echo "Presubmit failed!"
+  echo "Presubmit final state for ${POD_NAME} indicates failure (Exit Code: ${EXIT_CODE})."
+  # The trap will handle the log upload and cleanup
   exit 1
 fi
+
+echo "Presubmit for ${POD_NAME} successful."
+# Explicitly exit 0 to clear the trap's exit code
+exit 0
