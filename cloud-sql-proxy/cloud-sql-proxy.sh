@@ -374,6 +374,7 @@ function get_metastore_instance() {
       metastore_instance+="?port=${METASTORE_PROXY_PORT}"
     fi
   fi
+  metastore_instance="${metastore_instance//=tcp:/?port=}"
   echo "${metastore_instance}"
 }
 
@@ -393,6 +394,7 @@ function get_proxy_flags() {
     if [[ ${PROXY_VERSION} == "1" ]]; then
       proxy_instances_flags+=" -instances=${metastore_instance}"
     else
+      metastore_instance="${metastore_instance//=tcp:/?port=}"
       proxy_instances_flags+=" ${metastore_instance}"
     fi
   fi
@@ -402,7 +404,9 @@ function get_proxy_flags() {
     if [[ ${PROXY_VERSION} == "1" ]]; then
       proxy_instances_flags+=" -instances_metadata=instance/${ADDITIONAL_INSTANCES_KEY}"
     else
-      proxy_instances_flags+=" instances_metadata=instance/${ADDITIONAL_INSTANCES_KEY}"
+      updated_additional_instances="${ADDITIONAL_INSTANCES//,/ }"
+      updated_additional_instances="${updated_additional_instances//=tcp:/?port=}"
+      proxy_instances_flags+=" ${updated_additional_instances} "
     fi
   fi
 
