@@ -15,6 +15,7 @@ metadata on a given Cloud SQL instance.
 Specifically:
 * **MySQL 8.4 has updated its security model that were incompatible with the earlier version of this CloudSQL Proxy script.**
 
+
 To avoid connectivity issues, we highly recommend:
 * **Always testing your Cloud SQL Proxy configuration thoroughly** before adopting new Cloud SQL database versions or enabling advanced security features like Shared CA or Customer-managed CA.
 
@@ -84,7 +85,7 @@ shared hive metastore.
     a. Optionally add other instances, paired with distinct TCP ports for further I/O.
 
     ```bash
-        --metadata "additional-cloud-sql-instances=<PROJECT_ID>:<REGION>:<ANOTHER_INSTANCE_NAME>=tcp<PORT_#>[,...]"
+        --metadata "additional-cloud-sql-instances=<PROJECT_ID>:<REGION>:<ANOTHER_INSTANCE_NAME>=tcp:<PORT_NO>[,...]"
     ```
 
 1.  Submit pyspark_metastore_test.py to the cluster to validate the metatstore
