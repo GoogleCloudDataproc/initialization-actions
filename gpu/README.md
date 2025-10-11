@@ -225,6 +225,18 @@ sometimes found in the "building from source" sections.
     modulus md5sum of the files referenced by both the private and
     public secret names.
 
+-   `http-proxy: <HOST>:<PORT>` - Optional. The address of an HTTP
+    proxy to use for internet egress. The script will configure `apt`,
+    `curl`, `gsutil`, `pip`, `java`, and `gpg` to use this proxy.
+
+-   `http-proxy-pem-uri: <GS_PATH>` - Optional. A `gs://` path to the
+    PEM-encoded certificate file used by the proxy specified in
+    `http-proxy`. This is needed if the proxy uses TLS and its
+    certificate is not already trusted by the cluster's default trust
+    store (e.g., if it's a self-signed certificate or signed by an
+    internal CA). The script will install this certificate into the
+    system and Java trust stores.
+
 #### Loading built kernel module
 
 For platforms which do not have pre-built binary kernel drivers, the

@@ -199,10 +199,15 @@ class DataprocTestCase(parameterized.TestCase):
         bucket = "gs://dataproc-init-actions-test-{}".format(
             re.sub("[.:]", "", project.replace("google", "goog")))
 
-        ret_val, _, _ = self.run_command("gsutil ls -b {}".format(bucket))
-        # Create staging bucket if it does not exist
-        if ret_val != 0:
-            self.assert_command("gsutil mb {}".format(bucket))
+        # Check if the bucket exists by listing it.
+        ret_val, stdout, _ = self.run_command("gsutil ls -b {}".format(bucket))
+
+        # If gsutil ls -b succeeds and the bucket name is in the output, it exists.
+        if ret_val == 0 and bucket in stdout:
+            print(f"Bucket {bucket} already exists.")
+        else:
+            print(f"Bucket {bucket} does not exist or could not be verified, attempting to create.")
+            self.assert_command("gsutil mb -p {} -l {} {}".format(self.PROJECT, self.REGION, bucket))
 
         staging_dir = "{}/{}-{}".format(bucket, self.datetime_str(),
                                         self.random_str())
