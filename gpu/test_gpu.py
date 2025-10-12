@@ -180,8 +180,8 @@ exit 1 unless $cert eq lc $kmod
   def test_install_gpu_without_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
-    if self.getImageOs() == 'rocky' and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("disabling rocky9 builds due to out of date base dataproc image")
+#    if self.getImageOs() == 'rocky' and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+#      self.skipTest("disabling rocky9 builds due to out of date base dataproc image")
 
     metadata = "install-gpu-agent=false"
     if configuration == 'SINGLE' \
@@ -213,8 +213,8 @@ exit 1 unless $cert eq lc $kmod
   def test_install_gpu_with_agent(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider):
-    if self.getImageOs() == 'rocky' and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("disabling rocky9 builds due to out of date base dataproc image")
+#    if self.getImageOs() == 'rocky' and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+#      self.skipTest("disabling rocky9 builds due to out of date base dataproc image")
 
     self.skipTest("No need to regularly test installing the agent on its own cluster ; this is exercised elsewhere")
 
@@ -250,8 +250,8 @@ exit 1 unless $cert eq lc $kmod
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
-    if self.getImageOs() == 'rocky' and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("disabling rocky9 builds due to out of date base dataproc image")
+#    if self.getImageOs() == 'rocky' and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+#      self.skipTest("disabling rocky9 builds due to out of date base dataproc image")
 
     if configuration == 'KERBEROS' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
@@ -300,8 +300,8 @@ exit 1 unless $cert eq lc $kmod
   def test_install_gpu_with_mig(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider, cuda_version):
-    if self.getImageOs() == 'rocky' and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("disabling rocky9 builds due to out of date base dataproc image")
+#    if self.getImageOs() == 'rocky' and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+#      self.skipTest("disabling rocky9 builds due to out of date base dataproc image")
 
     # Operation [projects/.../regions/.../operations/...] failed:
     # Invalid value for field 'resource.machineType': \
@@ -344,8 +344,8 @@ exit 1 unless $cert eq lc $kmod
   )
   def test_gpu_allocation(self, configuration, master_accelerator,
                           worker_accelerator, driver_provider):
-    if self.getImageOs() == 'rocky' and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("disabling rocky9 builds due to out of date base dataproc image")
+#    if self.getImageOs() == 'rocky' and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+#      self.skipTest("disabling rocky9 builds due to out of date base dataproc image")
 
     if configuration == 'SINGLE' \
     and self.getImageOs() == 'rocky' \
@@ -379,8 +379,8 @@ exit 1 unless $cert eq lc $kmod
   def test_install_gpu_cuda_nvidia_with_spark_job(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
-    if self.getImageOs() == 'rocky' and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-      self.skipTest("disabling rocky9 builds due to out of date base dataproc image")
+#    if self.getImageOs() == 'rocky' and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
+#      self.skipTest("disabling rocky9 builds due to out of date base dataproc image")
 
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.4") \
     and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
