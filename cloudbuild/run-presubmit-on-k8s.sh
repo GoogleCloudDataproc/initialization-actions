@@ -47,7 +47,18 @@ trap '[[ $? != 0 ]] && kubectl describe "pod/${POD_NAME}"; kubectl delete pods "
 kubectl wait --for=condition=Ready "pod/${POD_NAME}" --timeout=15m
 
 while ! kubectl describe "pod/${POD_NAME}" | grep -q Terminated; do
-  kubectl logs -f "${POD_NAME}" --since-time="${LOGS_SINCE_TIME}" --timestamps=true
+  # Retry loop for kubectl logs
+  for i in {1..5}; do
+    if kubectl logs -f "${POD_NAME}" --since-time="${LOGS_SINCE_TIME}" --timestamps=true; then
+      break
+    elif [[ $i -eq 5 ]]; then
+      echo "Failed to get logs after 5 attempts."
+      exit 1
+    else
+      echo "Failed to get logs, retrying in 10 seconds..."
+      sleep 10s
+    fi
+  done
   LOGS_SINCE_TIME=$(date --iso-8601=seconds)
 done
 
