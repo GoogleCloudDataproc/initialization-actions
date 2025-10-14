@@ -17,6 +17,19 @@
 
 set -xeuo pipefail
 
+NM_WAS_RUNNING=0
+if systemctl is-active --quiet hadoop-yarn-nodemanager.service; then
+  echo "NodeManager is running, disabling and stopping..."
+  NM_WAS_RUNNING=1
+  systemctl disable hadoop-yarn-nodemanager.service
+  systemctl stop hadoop-yarn-nodemanager.service
+  echo "NodeManager disabled and stopped."
+else
+  echo "NodeManager is not running."
+  # Ensure it's disabled even if not running
+  systemctl disable hadoop-yarn-nodemanager.service >/dev/null 2>&1 || true
+fi
+
 function os_id()       { grep '^ID='               /etc/os-release | cut -d= -f2 | xargs ; }
 function os_version()  { grep '^VERSION_ID='       /etc/os-release | cut -d= -f2 | xargs ; }
 function os_codename() { grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | xargs ; }
@@ -1591,6 +1604,8 @@ function configure_yarn_nodemanager() {
     'yarn.nodemanager.container-executor.class' 'org.apache.hadoop.yarn.server.nodemanager.LinuxContainerExecutor'
   set_hadoop_property 'yarn-site.xml' \
     'yarn.nodemanager.linux-container-executor.group' 'yarn'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.linux-container-executor.cgroups.strict-resource-usage' 'false'
 
   # Fix local dirs access permissions
   local yarn_local_dirs=()
@@ -1708,20 +1723,244 @@ EOF
   fi
 }
 
+function ensure_good_nodemanager_init_script() {
+  local lsb_script="/etc/init.d/hadoop-yarn-nodemanager"
+  # On Rocky, functions are in /etc/rc.d/init.d/functions
+  local functions_source=". /etc/rc.d/init.d/functions"
+
+  if ! grep -qF "${functions_source}" "${lsb_script}" 2>/dev/null; then
+    echo "Detected NodeManager init script missing init functions: ${lsb_script}. Overwriting with a known good version for Rocky..."
+
+    # Backup the original script
+    if [[ -f "${lsb_script}" ]]; then
+      cp "${lsb_script}" "${lsb_script}.bak.$(date +%Y%m%d%H%M%S)"
+    fi
+
+    cat > "${lsb_script}" << 'EOF'
+#!/bin/bash
+#
+# MARKER: good_init_script_v8_rocky
+# Starts a Hadoop nodemanager
+#
+# chkconfig: 2345 95 15
+# description: Hadoop nodemanager
+# pidfile: /var/run/hadoop-yarn/hadoop-yarn-nodemanager.pid
+### BEGIN INIT INFO
+# Provides:          hadoop-yarn-nodemanager
+# Short-Description: Hadoop nodemanager
+# Default-Start:     3 4 5
+# Default-Stop:      0 1 2 6
+# Required-Start:    $syslog $remote_fs
+### END INIT INFO
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+BIGTOP_DEFAULTS_DIR=${BIGTOP_DEFAULTS_DIR-/etc/default}
+[ -r ${BIGTOP_DEFAULTS_DIR}/hadoop ] && . ${BIGTOP_DEFAULTS_DIR}/hadoop
+[ -r ${BIGTOP_DEFAULTS_DIR}/hadoop-yarn-nodemanager ] && . ${BIGTOP_DEFAULTS_DIR}/hadoop-yarn-nodemanager
+
+# Autodetect JAVA_HOME if not defined
+. /usr/lib/bigtop-utils/bigtop-detect-javahome
+
+DAEMON="yarn-nodemanager"
+DESC="Hadoop YARN NodeManager"
+EXEC_PATH="/usr/lib/hadoop-yarn/bin/yarn"
+SVC_USER="yarn"
+DAEMON_FLAGS="nodemanager"
+CONF_DIR="/etc/hadoop/conf"
+PIDFILE="/var/run/hadoop-yarn/hadoop-yarn-nodemanager.pid"
+LOCKDIR="/var/lock/subsys"
+LOCKFILE="${LOCKDIR}/hadoop-yarn-nodemanager"
+SLEEP_TIME=3
+RETVAL=0
+
+# Source environment in all operations
+ENV_SOURCES="source /etc/environment && source /etc/default/hadoop && source /etc/default/hadoop-yarn-nodemanager"
+
+install -d -m 0775 -o root -g yarn "$(dirname ${PIDFILE})" 2>/dev/null || :
+[ -d "$LOCKDIR" ] || install -d -m 0755 $LOCKDIR 2>/dev/null || :
+
+start() {
+  [ -x $EXEC_PATH ] || exit 5
+  [ -d $CONF_DIR ] || exit 6
+
+  # Attempt to kill any process using the Spark Shuffle port (default 7337)
+  fuser -k -9 7337/tcp || echo "Port 7337 not in use or fuser failed"
+  sleep 2
+
+  echo -n $"Starting $DESC: "
+  daemon --user $SVC_USER --pidfile $PIDFILE "${ENV_SOURCES} && ${EXEC_PATH} --config ${CONF_DIR} --debug ${DAEMON_FLAGS}"
+  RETVAL=$?
+  echo
+  [ $RETVAL -eq 0 ] && touch $LOCKFILE
+  return $RETVAL
+}
+
+stop() {
+  echo -n $"Stopping $DESC: "
+  # Attempt to kill any process using potential NM ports
+  for port in 8040 8042 8026 13562 7337; do
+    fuser -k -9 "${port}/tcp" || echo "Port ${port} not in use or fuser failed"
+  done
+  sleep 2
+
+  su -s /bin/bash $SVC_USER -c "${ENV_SOURCES} && ${EXEC_PATH} --config ${CONF_DIR} --daemon stop ${DAEMON_FLAGS}"
+  RETVAL=$?
+  # Wait up to 30 seconds for the process to stop
+  for i in $(seq 1 30); do
+    if ! status -p $PIDFILE $DAEMON > /dev/null 2>&1; then
+      RETVAL=0
+      break
+    fi
+    sleep 1
+  done
+
+  if [[ $RETVAL -ne 0 ]]; then
+    echo "NodeManager graceful stop failed or timed out. Forcing termination..."
+    killproc -p $PIDFILE $DAEMON
+    sleep 2
+    # Ensure the process is gone
+    if status -p $PIDFILE $DAEMON > /dev/null 2>&1; then
+       kill -9 $(cat $PIDFILE)
+    fi
+    RETVAL=0 # Assume success after force kill
+  fi
+  echo
+  rm -f $LOCKFILE $PIDFILE
+  return $RETVAL
+}
+
+status() {
+  status -p $PIDFILE $DAEMON
+  RETVAL=$?
+  return $RETVAL
+}
+
+check_for_root() {
+  if [ $(id -ur) -ne 0 ]; then echo 'Error: root user required'; exit 1; fi
+}
+
+case "$1" in
+    start) check_for_root; start ;;
+    stop) check_for_root; stop ;;
+    status) status ;;
+    restart|force-reload) check_for_root; stop; start ;;
+    condrestart|try-restart) check_for_root; [ -f $LOCKFILE ] && stop && start || : ;;
+    *) echo $"Usage: $0 {start|stop|status|restart|try-restart|condrestart|force-reload}"; exit 2 ;;
+esac
+
+exit $RETVAL
+EOF
+
+    chmod +x "${lsb_script}"
+    systemctl daemon-reload
+    echo "Overwrote ${lsb_script} for Rocky Linux."
+  else
+    echo "${lsb_script} appears to be sourcing functions. No change made."
+  fi
+}
+
 function configure_gpu_isolation() {
+  # Source MIN_USER_ID
+  MIN_USER_ID=$(grep -E '^UID_MIN' /etc/login.defs | awk '{print $2}')
+  if [[ -z "${MIN_USER_ID}" ]]; then
+    MIN_USER_ID=1000 # Fallback if not found
+  fi
+
   if [[ ! -d "${HADOOP_CONF_DIR}" ]]; then
      echo "Hadoop conf dir ${HADOOP_CONF_DIR} not found. Skipping GPU isolation config."
      return
   fi
   # enable GPU isolation
-  sed -i "s/yarn\.nodemanager\.linux\-container\-executor\.group\=.*$/yarn\.nodemanager\.linux\-container\-executor\.group\=yarn/g" "${HADOOP_CONF_DIR}/container-executor.cfg"
+  local cfg_file="${HADOOP_CONF_DIR}/container-executor.cfg"
+
+  # Set correct ownership and permissions for container-executor.cfg
+  chown root:yarn "${cfg_file}"
+  chmod 640 "${cfg_file}"
+
+  # Ensure the group is set to yarn in container-executor.cfg
+  if grep -q "^yarn.nodemanager.linux-container-executor.group=" "${cfg_file}"; then
+    sed -i 's/^yarn.nodemanager.linux-container-executor.group=.*/yarn.nodemanager.linux-container-executor.group=yarn/' "${cfg_file}"
+  elif ! grep -q "^yarn.nodemanager.linux-container-executor.group=" "${cfg_file}"; then
+    echo "yarn.nodemanager.linux-container-executor.group=yarn" >> "${cfg_file}"
+  fi
+
+  # Ensure min.user.id is set
+  if ! grep -q "^min.user.id=" "${cfg_file}"; then
+    echo "min.user.id=${MIN_USER_ID}" >> "${cfg_file}"
+  else
+    sed -i "s/^min.user.id=.*/min.user.id=${MIN_USER_ID}/" "${cfg_file}"
+  fi
+
+  # Conditionally enable docker feature
+  if command -v docker &> /dev/null; then
+    if ! grep -q "^feature.docker.enabled=" "${cfg_file}"; then
+      echo "feature.docker.enabled=true" >> "${cfg_file}"
+    else
+      sed -i 's/^feature.docker.enabled=.*/feature.docker.enabled=true/' "${cfg_file}"
+    fi
+  else
+    if ! grep -q "^feature.docker.enabled=" "${cfg_file}"; then
+      echo "feature.docker.enabled=false" >> "${cfg_file}"
+    else
+      sed -i 's/^feature.docker.enabled=.*/feature.docker.enabled=false/' "${cfg_file}"
+    fi
+  fi
+
+  # Ensure gpu is enabled
+  if ! grep -q "^feature.gpu.enabled=" "${cfg_file}"; then
+    echo "feature.gpu.enabled=true" >> "${cfg_file}"
+  else
+    sed -i 's/^feature.gpu.enabled=.*/feature.gpu.enabled=true/' "${cfg_file}"
+  fi
+
+  # Ensure banned.users is present (even if empty)
+  if ! grep -q "^banned.users=" "${cfg_file}"; then
+    echo "banned.users=" >> "${cfg_file}"
+  fi
+
+  # Ensure allowed.system.users is present (even if empty)
+  if ! grep -q "^allowed.system.users=" "${cfg_file}"; then
+    echo "allowed.system.users=" >> "${cfg_file}"
+  fi
+
+  # Ensure [gpu] section is present and correct
+  if ! grep -q "^\\[gpu\\]" "${cfg_file}"; then
+    printf '\n[gpu]\nmodule.enabled=true\n' >> "${cfg_file}"
+  elif ! grep -q "^module.enabled=true" "${cfg_file}"; then
+    sed -i '/^\\[gpu\\]/a module.enabled=true' "${cfg_file}"
+  fi
+
+  # Ensure [cgroups] section is present and correct
+  if ! grep -q "^\\[cgroups\\]" "${cfg_file}"; then
+    printf '\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' >> "${cfg_file}"
+  fi
+
+  # Remove duplicate [gpu] and [cgroups] sections if they exist
+  awk '!a[$0]++' "${cfg_file}" > "${cfg_file}.tmp" && mv "${cfg_file}.tmp" "${cfg_file}"
+
+  # Ensure yarn user can manage device cgroups
+  if is_rocky; then
+    mkdir -p /sys/fs/cgroup/devices/yarn
+    chown yarn:yarn /sys/fs/cgroup/devices/yarn
+    chmod 700 /sys/fs/cgroup/devices/yarn
+    echo "Set permissions for /sys/fs/cgroup/devices/yarn"
+  fi
+
+  local yarn_env_file="${HADOOP_CONF_DIR}/yarn-env.sh"
+
   if [[ $IS_MIG_ENABLED -ne 0 ]]; then
     # configure the container-executor.cfg to have major caps
-    printf '\n[gpu]\nmodule.enabled=true\ngpu.major-device-number=%s\n\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' $MIG_MAJOR_CAPS >> "${HADOOP_CONF_DIR}/container-executor.cfg"
-    printf 'export MIG_AS_GPU_ENABLED=1\n' >> "${HADOOP_CONF_DIR}/yarn-env.sh"
-    printf 'export ENABLE_MIG_GPUS_FOR_CGROUPS=1\n' >> "${HADOOP_CONF_DIR}/yarn-env.sh"
-  else
-    printf '\n[gpu]\nmodule.enabled=true\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' >> "${HADOOP_CONF_DIR}/container-executor.cfg"
+    if ! grep -q "gpu.major-device-number=" "${cfg_file}"; then
+      printf 'gpu.major-device-number=%s\n' "$MIG_MAJOR_CAPS" >> "${cfg_file}"
+    fi
+    if ! grep -q "export MIG_AS_GPU_ENABLED=1" "${yarn_env_file}"; then
+      printf 'export MIG_AS_GPU_ENABLED=1\n' >> "${yarn_env_file}"
+    fi
+    if ! grep -q "export ENABLE_MIG_GPUS_FOR_CGROUPS=1" "${yarn_env_file}"; then
+      printf 'export ENABLE_MIG_GPUS_FOR_CGROUPS=1\n' >> "${yarn_env_file}"
+    fi
   fi
 
   # Configure a systemd unit to ensure that permissions are set on restart
@@ -2085,6 +2324,8 @@ $(declare -f ge_ubuntu20)
 $(declare -f le_ubuntu18)
 $(declare -f ge_rocky9)
 $(declare -f os_vercat) # Added os_vercat as it's used by set_nv_urls/set_cuda_runfile_url
+EOF
+  cat <<'EOF' >> "${config_script_path}"
 # Define _shortname (needed by install_spark_rapids -> cache_fetched_package and others)
 readonly _shortname="\$(os_id)\$(os_version|perl -pe 's/(\\d+).*/\$1/')"
 # Define shortname and nccl_shortname (needed by set_nv_urls)
@@ -2103,6 +2344,9 @@ else
 fi
 readonly shortname nccl_shortname
 
+EOF
+  cat <<EOF >> "${config_script_path}"
+
 # Define prepare_gpu_env and its dependencies
 $(declare -f prepare_gpu_env)
 $(declare -f set_cuda_version)
@@ -2120,6 +2364,8 @@ $(declare -f ge_cuda12)
 $(declare -f is_cudnn8)
 $(declare -f is_cudnn9)
 
+EOF
+  cat <<'EOF' >> "${config_script_path}"
 # Define DATAPROC_IMAGE_VERSION (re-evaluate)
 SPARK_VERSION="\$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1 || echo "0.0")"
 if   version_lt "\${SPARK_VERSION}" "2.5" ; then DATAPROC_IMAGE_VERSION="1.5"
@@ -2134,6 +2380,8 @@ elif version_lt "\${SPARK_VERSION}" "3.6" ; then
 else DATAPROC_IMAGE_VERSION="2.3" ; fi # Default to latest known version
 readonly DATAPROC_IMAGE_VERSION
 
+EOF
+  cat <<EOF >> "${config_script_path}"
 # Define set_hadoop_property
 $(declare -f set_hadoop_property)
 
@@ -2148,6 +2396,8 @@ $(declare -f fetch_mig_scripts)
 $(declare -f cache_fetched_package)
 $(declare -f execute_with_retries)
 
+EOF
+  cat <<'EOF' >> "${config_script_path}"
 # --- Define gsutil/gcloud commands and curl args ---
 gsutil_cmd="gcloud storage"
 gsutil_stat_cmd="gcloud storage objects describe"
@@ -2158,6 +2408,8 @@ if version_lt "\${gcloud_sdk_version}" "402.0.0" ; then
 fi
 curl_retry_args="-fsSL --retry-connrefused --retry 10 --retry-max-time 30"
 
+EOF
+  cat <<EOF >> "${config_script_path}"
 # --- Include the main config function ---
 $(declare -f run_hadoop_spark_config)
 
@@ -2172,14 +2424,6 @@ else
   # Keep the service enabled to allow for manual inspection/retry
   exit 1
 fi
-
-# Restart services after applying config
-for svc in resourcemanager nodemanager; do
-  if (systemctl is-active --quiet hadoop-yarn-\${svc}.service); then
-    systemctl stop  hadoop-yarn-\${svc}.service || echo "WARN: Failed to stop \${svc}"
-    systemctl start hadoop-yarn-\${svc}.service || echo "WARN: Failed to start \${svc}"
-  fi
-done
 
 exit 0
 EOF
@@ -2209,6 +2453,67 @@ EOF
 }
 
 
+function yarn_exit_handler() {
+  echo "Entering yarn_exit_handler..."
+  if [[ "${NM_WAS_RUNNING}" -eq 1 ]]; then
+    echo "NodeManager was running, ensuring it's stopped and masked."
+    # We already stopped it synchronously at the start.
+    # Mask the service to prevent any lingering auto-restart attempts during our checks.
+    systemctl mask hadoop-yarn-nodemanager.service
+
+    # Check if port 7337 is in use
+    echo "Checking if port 7337 is in use..."
+    local port_info
+    port_info=$(ss -ltnp | grep :7337 || true)
+    if [[ -n "${port_info}" ]]; then
+      echo "WARNING: Port 7337 is already in use:"
+      echo "${port_info}"
+      local pid
+      pid=$(echo "${port_info}" | perl -ne 'print $1 if /pid=(\d+)/')
+      if [[ -n "${pid}" ]]; then
+        echo "Attempting to kill process ${pid} holding port 7337..."
+        kill "${pid}"
+        sleep 5
+        if ss -ltnp | grep -q :7337; then
+          echo "WARNING: kill ${pid} failed, trying kill -9..."
+          kill -9 "${pid}"
+          sleep 5
+        fi
+      else
+         echo "Could not extract PID from ss output."
+      fi
+      if ss -ltnp | grep -q :7337; then
+         echo "ERROR: Port 7337 is STILL in use after kill attempts."
+      else
+         echo "Port 7337 is now free."
+      fi
+    else
+      echo "Port 7337 is free."
+    fi
+  fi
+
+  # Restart services
+  echo "Restarting YARN services..."
+  if systemctl is-active --quiet hadoop-yarn-resourcemanager.service; then
+    echo "Restarting hadoop-yarn-resourcemanager.service"
+    systemctl stop hadoop-yarn-resourcemanager.service
+    systemctl start hadoop-yarn-resourcemanager.service
+  fi
+
+  if [[ "${NM_WAS_RUNNING}" -eq 1 ]]; then
+    echo "Unmasking, re-enabling, and starting hadoop-yarn-nodemanager.service"
+    systemctl unmask hadoop-yarn-nodemanager.service
+    systemctl enable hadoop-yarn-nodemanager.service
+    if ! systemctl start hadoop-yarn-nodemanager.service; then
+      echo "ERROR: Failed to start NodeManager. Collecting diagnostics..."
+      systemctl status hadoop-yarn-nodemanager.service -l --no-pager
+      journalctl -xeu hadoop-yarn-nodemanager.service --no-pager -n 200
+    fi
+  else
+    echo "NodeManager was not running at the start, not starting it."
+  fi
+  echo "yarn_exit_handler complete."
+}
 function main() {
   # Perform installations (these are generally safe during image build)
   if (grep -qi PCI_ID=10DE /sys/bus/pci/devices/*/uevent); then
@@ -2315,6 +2620,8 @@ function main() {
     # The config script handles its own cleanup and service disabling on success
   fi
   # --- End Apply or Defer ---
+
+  yarn_exit_handler # Restart YARN services
 }
 
 function cache_fetched_package() {
@@ -2331,8 +2638,47 @@ function cache_fetched_package() {
 }
 
 function fix_nodemanager_init_script() {
-  sed -i 's/" stop .DAEMON_FLAGS/" --debug --daemon stop $DAEMON_FLAGS/' /etc/init.d/hadoop-yarn-nodemanager
-  systemctl daemon-reload
+  local lsb_script="/etc/init.d/hadoop-yarn-nodemanager"
+  local service_name="hadoop-yarn-nodemanager"
+  local generated_unit_file="/run/systemd/generator.late/${service_name}.service"
+  local changed=0
+
+  if [[ ! -f "${lsb_script}" ]]; then
+    echo "WARN: LSB script ${lsb_script} not found."
+    return
+  fi
+
+  # 1. Fix the stop command
+  local broken_stop_cmd='start_daemon $EXEC_PATH --config "$CONF_DIR" stop $DAEMON_FLAGS'
+  local fixed_stop_cmd='start_daemon $EXEC_PATH --config "$CONF_DIR" --daemon stop $DAEMON_FLAGS'
+
+  if grep -qF "${broken_stop_cmd}" "${lsb_script}"; then
+    echo "Fixing stop command in ${lsb_script}..."
+    local sed_broken_stop_cmd=$(printf '%s\\n' "${broken_stop_cmd}" | sed 's/[][\\/.^$*]/\\\\&/g')
+    local sed_fixed_stop_cmd=$(printf '%s\\n' "${fixed_cmd}" | sed 's/[][\\/.^$*]/\\\\&/g')
+    sed -i "s|${sed_broken_stop_cmd}|${sed_fixed_stop_cmd}|" "${lsb_script}"
+    changed=1
+  fi
+
+  # 2. Prepend source commands to the 'su -c' line in the start function
+  local start_line_marker='--daemon start $DAEMON_FLAGS'
+  if grep -qF "${start_line_marker}" "${lsb_script}" && ! grep -qF "source /etc/environment && source /etc/default/hadoop-yarn-nodemanager" "${lsb_script}"; then
+    echo "Adding source commands to su -c in start() for ${lsb_script}"
+    sed -i '/su -s \/bin\/bash yarn -c "/s|yarn -c "|yarn -c "source /etc/environment && source /etc/default/hadoop-yarn-nodemanager && |' "${lsb_script}"
+    changed=1
+  fi
+
+  if [[ "${changed}" -eq 1 ]]; then
+    if [[ -f "${generated_unit_file}" ]]; then
+      echo "Removing old generated unit file: ${generated_unit_file}"
+      rm -f "${generated_unit_file}"
+    fi
+    echo "Reloading systemd daemon to regenerate units..."
+    systemctl daemon-reload
+    echo "Systemd daemon reloaded."
+  else
+    echo "No changes made to ${lsb_script}."
+  fi
 }
 
 function clean_up_sources_lists() {
@@ -2561,6 +2907,7 @@ function set_proxy(){
              storage  datafusion    dataproc certificatemanager   networksecurity
              dataflow privateca     logging )
 
+  local svc
   for svc in "${services[@]}"; do
     no_proxy_list+=("${svc}.googleapis.com")
   done
@@ -2838,7 +3185,7 @@ function prepare_to_install(){
   is_complete prepare.common && return
 
   harden_sshd_config
-  fix_nodemanager_init_script
+  ensure_good_nodemanager_init_script
 
   if is_debuntu ; then
     repair_old_backports
