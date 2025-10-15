@@ -1,30 +1,15 @@
 import pkg_resources
 import time
-import random
+
 from absl.testing import absltest
 from absl.testing import parameterized
-from gpu.gpu_test_case_base import GpuTestCaseBase
+
+from integration_tests.dataproc_test_case import DataprocTestCase
 
 DEFAULT_TIMEOUT = 45  # minutes
 DEFAULT_CUDA_VERSION = "12.4"
 
-class AutomatedGpuTestCase(GpuTestCaseBase):
-  """
-  Extends GpuTestCaseBase with behaviors specific to automated test runs,
-  such as adding delays to avoid race conditions.
-  """
-  def verify_instance(self, name):
-    # Add delay to stagger checks in automated environments
-    sleep_duration = 3 + random.randint(1, 30)
-    print(f"Waiting for {sleep_duration}s before running verify_instance on {name}")
-    time.sleep(sleep_duration)
-    super().verify_instance(name)
-
-class NvidiaGpuDriverTestCase(AutomatedGpuTestCase):
-  """
-  Actual test suite for Nvidia GPU Driver initialization action.
-  Inherits delays and other automated context from AutomatedGpuTestCase.
-  """
+class NvidiaGpuDriverTestCase(DataprocTestCase):
   COMPONENT = "gpu"
   INIT_ACTIONS = ["gpu/install_gpu_driver.sh"]
   GPU_L4   = "type=nvidia-l4"
@@ -32,6 +17,80 @@ class NvidiaGpuDriverTestCase(AutomatedGpuTestCase):
   GPU_V100 = "type=nvidia-tesla-v100"
   GPU_A100 = "type=nvidia-tesla-a100,count=2"
   GPU_H100 = "type=nvidia-h100-80gb,count=2"
+
+  # Tests for PyTorch
+  TORCH_TEST_SCRIPT_FILE_NAME = "verify_pytorch.py"
+
+  # Tests for TensorFlow
+  TF_TEST_SCRIPT_FILE_NAME = "verify_tensorflow.py"
+
+  def assert_instance_command(self,
+                             instance,
+                             cmd,
+                             timeout_in_minutes=DEFAULT_TIMEOUT):
+
+    retry_count = 5
+
+    ssh_cmd='gcloud compute ssh -q {} --zone={} --command="{}" -- -o ConnectTimeout=60'.format(
+      instance, self.cluster_zone, cmd)
+
+    while retry_count > 0:
+      try:
+        ret_code, stdout, stderr = self.assert_command( ssh_cmd, timeout_in_minutes )
+        return ret_code, stdout, stderr
+      except Exception as e:
+        print("An error occurred: ", e)
+        retry_count -= 1
+        if retry_count > 0:
+          time.sleep(10)
+          continue
+        else:
+          raise
+
+  def verify_instance(self, name):
+    # Verify that nvidia-smi works
+    import random
+    # Many failed nvidia-smi attempts have been caused by impatience and temporal collisions
+    time.sleep( 3 + random.randint(1, 30) )
+    self.assert_instance_command(name, "nvidia-smi", 1)
+
+  def verify_pyspark(self, name):
+    # Verify that pyspark works
+    self.assert_instance_command(name, "echo 'from pyspark.sql import SparkSession ; SparkSession.builder.getOrCreate()' | pyspark -c spark.executor.resource.gpu.amount=1 -c spark.task.resource.gpu.amount=0.01", 1)
+
+  def verify_pytorch(self, name):
+    test_filename=os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               self.TORCH_TEST_SCRIPT_FILE_NAME)
+    self.upload_test_file(test_filename, name)
+
+    conda_env="dpgce"
+
+    # until the numa node is selected, every time the GPU is accessed
+    # from pytorch, log noise about numa node not being selected is
+    # printed to the console. Selecting numa node before the python is
+    # executed improves readability of the diagnostic information.
+
+    verify_cmd = \
+      "env={} ; envpath=/opt/conda/miniconda3/envs/${env} ; ".format(conda_env) + \
+      "for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node) ; do echo 0 > ${f} ; done ;" + \
+      "${envpath}/bin/python {}".format(
+        self.TORCH_TEST_SCRIPT_FILE_NAME)
+    self.assert_instance_command(name, verify_cmd)
+    self.remove_test_script(self.TORCH_TEST_SCRIPT_FILE_NAME, name)
+
+  def verify_tensorflow(self, name):
+    test_filename=os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               self.TF_TEST_SCRIPT_FILE_NAME)
+    self.upload_test_file(test_filename, name)
+    # all on a single numa node
+    conda_env="dpgce"
+    verify_cmd = \
+      "env={} ; envpath=/opt/conda/miniconda3/envs/${env} ; ".format(conda_env) + \
+      "for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node) ; do echo 0 > ${f} ; done ;" + \
+      "${envpath}/bin/python {}".format(
+        self.TF_TEST_SCRIPT_FILE_NAME)
+    self.assert_instance_command(name, verify_cmd)
+    self.remove_test_script(self.TF_TEST_SCRIPT_FILE_NAME, name)
 
   def verify_mig_instance(self, name):
     self.assert_instance_command(name,
@@ -144,10 +203,6 @@ exit 1 unless $cert eq lc $kmod
         boot_disk_size="50GB")
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
-      # Many failed nvidia-smi attempts have been caused by impatience and temporal collisions
-      sleep_duration = 3 + random.randint(1, 30)
-      print(f"Waiting for {sleep_duration}s before running verify_instance on {machine_name}")
-      time.sleep(sleep_duration)
       self.verify_instance(machine_name)
 
   @parameterized.parameters(

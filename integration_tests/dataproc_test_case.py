@@ -9,7 +9,7 @@ import subprocess
 import sys
 from threading import Timer
 
-from packaging import version
+import pkg_resources
 from absl import flags
 from absl.testing import parameterized
 
@@ -252,7 +252,7 @@ class DataprocTestCase(parameterized.TestCase):
         # Special case a 'preview' image versions and return a large number
         # instead to make it a higher image version in comparisons
         version = FLAGS.image_version
-        return version.parse('999') if version.startswith(
+        return pkg_resources.parse_version('999') if version.startswith(
             'preview') else pkg_resources.parse_version(version.split('-')[0])
 
     @staticmethod
@@ -307,21 +307,23 @@ class DataprocTestCase(parameterized.TestCase):
 
         Args:
             cluster_name: cluster name to submit job to
-            job_type: type of the job, e.g. spark, hadoop, pyspark
-            job_params: job parameters
-            timeout_in_minutes: timeout in minutes
+            job_type: job type (hadoop, spark, etc)
+            job_params: job command parameters
+            timeout_in_minutes: timeout in minutes after which process that
+                                waits on job will be killed if job did not
+                                finish
+        Returns:
+            ret_code: the return code of the job
+            stdout: standard output of the job
+            stderr: error output of the job
         Raises:
             AssertionError: if job returned non-0 exit code.
         """
 
-        ret_code, stdout, stderr = DataprocTestCase.run_command(
+        ret_code, stdout, stderr = self.assert_command(
             'gcloud dataproc jobs submit {} --cluster={} --region={} {}'.
             format(job_type, cluster_name, self.REGION,
                    job_params), timeout_in_minutes)
-        self.assertEqual(
-            ret_code, 0,
-            "Job failed with code {}. stdout: {}. stderr: {}".format(
-                ret_code, stdout, stderr))
         return ret_code, stdout, stderr
 
     def assert_command(self, cmd, timeout_in_minutes=DEFAULT_TIMEOUT):

@@ -26,7 +26,7 @@ Refer to internal arrays in `install_gpu_driver.sh` for the full matrix.)*
 
 CUDA | Full Version | Driver    | cuDNN     | NCCL   | Tested Dataproc Image Versions
 -----| ------------ | --------- | --------- | -------| ---------------------------
-11.8 | 11.8.0       | 525.147.05| 9.5.1.17  | 2.21.5 | 2.0, 2.1 (Debian/Ubuntu/Rocky)
+11.8 | 11.8.0       | 525.147.05| 9.5.1.17  | 2.21.5 | 2.0, 2.1 (Debian/Ubuntu/Rocky); 2.2 (Ubuntu 22.04)
 12.0 | 12.0.1       | 525.147.05| 8.8.1.3   | 2.16.5 | 2.0, 2.1 (Debian/Ubuntu/Rocky); 2.2 (Rocky 9, Ubuntu 22.04)
 12.4 | 12.4.1       | 550.135   | 9.1.0.70  | 2.23.4 | 2.1 (Ubuntu 20.04, Rocky 8); Dataproc 2.2+
 12.6 | 12.6.3       | 550.142   | 9.6.0.74  | 2.23.4 | 2.1 (Ubuntu 20.04, Rocky 8); Dataproc 2.2+
