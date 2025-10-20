@@ -314,11 +314,11 @@ function install_spark_rapids() {
       "${nvidia_repo_url}/rapids-4-spark_${SCALA_VERSION}/${SPARK_RAPIDS_VERSION}/rapids-4-spark_${SCALA_VERSION}-${SPARK_RAPIDS_VERSION}.jar" \
       -P /usr/lib/spark/jars/
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
-        "${dmlc_repo_url}/xgboost4j-spark-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-spark-gpu_2.12-${XGBOOST_VERSION}.jar" \
-        -P /usr/lib/spark/jars/
+      "${dmlc_repo_url}/xgboost4j-spark-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-spark-gpu_2.12-${XGBOOST_VERSION}.jar" \
+      -P /usr/lib/spark/jars/
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
-        "${dmlc_repo_url}/xgboost4j-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-gpu_2.12-${XGBOOST_VERSION}.jar" \
-        -P /usr/lib/spark/jars/
+      "${dmlc_repo_url}/xgboost4j-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-gpu_2.12-${XGBOOST_VERSION}.jar" \
+      -P /usr/lib/spark/jars/
   fi
 }
 
