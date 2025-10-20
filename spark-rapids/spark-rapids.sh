@@ -527,7 +527,7 @@ function install_nvidia_gpu_driver() {
       
       # Install latest CUDA toolkit and compatible NVIDIA driver
       execute_with_retries "apt-get install -y -q --no-install-recommends cuda-toolkit"
-      execute_with_retries "apt-get install -y -q --no-install-recommends nvidia-driver-570-open"
+      execute_with_retries "apt-get install -y -q --no-install-recommends nvidia-driver-${NVIDIA_DRIVER_VERSION_PREFIX}-open"
       
       clear_dkms_key
       modprobe nvidia
