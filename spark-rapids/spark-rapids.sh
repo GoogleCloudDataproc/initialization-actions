@@ -14,7 +14,7 @@
 
 # This script installs NVIDIA GPU drivers (version 535.104.05) along with CUDA 12.2.
 # However, Cuda 12.1.1 - Driver v530.30.02 is used for Ubuntu 18 only.
-# For Ubuntu 24.04 with kernel 6.14+, uses repository installation to get latest CUDA toolkit and NVIDIA driver 570+ for compatibility.
+# For Ubuntu 24.04 with kernel 6.14+, this script uses repository installation to get the latest CUDA toolkit and NVIDIA driver 570+ for compatibility.
 # Additionally, it installs the RAPIDS Spark plugin, configures Spark and YARN, and is compatible with Debian, Ubuntu, and Rocky Linux distributions.
 # Note that the script is designed to work when secure boot is disabled during cluster creation.
 # It also creates a Systemd Service for maintaining up-to-date Kernel Headers on Debian and Ubuntu.
