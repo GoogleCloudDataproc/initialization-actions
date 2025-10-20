@@ -519,6 +519,7 @@ function install_nvidia_gpu_driver() {
       rm -f cuda-keyring_1.1-1_all.deb
       
       # Add graphics-drivers PPA for latest NVIDIA drivers
+      execute_with_retries "apt-get install -y -q software-properties-common"
       execute_with_retries "add-apt-repository -y ppa:graphics-drivers/ppa"
       execute_with_retries "apt-get update"
       
