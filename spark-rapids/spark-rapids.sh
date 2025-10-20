@@ -557,6 +557,7 @@ function install_nvidia_gpu_driver() {
         execute_with_retries "apt-get install -y -q --no-install-recommends cuda-toolkit-${CUDA_VERSION_MAJOR//./-}"
         
         # Then upgrade to driver 570 from graphics-drivers PPA
+        execute_with_retries "apt-get install -y -q --no-install-recommends software-properties-common"
         execute_with_retries "add-apt-repository -y ppa:graphics-drivers/ppa"
         execute_with_retries "apt-get update"
         execute_with_retries "apt-get install -y -q --no-install-recommends nvidia-driver-${NVIDIA_DRIVER_VERSION_PREFIX}-open"
