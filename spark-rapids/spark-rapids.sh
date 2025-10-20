@@ -514,7 +514,7 @@ function install_nvidia_gpu_driver() {
       # Repository-based installation for latest CUDA and kernel 6.14+ compatibility
       
       # Install CUDA keyring for repository access
-      execute_with_retries "wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb"
+      execute_with_retries "wget https://developer.download.nvidia.com/compute/cuda/repos/${shortname}/x86_64/cuda-keyring_1.1-1_all.deb"
       execute_with_retries "dpkg -i cuda-keyring_1.1-1_all.deb"
       rm -f cuda-keyring_1.1-1_all.deb
       
