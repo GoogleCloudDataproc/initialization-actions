@@ -217,7 +217,7 @@ if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
   readonly SPARK_VERSION="3.0"
   readonly SCALA_VERSION="2.12"
 elif [[ "${SPARK_VERSION_ENV}" == "4"* ]]; then
-  readonly DEFAULT_XGBOOST_VERSION="1.7.6"
+  readonly DEFAULT_XGBOOST_VERSION="2.1.4"
   readonly SPARK_VERSION="4.0"
   readonly SCALA_VERSION="2.13"
 else
@@ -304,20 +304,28 @@ function install_spark_rapids() {
   local -r nvidia_repo_url='https://edge.urm.nvidia.com/artifactory/sw-spark-maven/com/nvidia'
   local -r dmlc_repo_url='https://repo.maven.apache.org/maven2/ml/dmlc'
   
-  # For Spark 4.0 with Scala 2.13, use the cuda12 variant
+  # For Spark 4.0 with Scala 2.13, use the cuda12 variant and Scala 2.13 XGBoost JARs
   if [[ "${SPARK_VERSION}" == "4.0" ]]; then
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
       "${nvidia_repo_url}/rapids-4-spark_${SCALA_VERSION}/${SPARK_RAPIDS_VERSION}/rapids-4-spark_${SCALA_VERSION}-${SPARK_RAPIDS_VERSION}-cuda12.jar" \
       -P /usr/lib/spark/jars/
+    # Download XGBoost JARs for Scala 2.13 (Spark 4.0)
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+      "${dmlc_repo_url}/xgboost4j-spark-gpu_${SCALA_VERSION}/${XGBOOST_VERSION}/xgboost4j-spark-gpu_${SCALA_VERSION}-${XGBOOST_VERSION}.jar" \
+      -P /usr/lib/spark/jars/
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+      "${dmlc_repo_url}/xgboost4j-gpu_${SCALA_VERSION}/${XGBOOST_VERSION}/xgboost4j-gpu_${SCALA_VERSION}-${XGBOOST_VERSION}.jar" \
+      -P /usr/lib/spark/jars/
   else
+    # For Spark 3.0 with Scala 2.12
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
       "${nvidia_repo_url}/rapids-4-spark_${SCALA_VERSION}/${SPARK_RAPIDS_VERSION}/rapids-4-spark_${SCALA_VERSION}-${SPARK_RAPIDS_VERSION}.jar" \
       -P /usr/lib/spark/jars/
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
-      "${dmlc_repo_url}/xgboost4j-spark-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-spark-gpu_2.12-${XGBOOST_VERSION}.jar" \
+      "${dmlc_repo_url}/xgboost4j-spark-gpu_${SCALA_VERSION}/${XGBOOST_VERSION}/xgboost4j-spark-gpu_${SCALA_VERSION}-${XGBOOST_VERSION}.jar" \
       -P /usr/lib/spark/jars/
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
-      "${dmlc_repo_url}/xgboost4j-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-gpu_2.12-${XGBOOST_VERSION}.jar" \
+      "${dmlc_repo_url}/xgboost4j-gpu_${SCALA_VERSION}/${XGBOOST_VERSION}/xgboost4j-gpu_${SCALA_VERSION}-${XGBOOST_VERSION}.jar" \
       -P /usr/lib/spark/jars/
   fi
 }
