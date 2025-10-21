@@ -114,7 +114,9 @@ function get_metadata_value() {
 function get_metadata_attribute() {
   local -r attribute_name="$1"
   local -r default_value="${2:-}"
+  set +e
   get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
+  set -e
 }
 
 OS_NAME="$(lsb_release -is | tr '[:upper:]' '[:lower:]')"
@@ -459,10 +461,7 @@ function set_cuda_runfile_url() {
   elif ( version_lt "${CUDA_VERSION}" "11.8" && is_rocky9 ) ; then
     echo "CUDA 11.8.0 is the minimum version for Rocky 9. Requested version: ${CUDA_VERSION}"
   fi
-
 }
-
-
 
 function set_cudnn_tarball_url() {
 CUDNN_TARBALL="cudnn-${CUDA_VERSION}-linux-x64-v${CUDNN_VERSION}.tgz"
@@ -491,7 +490,12 @@ GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'NVIDIA')
 readonly GPU_DRIVER_PROVIDER
 
 # Whether to install GPU monitoring agent that sends GPU metrics to Stackdriver
-INSTALL_GPU_AGENT=$(get_metadata_attribute 'install-gpu-agent' 'true')
+INSTALL_GPU_AGENT_METADATA=$(get_metadata_attribute 'install-gpu-agent' 'true')
+ENABLE_GPU_MONITORING_METADATA=$(get_metadata_attribute 'enable-gpu-monitoring' 'true')
+INSTALL_GPU_AGENT='true'
+if [[ "${INSTALL_GPU_AGENT_METADATA}" == "false" ]] || [[ "${ENABLE_GPU_MONITORING_METADATA}" == "false" ]] ; then
+  INSTALL_GPU_AGENT='false'
+fi
 readonly INSTALL_GPU_AGENT
 
 # Dataproc configurations
@@ -502,6 +506,8 @@ readonly SPARK_CONF_DIR='/etc/spark/conf'
 NVIDIA_SMI_PATH='/usr/bin'
 MIG_MAJOR_CAPS=0
 IS_MIG_ENABLED=0
+
+IS_CUSTOM_IMAGE_BUILD="false" # Default
 
 function execute_with_retries() (
   local -r cmd="$*"
@@ -816,7 +822,7 @@ function install_nvidia_cudnn() {
 
         sync
       else
-        echo "Unsupported cudnn version: [\"${CUDNN_VERSION}\"]"
+        echo "Unsupported cudnn version: [${CUDNN_VERSION}]"
       fi
     fi
   else
@@ -835,11 +841,17 @@ function install_pytorch() {
 
   local env
   env=$(get_metadata_attribute 'gpu-conda-env' 'dpgce')
-  local mc3=/opt/conda/miniconda3
-  [[ -d ${mc3} ]] || return
-  local envpath="${mc3}/envs/${env}"
+
+  local conda_root_path
+  if version_lt "${DATAPROC_IMAGE_VERSION}" "2.3" ; then
+    conda_root_path="/opt/conda/miniconda3"
+  else
+    conda_root_path="/opt/conda"
+  fi
+  [[ -d ${conda_root_path} ]] || return
+  local envpath="${conda_root_path}/envs/${env}"
   if [[ "${env}" == "base" ]]; then
-    echo "WARNING: installing to base environment known to cause solve issues" ; envpath="${mc3}" ; fi
+    echo "WARNING: installing to base environment known to cause solve issues" ; envpath="${conda_root_path}" ; fi
   # Set numa node to 0 for all GPUs
   for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node) ; do echo 0 > ${f} ; done
 
@@ -883,7 +895,7 @@ function install_pytorch() {
     if le_cuda11 ; then cudart_spec="cudatoolkit" ; fi
 
     # Install pytorch and company to this environment
-    "${mc3}/bin/mamba" "${verb}" -n "${env}" \
+    "${conda_root_path}/bin/mamba" "${verb}" -n "${env}" \
       -c conda-forge -c nvidia -c rapidsai \
       numba pytorch tensorflow[and-cuda] rapids pyspark \
       "cuda-version<=${CUDA_VERSION}" "${cudart_spec}"
@@ -996,7 +1008,6 @@ function add_contrib_component() {
   elif is_debian ; then
       sed -i -e 's/ main$/ main contrib/' /etc/apt/sources.list
   fi
-  return 0
 }
 
 function add_nonfree_components() {
@@ -1020,14 +1031,33 @@ function add_repo_nvidia_container_toolkit() {
   local signing_key_url="${nvctk_root}/gpgkey"
   local repo_data
 
-  if is_debuntu ; then repo_data="${nvctk_root}/stable/deb/\$(ARCH) /"
-                  else repo_data="${nvctk_root}/stable/rpm/nvidia-container-toolkit.repo"
+  # Since there are more than one keys to go into this keychain, we can't call os_add_repo, which only works with one
+  if is_debuntu ; then
+    # "${repo_name}" "${signing_key_url}" "${repo_data}" "${4:-yes}" "${kr_path}" "${6:-}"
+    local -r repo_name="nvidia-container-toolkit"
+    local -r kr_path="/usr/share/keyrings/${repo_name}.gpg"
+    GPG_PROXY_ARGS=""
+    if [[ -v HTTP_PROXY ]] ; then
+      GPG_PROXY="--keyserver-options http-proxy=${HTTP_PROXY}"
+    elif [[ -v http_proxy ]] ; then
+      GPG_PROXY="--keyserver-options http-proxy=${http_proxy}"
+    fi
+    execute_with_retries gpg --keyserver keyserver.ubuntu.com \
+      ${GPG_PROXY_ARGS} \
+      --no-default-keyring --keyring "${kr_path}" \
+      --recv-keys "0xae09fe4bbd223a84b2ccfce3f60f4b3d7fa2af80" "0xeb693b3035cd5710e231e123a4b469963bf863cc" "0xc95b321b61e88c1809c4f759ddcae044f796ecb0"
+    local -r repo_data="${nvctk_root}/stable/deb/\$(ARCH) /"
+    local -r repo_path="/etc/apt/sources.list.d/${repo_name}.list"
+    echo "deb     [signed-by=${kr_path}] ${repo_data}" >  "${repo_path}"
+    echo "deb-src [signed-by=${kr_path}] ${repo_data}" >> "${repo_path}"
+    execute_with_retries apt-get update
+  else
+    repo_data="${nvctk_root}/stable/rpm/nvidia-container-toolkit.repo"
+    os_add_repo nvidia-container-toolkit \
+                "${signing_key_url}" \
+                "${repo_data}" \
+                "no"
   fi
-
-  os_add_repo nvidia-container-toolkit \
-              "${signing_key_url}" \
-              "${repo_data}" \
-              "no"
 }
 
 function add_repo_cuda() {
@@ -1038,7 +1068,13 @@ function add_repo_cuda() {
       echo "deb [signed-by=${kr_path}] https://developer.download.nvidia.com/compute/cuda/repos/${shortname}/x86_64/ /" \
       | sudo tee "${sources_list_path}"
 
-      gpg --keyserver keyserver.ubuntu.com \
+      GPG_PROXY_ARGS=""
+      if [[ -n "${HTTP_PROXY}" ]] ; then
+        GPG_PROXY="--keyserver-options http-proxy=${HTTP_PROXY}"
+      elif [[ -n "${http_proxy}" ]] ; then
+        GPG_PROXY="--keyserver-options http-proxy=${http_proxy}"
+      fi
+      execute_with_retries gpg --keyserver keyserver.ubuntu.com ${GPG_PROXY_ARGS} \
         --no-default-keyring --keyring "${kr_path}" \
         --recv-keys "0xae09fe4bbd223a84b2ccfce3f60f4b3d7fa2af80" "0xeb693b3035cd5710e231e123a4b469963bf863cc"
     else
@@ -1059,9 +1095,9 @@ function build_driver_from_github() {
   pushd "${workdir}"
   test -d "${workdir}/open-gpu-kernel-modules" || {
     tarball_fn="${DRIVER_VERSION}.tar.gz"
-    curl ${curl_retry_args} \
+    execute_with_retries curl ${curl_retry_args} \
       "https://github.com/NVIDIA/open-gpu-kernel-modules/archive/refs/tags/${tarball_fn}" \
-      | tar xz
+      \| tar xz
     mv "open-gpu-kernel-modules-${DRIVER_VERSION}" open-gpu-kernel-modules
   }
 
@@ -1089,7 +1125,7 @@ function build_driver_from_github() {
           local now_epoch="$(date -u +%s)"
           if (( now_epoch > timeout_epoch )) ; then
             # detect unexpected build failure after 45m
-            ${gsutil_cmd} rm "${gcs_tarball}.building"
+            ${gsutil_cmd} rm "${gcs_tarball}.building" || echo "might have been deleted by a peer"
             break
           fi
           sleep 5m
@@ -1182,12 +1218,13 @@ function build_driver_from_packages() {
 
 function install_nvidia_userspace_runfile() {
   # Parameters for NVIDIA-provided Debian GPU driver
-  readonly DEFAULT_USERSPACE_URL="https://us.download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
+  local -r USERSPACE_RUNFILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
 
-  readonly USERSPACE_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_USERSPACE_URL}")
+  local -r DEFAULT_USERSPACE_URL="https://us.download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/${USERSPACE_RUNFILE}"
 
-  USERSPACE_FILENAME="$(echo ${USERSPACE_URL} | perl -pe 's{^.+/}{}')"
-  readonly USERSPACE_FILENAME
+  local USERSPACE_URL
+  USERSPACE_URL="$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_USERSPACE_URL}")"
+  readonly USERSPACE_URL
 
   # This .run file contains NV's OpenGL implementation as well as
   # nvidia optimized implementations of the gtk+ 2,3 stack(s) not
@@ -1200,11 +1237,16 @@ function install_nvidia_userspace_runfile() {
   # wget https://us.download.nvidia.com/XFree86/Linux-x86_64/560.35.03/NVIDIA-Linux-x86_64-560.35.03.run
   # sh ./NVIDIA-Linux-x86_64-560.35.03.run -x # this will allow you to review the contents of the package without installing it.
   is_complete userspace && return
-  local local_fn="${tmpdir}/userspace.run"
+  local local_fn="${tmpdir}/${USERSPACE_RUNFILE}"
 
   cache_fetched_package "${USERSPACE_URL}" \
-                        "${pkg_bucket}/nvidia/${USERSPACE_FILENAME}" \
+                        "${pkg_bucket}/nvidia/${USERSPACE_RUNFILE}" \
                         "${local_fn}"
+
+  local runfile_sha256sum
+  runfile_sha256sum="$(cd "${tmpdir}" && sha256sum "${USERSPACE_RUNFILE}")"
+  local runfile_hash
+  runfile_hash=$(echo "${runfile_sha256sum}" | awk '{print $1}')
 
   local runfile_args
   runfile_args=""
@@ -1315,7 +1357,7 @@ function install_nvidia_userspace_runfile() {
 function install_cuda_runfile() {
   is_complete cuda && return
 
-  local local_fn="${tmpdir}/cuda.run"
+  local local_fn="${tmpdir}/${CUDA_RUNFILE}"
 
   cache_fetched_package "${NVIDIA_CUDA_URL}" \
                         "${pkg_bucket}/nvidia/${CUDA_RUNFILE}" \
@@ -1378,7 +1420,6 @@ function install_cuda(){
   add_repo_cuda
 
   mark_complete cuda-repo
-  return 0
 }
 
 function install_nvidia_container_toolkit() {
@@ -1464,6 +1505,9 @@ function install_gpu_agent() {
   local venv="${install_dir}/venv"
   python_interpreter="/opt/conda/miniconda3/bin/python3"
   [[ -f "${python_interpreter}" ]] || python_interpreter="$(command -v python3)"
+  if version_ge "${DATAPROC_IMAGE_VERSION}" "2.2" && is_debuntu ; then
+    execute_with_retries "apt-get install -y -qq python3-venv"
+  fi
   "${python_interpreter}" -m venv "${venv}"
 (
   source "${venv}/bin/activate"
@@ -1531,7 +1575,6 @@ function configure_yarn_resources() {
 
 # This configuration should be applied only if GPU is attached to the node
 function configure_yarn_nodemanager() {
-  if [[ "${gpu_count}" == "0" ]] ; then return ; fi
   set_hadoop_property 'yarn-site.xml' \
     'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
   set_hadoop_property 'yarn-site.xml' \
@@ -1562,7 +1605,6 @@ function configure_yarn_nodemanager() {
 }
 
 function configure_gpu_exclusive_mode() {
-  if [[ "${gpu_count}" == "0" ]] ; then return ; fi
   # only run this function when spark < 3.0
   if version_ge "${SPARK_VERSION}" "3.0" ; then return 0 ; fi
   # include exclusive mode on GPU
@@ -1572,13 +1614,12 @@ function configure_gpu_exclusive_mode() {
 function fetch_mig_scripts() {
   mkdir -p /usr/local/yarn-mig-scripts
   sudo chmod 755 /usr/local/yarn-mig-scripts
-  wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.10/examples/MIG-Support/yarn-unpatched/scripts/nvidia-smi
-  wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.10/examples/MIG-Support/yarn-unpatched/scripts/mig2gpu.sh
+  execute_with_retries wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.10/examples/MIG-Support/yarn-unpatched/scripts/nvidia-smi
+  execute_with_retries wget -P /usr/local/yarn-mig-scripts/ https://raw.githubusercontent.com/NVIDIA/spark-rapids-examples/branch-22.10/examples/MIG-Support/yarn-unpatched/scripts/mig2gpu.sh
   sudo chmod 755 /usr/local/yarn-mig-scripts/*
 }
 
 function configure_gpu_script() {
-  if [[ "${gpu_count}" == "0" ]] ; then return ; fi
   # Download GPU discovery script
   local -r spark_gpu_script_dir='/usr/lib/spark/scripts/gpu'
   mkdir -p ${spark_gpu_script_dir}
@@ -1644,10 +1685,8 @@ EOF
   # images, we must configure the Fair scheduler
   version_ge "${DATAPROC_IMAGE_VERSION}" "2.0" || return
 
-  # TODO: when running this script to customize an image, this file
-  # needs to be written *after* bdutil completes
-
-  cat >>"${spark_defaults_conf}" <<EOF
+  if ! grep -q "BEGIN : RAPIDS properties" "${spark_defaults_conf}"; then
+    cat >>"${spark_defaults_conf}" <<EOF
 ###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
 # Rapids Accelerator for Spark can utilize AQE, but when the plan is not finalized,
 # query explain output won't show GPU operator, if the user has doubts
@@ -1655,9 +1694,7 @@ EOF
 # having AQE enabled gives user the best performance.
 #spark.sql.autoBroadcastJoinThreshold=10m
 #spark.sql.files.maxPartitionBytes=512m
-
 spark.executor.resource.gpu.amount=1
-
 #spark.executor.cores=${executor_cores}
 #spark.executor.memory=${executor_memory_gb}G
 #spark.dynamicAllocation.enabled=false
@@ -1668,10 +1705,14 @@ spark.executor.resource.gpu.amount=1
 #spark.plugins=com.nvidia.spark.SQLPlugin
 ###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
 EOF
+  fi
 }
 
 function configure_gpu_isolation() {
-  if [[ "${gpu_count}" == "0" ]] ; then return ; fi
+  if [[ ! -d "${HADOOP_CONF_DIR}" ]]; then
+     echo "Hadoop conf dir ${HADOOP_CONF_DIR} not found. Skipping GPU isolation config."
+     return
+  fi
   # enable GPU isolation
   sed -i "s/yarn\.nodemanager\.linux\-container\-executor\.group\=.*$/yarn\.nodemanager\.linux\-container\-executor\.group\=yarn/g" "${HADOOP_CONF_DIR}/container-executor.cfg"
   if [[ $IS_MIG_ENABLED -ne 0 ]]; then
@@ -1710,7 +1751,6 @@ function nvsmi() {
     local NV_SMI_L_CACHE_FILE="/var/run/nvidia-smi_-L.txt"
     if [[ -f "${NV_SMI_L_CACHE_FILE}" ]]; then cat "${NV_SMI_L_CACHE_FILE}"
     else "${nvsmi}" $* | tee "${NV_SMI_L_CACHE_FILE}" ; fi
-
     return 0
   fi
 
@@ -1745,16 +1785,34 @@ function install_build_dependencies() {
 
     if [[ "${retval}" == "0" ]] ; then return ; fi
 
+    local os_ver="$(echo $uname_r | perl -pe 's/.*el(\d+_\d+)\..*/$1/; s/_/./')"
+    local vault="https://download.rockylinux.org/vault/rocky/${os_ver}"
     if grep -q 'Unable to find a match: kernel-devel-' "${install_log}" ; then
       # this kernel-devel may have been migrated to the vault
-      local os_ver="$(echo $uname_r | perl -pe 's/.*el(\d+_\d+)\..*/$1/; s/_/./')"
-      local vault="https://download.rockylinux.org/vault/rocky/${os_ver}"
       dnf_cmd="$(echo dnf -y -q --setopt=localpkg_gpgcheck=1 install \
         "${vault}/BaseOS/x86_64/os/Packages/k/kernel-${uname_r}.rpm" \
         "${vault}/BaseOS/x86_64/os/Packages/k/kernel-core-${uname_r}.rpm" \
         "${vault}/BaseOS/x86_64/os/Packages/k/kernel-modules-${uname_r}.rpm" \
         "${vault}/BaseOS/x86_64/os/Packages/k/kernel-modules-core-${uname_r}.rpm" \
         "${vault}/AppStream/x86_64/os/Packages/k/kernel-devel-${uname_r}.rpm"
+       )"
+    fi
+
+    set +e
+    eval "${dnf_cmd}" > "${install_log}" 2>&1
+    local retval="$?"
+    set -e
+
+    if [[ "${retval}" == "0" ]] ; then return ; fi
+
+    if grep -q 'Status code: 404 for https' "${install_log}" ; then
+      local stg_url="https://download.rockylinux.org/stg/rocky/${os_ver}/devel/x86_64/os/Packages/k/"
+      dnf_cmd="$(echo dnf -y -q --setopt=localpkg_gpgcheck=1 install \
+        "${stg_url}/kernel-${uname_r}.rpm" \
+        "${stg_url}/kernel-core-${uname_r}.rpm" \
+        "${stg_url}/kernel-modules-${uname_r}.rpm" \
+        "${stg_url}/kernel-modules-core-${uname_r}.rpm" \
+        "${stg_url}/kernel-devel-${uname_r}.rpm"
        )"
     fi
 
@@ -1862,7 +1920,9 @@ function hold_nvidia_packages() {
 
 function check_secure_boot() {
   local SECURE_BOOT="disabled"
-  SECURE_BOOT=$(mokutil --sb-state|awk '{print $2}')
+  if command -v mokutil ; then
+      SECURE_BOOT=$(mokutil --sb-state|awk '{print $2}')
+  fi
 
   PSN="$(get_metadata_attribute private_secret_name)"
   readonly PSN
@@ -1871,10 +1931,10 @@ function check_secure_boot() {
     echo "Error: Secure Boot is not supported on Debian before image 2.2. Please disable Secure Boot while creating the cluster."
     exit 1
   elif [[ "${SECURE_BOOT}" == "enabled" ]] && [[ -z "${PSN}" ]]; then
-    echo "Secure boot is enabled, but no signing material provided."
+    echo "Error: Secure boot is enabled, but no signing material provided."
     echo "Please either disable secure boot or provide signing material as per"
     echo "https://github.com/GoogleCloudDataproc/custom-images/tree/master/examples/secure-boot"
-    exit 1
+    return 1
   fi
 
   CA_TMPDIR="$(mktemp -u -d -p /run/tmp -t ca_dir-XXXX)"
@@ -1884,38 +1944,296 @@ function check_secure_boot() {
                       mok_der=/var/lib/shim-signed/mok/MOK.der
                  else mok_key=/var/lib/dkms/mok.key
                       mok_der=/var/lib/dkms/mok.pub ; fi
+  return 0
+}
+
+
+# Function to group Hadoop/Spark config steps (called in init-action mode or deferred)
+function run_hadoop_spark_config() {
+  # Ensure necessary variables are available or re-evaluated
+  # prepare_gpu_env needs CUDA/Driver versions, call it first if needed
+  # Set GCS bucket for caching
+  if [[ ! -v pkg_bucket ]] ; then
+    temp_bucket="$(get_metadata_attribute dataproc-temp-bucket)"
+    readonly temp_bucket
+    readonly pkg_bucket="gs://${temp_bucket}/dpgce-packages"
+  fi
+  if [[ ! -v CUDA_VERSION || ! -v DRIVER_VERSION ]]; then prepare_gpu_env; fi
+  # Re-read ROLE
+  ROLE="$(get_metadata_attribute dataproc-role)";
+  # Re-read SPARK_VERSION if not set or default
+  if [[ ! -v SPARK_VERSION || "${SPARK_VERSION}" == "0.0" ]]; then
+      SPARK_VERSION="$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1 || echo "0.0")"
+  fi
+  # Re-check GPU count
+  set +e
+  gpu_count="$(grep -i PCI_ID=10DE /sys/bus/pci/devices/*/uevent | wc -l)"
+  set -e
+  # Re-check MIG status
+  IS_MIG_ENABLED=0
+  NVIDIA_SMI_PATH='/usr/bin' # Reset default path
+  MIG_MAJOR_CAPS=0
+  if [[ "${gpu_count}" -gt "0" ]] && nvsmi >/dev/null 2>&1; then # Check if nvsmi works before querying
+      migquery_result="$(nvsmi --query-gpu=mig.mode.current --format=csv,noheader || echo '[N/A]')"
+      if [[ "${migquery_result}" != "[N/A]" && "${migquery_result}" != "" ]]; then
+          NUM_MIG_GPUS="$(echo ${migquery_result} | uniq | wc -l)"
+          if [[ "${NUM_MIG_GPUS}" -eq "1" ]] && (echo "${migquery_result}" | grep -q Enabled); then
+            IS_MIG_ENABLED=1
+            NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/' # Set MIG path
+            MIG_MAJOR_CAPS=$(grep nvidia-caps /proc/devices | cut -d ' ' -f 1 || echo 0)
+            if [[ ! -d "/usr/local/yarn-mig-scripts" ]]; then fetch_mig_scripts || echo "WARN: Failed to fetch MIG scripts." >&2; fi
+          fi
+      fi
+  fi
+
+  # Ensure config directories exist
+  if [[ ! -d "${HADOOP_CONF_DIR}" || ! -d "${SPARK_CONF_DIR}" ]]; then
+     echo "ERROR: Config directories (${HADOOP_CONF_DIR}, ${SPARK_CONF_DIR}) not found. Cannot apply configuration."
+     return 1 # Use return instead of exit in a function
+  fi
+
+  # Run config applicable to all nodes
+  configure_yarn_resources
+
+  # Run node-specific config
+  if [[ "${gpu_count}" -gt 0 ]]; then
+    configure_yarn_nodemanager
+    install_spark_rapids # Installs JARs
+    configure_gpu_script
+    configure_gpu_isolation
+    configure_gpu_exclusive_mode # Call this here, it checks Spark version internally
+  elif [[ "${ROLE}" == "Master" ]]; then
+    # Master node without GPU still needs some config
+    configure_yarn_nodemanager
+    install_spark_rapids # Still need JARs on Master
+    configure_gpu_script
+  else
+    # Worker node without GPU, skip node-specific YARN/Spark config.
+    :
+  fi
+
+  return 0 # Explicitly return success
+}
+
+# This function now ONLY generates the script and service file.
+# It does NOT enable the service here.
+function create_deferred_config_files() {
+  local -r service_name="dataproc-gpu-config"
+  local -r service_file="/etc/systemd/system/${service_name}.service"
+  # This is the script that will contain the config logic
+  local -r config_script_path="/usr/local/sbin/apply-dataproc-gpu-config.sh"
+
+  # Use 'declare -f' to extract function definitions needed by the config logic
+  # and write them, along with the config logic itself, into the new script.
+  cat <<EOF > "${config_script_path}"
+#!/bin/bash
+# Deferred configuration script generated by install_gpu_driver.sh
+set -xeuo pipefail
+
+# --- Minimal necessary functions and variables ---
+# Define constants
+readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
+readonly SPARK_CONF_DIR='/etc/spark/conf'
+readonly bdcfg="/usr/local/bin/bdconfig"
+readonly workdir=/opt/install-dpgce # Needed for cache_fetched_package
+
+# --- Define Necessary Global Arrays ---
+# These need to be explicitly defined here as they are not functions.
+$(declare -p DRIVER_FOR_CUDA)
+$(declare -p DRIVER_SUBVER)
+$(declare -p CUDNN_FOR_CUDA)
+$(declare -p NCCL_FOR_CUDA)
+$(declare -p CUDA_SUBVER)
+# drv_for_cuda is defined within set_cuda_runfile_url, which is included below
+
+# Define minimal metadata functions
+$(declare -f print_metadata_value)
+$(declare -f print_metadata_value_if_exists)
+$(declare -f get_metadata_value)
+$(declare -f get_metadata_attribute)
+
+# Define nvsmi wrapper
+$(declare -f nvsmi)
+nvsmi_works="0" # Initialize variable used by nvsmi
+
+# Define version comparison
+$(declare -f version_ge)
+$(declare -f version_gt)
+$(declare -f version_le)
+$(declare -f version_lt)
+
+# Define OS check functions
+$(declare -f os_id)
+$(declare -f os_version)
+$(declare -f os_codename) # Added os_codename as it's used by clean_up_sources_lists indirectly via os_add_repo
+$(declare -f is_debian)
+$(declare -f is_ubuntu)
+$(declare -f is_rocky)
+$(declare -f is_debuntu)
+$(declare -f is_debian10)
+$(declare -f is_debian11)
+$(declare -f is_debian12)
+$(declare -f is_rocky8)
+$(declare -f is_rocky9)
+$(declare -f is_ubuntu18)
+$(declare -f is_ubuntu20)
+$(declare -f is_ubuntu22)
+$(declare -f ge_debian12)
+$(declare -f le_debian10)
+$(declare -f le_debian11)
+$(declare -f ge_ubuntu20)
+$(declare -f le_ubuntu18)
+$(declare -f ge_rocky9)
+$(declare -f os_vercat) # Added os_vercat as it's used by set_nv_urls/set_cuda_runfile_url
+# Define _shortname (needed by install_spark_rapids -> cache_fetched_package and others)
+readonly _shortname="\$(os_id)\$(os_version|perl -pe 's/(\\d+).*/\$1/')"
+# Define shortname and nccl_shortname (needed by set_nv_urls)
+if is_ubuntu22  ; then
+    nccl_shortname="ubuntu2004"
+    shortname="\$(os_id)\$(os_vercat)"
+elif ge_rocky9 ; then
+    nccl_shortname="rhel8"
+    shortname="rhel9"
+elif is_rocky ; then
+    shortname="\$(os_id | sed -e 's/rocky/rhel/')\$(os_vercat)"
+    nccl_shortname="\${shortname}"
+else
+    shortname="\$(os_id)\$(os_vercat)"
+    nccl_shortname="\${shortname}"
+fi
+readonly shortname nccl_shortname
+
+# Define prepare_gpu_env and its dependencies
+$(declare -f prepare_gpu_env)
+$(declare -f set_cuda_version)
+$(declare -f set_driver_version)
+$(declare -f set_nv_urls)
+$(declare -f set_cuda_runfile_url)
+$(declare -f set_cudnn_version)
+$(declare -f set_cudnn_tarball_url)
+$(declare -f is_cuda11)
+$(declare -f is_cuda12)
+$(declare -f le_cuda11)
+$(declare -f le_cuda12)
+$(declare -f ge_cuda11)
+$(declare -f ge_cuda12)
+$(declare -f is_cudnn8)
+$(declare -f is_cudnn9)
+
+# Define DATAPROC_IMAGE_VERSION (re-evaluate)
+SPARK_VERSION="\$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1 || echo "0.0")"
+if   version_lt "\${SPARK_VERSION}" "2.5" ; then DATAPROC_IMAGE_VERSION="1.5"
+elif version_lt "\${SPARK_VERSION}" "3.2" ; then DATAPROC_IMAGE_VERSION="2.0"
+elif version_lt "\${SPARK_VERSION}" "3.4" ; then DATAPROC_IMAGE_VERSION="2.1"
+elif version_lt "\${SPARK_VERSION}" "3.6" ; then
+  if [[ -f /etc/environment ]] ; then
+    eval "\$(grep '^DATAPROC_IMAGE_VERSION' /etc/environment)" || DATAPROC_IMAGE_VERSION="2.2"
+  else
+    DATAPROC_IMAGE_VERSION="2.2"
+  fi
+else DATAPROC_IMAGE_VERSION="2.3" ; fi # Default to latest known version
+readonly DATAPROC_IMAGE_VERSION
+
+# Define set_hadoop_property
+$(declare -f set_hadoop_property)
+
+# --- Include definitions of functions called by the config logic ---
+$(declare -f configure_yarn_resources)
+$(declare -f configure_yarn_nodemanager)
+$(declare -f install_spark_rapids)
+$(declare -f configure_gpu_script)
+$(declare -f configure_gpu_isolation)
+$(declare -f configure_gpu_exclusive_mode)
+$(declare -f fetch_mig_scripts)
+$(declare -f cache_fetched_package)
+$(declare -f execute_with_retries)
+
+# --- Define gsutil/gcloud commands and curl args ---
+gsutil_cmd="gcloud storage"
+gsutil_stat_cmd="gcloud storage objects describe"
+gcloud_sdk_version="\$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print \$2}' || echo '0.0.0')"
+if version_lt "\${gcloud_sdk_version}" "402.0.0" ; then
+  gsutil_cmd="gsutil -o GSUtil:check_hashes=never"
+  gsutil_stat_cmd="gsutil stat"
+fi
+curl_retry_args="-fsSL --retry-connrefused --retry 10 --retry-max-time 30"
+
+# --- Include the main config function ---
+$(declare -f run_hadoop_spark_config)
+
+# --- Execute the config logic ---
+if run_hadoop_spark_config; then
+  # Configuration successful, disable the service
+  systemctl disable ${service_name}.service
+  rm -f "${config_script_path}" "${service_file}"
+  systemctl daemon-reload
+else
+  echo "ERROR: Deferred configuration script (${config_script_path}) failed." >&2
+  # Keep the service enabled to allow for manual inspection/retry
+  exit 1
+fi
+
+# Restart services after applying config
+for svc in resourcemanager nodemanager; do
+  if (systemctl is-active --quiet hadoop-yarn-\${svc}.service); then
+    systemctl stop  hadoop-yarn-\${svc}.service || echo "WARN: Failed to stop \${svc}"
+    systemctl start hadoop-yarn-\${svc}.service || echo "WARN: Failed to start \${svc}"
+  fi
+done
+
+exit 0
+EOF
+
+  chmod +x "${config_script_path}"
+
+  cat <<EOF > "${service_file}"
+[Unit]
+Description=Apply Dataproc GPU configuration on first boot
+# Ensure it runs after Dataproc agent and YARN services are likely up
+After=google-dataproc-agent.service network-online.target hadoop-yarn-resourcemanager.service hadoop-yarn-nodemanager.service
+Wants=network-online.target google-dataproc-agent.service
+
+[Service]
+Type=oneshot
+ExecStart=${config_script_path} # Execute the generated config script
+RemainAfterExit=no # Service is done after exec
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  chmod 644 "${service_file}"
+  # Service is enabled later only if IS_CUSTOM_IMAGE_BUILD is true
 }
 
 
 function main() {
-  # This configuration should be run on all nodes
-  # regardless if they have attached GPUs
-  configure_yarn_resources
+  # Perform installations (these are generally safe during image build)
+  if (grep -qi PCI_ID=10DE /sys/bus/pci/devices/*/uevent); then
 
-  # Detect NVIDIA GPU
-  if (grep -h -i PCI_ID=10DE /sys/bus/pci/devices/*/uevent); then
-    # if this is called without the MIG script then the drivers are not installed
-    migquery_result="$(nvsmi --query-gpu=mig.mode.current --format=csv,noheader)"
+    # Check MIG status early, primarily for driver installation logic
+    migquery_result="$(nvsmi --query-gpu=mig.mode.current --format=csv,noheader || echo '[N/A]')" # Use || for safety
     if [[ "${migquery_result}" == "[N/A]" ]] ; then migquery_result="" ; fi
     NUM_MIG_GPUS="$(echo ${migquery_result} | uniq | wc -l)"
 
-    if [[ "${NUM_MIG_GPUS}" -gt "0" ]] ; then
+    if [[ "${NUM_MIG_GPUS}" -gt 0 ]] ; then
       if [[ "${NUM_MIG_GPUS}" -eq "1" ]]; then
         if (echo "${migquery_result}" | grep Enabled); then
           IS_MIG_ENABLED=1
-          NVIDIA_SMI_PATH='/usr/local/yarn-mig-scripts/'
-          MIG_MAJOR_CAPS=`grep nvidia-caps /proc/devices | cut -d ' ' -f 1`
-          fetch_mig_scripts
+          # Fetch MIG scripts early if needed by driver install/check
+          if [[ ! -d "/usr/local/yarn-mig-scripts" ]]; then fetch_mig_scripts || echo "WARN: Failed to fetch MIG scripts." >&2; fi
         fi
       fi
     fi
 
-    # if mig is enabled drivers would have already been installed
+    # Install core components if MIG is not already enabled (MIG setup implies drivers exist)
     if [[ $IS_MIG_ENABLED -eq 0 ]]; then
       install_nvidia_gpu_driver
       install_nvidia_container_toolkit
       install_cuda
-      load_kernel_module
+      load_kernel_module # Load modules after driver install
 
       if [[ -n ${CUDNN_VERSION} ]]; then
         install_nvidia_nccl
@@ -1953,6 +2271,7 @@ function main() {
             nvsmi -i "${GPU_ID}" --multi-instance-gpu=1
           else
             nvsmi -i "${GPU_ID}" --multi-instance-gpu 1
+
           fi
         done
 
@@ -1969,16 +2288,33 @@ function main() {
     configure_gpu_script
     configure_gpu_isolation
   elif [[ "${ROLE}" == "Master" ]]; then
-    configure_yarn_nodemanager
-    configure_gpu_script
-  fi
+    # Master node without GPU detected.
+    :
+  else
+    # Worker node without GPU detected.
+    :
+  fi # End GPU detection
 
-  # Restart YARN services if they are running already
-  for svc in resourcemanager nodemanager; do
-    if [[ $(systemctl show hadoop-yarn-${svc}.service -p SubState --value) == 'running' ]]; then
-      systemctl restart hadoop-yarn-${svc}.service
+  # --- Generate Config Script and Service File ---
+  # This happens in both modes now
+  create_deferred_config_files
+
+  # --- Apply or Defer Configuration ---
+  if [[ "${IS_CUSTOM_IMAGE_BUILD}" == "true" ]]; then
+    # Enable the systemd service for first boot
+    systemctl enable "dataproc-gpu-config.service"
+  else
+    # Running as a standard init action: execute the generated script immediately
+    local -r config_script_path="/usr/local/sbin/apply-dataproc-gpu-config.sh"
+    if [[ -x "${config_script_path}" ]]; then
+        bash -x "${config_script_path}"
+    else
+        echo "ERROR: Generated config script ${config_script_path} not found or not executable."
+        exit 1
     fi
-  done
+    # The config script handles its own cleanup and service disabling on success
+  fi
+  # --- End Apply or Defer ---
 }
 
 function cache_fetched_package() {
@@ -1995,6 +2331,7 @@ function cache_fetched_package() {
 }
 
 function clean_up_sources_lists() {
+  if ! is_debuntu; then return; fi
   #
   # bigtop (primary)
   #
@@ -2108,11 +2445,13 @@ function exit_handler() {
     if ${gsutil_stat_cmd} "${building_file}" ; then ${gsutil_cmd} rm "${building_file}" || true ; fi
   fi
 
-  set +e
+  set +e # Allow cleanup commands to fail without exiting script
   echo "Exit handler invoked"
 
   # Clear pip cache
+  # TODO: make this conditional on which OSs have pip without cache purge
   pip cache purge || echo "unable to purge pip cache"
+
 
   # If system memory was sufficient to mount memory-backed filesystems
   if [[ "${tmpdir}" == "/mnt/shm" ]] ; then
@@ -2148,7 +2487,7 @@ function exit_handler() {
       /usr/lib/{pig,hive,hadoop,jvm,spark,google-cloud-sdk,x86_64-linux-gnu} \
       /usr/lib \
       /opt/nvidia/* \
-      /opt/conda/miniconda3 | sort -h
+      /opt/conda/miniconda3 2>/dev/null | sort -h
   elif is_debian ; then
     du -x -hs \
       /usr/lib/{pig,hive,hadoop,jvm,spark,google-cloud-sdk,x86_64-linux-gnu,} \
@@ -2159,13 +2498,13 @@ function exit_handler() {
       /usr \
       /var \
       / 2>/dev/null | sort -h
-  else
+  else # Rocky
     du -hs \
       /var/lib/docker \
       /usr/lib/{pig,hive,hadoop,firmware,jvm,spark,atlas,} \
       /usr/lib64/google-cloud-sdk \
       /opt/nvidia/* \
-      /opt/conda/miniconda3
+      /opt/conda/miniconda3 2>/dev/null | sort -h
   fi
 
   # Process disk usage logs from installation period
@@ -2182,7 +2521,7 @@ function exit_handler() {
            unshift(@samples,$first); $final=$samples[-1];
            ($starting)=(split(/\s+/,$first))[2] =~ /^(\d+)/;
              ($ending)=(split(/\s+/,$final))[2] =~ /^(\d+)/;
-           @siz=( sort { $a => $b }
+           @siz=( sort { $a <= $b }
                    map { (split)[2] =~ /^(\d+)/ } @samples );
 $max=$siz[0]; $min=$siz[-1]; $inc=$max-$starting;
 print( "     samples-taken: ", scalar @siz, $/,
@@ -2194,12 +2533,12 @@ print( "     samples-taken: ", scalar @siz, $/,
 
   echo "exit_handler has completed"
 
-  # zero free disk space
-  if [[ -n "$(get_metadata_attribute creating-image)" ]]; then
-    dd if=/dev/zero of=/zero
+  # zero free disk space (only if creating image)
+  if [[ "${IS_CUSTOM_IMAGE_BUILD}" == "true" ]]; then
+    dd if=/dev/zero of=/zero status=progress || true
     sync
     sleep 3s
-    rm -f /zero
+    rm -f /zero || true
   fi
 
   return 0
@@ -2373,7 +2712,6 @@ function mount_ramdisk(){
   if [[ ${free_mem} -lt 20500000 ]]; then return 0 ; fi
 
   # Write to a ramdisk instead of churning the persistent disk
-
   tmpdir="/mnt/shm"
   mkdir -p "${tmpdir}/pkgs_dirs"
   mount -t tmpfs tmpfs "${tmpdir}"
@@ -2429,6 +2767,17 @@ function prepare_to_install(){
   check_secure_boot
   set_proxy
 
+  # --- Detect Image Build Context ---
+  # Use 'initialization-actions' as the default name for clarity
+  INVOCATION_TYPE="$(get_metadata_attribute invocation-type "initialization-actions")"
+  if [[ "${INVOCATION_TYPE}" == "custom-images" ]]; then
+    IS_CUSTOM_IMAGE_BUILD="true"
+    # echo "Detected custom image build context (invocation-type=custom-images). Configuration will be deferred." # Keep silent
+  else
+    IS_CUSTOM_IMAGE_BUILD="false" # Ensure it's explicitly false otherwise
+    # echo "Running in initialization action mode (invocation-type=${INVOCATION_TYPE})." # Keep silent
+  fi
+
   # With the 402.0.0 release of gcloud sdk, `gcloud storage` can be
   # used as a more performant replacement for `gsutil`
   gsutil_cmd="gcloud storage"
@@ -2438,23 +2787,48 @@ function prepare_to_install(){
     gsutil_cmd="gsutil -o GSUtil:check_hashes=never"
     gsutil_stat_cmd="gsutil stat"
   fi
+
+  # if fetches of nvidia packages fail, apply -k argument to the following.
+
   curl_retry_args="-fsSL --retry-connrefused --retry 10 --retry-max-time 30"
 
+  # After manually verifying the veracity of the asset, take note of sha256sum
+  # of the downloaded files in your gcs bucket and submit these data with an
+  # issue or pull request to the github repository
+  # GoogleCloudDataproc/initialization-actions and we will include those hashes
+  # with this script for manual validation at time of deployment.
+
+  # Please provide hash data in the following format:
+
+#      ["cuda_11.5.2_495.29.05_linux.run"]="2c33591bb5b33a3d4bffafdc7da76fe4"
+#      ["cuda_11.6.2_510.47.03_linux.run"]="2989d2d2a943fa5e2a1f29f660221788"
+#      ["cuda_12.1.1_530.30.02_linux.run"]="2f0a4127bf797bf4eab0be2a547cb8d0"
+#      ["cuda_12.4.1_550.54.15_linux.run"]="afc99bab1d8c6579395d851d948ca3c1"
+#      ["cuda_12.6.3_560.35.05_linux.run"]="29d297908c72b810c9ceaa5177142abd"
+#      ["NVIDIA-Linux-x86_64-495.46.run"]="db1d6b0f9e590249bbf940a99825f000"
+#      ["NVIDIA-Linux-x86_64-510.108.03.run"]="a225bcb0373cbf6c552ed906bc5c614e"
+#      ["NVIDIA-Linux-x86_64-530.30.02.run"]="655b1509b9a9ed0baa1ef6b2bcf80283"
+#      ["NVIDIA-Linux-x86_64-550.135.run"]="a8c3ae0076f11e864745fac74bfdb01f"
+#      ["NVIDIA-Linux-x86_64-550.142.run"]="e507e578ecf10b01a08e5424dddb25b8"
+
+  # Setup temporary directories (potentially on RAM disk)
+  tmpdir=/tmp/ # Default
+  mount_ramdisk # Updates tmpdir if successful
+  install_log="${tmpdir}/install.log" # Set install log path based on final tmpdir
+
   workdir=/opt/install-dpgce
-  tmpdir=/tmp/
+  # Set GCS bucket for caching
   temp_bucket="$(get_metadata_attribute dataproc-temp-bucket)"
   readonly temp_bucket
   readonly pkg_bucket="gs://${temp_bucket}/dpgce-packages"
   readonly bdcfg="/usr/local/bin/bdconfig"
   export DEBIAN_FRONTEND=noninteractive
 
+  # Prepare GPU environment variables (versions, URLs, counts)
   prepare_gpu_env
 
   mkdir -p "${workdir}/complete"
   trap exit_handler EXIT
-  mount_ramdisk
-
-  readonly install_log="${tmpdir}/install.log"
 
   is_complete prepare.common && return
 
@@ -2469,14 +2843,15 @@ function prepare_to_install(){
     if ge_debian12 ; then
     apt-mark unhold systemd libsystemd0 ; fi
     if is_ubuntu ; then
+      # Wait for gcloud to be available on Ubuntu
       while ! command -v gcloud ; do sleep 5s ; done
     fi
-  else
+  else # Rocky
     dnf clean all
   fi
 
-  # zero free disk space
-  if [[ -n "$(get_metadata_attribute creating-image)" ]]; then ( set +e
+  # zero free disk space (only if creating image)
+  if [[ "${IS_CUSTOM_IMAGE_BUILD}" == "true" ]]; then ( set +e
     time dd if=/dev/zero of=/zero status=none ; sync ; sleep 3s ; rm -f /zero
   ) fi
 
@@ -2507,23 +2882,27 @@ function check_os() {
   readonly SPARK_VERSION
   if version_lt "${SPARK_VERSION}" "2.4" || \
      version_ge "${SPARK_VERSION}" "4.0" ; then
-    echo "Error: Your Spark version is not supported. Please upgrade Spark to one of the supported versions."
+    echo "Error: Your Spark version (${SPARK_VERSION}) is not supported. Please use a supported version."
     exit 1
   fi
 
   # Detect dataproc image version
-  if (! test -v DATAPROC_IMAGE_VERSION) ; then
+  if (! test -v DATAPROC_IMAGE_VERSION || [[ -z "${DATAPROC_IMAGE_VERSION}" ]]) ; then
     if test -v DATAPROC_VERSION ; then
       DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
     else
       # When building custom-images, neither of the above variables
       # are defined and we need to make a reasonable guess
-
       if   version_lt "${SPARK_VERSION}" "2.5" ; then DATAPROC_IMAGE_VERSION="1.5"
       elif version_lt "${SPARK_VERSION}" "3.2" ; then DATAPROC_IMAGE_VERSION="2.0"
       elif version_lt "${SPARK_VERSION}" "3.4" ; then DATAPROC_IMAGE_VERSION="2.1"
-      elif version_lt "${SPARK_VERSION}" "3.6" ; then DATAPROC_IMAGE_VERSION="2.2"
-      else echo "Unknown dataproc image version" ; exit 1 ; fi
+      elif version_lt "${SPARK_VERSION}" "3.6" ; then
+        if [[ -f /etc/environment ]] ; then
+          eval "$(grep '^DATAPROC_IMAGE_VERSION' /etc/environment)" || DATAPROC_IMAGE_VERSION="2.2"
+        else
+          DATAPROC_IMAGE_VERSION="2.2"
+        fi
+      else DATAPROC_IMAGE_VERSION="2.3" ; fi # Default to latest known version
     fi
   fi
 }
@@ -2613,23 +2992,25 @@ function install_spark_rapids() {
   local -r dmlc_repo_url='https://repo.maven.apache.org/maven2/ml/dmlc'
 
   local jar_basename
+  local spark_jars_dir="/usr/lib/spark/jars"
+  mkdir -p "${spark_jars_dir}"
 
   jar_basename="xgboost4j-spark-gpu_${scala_ver}-${XGBOOST_VERSION}.jar"
   cache_fetched_package "${dmlc_repo_url}/xgboost4j-spark-gpu_${scala_ver}/${XGBOOST_VERSION}/${jar_basename}" \
                         "${pkg_bucket}/xgboost4j-spark-gpu_${scala_ver}/${XGBOOST_VERSION}/${jar_basename}" \
-                        "/usr/lib/spark/jars/${jar_basename}"
+                        "${spark_jars_dir}/${jar_basename}"
 
   jar_basename="xgboost4j-gpu_${scala_ver}-${XGBOOST_VERSION}.jar"
   cache_fetched_package "${dmlc_repo_url}/xgboost4j-gpu_${scala_ver}/${XGBOOST_VERSION}/${jar_basename}" \
                         "${pkg_bucket}/xgboost4j-gpu_${scala_ver}/${XGBOOST_VERSION}/${jar_basename}" \
-                        "/usr/lib/spark/jars/${jar_basename}"
+                        "${spark_jars_dir}/${jar_basename}"
 
   jar_basename="rapids-4-spark_${scala_ver}-${SPARK_RAPIDS_VERSION}.jar"
   cache_fetched_package "${nvidia_repo_url}/rapids-4-spark_${scala_ver}/${SPARK_RAPIDS_VERSION}/${jar_basename}" \
                         "${pkg_bucket}/rapids-4-spark_${scala_ver}/${SPARK_RAPIDS_VERSION}/${jar_basename}" \
-                        "/usr/lib/spark/jars/${jar_basename}"
+                        "${spark_jars_dir}/${jar_basename}"
 }
 
-prepare_to_install
-
-main
+# --- Script Entry Point ---
+prepare_to_install # Run preparation steps first
+main               # Call main logic

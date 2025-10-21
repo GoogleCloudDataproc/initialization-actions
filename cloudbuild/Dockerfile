@@ -22,7 +22,7 @@ RUN /usr/bin/curl -s https://bazel.build/bazel-release.pub.gpg | \
     dd of="${bazel_repo_file}" status=none && \
     apt-get update -qq
 RUN apt-get autoremove -y -qq > /dev/null 2>&1 && \
-    apt-get install -y -qq default-jdk python3-setuptools bazel-${bazel_version} > /dev/null 2>&1 && \
+    apt-get install -y -qq default-jdk python3-setuptools python3-pip bazel-${bazel_version} > /dev/null 2>&1 && \
     apt-get clean
 
 # Set bazel-${bazel_version} as the default bazel alternative in this container
@@ -30,3 +30,7 @@ RUN update-alternatives --install /usr/bin/bazel bazel /usr/bin/bazel-${bazel_ve
     update-alternatives                    --set bazel /usr/bin/bazel-${bazel_version}
 
 USER ia-tests
+
+# Install Python dependencies
+RUN python3 -m pip install --upgrade pip && \
+    python3 -m pip install -r /init-actions/requirements.txt

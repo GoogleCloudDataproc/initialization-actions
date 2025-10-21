@@ -66,11 +66,21 @@ kubectl wait --for=condition=Ready "pod/${POD_NAME}" --timeout=15m
 
 # To mitigate problems with early test failure, retry kubectl logs
 sleep 10s
-while ! kubectl describe "pod/${POD_NAME}" | grep -q Terminated; do
-  # Try to stream logs, but primary log capture is now in the trap
+while true; do
+  if ! kubectl describe "pod/${POD_NAME}" > /dev/null 2>&1; then
+    echo "Pod ${POD_NAME} not found, assuming it has been deleted."
+    break # Exit the loop if the pod doesn't exist
+  fi
+
+  if kubectl describe "pod/${POD_NAME}" | grep -q Terminated; then
+    echo "Pod ${POD_NAME} is Terminated."
+    break # Exit the loop if the pod is Terminated
+  fi
+
+  # Try to stream logs
   kubectl logs -f "${POD_NAME}" --since-time="${LOGS_SINCE_TIME}" --timestamps=true || true
   LOGS_SINCE_TIME=$(date --iso-8601=seconds)
-  sleep 2 # Short sleep to avoid busy waiting if logs -f exits
+  sleep 2
 done
 
 # Final check on the pod exit code

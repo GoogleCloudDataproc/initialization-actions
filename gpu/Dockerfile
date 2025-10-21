@@ -40,6 +40,7 @@ RUN apt-get -y -qq install emacs-nox vim uuid-runtime > /dev/null 2>&1 && apt-ge
 WORKDIR /init-actions
 
 USER ia-tests
+COPY --chown=ia-tests:ia-tests "cloudbuild/key.json" /key.json
 COPY --chown=ia-tests:ia-tests . ${WORKDIR}
 
 ENTRYPOINT ["/bin/bash"]

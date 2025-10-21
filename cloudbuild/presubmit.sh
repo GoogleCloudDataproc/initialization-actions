@@ -70,6 +70,7 @@ determine_tests_to_run() {
     changed_dir="${changed_dir%%/*}/"
     # Run all tests if common directories modified
     if [[ ${changed_dir} =~ ^(integration_tests|util|cloudbuild)/$ ]]; then
+      continue # remove this line before submission
       echo "All tests will be run: '${changed_dir}' was changed"
       TESTS_TO_RUN=(":DataprocInitActionsTestSuite")
       return 0
