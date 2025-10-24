@@ -13,7 +13,8 @@
 # limitations under the License.
 
 # This script installs NVIDIA GPU drivers (version 535.104.05) along with CUDA 12.2.
-# However, Cuda 12.1.1 - Driver v530.30.02 is used for Ubuntu 18 only
+# However, Cuda 12.1.1 - Driver v530.30.02 is used for Ubuntu 18 only.
+# For Ubuntu 24.04 with kernel 6.14+, this script uses repository installation to get the latest CUDA toolkit and NVIDIA driver 570+ for compatibility.
 # Additionally, it installs the RAPIDS Spark plugin, configures Spark and YARN, and is compatible with Debian, Ubuntu, and Rocky Linux distributions.
 # Note that the script is designed to work when secure boot is disabled during cluster creation.
 # It also creates a Systemd Service for maintaining up-to-date Kernel Headers on Debian and Ubuntu.
@@ -58,6 +59,10 @@ function is_ubuntu20() {
 
 function is_ubuntu22() {
   is_ubuntu && [[ "$(os_version)" == '22.04'* ]]
+}
+
+function is_ubuntu24() {
+  is_ubuntu && [[ "$(os_version)" == '24.04'* ]]
 }
 
 function is_rocky() {
@@ -210,6 +215,11 @@ readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[
 if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
   readonly DEFAULT_XGBOOST_VERSION="1.7.6"
   readonly SPARK_VERSION="3.0"
+  readonly SCALA_VERSION="2.12"
+elif [[ "${SPARK_VERSION_ENV}" == "4"* ]]; then
+  readonly DEFAULT_XGBOOST_VERSION="2.1.4"
+  readonly SPARK_VERSION="4.0"
+  readonly SCALA_VERSION="2.13"
 else
   echo "Error: Your Spark version is not supported. Please upgrade Spark to one of the supported versions."
   exit 1
@@ -232,11 +242,32 @@ CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.2
 
 # EXCEPTIONS
 # Change CUDA version for Ubuntu 18 (Cuda 12.1.1 - Driver v530.30.02 is the latest version supported by Ubuntu 18)
+# Change CUDA version for Ubuntu 24 (Cuda 12.4.1 is not available, use 12.6.0)
 if [[ "${OS_NAME}" == "ubuntu" ]]; then
     if is_ubuntu18 ; then
       CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '12.1.1')  #12.1.1
       NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '530.30.02') #530.30.02
       CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.1
+    elif is_ubuntu24 ; then
+      # CUDA 12.4.1 is not available for Ubuntu 24.04, use 12.6.0 instead
+      # For kernel 6.14+, use NVIDIA driver 570 for compatibility
+      KERNEL_VERSION=$(uname -r | cut -d'-' -f1)
+      KERNEL_MAJOR=$(echo "$KERNEL_VERSION" | cut -d'.' -f1)
+      KERNEL_MINOR=$(echo "$KERNEL_VERSION" | cut -d'.' -f2)
+      
+      if [[ "$KERNEL_MAJOR" -eq 6 && "$KERNEL_MINOR" -ge 14 ]]; then
+        # For kernel 6.14+ (dataproc 3), use repository installation to get latest CUDA and compatible drivers
+        CUDA_VERSION=$(get_metadata_attribute 'cuda-version' 'latest')  #latest from repo
+        NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '570') #570 series
+        CUDA_VERSION_MAJOR="12"  #Will be determined from repository
+        USE_REPO_INSTALL="true"
+      else
+        # Use CUDA 12.6.0 local installer for older kernels
+        CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '12.6.0')  #12.6.0
+        NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '560.28.03') #560.28.03
+        CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.6
+        USE_REPO_INSTALL="false"
+      fi
     fi
 fi
 
@@ -272,20 +303,35 @@ function execute_with_retries() {
 function install_spark_rapids() {
   local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
   local -r dmlc_repo_url='https://repo.maven.apache.org/maven2/ml/dmlc'
-
-  wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${dmlc_repo_url}/xgboost4j-spark-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-spark-gpu_2.12-${XGBOOST_VERSION}.jar" \
-    -P /usr/lib/spark/jars/
-  wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${dmlc_repo_url}/xgboost4j-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-gpu_2.12-${XGBOOST_VERSION}.jar" \
-    -P /usr/lib/spark/jars/
-  wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${nvidia_repo_url}/rapids-4-spark_2.12/${SPARK_RAPIDS_VERSION}/rapids-4-spark_2.12-${SPARK_RAPIDS_VERSION}.jar" \
-    -P /usr/lib/spark/jars/
+  
+  # For Spark 4.0 with Scala 2.13, use the cuda12 variant and Scala 2.13 XGBoost JARs
+  if [[ "${SPARK_VERSION}" == "4.0" ]]; then
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+      "${nvidia_repo_url}/rapids-4-spark_${SCALA_VERSION}/${SPARK_RAPIDS_VERSION}/rapids-4-spark_${SCALA_VERSION}-${SPARK_RAPIDS_VERSION}-cuda12.jar" \
+      -P /usr/lib/spark/jars/
+    # Download XGBoost JARs for Scala 2.13 (Spark 4.0)
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+      "${dmlc_repo_url}/xgboost4j-spark-gpu_${SCALA_VERSION}/${XGBOOST_VERSION}/xgboost4j-spark-gpu_${SCALA_VERSION}-${XGBOOST_VERSION}.jar" \
+      -P /usr/lib/spark/jars/
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+      "${dmlc_repo_url}/xgboost4j-gpu_${SCALA_VERSION}/${XGBOOST_VERSION}/xgboost4j-gpu_${SCALA_VERSION}-${XGBOOST_VERSION}.jar" \
+      -P /usr/lib/spark/jars/
+  else
+    # For Spark 3.0 with Scala 2.12
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+      "${nvidia_repo_url}/rapids-4-spark_${SCALA_VERSION}/${SPARK_RAPIDS_VERSION}/rapids-4-spark_${SCALA_VERSION}-${SPARK_RAPIDS_VERSION}.jar" \
+      -P /usr/lib/spark/jars/
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+      "${dmlc_repo_url}/xgboost4j-spark-gpu_${SCALA_VERSION}/${XGBOOST_VERSION}/xgboost4j-spark-gpu_${SCALA_VERSION}-${XGBOOST_VERSION}.jar" \
+      -P /usr/lib/spark/jars/
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+      "${dmlc_repo_url}/xgboost4j-gpu_${SCALA_VERSION}/${XGBOOST_VERSION}/xgboost4j-gpu_${SCALA_VERSION}-${XGBOOST_VERSION}.jar" \
+      -P /usr/lib/spark/jars/
+  fi
 }
 
 function configure_spark() {
-  if [[ "${SPARK_VERSION}" == "3"* ]]; then
+  if [[ "${SPARK_VERSION}" == "3"* ]] || [[ "${SPARK_VERSION}" == "4"* ]]; then
     cat >>${SPARK_CONF_DIR}/spark-defaults.conf <<EOF
 
 ###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
@@ -366,8 +412,14 @@ function install_nvidia_gpu_driver() {
   readonly NVIDIA_DRIVER_VERSION_PREFIX=${NVIDIA_DRIVER_VERSION%%.*}
 
   ## For Debian & Ubuntu
-  readonly LOCAL_INSTALLER_DEB="cuda-repo-${shortname}-${CUDA_VERSION_MAJOR//./-}-local_${CUDA_VERSION}-${NVIDIA_DRIVER_VERSION}-1_amd64.deb"
-  readonly LOCAL_DEB_URL="${NVIDIA_BASE_DL_URL}/cuda/${CUDA_VERSION}/local_installers/${LOCAL_INSTALLER_DEB}"
+  # For driver 570, use the original CUDA installer with driver 560, then upgrade driver separately
+  if [[ "${NVIDIA_DRIVER_VERSION_PREFIX}" == "570" ]]; then
+    readonly LOCAL_INSTALLER_DEB="cuda-repo-${shortname}-${CUDA_VERSION_MAJOR//./-}-local_${CUDA_VERSION}-560.28.03-1_amd64.deb"
+    readonly LOCAL_DEB_URL="${NVIDIA_BASE_DL_URL}/cuda/${CUDA_VERSION}/local_installers/${LOCAL_INSTALLER_DEB}"
+  else
+    readonly LOCAL_INSTALLER_DEB="cuda-repo-${shortname}-${CUDA_VERSION_MAJOR//./-}-local_${CUDA_VERSION}-${NVIDIA_DRIVER_VERSION}-1_amd64.deb"
+    readonly LOCAL_DEB_URL="${NVIDIA_BASE_DL_URL}/cuda/${CUDA_VERSION}/local_installers/${LOCAL_INSTALLER_DEB}"
+  fi
   readonly DIST_KEYRING_DIR="/var/cuda-repo-${shortname}-${CUDA_VERSION_MAJOR//./-}-local"
 
   ## installation steps based OS
@@ -466,6 +518,29 @@ function install_nvidia_gpu_driver() {
        -o cuda.run
       time bash cuda.run --silent --toolkit --no-opengl-libs
       rm cuda.run
+    elif [[ "${USE_REPO_INSTALL:-false}" == "true" ]]; then
+      # Repository-based installation for latest CUDA and kernel 6.14+ compatibility
+      
+      # Install CUDA keyring for repository access
+      execute_with_retries "wget https://developer.download.nvidia.com/compute/cuda/repos/${shortname}/x86_64/cuda-keyring_1.1-1_all.deb"
+      execute_with_retries "dpkg -i cuda-keyring_1.1-1_all.deb"
+      rm -f cuda-keyring_1.1-1_all.deb
+      
+      # Add graphics-drivers PPA for latest NVIDIA drivers
+      execute_with_retries "apt-get install -y -q software-properties-common"
+      execute_with_retries "add-apt-repository -y ppa:graphics-drivers/ppa"
+      execute_with_retries "apt-get update"
+      
+      execute_with_retries "apt-get install -y -q --no-install-recommends dkms"
+      configure_dkms_certs
+      
+      # Install latest CUDA toolkit and compatible NVIDIA driver
+      execute_with_retries "apt-get install -y -q --no-install-recommends cuda-toolkit"
+      execute_with_retries "apt-get install -y -q --no-install-recommends nvidia-driver-${NVIDIA_DRIVER_VERSION_PREFIX}-open"
+      
+      clear_dkms_key
+      modprobe nvidia
+      
     else
       # Install from repo provided by NV
       readonly UBUNTU_REPO_CUDA_PIN="${NVIDIA_REPO_URL}/cuda-${shortname}.pin"
@@ -483,11 +558,26 @@ function install_nvidia_gpu_driver() {
 
       execute_with_retries "apt-get install -y -q --no-install-recommends dkms"
       configure_dkms_certs
-      for pkg in "nvidia-driver-${NVIDIA_DRIVER_VERSION_PREFIX}-open" \
-                 "cuda-drivers-${NVIDIA_DRIVER_VERSION_PREFIX}" \
-                 "cuda-toolkit-${CUDA_VERSION_MAJOR//./-}" ; do
-        execute_with_retries "apt-get install -y -q --no-install-recommends ${pkg}"
-      done
+      
+      # Special handling for driver 570 which may not be in local CUDA repo
+      if [[ "${NVIDIA_DRIVER_VERSION_PREFIX}" == "570" ]]; then
+        # First install CUDA toolkit from local repo (this will install driver 560)
+        execute_with_retries "apt-get install -y -q --no-install-recommends cuda-toolkit-${CUDA_VERSION_MAJOR//./-}"
+        
+        # Then upgrade to driver 570 from graphics-drivers PPA
+        execute_with_retries "apt-get install -y -q --no-install-recommends software-properties-common"
+        execute_with_retries "add-apt-repository -y ppa:graphics-drivers/ppa"
+        execute_with_retries "apt-get update"
+        execute_with_retries "apt-get install -y -q --no-install-recommends nvidia-driver-${NVIDIA_DRIVER_VERSION_PREFIX}-open"
+      else
+        # Standard installation from local CUDA repo
+        for pkg in "nvidia-driver-${NVIDIA_DRIVER_VERSION_PREFIX}-open" \
+                   "cuda-drivers-${NVIDIA_DRIVER_VERSION_PREFIX}" \
+                   "cuda-toolkit-${CUDA_VERSION_MAJOR//./-}" ; do
+          execute_with_retries "apt-get install -y -q --no-install-recommends ${pkg}"
+        done
+      fi
+      
       clear_dkms_key
 
       modprobe nvidia
@@ -602,10 +692,10 @@ function configure_yarn_nodemanager() {
 }
 
 function configure_gpu_exclusive_mode() {
-  # check if running spark 3, if not, enable GPU exclusive mode
+  # check if running spark 3 or 4, if not, enable GPU exclusive mode
   local spark_version
   spark_version=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
-  if [[ ${spark_version} != 3.* ]]; then
+  if [[ ${spark_version} != 3.* ]] && [[ ${spark_version} != 4.* ]]; then
     # include exclusive mode on GPU
     nvidia-smi -c EXCLUSIVE_PROCESS
   fi
@@ -762,7 +852,7 @@ function check_os_and_secure_boot() {
       exit 1
     fi
   elif is_ubuntu ; then
-    if ! is_ubuntu18 && ! is_ubuntu20 && ! is_ubuntu22 ; then
+    if ! is_ubuntu18 && ! is_ubuntu20 && ! is_ubuntu22 && ! is_ubuntu24 ; then
       echo "Error: The Ubuntu version ($(os_version)) is not supported. Please use a compatible Ubuntu version."
       exit 1
     fi
@@ -832,3 +922,4 @@ function main() {
 }
 
 main
+
