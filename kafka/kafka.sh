@@ -44,8 +44,16 @@ function retry_apt_command() {
 }
 
 function recv_keys() {
-  retry_apt_command "apt-get install -y gnupg2 &&\
-                     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys B7B3B788A8D3785C"
+  if [[ ${OS} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 3.0" | bc -l) == 1 ]]; then
+    retry_apt_command "apt-get update && apt-get install -y gnupg"
+    export GNUPGHOME="$(mktemp -d)"
+    gpg --keyserver keyserver.ubuntu.com --recv-keys B7B3B788A8D3785C
+    gpg --export B7B3B788A8D3785C > /etc/apt/trusted.gpg.d/mysql-repo.gpg
+    rm -rf "$GNUPGHOME"
+  else
+    retry_apt_command "apt-get install -y gnupg2 && \
+      apt-key adv --keyserver keyserver.ubuntu.com --recv-keys B7B3B788A8D3785C"
+  fi
 }
 
 function update_apt_get() {
