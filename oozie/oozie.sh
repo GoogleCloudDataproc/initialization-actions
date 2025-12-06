@@ -80,7 +80,7 @@ case "${DATAPROC_IMAGE_VERSION}" in
     curator_version="2.13.0"
     curator_src="/usr/lib/hadoop/lib"
     ;;
-  "2.1" | "2.2" | "2.3" )
+  "2.1" | "2.2" | "2.3" | "3.0" | "99.0" )
     curator_version="2.13.0"
     curator_src="/usr/lib/spark/jars"
     ;;
