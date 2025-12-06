@@ -40,7 +40,61 @@ You can decide when to sync your copy of the initialization action with any chan
 
 ## Why these samples are provided
 
-These samples are provided to show how various packages and components can be installed on Dataproc clusters. You should understand how these samples work before running them on your clusters. The initialization actions provided in this repository are provided **without support** and you **use them at your own risk**.
+These samples are provided to show how various packages and components can be
+installed on Dataproc clusters. You should understand how these samples work
+before running them on your clusters. The initialization actions provided in
+this repository are provided **without support** and you **use them at your own
+risk**.
+
+The initialization action scripts should be assumed not to be working with the
+current version of Dataproc unless mentioned below.  Even then, the script is
+only known to work with the cluster configuration on which the tests were
+executed.  Your mileage may vary.
+
+Versions on which initialization actions have been tested and the date and
+version of the tests are included in the table below
+
+| test name | test date | image version | test status |
+| :---      |   :----:  |    :----:    |        ---: |
+| alluxio/test_alluxio.py | N/A       | N/A   | UNKNOWN |
+| atlas/test_atlas.py | N/A       | N/A   | UNKNOWN |
+| bigtable/test_bigtable.py | N/A       | N/A   | UNKNOWN |
+| cloud-sql-proxy/test_cloud_sql_proxy.py | N/A       | N/A   | UNKNOWN |
+| conda/test_conda.py | N/A       | N/A   | UNKNOWN |
+| connectors/test_connectors.py | N/A       | N/A   | UNKNOWN |
+| dask/test_dask.py | N/A       | N/A   | UNKNOWN |
+| dr-elephant/test_dr_elephant.py | N/A       | N/A   | UNKNOWN |
+| drill/test_drill.py | N/A       | N/A   | UNKNOWN |
+| flink/test_flink.py | N/A       | N/A   | UNKNOWN |
+| ganglia/test_ganglia.py | N/A       | N/A   | UNKNOWN |
+| gpu/test_gpu.py | 2023-10-09 |  2.1.27-{debian11,ubuntu20,rocky8}  | SUCCESS |
+| | | 2.0.79-{debian10,ubuntu18,rocky8} | SUCCESS |
+| | | 1.5.90-{debian10,ubuntu18,rocky8} | SUCCESS |
+| | | 2.2.0-RC2-debian11 | SUCCESS |
+| | | 2.2.0-RC2-{ubuntu22,rocky9} | FAIL |
+| h2o/test_h2o.py | N/A       | N/A   | UNKNOWN |
+| hbase/test_hbase.py | N/A       | N/A   | UNKNOWN |
+| hive-hcatalog/test_hive_hcatalog.py | N/A       | N/A   | UNKNOWN |
+| hive-llap/test_hive_llap.py | N/A       | N/A   | UNKNOWN |
+| horovod/test_horovod.py | N/A       | N/A   | UNKNOWN |
+| hue/test_hue.py | N/A       | N/A   | UNKNOWN |
+| kafka/test_kafka.py | N/A       | N/A   | UNKNOWN |
+| knox/test_knox.py | N/A       | N/A   | UNKNOWN |
+| livy/test_livy.py | N/A       | N/A   | UNKNOWN |
+| mlvm/test_mlvm.py | N/A       | N/A   | UNKNOWN |
+| oozie/test_oozie.py | N/A       | N/A   | UNKNOWN |
+| otel/test_otel.py | N/A       | N/A   | UNKNOWN |
+| presto/test_presto.py | N/A       | N/A   | UNKNOWN |
+| ranger/test_ranger.py | N/A       | N/A   | UNKNOWN |
+| rapids/test_rapids.py | N/A       | N/A   | UNKNOWN |
+| rstudio/test_rstudio.py | N/A       | N/A   | UNKNOWN |
+| solr/test_solr.py | N/A       | N/A   | UNKNOWN |
+| spark-rapids/test_spark_rapids.py | N/A       | N/A   | UNKNOWN |
+| sqoop/test_sqoop.py | N/A       | N/A   | UNKNOWN |
+| starburst-presto/test_starburst_presto.py | N/A       | N/A   | UNKNOWN |
+| tony/test_tony.py | N/A       | N/A   | UNKNOWN |
+| toree/test_toree.py | N/A       | N/A   | UNKNOWN |
+
 
 ## Actions provided
 
