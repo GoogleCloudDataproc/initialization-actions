@@ -293,7 +293,7 @@ function check_spark_rapids_jar() {
 }
 
 function remove_spark_rapids_jar() {
-  rm -f /usr/lib/spark/jars/rapids-4-spark_2.12-*.jar
+  rm -f /usr/lib/spark/jars/rapids-4-spark_*.jar
   echo "Existing RAPIDS Spark plugin JAR removed successfully"
 }
 
