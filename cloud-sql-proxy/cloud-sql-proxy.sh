@@ -262,6 +262,8 @@ readonly DB_ADMIN_PASSWORD
 
 # Database password used to access metastore.
 DB_HIVE_PASSWORD_URI="$(/usr/share/google/get_metadata_value attributes/db-hive-password-uri || echo '')"
+DB_HIVE_METASTORE_REUSE="$(/usr/share/google/get_metadata_value attributes/db-hive-metastore-reuse || echo '')"
+
 readonly DB_HIVE_PASSWORD_URI
 if [[ -n "${DB_HIVE_PASSWORD_URI}" ]]; then
   # Decrypt password
@@ -522,18 +524,26 @@ function initialize_mysql_metastore_db() {
 
   # Check if metastore is initialized.
   if ! mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_HIVE_USER}" "${db_hive_password_param}" --get-server-public-key -e ''; then
-    mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_ADMIN_USER}" "${db_password_param}" --get-server-public-key -e \
-      "CREATE USER '${DB_HIVE_USER}' IDENTIFIED BY '${DB_HIVE_PASSWORD}';"
+    if [[ ! "${DB_HIVE_METASTORE_REUSE,,}" == "true" ]]; then
+      mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_ADMIN_USER}" "${db_password_param}" --get-server-public-key -e \
+        "CREATE USER '${DB_HIVE_USER}' IDENTIFIED BY '${DB_HIVE_PASSWORD}';"
+    else
+      log "Re-using exiting hive user account"
+    fi
   fi
+
   if ! mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_HIVE_USER}" "${db_hive_password_param}" --get-server-public-key -e "use ${METASTORE_DB}"; then
     # Initialize a Hive metastore DB
-    mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_ADMIN_USER}" "${db_password_param}" --get-server-public-key -e \
-      "CREATE DATABASE ${METASTORE_DB};
-       GRANT ALL PRIVILEGES ON ${METASTORE_DB}.* TO '${DB_HIVE_USER}';"
-    /usr/lib/hive/bin/schematool -dbType mysql -initSchema ||
-      err 'Failed to set mysql schema.'
+    if [[ ! "${DB_HIVE_METASTORE_REUSE,,}" == "true" ]]; then
+      mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_ADMIN_USER}" "${db_password_param}" --get-server-public-key -e \
+        "CREATE DATABASE ${METASTORE_DB};
+         GRANT ALL PRIVILEGES ON ${METASTORE_DB}.* TO '${DB_HIVE_USER}';"
+      /usr/lib/hive/bin/schematool -dbType mysql -initSchema || err 'Failed to set mysql schema.'
+      log 'MYSQL DB initialized for Hive metastore'
+    else
+      log "Re-using exiting hive user account"
+    fi
   fi
-  log 'MYSQL DB initialized for Hive metastore'
 }
 
 function initialize_postgres_metastore_db() {
