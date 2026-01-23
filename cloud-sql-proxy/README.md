@@ -12,6 +12,9 @@ metadata on a given Cloud SQL instance.
 
 **The Cloud SQL Proxy script has been upgraded to use the V2 binary client by default, which is compatible with MySQL 8.4 and some newer Cloud SQL features.**
 
+Specifically:
+* **MySQL 8.4 has an updated security model that was incompatible with the earlier version of this Cloud SQL Proxy script.**
+
 However, if you choose to use Cloud SQL Proxy V1 (see options below):
 *   **MySQL 8.4's updated security model is incompatible with Cloud SQL Proxy V1.**
 *   **Enabling "Shared CA"** or **"Customer-managed CA"** features for any Cloud SQL database (including older MySQL versions and PostgreSQL) will break connectivity with Cloud SQL Proxy V1.

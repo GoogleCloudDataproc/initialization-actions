@@ -377,7 +377,6 @@ function get_metastore_instance() {
       metastore_instance+="?port=${METASTORE_PROXY_PORT}"
     fi
   fi
-  metastore_instance="${metastore_instance//=tcp:/?port=}"
   echo "${metastore_instance}"
 }
 
