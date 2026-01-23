@@ -263,6 +263,7 @@ readonly DB_ADMIN_PASSWORD
 # Database password used to access metastore.
 DB_HIVE_PASSWORD_URI="$(/usr/share/google/get_metadata_value attributes/db-hive-password-uri || echo '')"
 DB_HIVE_METASTORE_REUSE="$(/usr/share/google/get_metadata_value attributes/db-hive-metastore-reuse || echo '')"
+readonly DB_HIVE_METASTORE_REUSE
 
 readonly DB_HIVE_PASSWORD_URI
 if [[ -n "${DB_HIVE_PASSWORD_URI}" ]]; then
