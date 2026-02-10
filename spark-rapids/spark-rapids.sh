@@ -170,6 +170,1105 @@ function clear_dkms_key {
       return 0
   fi
   echo "WARN -- PURGING SIGNING MATERIAL -- WARN" >2
+# --- Package Management ---
+
+function execute_with_retries() {
+  local -r cmd="$1"
+  local -r max_retries=${2:-5}
+  local -r delay=${3:-5}
+  for ((i = 0; i < max_retries; i++)); do
+    if eval "${cmd}"; then
+      return 0
+    fi
+    echo "WARN: Command failed: [${cmd}]. Retrying in ${delay} seconds..." >&2
+    sleep "${delay}"
+  done
+  echo "ERROR: Command failed after ${max_retries} retries: [${cmd}]" >&2
+  return 1
+}
+
+function ensure_required_packages() {
+  export DEBIAN_FRONTEND=noninteractive
+  local os_id=$(grep '^ID=' /etc/os-release | cut -d= -f2 | xargs)
+  local packages_to_install=()
+
+  # Packages needed by the evaluation script itself
+  if ! command -v xmlstarlet &>/dev/null; then packages_to_install+=("xmlstarlet"); fi
+  if ! command -v jq &>/dev/null; then packages_to_install+=("jq"); fi
+  if ! command -v git &>/dev/null; then packages_to_install+=("git"); fi
+  if ! python3 -m venv --help &>/dev/null; then packages_to_install+=("python3-venv"); fi
+
+  # Packages for NVIDIA driver installation (Debian/Ubuntu only)
+  if [[ "${os_id}" == "debian" || "${os_id}" == "ubuntu" ]]; then
+    packages_to_install+=("dkms" "linux-headers-$(uname -r)")
+  fi
+
+  if [[ ${#packages_to_install[@]} -eq 0 ]]; then
+    echo "INFO: All required packages are already installed." >&2
+    return 0
+  fi
+
+  echo "INFO: Installing missing packages: ${packages_to_install[@]}" >&2
+
+  if [[ "${os_id}" == "debian" || "${os_id}" == "ubuntu" ]]; then
+    execute_with_retries "apt-get -o DPkg::Lock::Timeout=60 update -qq" 3 2
+    if ! execute_with_retries "apt-get -o DPkg::Lock::Timeout=60 install -y -qq ${packages_to_install[*]}"; then
+      echo "ERROR: Failed to install required packages." >&2
+      return 1
+    fi
+  elif [[ "${os_id}" == "rocky" ]]; then
+    # DNF handles locks more gracefully, timeout option not needed.
+    if ! execute_with_retries "dnf install -y -q ${packages_to_install[*]}"; then
+      echo "ERROR: Failed to install required packages." >&2
+      return 1
+    fi
+  else
+    echo "WARN: Unsupported OS for package installation: ${os_id}" >&2
+    return 1
+  fi
+  echo "INFO: Required packages installed successfully." >&2
+  return 0
+}
+#!/bin/bash
+
+# tmp/spark-rapids.sh_function-evaluate_gpu_setup
+# Functions to detect GPU hardware and software components
+
+# --- Variables ---
+NVIDIA_SMI_XML_FILE="/tmp/nvidia-smi-dump.xml"
+EVALUATION_OUTPUT_FILE="/tmp/gpu_evaluation.json"
+PUBLIC_CERT_FILE="/tmp/mok_public.der"
+MAMBA_SEARCH_CACHE="/tmp/mamba_search_output.txt"
+KEY_PACKAGES=("pytorch" "tensorflow" "rapids" "xgboost" "cudatoolkit" "cudnn")
+# --- System Helper functions ---
+
+function ensure_xmlstarlet() {
+  if ! command -v xmlstarlet &>/dev/null; then
+    echo "ERROR: xmlstarlet not found. Please run ensure_required_packages first." >&2
+    return 1
+  fi
+  return 0
+}
+
+function ensure_jq() {
+  if ! command -v jq &>/dev/null; then
+    echo "ERROR: jq not found. Please run ensure_required_packages first." >&2
+    return 1
+  fi
+  return 0
+}
+
+function get_secure_boot_status() {
+  if command -v mokutil &>/dev/null; then
+    mokutil --sb-state 2>/dev/null | awk '{print $2}'
+  else
+    echo "unknown"
+  fi
+}
+
+function _parse_proxy_url() {
+  local url="$1"
+  local protocol="$(echo "$url" | grep :// | sed -e's,===.*,,')"
+  local host_port="$(echo "$url" | sed -e "s,$protocol//,,")"
+  local host="$(echo "$host_port" | cut -d: -f1)"
+  local port="$(echo "$host_port" | cut -d: -f2)"
+  if [[ "$host" == "$port" ]] || [[ -z "$port" ]]; then
+    if [[ "$protocol" == "http" ]]; then port="80"; fi
+    if [[ "$protocol" == "https" ]]; then port="443"; fi
+  fi
+  echo "${protocol}://${host}:${port}"
+}
+
+function get_proxy_settings() {
+  local settings=()
+  if [[ -n "${HTTP_PROXY:-}" ]]; then settings+=("HTTP_PROXY=$(_parse_proxy_url "${HTTP_PROXY}")"); fi
+  if [[ -n "${HTTPS_PROXY:-}" ]]; then settings+=("HTTPS_PROXY=$(_parse_proxy_url "${HTTPS_PROXY}")"); fi
+  local meta_http_proxy=$(get_metadata_attribute http-proxy)
+  local meta_https_proxy=$(get_metadata_attribute https-proxy)
+  if [[ -n "${meta_http_proxy}" ]]; then settings+=("META_HTTP=$(_parse_proxy_url "${meta_http_proxy}")"); fi
+  if [[ -n "${meta_https_proxy}" ]]; then settings+=("META_HTTPS=$(_parse_proxy_url "${meta_https_proxy}")"); fi
+  if [[ ${#settings[@]} -eq 0 ]]; then echo "None"; else printf "%s; " "${settings[@]}"; fi
+}
+
+# --- MOK Helper functions ---
+function get_cert_ski() {
+  local cert_path="$1"
+  if [[ ! -f "${cert_path}" ]]; then echo ""; return; fi
+  openssl x509 -inform DER -in "${cert_path}" -text -noout 2>/dev/null | grep -A 1 "X509v3 Subject Key Identifier" | grep -v "X509v3 Subject Key Identifier" | tr -d '\s:' | tr 'A-Z' 'a-z'
+}
+
+function fetch_public_mok() {
+  local PUBSN=$(get_metadata_attribute public_secret_name)
+  if [[ -z "${PUBSN}" ]]; then echo "WARN: public_secret_name not set" >&2; return 1; fi
+  local secret_project=$(get_metadata_attribute secret_project)
+
+  local cmd="gcloud secrets versions access latest --secret=${PUBSN}"
+  if [[ -n "${secret_project}" ]]; then
+    cmd="${cmd} --project=${secret_project}"
+  fi
+
+  if ! command -v gcloud &>/dev/null; then echo "ERROR: gcloud not found" >&2; return 1; fi
+
+  if ${cmd} | base64 --decode > "${PUBLIC_CERT_FILE}" 2>/dev/null; then
+    if [[ -s "${PUBLIC_CERT_FILE}" ]]; then
+      return 0
+    else
+      echo "ERROR: Fetched public secret is empty." >&2
+      rm -f "${PUBLIC_CERT_FILE}"
+      return 1
+    fi
+  else
+    echo "ERROR: Failed to fetch public secret ${PUBSN}." >&2
+    rm -f "${PUBLIC_CERT_FILE}"
+    return 1
+  fi
+}
+
+function get_mok_ski_from_file() {
+  if [[ ! -f "${PUBLIC_CERT_FILE}" ]]; then echo ""; return; fi
+  get_cert_ski "${PUBLIC_CERT_FILE}" | xargs
+}
+
+function get_trusted_skis() {
+  dmesg | grep "Loaded X.509 cert" | awk -F': ' '{print $NF}' | tr -d "'" | sort -u
+}
+
+function is_signing_key_trusted() {
+  local mok_ski=$(get_mok_ski_from_file)
+  if [[ -z "${mok_ski}" ]]; then return 1; fi
+  local trusted_skis=$(get_trusted_skis)
+  if echo "${trusted_skis}" | grep -qi "${mok_ski}"; then
+    return 0
+  else
+    return 1
+  fi
+}
+# --- PCI Helper functions ---
+# This function maps NVIDIA GPU device IDs to their model names.
+# The vendor ID for NVIDIA is 10de.
+# Device IDs can be cross-referenced with public PCI ID databases
+# or the local pci.ids file (e.g., /usr/share/misc/pci.ids).
+function pci_id_to_model() {
+  local device_id="$1"
+  case "${device_id^^}" in # Convert to uppercase for case-insensitivity
+    "15F7") echo "Tesla P100" ;;
+    "15F8") echo "Tesla P100" ;;
+    "15F9") echo "Tesla P100" ;;
+    "1B38") echo "Tesla P40" ;;
+    "1BB3") echo "Tesla P4" ;;
+    "1DB1") echo "Tesla V100" ;;
+    "1DB2") echo "Tesla V100" ;;
+    "1DB3") echo "Tesla V100" ;;
+    "1DB4") echo "Tesla V100" ;;
+    "1DB5") echo "Tesla V100 32GB" ;;
+    "1DB6") echo "Tesla V100 32GB" ;;
+    "1DB8") echo "Tesla V100 32GB" ;;
+    "1EB8") echo "Tesla T4" ;;
+    "20B0") echo "A100 40GB" ;;
+    "20B1") echo "A100 40GB" ;;
+    "20B2") echo "A100 80GB" ;;
+    "20B5") echo "A100 80GB" ;;
+    "2330") echo "H100 SXM5" ;;
+    "2331") echo "H100 PCIe" ;;
+    "27B8") echo "L4" ;;
+    "2901") echo "B200" ;;
+    "2920") echo "B100" ;;
+    "29BC") echo "B100" ;;
+    *) echo "" ;;
+  esac
+}
+
+function shorten_gpu_model() {
+  local full_model="$1"
+  if [[ "${full_model}" == *"["* ]]; then
+    echo "${full_model}" | perl -ne 'print $1 if /.*\s+\[(.*?)\]/' || echo "${full_model}"
+  else
+    echo "${full_model}" | sed 's/.*: //'
+  fi
+}
+
+function summarize_gpu_models() {
+  local models_str="$1"
+  if [[ -z "${models_str}" ]]; then
+    echo "Unknown"
+    return
+  fi
+
+  local short_models_array=()
+  while read -r line; do
+    short_models_array+=("$(shorten_gpu_model "${line}")")
+  done <<< "${models_str}"
+
+  local unique_models=$(printf "%s
+" "${short_models_array[@]}" | sort | uniq -c)
+  local summary=()
+  while read -r line; do
+    local count=$(echo "${line}" | awk '{print $1}')
+    local model=$(echo "${line}" | awk '{$1=""; print $0}' | sed 's/^[ ]*//')
+    if [[ "${count}" -gt 1 ]]; then
+      summary+=("${model} (x${count})")
+    else
+      summary+=("${model}")
+    fi
+  done <<< "${unique_models}"
+
+  echo "$(printf "%s, " "${summary[@]}" | sed 's/, $//')"
+}
+
+function get_sysfs_gpu_count() {
+  local count=0
+  for dev in /sys/bus/pci/devices/*; do
+    if [[ -f "${dev}/vendor" ]] && [[ "$(cat "${dev}/vendor")" == "0x10de" ]]; then
+      if [[ -f "${dev}/class" ]]; then
+        local class_code=$(cat "${dev}/class")
+        if [[ "${class_code:0:4}" == "0x03" ]]; then
+          count=$((count + 1))
+        fi
+      fi
+    fi
+  done
+  echo $count
+}
+
+function get_sysfs_gpu_devices() {
+  local devices=()
+  for dev in /sys/bus/pci/devices/*; do
+    if [[ -f "${dev}/vendor" ]] && [[ "$(cat "${dev}/vendor")" == "0x10de" ]]; then
+      if [[ -f "${dev}/class" ]]; then
+        local class_code=$(cat "${dev}/class")
+        if [[ "${class_code:0:4}" == "0x03" ]]; then
+          local device_id=$(cat "${dev}/device" | sed 's/0x//')
+          local model=$(pci_id_to_model "${device_id}")
+          if [[ -z "${model}" ]]; then
+            model="Unknown NVIDIA Device (10de:${device_id})"
+          fi
+          devices+=("${model}")
+        fi
+      fi
+    fi
+  done
+  printf "%s
+" "${devices[@]}"
+}
+# --- NVIDIA SMI Helper functions ---
+function dump_nvidia_smi_xml() {
+  if [[ -f "${NVIDIA_SMI_XML_FILE}" ]]; then
+    return 0
+  fi
+  if command -v nvidia-smi &>/dev/null; then
+    local tmp_xml_file=$(mktemp)
+    local stderr_file=$(mktemp)
+    if ! nvidia-smi -q -x > "${tmp_xml_file}" 2> "${stderr_file}"; then
+      echo "ERROR: nvidia-smi -q -x command failed. Exit code: $?" >&2
+      cat "${stderr_file}" >&2
+      rm -f "${tmp_xml_file}" "${stderr_file}"
+      return 1
+    fi
+    rm -f "${stderr_file}"
+    if [[ -s "${tmp_xml_file}" ]]; then
+      mv "${tmp_xml_file}" "${NVIDIA_SMI_XML_FILE}"
+      return 0
+    else
+      echo "ERROR: nvidia-smi -q -x produced an empty file." >&2
+      rm -f "${tmp_xml_file}"
+      return 1
+    fi
+  else
+    echo "ERROR: nvidia-smi command not found." >&2
+    return 1
+  fi
+}
+
+function query_nvidia_xml() {
+  local xpath="$1"
+  if [[ -f "${NVIDIA_SMI_XML_FILE}" ]] && ensure_xmlstarlet; then
+    xmlstarlet sel -t -v "${xpath}" "${NVIDIA_SMI_XML_FILE}" 2>/dev/null || echo ""
+  else
+    echo ""
+  fi
+}
+
+function get_driver_version_from_xml() {
+  query_nvidia_xml "/nvidia_smi_log/driver_version"
+}
+
+function get_gpu_count_from_xml() {
+  query_nvidia_xml "count(/nvidia_smi_log/gpu)"
+}
+
+function get_gpu_models_from_xml() {
+  if [[ -f "${NVIDIA_SMI_XML_FILE}" ]] && ensure_xmlstarlet; then
+    xmlstarlet sel -t -v "/nvidia_smi_log/gpu/product_name" "${NVIDIA_SMI_XML_FILE}" 2>/dev/null
+  else
+    echo ""
+  fi
+}
+
+# --- Driver/CUDA Helper functions ---
+function detect_nvidia_driver() {
+  if ! command -v modprobe &>/dev/null; then return 1; fi
+  if ! command -v modinfo &>/dev/null; then return 1; fi
+
+  if modprobe -n -q nvidia; then # Check if module exists
+    if ! lsmod | grep -q "^nvidia"; then # If not loaded, try to load it
+      if ! modprobe nvidia; then return 1; fi
+    fi
+    if [[ -c /dev/nvidia0 ]]; then return 0; fi
+  fi
+  return 1
+}
+
+function get_nvidia_module_signature_status() {
+  local sb_status=$(get_secure_boot_status)
+  if [[ "${sb_status}" == "enabled" ]]; then
+    local PSN=$(get_metadata_attribute private_secret_name)
+    if [[ -n "${PSN}" ]]; then
+      if modinfo nvidia | grep -qi "^signer:"; then
+        echo "signed"
+      else
+        echo "unsigned"
+      fi
+    else
+      echo "unknown_no_psn"
+    fi
+  else
+    echo "unsigned"
+  fi
+}
+
+function detect_cuda_toolkit() {
+  export PATH=/usr/local/cuda/bin:${PATH}
+  if command -v nvcc &>/dev/null; then return 0; fi
+  return 1
+}
+
+function get_cuda_version() {
+  if command -v nvcc &>/dev/null; then
+    nvcc --version 2>/dev/null | grep "release" | sed -n 's/.*release \([0-9.]*\).*/\1/p' || echo ""
+  else
+    echo ""
+  fi
+}
+# --- Spark JAR Helper functions ---
+function find_gpu_spark_jars() {
+  local common_paths=("/usr/lib/spark/jars/" "/opt/spark/jars/" "/usr/local/share/google/dataproc/lib/")
+  local jq_expr="."
+  local jar_found=false
+  local output_file="$(mktemp /tmp/find_gpu_spark_jars.XXXXXX.json)"
+
+  local jar_patterns=(
+    "rapids-spark:rapids-spark_2.12-([0-9.]+|[a-zA-Z0-9.-]+).jar"
+    "cudf:cudf-([0-9.]+|[a-zA-Z0-9.-]+).jar"
+    "xgboost4j-spark-gpu:xgboost4j-spark-gpu_2.12-([0-9.]+|[a-zA-Z0-9.-]+).jar"
+    "xgboost4j-gpu:xgboost4j-gpu_2.12-([0-9.]+|[a-zA-Z0-9.-]+).jar"
+  )
+
+  for path in "${common_paths[@]}"; do
+    if [[ -d "${path}" ]]; then
+      for pattern_item in "${jar_patterns[@]}"; do
+        local jar_name="${pattern_item%%:*}"
+        local pattern="${pattern_item#*:}"
+        while IFS= read -r jar_path; do
+          if [[ -z "${jar_path}" ]]; then continue; fi
+          local filename=$(basename "${jar_path}")
+          if [[ "${filename}" =~ ${pattern} ]]; then
+            local version="${BASH_REMATCH[1]}"
+            jq_expr="${jq_expr} | .\"${jar_name}\" = \"${version}\""
+            jar_found=true
+            break # Found this jar type in this path, move to next type
+          fi
+        done < <(find "${path}" -type f -name "${jar_name}*" 2>/dev/null)
+      done
+    fi
+  done
+
+  if [[ "${jar_found}" == "true" ]]; then
+    echo "{}" | jq -c "${jq_expr}" > "${output_file}"
+  else
+    echo "{}" > "${output_file}"
+  fi
+  echo "${output_file}"
+}
+# --- Conda/Mamba Helpers ---
+function get_conda_base() {
+  local dataproc_image_version
+  dataproc_image_version=$(get_metadata_attribute dataproc-image-version "")
+  if [[ -z "${dataproc_image_version}" ]]; then
+    # Fallback if metadata is not available
+    if [[ -d "/opt/conda/bin" ]]; then echo "/opt/conda"; return; fi
+    if [[ -d "/opt/conda/miniconda3/bin" ]]; then echo "/opt/conda/miniconda3"; return; fi
+    echo ""
+    return
+  fi
+
+  if dpkg --compare-versions "${dataproc_image_version}" lt "2.3"; then
+    echo "/opt/conda/miniconda3"
+  else
+    echo "/opt/conda"
+  fi
+}
+
+function run_mamba_search() {
+  local force_refresh=false
+  if [[ "$1" == "--force" ]]; then
+    force_refresh=true
+  fi
+
+  if [[ -f "${MAMBA_SEARCH_CACHE}" && "${force_refresh}" == "false" ]]; then
+    # Check if the cache is older than 10 hours (36000 seconds)
+    local cache_age=$(($(date +%s) - $(stat -c %Y "${MAMBA_SEARCH_CACHE}")))
+    if [[ "${cache_age}" -lt 36000 ]]; then
+      echo "INFO: Using cached mamba search results from ${MAMBA_SEARCH_CACHE}" >&2
+      return 0
+    else
+      echo "INFO: Mamba search cache is older than 10 hours, refreshing..." >&2
+    fi
+  fi
+
+  echo "INFO: Running mamba search (this may take a moment)..." >&2
+  local conda_base=$(get_conda_base)
+  if [[ -z "${conda_base}" ]]; then
+    echo "ERROR: Conda base not found." >&2
+    return 1
+  fi
+  local mamba_path="${conda_base}/bin/mamba"
+  if [[ ! -x "${mamba_path}" ]]; then
+    mamba_path="${conda_base}/bin/conda"
+    if [[ ! -x "${mamba_path}" ]]; then
+      echo "ERROR: mamba or conda executable not found in ${conda_base}/bin" >&2
+      return 1
+    fi
+  fi
+
+  local search_terms=()
+  for pkg in "${KEY_PACKAGES[@]}"; do
+    search_terms+=("*${pkg}*")
+  done
+
+  local mamba_log="/tmp/mamba_search.log"
+  rm -f "${mamba_log}"
+  if ! "${mamba_path}" search -c conda-forge -c nvidia -c rapidsai "${search_terms[@]}" > "${MAMBA_SEARCH_CACHE}" 2> "${mamba_log}"; then
+    echo "ERROR: mamba search failed. Check ${mamba_log}" >&2
+    # cat "${mamba_log}" >&2 # Optionally cat the log on error
+    return 1
+  fi
+  rm -f "${mamba_log}"
+}
+
+function parse_mamba_search() {
+  if [[ ! -f "${MAMBA_SEARCH_CACHE}" ]]; then
+    echo "{}"
+    return
+  fi
+
+  declare -A pkg_versions
+  local pkg_list
+  pkg_list=$(printf "%s " "${KEY_PACKAGES[@]}")
+
+  local awk_output="/tmp/awk_mamba_out.txt"
+  rm -f "${awk_output}"
+
+  # AWK script to extract package and version
+  awk -v key_packages="${pkg_list}" '
+  BEGIN {
+    split(key_packages, keys, " ");
+    for (i in keys) {
+      if (keys[i] != "") key_map[keys[i]] = 1;
+    }
+    current_pkg = "";
+    collecting = 0;
+  }
+  /^[a-zA-Z0-9._-]+ /{
+    pkg_name = $1;
+    current_pkg = ""; # Reset current_pkg
+    for (key in key_map) {
+      if (index(pkg_name, key) > 0) {
+        current_pkg = key; # Assign the KEY_PACKAGES key
+        break;
+      }
+    }
+    collecting = 0;
+  }
+  /Other Versions \([0-9]+\):/ {
+    if (current_pkg != "") {
+      collecting = 1;
+    }
+    getline; getline; next;
+  }
+  collecting && /^[ ]+[0-9]+\.[0-9]+.*$/ {
+    if (current_pkg != "") {
+      print current_pkg "~" $1;
+    }
+  }
+  /^$/ { collecting = 0 }
+  ' "${MAMBA_SEARCH_CACHE}" > "${awk_output}"
+
+  while IFS='~' read -r pkg version; do
+    if [[ -n "${pkg}" ]]; then
+      # Append version if not already present
+      if [[ ! " ${pkg_versions[${pkg}]} " =~ " ${version} " ]]; then
+        pkg_versions[${pkg}]+="${version} "
+      fi
+    fi
+  done < "${awk_output}"
+  rm -f "${awk_output}"
+
+  # Build JSON with jq
+  local jq_expr="."
+  for pkg in "${!pkg_versions[@]}"; do
+    local versions_str="${pkg_versions[${pkg}]}"
+    # Create a JSON array string
+    local versions_json=$(echo "${versions_str}" | xargs -n1 | sort -uV | jq -Rsc 'split("\n") | map(select(length > 0))')
+    if [[ "${versions_json}" != "[]" ]] && [[ -n "${versions_json}" ]]; then
+      jq_expr="${jq_expr} | .[\"${pkg}\"] = ${versions_json}"
+    fi
+  done
+
+  if [[ "${jq_expr}" == "." ]]; then
+    echo "{}"
+  else
+    echo "{}" | jq -c "${jq_expr}"
+  fi
+}
+# --- Package Detail Helpers ---
+function get_package_details() {
+  local installed=$1
+  local version=$2
+  local available_list_json=$3
+
+  jq -n --argjson installed "${installed}" --arg installed_version "${version}" --argjson available_versions "${available_list_json}" '{ installed: $installed, installed_version: (if $installed then $installed_version else null end), available_versions: $available_versions }'
+}
+
+function get_apt_available_versions() {
+  local pkg_pattern="$1"
+  local all_versions=()
+  local pkg_names=()
+  local search_term
+  local grep_pattern
+
+  if [[ "${pkg_pattern}" == "libcudnn*-dev" ]]; then
+    search_term="libcudnn"
+    grep_pattern='libcudnn[0-9]*-dev'
+  elif [[ "${pkg_pattern}" == "cuda-toolkit-*-*" ]]; then
+    search_term="cuda-toolkit"
+    grep_pattern='cuda-toolkit-'
+  else
+    search_term="${pkg_pattern}"
+    grep_pattern="${pkg_pattern}"
+  fi
+
+  while read -r line; do
+    local name=$(echo "${line}" | awk '{print $1}')
+    pkg_names+=("${name}")
+  done < <(apt-cache search "${search_term}" 2>/dev/null | grep -E "${grep_pattern}")
+
+  if [[ ${#pkg_names[@]} -eq 0 ]]; then
+    echo "[]"
+    return
+  fi
+
+  for pkg_name in "${pkg_names[@]}"; do
+    policy_output=$(apt-cache policy "${pkg_name}" 2>/dev/null)
+    while read -r version; do
+      all_versions+=("${version}")
+    done < <(echo "${policy_output}" | awk '/  [0-9]/{print $1}')
+  done
+
+  printf "%s\n" "${all_versions[@]}" | sort -uV | jq -Rsc 'split("\n") | map(select(length > 0))' || echo "[]"
+}
+
+function get_dnf_available_versions() {
+  local pkg_name="$1"
+  dnf repoquery --showversions --showduplicates "${pkg_name}" 2>/dev/null | awk -F':' '{print $NF}' | sed -r 's/^[^-]+-//; s/\.(x86_64|noarch|aarch64)//' | sort -uV | jq -Rsc 'split("\n") | map(select(length > 0))' || echo "[]"
+}
+
+function get_system_available_versions() {
+  local pkg_name="$1"
+  if is_ubuntu || is_debian; then
+    get_apt_available_versions "${pkg_name}"
+  elif is_rocky; then
+    get_dnf_available_versions "${pkg_name}"
+  else
+    echo "[]"
+  fi
+}
+
+function get_system_package_details() {
+  local pkg_name_pattern="$1"
+  local version="Not Found"
+  local installed="false"
+
+  if command -v dpkg &>/dev/null; then
+    # Check for installed packages matching the pattern
+    local installed_pkgs=$(dpkg -l "${pkg_name_pattern}" 2>/dev/null | grep "^ii" | awk '{print $2}' | head -n 1)
+    if [[ -n "${installed_pkgs}" ]]; then
+      installed="true"
+      # Get version of the first matched installed package
+      version=$(dpkg -l "${installed_pkgs}" 2>/dev/null | grep "^ii" | awk '{print $3}')
+    fi
+  elif command -v rpm &>/dev/null; then
+    if rpm -q "${pkg_name_pattern}" >/dev/null 2>&1; then
+      installed="true"
+      version=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}' "${pkg_name_pattern}" | head -n 1)
+    fi
+  fi
+  local available_versions=$(get_system_available_versions "${pkg_name_pattern}")
+  get_package_details "${installed}" "${version}" "${available_versions}"
+}
+# --- Hadoop/Spark GPU Configuration Checks ---
+
+HADOOP_CONF_DIR=${HADOOP_CONF_DIR:-/etc/hadoop/conf}
+SPARK_CONF_DIR=${SPARK_CONF_DIR:-/etc/spark/conf}
+
+function get_xml_property() {
+    local file="$1"
+    local property="$2"
+    local result
+
+    if [[ ! -f "${file}" ]]; then
+        echo "Not Found"
+        return
+    fi
+
+    # This is a bit complex to do with shell tools alone.
+    # We'll use python if available, otherwise grep as a fallback.
+    if command -v python >/dev/null; then
+        result=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('${file}'); root = tree.getroot(); val = root.find('.//property[name='${property}']/value'); print(val.text if val is not None else 'Not Found')" 2>/dev/null)
+    else
+        # Fallback to grep, less reliable for XML structure
+        result=$(grep -A 1 "${property}" "${file}" | grep '<value>' | sed -e 's/<[^>]*>//g' || echo "Not Found")
+    fi
+    echo "${result}"
+}
+
+function check_yarn_gpu_config() {
+    local yarn_site="${HADOOP_CONF_DIR}/yarn-site.xml"
+    local capacity_scheduler="${HADOOP_CONF_DIR}/capacity-scheduler.xml"
+    local resource_types="${HADOOP_CONF_DIR}/resource-types.xml"
+    local config_status={}
+
+    config_status=$(echo "${config_status}" | jq --arg val "$(get_xml_property "${yarn_site}" "yarn.nodemanager.resource-plugins")" '.["yarn.nodemanager.resource-plugins"] = $val')
+    config_status=$(echo "${config_status}" | jq --arg val "$(get_xml_property "${yarn_site}" "yarn.resource-types")" '.["yarn.resource-types"] = $val')
+    config_status=$(echo "${config_status}" | jq --arg val "$(get_xml_property "${capacity_scheduler}" "yarn.scheduler.capacity.resource-calculator")" '.["yarn.scheduler.capacity.resource-calculator"] = $val')
+    config_status=$(echo "${config_status}" | jq --arg val "$(get_xml_property "${resource_types}" "yarn.resource-types")" '.["resource-types.xml:yarn.resource-types"] = $val')
+
+    echo "${config_status}" | jq -c .
+}
+
+function check_spark_gpu_config() {
+    local spark_defaults="${SPARK_CONF_DIR}/spark-defaults.conf"
+    local config_status={}
+
+    if [[ ! -f "${spark_defaults}" ]]; then
+        echo '{"spark-defaults.conf": "Not Found"}' | jq -c .
+        return
+    fi
+
+    local plugins=$(grep "^spark.plugins" "${spark_defaults}" | awk -F'=' '{print $2}' | xargs || echo "Not Found")
+    local executor_resources=$(grep "^spark.executor.resource.gpu.amount" "${spark_defaults}" | awk -F'=' '{print $2}' | xargs || echo "Not Found")
+    local discovery_script=$(grep "^spark.executor.resource.gpu.discoveryScript" "${spark_defaults}" | awk -F'=' '{print $2}' | xargs || echo "Not Found")
+
+    config_status=$(echo "${config_status}" | jq --arg val "${plugins}" '.["spark.plugins"] = $val')
+    config_status=$(echo "${config_status}" | jq --arg val "${executor_resources}" '.["spark.executor.resource.gpu.amount"] = $val')
+    config_status=$(echo "${config_status}" | jq --arg val "${discovery_script}" '.["spark.executor.resource.gpu.discoveryScript"] = $val')
+
+    echo "${config_status}" | jq -c .
+}
+
+function check_gpu_discovery_script() {
+    local script_path="/usr/lib/spark/scripts/gpu/getGpusResources.sh"
+    if [[ -f "${script_path}" ]]; then
+        if [[ -x "${script_path}" ]]; then
+            echo '{"status": "Exists and Executable"}' | jq -c .
+        else
+            echo '{"status": "Exists but Not Executable"}' | jq -c .
+        fi
+    else
+        echo '{"status": "Not Found"}' | jq -c .
+    fi
+}
+
+function check_hadoop_configs() {
+    local config_json="{}"
+    config_json=$(echo "${config_json}" | jq --argjson val "$(check_yarn_gpu_config)" '.yarn = $val')
+    config_json=$(echo "${config_json}" | jq --argjson val "$(check_spark_gpu_config)" '.spark = $val')
+    config_json=$(echo "${config_json}" | jq --argjson val "$(check_gpu_discovery_script)" '.discovery_script = $val')
+    local output_file="$(mktemp /tmp/check_hadoop_configs.XXXXXX.json)"
+    echo "${config_json}" | jq -c . > "${output_file}"
+    echo "${output_file}"
+}
+# --- System Checks ---
+function check_system_gpu_packages() {
+  local pkgs_json="{}"
+  declare -A key_packages_map
+  if is_rocky;
+  then
+    key_packages_map=(
+      ["pytorch"]="python3-pytorch"
+      ["tensorflow"]="python3-tensorflow"
+      ["rapids"]="python3-rapids"
+      ["xgboost"]="python3-xgboost"
+      ["cudatoolkit"]="cuda-toolkit"
+      ["cudnn"]="libcudnn*-devel"
+    )
+  else # Debian/Ubuntu
+    key_packages_map=(
+      ["pytorch"]="python3-pytorch"
+      ["tensorflow"]="python3-tensorflow"
+      ["rapids"]="python3-rapids"
+      ["xgboost"]="python3-xgboost"
+      ["cudatoolkit"]="cuda-toolkit-*-*"
+      ["cudnn"]="libcudnn*-dev"
+    )
+  fi
+
+  for key in "${!key_packages_map[@]}"; do
+    local pkg_pattern="${key_packages_map[${key}]}"
+    local pkg_details
+    if [[ "${key}" == "rapids" ]]; then
+      pkg_details='{"installed": false, "available_versions": [], "notes": "N/A - RAPIDS is not available as a system package"}'
+    elif [[ "${key}" == "tensorflow" ]]; then
+      pkg_details='{"installed": false, "available_versions": [], "notes": "N/A - TensorFlow is not typically installed as a system package"}'
+    elif [[ "${key}" == "pytorch" ]]; then
+      pkg_details='{"installed": false, "available_versions": [], "notes": "N/A - PyTorch is not typically installed as a system package"}'
+    else
+      pkg_details=$(get_system_package_details "${pkg_pattern}")
+    fi
+    pkgs_json=$(echo "${pkgs_json}" | jq --arg key "${key}" --argjson val "${pkg_details}" '.[$key] = $val')
+  done
+  echo "${pkgs_json}"
+}
+
+function check_system_cuda_repo() {
+  local repo_file="Not Found"
+  local keyring_file="Not Found"
+
+  if is_ubuntu || is_debian; then
+    repo_file=$(find /etc/apt/sources.list.d/ -name "cuda-*.list" -print -quit 2>/dev/null || echo "Not Found")
+    keyring_file=$(find /usr/share/keyrings/ -name "cuda-archive-keyring.gpg" -print -quit 2>/dev/null || echo "Not Found")
+  elif is_rocky; then
+    repo_file=$(find /etc/yum.repos.d/ -name "cuda-*.repo" -print -quit 2>/dev/null || echo "Not Found")
+    if rpm -q gpg-pubkey --qf "%{SUMMARY}
+" | grep -qi CUDA; then
+      keyring_file="Installed"
+    else
+      keyring_file="Not Found"
+    fi
+  fi
+
+  jq -n --arg cuda_repo_file "${repo_file}" --arg cuda_keyring_file "${keyring_file}" '{cuda_repo_file: $cuda_repo_file, cuda_keyring_file: $cuda_keyring_file}'
+}
+# --- AIML Environment Detection ---
+function _check_conda_env_details() {
+  local conda_env="$1"
+  local available_map_json="$2"
+  local env_details="{}"
+  local conda_base=$(get_conda_base)
+  local conda_meta_dir="${conda_base}/conda-meta"
+  if [[ "${conda_env}" != "base" ]]; then
+    conda_meta_dir="${conda_base}/envs/${conda_env}/conda-meta"
+  fi
+
+  if [[ ! -d "${conda_meta_dir}" ]]; then echo "{}"; return 1; fi
+
+  local gpu_pkgs_json="{}"
+  for pkg in "${KEY_PACKAGES[@]}"; do
+    local pkg_file=$(find "${conda_meta_dir}" -name "${pkg}-*.json" -print -quit 2>/dev/null)
+    local version="Not Found"
+    local installed="false"
+    if [[ -n "${pkg_file}" ]]; then
+      local filename=$(basename "${pkg_file}")
+      version=$(echo "${filename}" | sed -n -e "s/${pkg}-\(.\+\)-\([^ ]*\)\.json/\1/p")
+      if [[ -n "${version}" ]]; then installed="true"; else version="Unknown"; fi
+    fi
+    local available_list=$(echo "${available_map_json}" | jq -r --arg pkg "${pkg}" '.[$pkg] // []')
+    local pkg_details=$(get_package_details "${installed}" "${version}" "${available_list}")
+    gpu_pkgs_json=$(echo "${gpu_pkgs_json}" | jq --arg key "${pkg}" --argjson val "${pkg_details}" '.[$key] = $val')
+  done
+  env_details=$(echo "${env_details}" | jq --argjson val "${gpu_pkgs_json}" '.gpu_packages = $val')
+
+  local jupyter_kernel_found=false
+  local kernel_path="${conda_base}/envs/${conda_env}/share/jupyter/kernels"
+  if [[ "${conda_env}" == "base" ]]; then kernel_path="${conda_base}/share/jupyter/kernels"; fi
+  if [[ -d "${kernel_path}" ]] && [[ -n "$(ls -A "${kernel_path}" 2>/dev/null)" ]]; then
+    jupyter_kernel_found=true
+  fi
+  if ! ${jupyter_kernel_found} && [[ -d "${HOME}/.local/share/jupyter/kernels" ]]; then
+    local env_bin_path="${conda_base}/envs/${conda_env}/bin/python"
+    if [[ "${conda_env}" == "base" ]]; then env_bin_path="${conda_base}/bin/python"; fi
+    if grep -qF "${env_bin_path}" ${HOME}/.local/share/jupyter/kernels/*/kernel.json 2>/dev/null; then
+      jupyter_kernel_found=true
+    fi
+  fi
+  env_details=$(echo "${env_details}" | jq --arg val "${jupyter_kernel_found}" '.jupyter_kernel = ($val == "true")')
+  echo "${env_details}"
+}
+
+function detect_aiml_environments() {
+  local aiml_envs="{}"
+  local output_file="$(mktemp /tmp/detect_aiml_environments.XXXXXX.json)"
+
+  # System Environment
+  local system_info="{}"
+  system_info=$(echo "${system_info}" | jq --argjson val "$(check_system_cuda_repo)" '.cuda = $val')
+  system_info=$(echo "${system_info}" | jq --argjson val "$(check_system_gpu_packages)" '.gpu_packages = $val')
+  aiml_envs=$(echo "${aiml_envs}" | jq --argjson val "${system_info}" '.system = $val')
+
+  # Conda Environments
+  local conda_base
+  conda_base=$(get_conda_base)
+  if [[ -n "${conda_base}" ]]; then
+    if ! command -v conda &>/dev/null; then
+      if [[ -f "${conda_base}/etc/profile.d/conda.sh" ]]; then
+        source "${conda_base}/etc/profile.d/conda.sh"
+      fi
+    fi
+  fi
+
+  if command -v conda &>/dev/null; then
+    run_mamba_search
+    local available_map_json=$(parse_mamba_search)
+
+    local preferred_env
+    preferred_env=$(get_metadata_attribute "gpu-conda-env" "dpgce")
+    local conda_envs_path="${conda_base}/envs"
+    local primary_env="base"
+
+    if [[ -d "${conda_envs_path}/${preferred_env}" ]]; then
+      primary_env="${preferred_env}"
+    fi
+    aiml_envs=$(echo "${aiml_envs}" | jq --arg key "primary_conda_env" --arg val "${primary_env}" '. + {($key): $val}')
+
+    local envs_to_check=()
+    if [[ -d "${conda_envs_path}" ]]; then
+      for env_dir in "${conda_envs_path}"/*; do
+        if [[ -d "${env_dir}" ]]; then
+          envs_to_check+=("$(basename "${env_dir}")")
+        fi
+      done
+    fi
+    envs_to_check+=("base")
+    # Deduplicate envs_to_check
+    envs_to_check=($(printf "%s\n" "${envs_to_check[@]}" | sort -u))
+
+    for env in "${envs_to_check[@]}"; do
+      local env_path="${conda_base}/envs/${env}"
+      if [[ "${env}" == "base" ]]; then env_path="${conda_base}"; fi
+      if [[ -d "${env_path}" ]]; then
+        local env_details=$(_check_conda_env_details "${env}" "${available_map_json}")
+        if [[ -n "${env_details}" ]] && [[ "${env_details}" != "{}" ]]; then
+          aiml_envs=$(echo "${aiml_envs}" | jq --arg key "conda_${env}" --argjson val "${env_details}" '.[$key] = $val')
+        fi
+      fi
+    done
+  fi
+  echo "${aiml_envs}" | jq -c . > "${output_file}"
+  echo "${output_file}"
+}
+# --- Main Evaluation Function ---
+
+function evaluate_gpu_setup() {
+  export DEBIAN_FRONTEND=noninteractive
+  # set -x # Enable for deep debugging
+
+  ensure_required_packages || return 1
+  ensure_xmlstarlet || echo "WARN: xmlstarlet is not available. Some GPU info might be missing." >&2
+  ensure_jq || return 1
+
+  # --- Source Conda ---
+  local conda_base
+  conda_base=$(get_conda_base)
+  if [[ -n "${conda_base}" ]]; then
+    if ! command -v conda &>/dev/null; then
+      if [[ -f "${conda_base}/etc/profile.d/conda.sh" ]]; then
+        source "${conda_base}/etc/profile.d/conda.sh"
+      fi
+    fi
+  fi
+
+  local jq_args=()
+  local jq_filter_parts=()
+  local tmp_files_to_delete=()
+
+  function add_json_part() {
+    local key="$1"
+    local value="$2"
+    local type="${3:-string}" # string, number, boolean, json, jsonfile
+
+    case "${type}" in
+      string)
+        jq_args+=("--arg" "${key}" "${value}")
+        ;;
+      number)
+        jq_args+=("--argjson" "${key}" "${value}")
+        ;;
+      boolean)
+        jq_args+=("--argjson" "${key}" "${value}")
+        ;;
+      json)
+        jq_args+=("--argjson" "${key}" "${value}")
+        ;;
+      jsonfile)
+        jq_args+=("--argfile" "${key}" "${value}")
+        tmp_files_to_delete+=("${value}")
+        ;;
+    esac
+    # Construct the filter part to assign the jq variable to the key
+    jq_filter_parts+=(".[\"${key}\"] = \$${key}")
+  }
+
+  function finalize_json() {
+    local jq_filter
+    if [ ${#jq_filter_parts[@]} -gt 0 ]; then
+      # Join parts with ' | ' to chain the assignments
+      jq_filter=$(printf '%s | ' "${jq_filter_parts[@]}")
+      # Remove the trailing ' | '
+      jq_filter=${jq_filter% | }
+    else
+      jq_filter="."
+    fi
+
+    echo "Evaluation results written to ${EVALUATION_OUTPUT_FILE}" >&2
+    # Start with n (null) and apply the filter parts
+    jq -n -c "${jq_args[@]}" "${jq_filter}" | tee "${EVALUATION_OUTPUT_FILE}"
+    rm -f "${tmp_files_to_delete[@]}" >/dev/null 2>&1
+  }
+
+  # --- Collect all data first ---
+  local secure_boot=$(get_secure_boot_status)
+  local proxy_settings=$(get_proxy_settings)
+  local gpu_count=$(get_sysfs_gpu_count)
+
+  # --- Metadata for conditional logic ---
+  local dataproc_image_version=$(get_metadata_attribute dataproc-image-version "")
+  if [[ -z "${dataproc_image_version}" ]] && [[ -f /etc/environment ]]; then
+    source /etc/environment
+    dataproc_image_version="${DATAPROC_IMAGE_VERSION:-}"
+  fi
+  local dataproc_role=$(/usr/share/google/get_metadata_value attributes/dataproc-role || echo "Unknown")
+  local rapids_runtime=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
+  local install_gpu_agent=$(get_metadata_attribute 'install-gpu-agent' 'false')
+
+  # --- OS Info ---
+  local os_id_val=$(os_id)
+  local os_version_val=$(os_version)
+  local os_vercat_val=$(os_vercat)
+  local os_info=$(jq -n --arg id "${os_id_val}" --arg version "${os_version_val}" --arg vercat "${os_vercat_val}" '{id: $id, version: $version, vercat: $vercat}')
+
+  add_json_part "os" "${os_info}" "json"
+  add_json_part "dataproc_image_version" "${dataproc_image_version}" "string"
+  add_json_part "dataproc_role" "${dataproc_role}" "string"
+  add_json_part "rapids_runtime" "${rapids_runtime}" "string"
+  add_json_part "install_gpu_agent" "${install_gpu_agent}" "boolean"
+  add_json_part "secure_boot" "${secure_boot}" "string"
+  add_json_part "proxy_settings" "${proxy_settings}" "string"
+
+  # --- Hadoop/Spark Config Checks ---
+  local hadoop_configs_file=$(check_hadoop_configs)
+  add_json_part "hadoop_config" "${hadoop_configs_file}" "jsonfile"
+
+  if [[ "${gpu_count}" -eq 0 ]]; then
+    add_json_part "gpu_count" "0" "number"
+    add_json_part "evaluation_result" "NONE" "string"
+    finalize_json
+    return 0;
+  fi
+
+  local gpu_model=$(summarize_gpu_models "$(get_sysfs_gpu_devices)")
+  local aiml_envs_file=$(detect_aiml_environments)
+  local gpu_jars_file=$(find_gpu_spark_jars)
+
+  # --- Build JSON parts in order ---
+  add_json_part "aiml_environments" "${aiml_envs_file}" "jsonfile"
+  add_json_part "gpu_spark_jars" "${gpu_jars_file}" "jsonfile"
+
+  if [[ "${secure_boot}" == "enabled" ]]; then
+    local PSN=$(get_metadata_attribute private_secret_name)
+    local PUBSN=$(get_metadata_attribute public_secret_name)
+    add_json_part "private_secret_name_set" $([[ -n "${PSN}" ]] && echo true || echo false) "boolean"
+    if [[ -n "${PSN}" ]]; then
+      add_json_part "public_secret_name_set" $([[ -n "${PUBSN}" ]] && echo true || echo false) "boolean"
+      if fetch_public_mok; then
+        add_json_part "public_secret_access" "OK" "string"
+        add_json_part "mok_key_trusted" "$(is_signing_key_trusted && echo "Trusted" || echo "NOT FOUND")" "string"
+      else
+        add_json_part "public_secret_access" "FAILED" "string"
+        add_json_part "mok_key_trusted" "Unknown" "string"
+      fi
+    fi
+  fi
+
+  if ! detect_nvidia_driver; then
+     add_json_part "gpu_count" "${gpu_count}" "number"
+     add_json_part "gpu_model" "${gpu_model}" "string"
+     add_json_part "nvidia_driver_status" "Not Detected" "string"
+     add_json_part "evaluation_result" "GPU_INSTANCE_ONLY" "string"
+     finalize_json
+     return 0;
+  fi
+
+  local nvidia_module_signature=$(get_nvidia_module_signature_status)
+
+  if ! dump_nvidia_smi_xml; then
+     add_json_part "gpu_count" "${gpu_count}" "number"
+     add_json_part "gpu_model" "${gpu_model}" "string"
+     add_json_part "nvidia_driver_status" "CRITICAL - nvidia-smi failed to query XML." "string"
+     add_json_part "nvidia_module_signature" "${nvidia_module_signature}" "string"
+     add_json_part "evaluation_result" "DRIVER_FAILURE" "string"
+     finalize_json
+     return 1;
+  fi
+
+  add_json_part "gpu_count" "$(get_gpu_count_from_xml)" "number"
+  add_json_part "gpu_model" "$(summarize_gpu_models "$(get_gpu_models_from_xml)")" "string"
+
+  local driver_version=$(get_driver_version_from_xml)
+  add_json_part "nvidia_driver_status" "OK" "string"
+  add_json_part "nvidia_driver_version" "${driver_version}" "string"
+  add_json_part "nvidia_module_signature" "${nvidia_module_signature}" "string"
+
+  export PATH=/usr/local/cuda/bin:${PATH}
+  local cuda_version=$(get_cuda_version)
+  local system_cuda_toolkit=$(jq -r '.system.gpu_packages.cudatoolkit.installed_version' "${aiml_envs_file}")
+  local cuda_toolkit_version_val
+  if [[ -z "${cuda_version}" ]]; then
+    if [[ "${system_cuda_toolkit}" != "null" ]]; then
+        cuda_version="${system_cuda_toolkit}"
+        cuda_toolkit_version_val="${cuda_version} (system)"
+    else
+        cuda_toolkit_version_val="Not Detected"
+        cuda_version=""
+    fi
+  else
+    cuda_toolkit_version_val="${cuda_version}"
+  fi
+  add_json_part "cuda_toolkit_version" "${cuda_toolkit_version_val}" "string"
+
+  local result="UNKNOWN"
+  local conda_gpu_detected=$(jq -e '.[] | select(type == "object") | .gpu_packages | values | any(.installed == true)' "${aiml_envs_file}" >/dev/null && echo true || echo false)
+  local spark_rapids_jar_detected=$(jq -e '.["rapids-spark"] != null' "${gpu_jars_file}" >/dev/null && echo true || echo false)
+  local system_cuda_repo_ok=$(jq -e '.system.cuda.cuda_repo_file != "Not Found" and .system.cuda.cuda_keyring_file != "Not Found"' "${aiml_envs_file}" >/dev/null && echo true || echo false)
+
+  if [[ -n "${driver_version}" ]]; then
+    if [[ -n "${cuda_version}" ]]; then
+      if [[ "${spark_rapids_jar_detected}" == "true" ]]; then
+        if [[ "${conda_gpu_detected}" == "true" ]]; then result="SPARK_RAPIDS_BASE_WITH_CONDA"; else result="SPARK_RAPIDS_BASE"; fi
+      else
+        if [[ "${conda_gpu_detected}" == "true" ]]; then result="CUDA_DETECTED_WITH_CONDA"; else result="CUDA_DETECTED"; fi
+      fi
+    elif [[ "${system_cuda_repo_ok}" == "true" ]]; then
+      result="DRIVERS_AND_REPO_CONFIGURED"
+    else
+      result="DRIVERS_INSTALLED"
+    fi
+  else
+    result="GPU_INSTANCE_ONLY"
+  fi
+  add_json_part "evaluation_result" "${result}" "string"
+
+  finalize_json
+}
+# --- GPU Detection Functions End ---
   echo "future dkms runs will not use correct signing key" >2
   rm -rf "${CA_TMPDIR}" /var/lib/dkms/mok.key /var/lib/shim-signed/mok/MOK.priv
 }
@@ -269,8 +1368,7 @@ function execute_with_retries() {
   return 1
 }
 
-function install_spark_rapids() {
-  local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
+function install_gpu_xgboost() {
   local -r dmlc_repo_url='https://repo.maven.apache.org/maven2/ml/dmlc'
 
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
@@ -279,6 +1377,29 @@ function install_spark_rapids() {
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
     "${dmlc_repo_url}/xgboost4j-gpu_2.12/${XGBOOST_VERSION}/xgboost4j-gpu_2.12-${XGBOOST_VERSION}.jar" \
     -P /usr/lib/spark/jars/
+}
+
+function check_spark_rapids_jar() {
+  local jars_found
+  jars_found=$(ls /usr/lib/spark/jars/rapids-4-spark_*.jar 2>/dev/null | wc -l)
+  if [[ $jars_found -gt 0 ]]; then
+    echo "RAPIDS Spark plugin JAR found"
+    return 0
+  else
+    echo "RAPIDS Spark plugin JAR not found"
+    return 1
+  fi
+}
+
+function remove_spark_rapids_jar() {
+  rm -f /usr/lib/spark/jars/rapids-4-spark_*.jar
+  echo "Existing RAPIDS Spark plugin JAR removed successfully"
+}
+
+function install_spark_rapids() {
+
+  local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
+
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
     "${nvidia_repo_url}/rapids-4-spark_2.12/${SPARK_RAPIDS_VERSION}/rapids-4-spark_2.12-${SPARK_RAPIDS_VERSION}.jar" \
     -P /usr/lib/spark/jars/
@@ -807,27 +1928,38 @@ function remove_old_backports {
 
 
 function main() {
-  if is_debian && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
-    remove_old_backports
-  fi
-  check_os_and_secure_boot
-  setup_gpu_yarn
-  if [[ "${RUNTIME}" == "SPARK" ]]; then
+  # If the RAPIDS Spark RAPIDS JAR is already installed (common on ML images), replace it with the requested version
+  # ML images by default have Spark RAPIDS and GPU drivers installed
+  if check_spark_rapids_jar; then
+    # This ensures the cluster always uses the desired RAPIDS version, even if a default is present
+    remove_spark_rapids_jar
     install_spark_rapids
-    configure_spark
-    echo "RAPIDS initialized with Spark runtime"
+    echo "RAPIDS Spark RAPIDS JAR replaced successfully"
   else
-    echo "Unsupported RAPIDS Runtime: ${RUNTIME}"
-    exit 1
-  fi
-
-  for svc in resourcemanager nodemanager; do
-    if [[ $(systemctl show hadoop-yarn-${svc}.service -p SubState --value) == 'running' ]]; then
-      systemctl restart hadoop-yarn-${svc}.service
+    # Install GPU drivers and setup SPARK RAPIDS JAR for non-ML images
+    if is_debian && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
+      remove_old_backports
     fi
-  done
-  if is_debian || is_ubuntu ; then
-    apt-get clean
+    check_os_and_secure_boot
+    setup_gpu_yarn
+    if [[ "${RUNTIME}" == "SPARK" ]]; then
+      install_spark_rapids
+      install_gpu_xgboost
+      configure_spark
+      echo "RAPIDS initialized with Spark runtime"
+    else
+      echo "Unsupported RAPIDS Runtime: ${RUNTIME}"
+      exit 1
+    fi
+
+    for svc in resourcemanager nodemanager; do
+      if [[ $(systemctl show hadoop-yarn-${svc}.service -p SubState --value) == 'running' ]]; then
+        systemctl restart hadoop-yarn-${svc}.service
+      fi
+    done
+    if is_debian || is_ubuntu ; then
+      apt-get clean
+    fi
   fi
 }
 
