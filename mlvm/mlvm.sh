@@ -97,9 +97,9 @@ function download_init_actions() {
   # Download initialization actions locally.
   mkdir "${INIT_ACTIONS_DIR}"/{gpu,rapids,dask}
 
-  gsutil -m rsync -r "${INIT_ACTIONS_REPO}/rapids/" "${INIT_ACTIONS_DIR}/rapids/"
-  gsutil -m rsync -r "${INIT_ACTIONS_REPO}/gpu/" "${INIT_ACTIONS_DIR}/gpu/"
-  gsutil -m rsync -r "${INIT_ACTIONS_REPO}/dask/" "${INIT_ACTIONS_DIR}/dask/"
+  gcloud storage rsync --recursive "${INIT_ACTIONS_REPO}/rapids/" "${INIT_ACTIONS_DIR}/rapids/"
+  gcloud storage rsync --recursive "${INIT_ACTIONS_REPO}/gpu/" "${INIT_ACTIONS_DIR}/gpu/"
+  gcloud storage rsync --recursive "${INIT_ACTIONS_REPO}/dask/" "${INIT_ACTIONS_DIR}/dask/"
 
   find "${INIT_ACTIONS_DIR}" -name '*.sh' -exec chmod +x {} \;
 }
@@ -167,7 +167,7 @@ function install_spark_nlp() {
 function install_connectors() {
   local -r url="gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.12-${SPARK_BIGQUERY_VERSION}.jar"
 
-  gsutil cp "${url}" "${CONNECTORS_DIR}/"
+  gcloud storage cp "${url}" "${CONNECTORS_DIR}/"
 
   local -r jar_name=${url##*/}
 

@@ -40,7 +40,7 @@ function download_snapshot() {
   readonly snapshot_url="${1}"
   readonly protocol="$(echo "${snapshot_url}" | head -c5)"
   if [ "${protocol}" = "gs://" ]; then
-    gsutil cp "${snapshot_url}" "${LOCAL_JAR_NAME}"
+    gcloud storage cp "${snapshot_url}" "${LOCAL_JAR_NAME}"
   else
     curl -o "${LOCAL_JAR_NAME}" "${snapshot_url}"
   fi

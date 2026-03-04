@@ -32,7 +32,7 @@ from upstream in the cluster:
 ```bash
 BUCKET=<your_init_actions_bucket>
 CLUSTER=<cluster_name>
-gsutil cp presto/presto.sh gs://${BUCKET}/
+gcloud storage cp presto/presto.sh gs://${BUCKET}/
 gcloud dataproc clusters create ${CLUSTER} --initialization-actions gs://${BUCKET}/presto.sh
 ```
 

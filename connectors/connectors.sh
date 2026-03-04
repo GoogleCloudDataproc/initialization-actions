@@ -128,7 +128,7 @@ update_connector_url() {
 
   find "${vm_connectors_dir}/" -name "${pattern}" -delete
 
-  gsutil cp -P "${url}" "${vm_connectors_dir}/"
+  gcloud storage cp --preserve-posix "${url}" "${vm_connectors_dir}/"
 
   local -r jar_name=${url##*/}
 

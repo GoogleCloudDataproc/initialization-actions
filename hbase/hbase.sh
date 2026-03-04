@@ -223,7 +223,7 @@ EOF
         kadmin.local -q "addprinc -randkey hbase/${m}.${DOMAIN}@${REALM}"
         echo "Generating hbase keytab..."
         kadmin.local -q "xst -k ${HBASE_HOME}/conf/hbase-${m}.keytab hbase/${m}.${DOMAIN}"
-        gsutil cp "${HBASE_HOME}/conf/hbase-${m}.keytab" \
+        gcloud storage cp "${HBASE_HOME}/conf/hbase-${m}.keytab" \
           "${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/hbase-${m}.keytab"
       done
 
@@ -232,17 +232,17 @@ EOF
         kadmin.local -q "addprinc -randkey hbase/${CLUSTER_NAME}-w-${c}.${DOMAIN}"
         echo "Generating hbase keytab..."
         kadmin.local -q "xst -k ${HBASE_HOME}/conf/hbase-${CLUSTER_NAME}-w-${c}.keytab hbase/${CLUSTER_NAME}-w-${c}.${DOMAIN}"
-        gsutil cp "${HBASE_HOME}/conf/hbase-${CLUSTER_NAME}-w-${c}.keytab" \
+        gcloud storage cp "${HBASE_HOME}/conf/hbase-${CLUSTER_NAME}-w-${c}.keytab" \
           "${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/hbase-${CLUSTER_NAME}-w-${c}.keytab"
       done
       touch /tmp/_success
-      gsutil cp /tmp/_success "${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/_success"
+      gcloud storage cp /tmp/_success "${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/_success"
     fi
     success=1
     while [[ $success == "1" ]]; do
       sleep 1
       success=$(
-        gsutil -q stat "${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/_success"
+        gcloud storage objects list --stat --fetch-encrypted-object-hashes "${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/_success"
         echo $?
       )
     done
@@ -255,7 +255,7 @@ EOF
     fi
 
     # Copy keytab to machine
-    gsutil cp "${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/hbase-$(hostname -s).keytab" $hbase_keytab_path
+    gcloud storage cp "${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/hbase-$(hostname -s).keytab" $hbase_keytab_path
 
     # Change owner of keytab to hbase with read only permissions
     if [ -f $hbase_keytab_path ]; then
