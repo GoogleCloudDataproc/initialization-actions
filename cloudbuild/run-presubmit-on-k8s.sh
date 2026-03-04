@@ -52,7 +52,7 @@ if [[ ${exit_code} != 0 ]]; then
   LOG_GCS_PATH="gs://${BUCKET}/${BUILD_ID}/logs/${POD_NAME}.log"
 
   echo "Attempting to upload logs to ${LOG_GCS_PATH}"
-  if kubectl logs "${POD_NAME}" | gsutil cp - "${LOG_GCS_PATH}"; then
+  if kubectl logs "${POD_NAME}" | gcloud storage cp - "${LOG_GCS_PATH}"; then
     echo "Logs for failed pod ${POD_NAME} uploaded to: ${LOG_GCS_PATH}"
   else
     echo "Log upload to ${LOG_GCS_PATH} failed."

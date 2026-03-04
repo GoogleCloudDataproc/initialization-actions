@@ -51,6 +51,6 @@ for file in "${MODULE}/"*.sh; do
   fi
 done
 
-gsutil -m rsync -R -x "__pycache__/.*" "${MODULE}/" "${GCS_FOLDER}"
+gcloud storage rsync --recursive --exclude "__pycache__/.*" "${MODULE}/" "${GCS_FOLDER}"
 
 echo "Pushed ${MODULE}/ to ${GCS_FOLDER}."

@@ -57,7 +57,7 @@ function download_libraries()
 function download_example_jar()
 {
   if [[ "${SPARK_VERSION}" < "3.5" ]]; then
-  gsutil cp "${SPARK_JAVA_EXAMPLE_JAR}" "${DS_LIBPATH}"
+  gcloud storage cp "${SPARK_JAVA_EXAMPLE_JAR}" "${DS_LIBPATH}"
   if [ $? -eq 0 ]; then
     echo "Downloaded "${SPARK_JAVA_EXAMPLE_JAR}" successfully"
   else

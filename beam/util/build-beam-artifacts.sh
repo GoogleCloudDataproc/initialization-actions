@@ -13,7 +13,7 @@ readonly BEAM_SOURCE_VERSION="${3:-master}"
 
 function build_job_service() {
   ./gradlew :beam-runners-flink_2.11-job-server:shadowJar
-  gsutil cp \
+  gcloud storage cp \
     ./runners/flink/job-server/build/libs/beam-runners-flink_2.11-job-server-*-SNAPSHOT.jar \
     ${BEAM_JOB_SERVICE_DESTINATION}/beam-runners-flink_2.11-job-server-${BEAM_SOURCE_VERSION}-SNAPSHOT.jar
 }

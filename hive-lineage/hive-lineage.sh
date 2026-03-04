@@ -48,7 +48,7 @@ function set_hive_lineage_conf() {
 
 function install_jars() {
   echo "Installing openlineage-hive hook"
-  gsutil cp -P "$INSTALLATION_SOURCE/hive-openlineage-hook-$HIVE_OL_HOOK_VERSION.jar" "$HIVE_LIB_DIR/hive-openlineage-hook.jar"
+  gcloud storage cp --preserve-posix "$INSTALLATION_SOURCE/hive-openlineage-hook-$HIVE_OL_HOOK_VERSION.jar" "$HIVE_LIB_DIR/hive-openlineage-hook.jar"
 }
 
 function restart_hive_server2_master() {

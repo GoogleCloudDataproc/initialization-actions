@@ -43,7 +43,7 @@ function test_installation() {
 # to test update, we will upload a new topology to gs bucket, and check whether it appears
 # we assume that knox initialization action is the very first one, /etc/google-dataproc/startup-scripts/dataproc-initialization-script-0
 function test_update_new_topology() {
-  gsutil cp /etc/knox/conf/topologies/example-hive-pii.xml "${KNOX_GW_CONFIG_GCS}/topologies/update_topology.xml"
+  gcloud storage cp /etc/knox/conf/topologies/example-hive-pii.xml "${KNOX_GW_CONFIG_GCS}/topologies/update_topology.xml"
   sudo /bin/bash /etc/google-dataproc/startup-scripts/dataproc-initialization-script-0 update
   test_installation update_topology
   [[ $? == 1 ]] && return 1

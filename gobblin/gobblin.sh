@@ -91,7 +91,7 @@ EOF
 function install_package() {
   # Download binary.
   local temp=$(mktemp -d)
-  gsutil cp "${PACKAGE_URL}" "${temp}/package.tar.gz"
+  gcloud storage cp "${PACKAGE_URL}" "${temp}/package.tar.gz"
   tar -xf "${temp}/package.tar.gz" -C "${temp}"
 
   # Setup package.

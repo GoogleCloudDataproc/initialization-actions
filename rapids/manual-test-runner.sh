@@ -47,7 +47,7 @@ function exit_handler() {
   # TODO: remove any test related resources in the project
 
   echo 'Uploading local logs to GCS bucket.'
-  gsutil -m rsync -r "${log_dir}/" "${gcs_log_dir}/"
+  gcloud storage rsync --recursive "${log_dir}/" "${gcs_log_dir}/"
 
   if [[ -f "${tmp_dir}/tests_success" ]]; then
     echo -e "${GREEN}Workflow succeeded, check logs at ${log_dir}/ or ${gcs_log_dir}/${NC}"
@@ -72,6 +72,5 @@ export INTERNAL_IP_SSH="true"
 
 # Run tests in screen session so we can monitor the container in another window
 screen -US "${session_name}" -c rapids/bazel.screenrc
-
 
 
