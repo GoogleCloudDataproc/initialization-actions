@@ -281,6 +281,19 @@ else
   if [[ "${db_hive_pwd}" == "None" ]]; then
     db_hive_pwd="hive-password"
   fi
+  hive_gsm_property=$(bdconfig get_property_value \
+    --configuration_file "/etc/hive/conf/hive-site.xml" \
+    --name "hadoop.security.credential.provider.path" 2>/dev/null)
+  if [[ -z "${hive_gsm_property}" ]]; then
+    hive_gsm_version=$(bdconfig get_property_value \
+      --configuration_file "/etc/hive/conf/hive-site.xml" \
+      --name "hadoop.security.credstore.google-secret-manager.secret-version" 2>/dev/null)
+    if [[ -z "${hive_gsm_version}" ]]; then
+      hive_gsm_version="latest"
+    fi
+    log "Fetching Hive password from Secret Manager (version: ${hive_gsm_version})..."
+    db_hive_pwd=$(gcloud secrets versions access "${hive_gsm_version}" --secret="javax-jdo-option-ConnectionPassword")
+  fi
   readonly DB_HIVE_PASSWORD=${db_hive_pwd}
 fi
 
@@ -506,6 +519,16 @@ EOF
       --configuration_file /etc/hive/conf/hive-site.xml \
       --source_configuration_file hive-template.xml \
       --clobber
+
+    hive_gsm_property=$(bdconfig get_property_value \
+      --configuration_file "/etc/hive/conf/hive-site.xml" \
+      --name "hadoop.security.credential.provider.path" 2>/dev/null)
+
+    if [[ -z "${hive_gsm_property}" ]]; then
+      log "Removing plaintext javax.jdo.option.ConnectionPassword from hive-site.xml..."
+      bdconfig remove_property --configuration_file "/etc/hive/conf/hive-site.xml" \
+      --name "javax.jdo.option.ConnectionPassword"
+    fi
   fi
 
   log 'Cloud SQL Proxy installation succeeded'
@@ -886,3 +909,4 @@ function main() {
 }
 
 main
+
