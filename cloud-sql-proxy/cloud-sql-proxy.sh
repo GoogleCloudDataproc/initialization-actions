@@ -281,6 +281,21 @@ else
   if [[ "${db_hive_pwd}" == "None" ]]; then
     db_hive_pwd="hive-password"
   fi
+  hive_gsm_property=$(bdconfig get_property_value \
+    --configuration_file "/etc/hive/conf/hive-site.xml" \
+    --name "hadoop.security.credential.provider.path" 2>/dev/null)
+  if [[ "${hive_gsm_property}" != "None" ]]; then
+    hive_gsm_version=$(bdconfig get_property_value \
+      --configuration_file "/etc/hive/conf/hive-site.xml" \
+      --name "hadoop.security.credstore.google-secret-manager.secret-version" 2>/dev/null)
+    if [[ "${hive_gsm_version}" == "None" ]]; then
+      hive_gsm_version="latest"
+    fi
+    log "Fetching Hive password from Secret Manager (version: ${hive_gsm_version})..."
+    if ! db_hive_pwd=$(gcloud secrets versions access "${hive_gsm_version}" --secret="javax-jdo-option-ConnectionPassword" 2>&1); then
+      err "Failed to fetch Hive password from Secret Manager. Ensure the secret 'javax-jdo-option-ConnectionPassword' exists and the service account has 'roles/secretmanager.secretAccessor' permission. Error: ${db_hive_pwd}"
+    fi
+  fi
   readonly DB_HIVE_PASSWORD=${db_hive_pwd}
 fi
 
@@ -506,6 +521,16 @@ EOF
       --configuration_file /etc/hive/conf/hive-site.xml \
       --source_configuration_file hive-template.xml \
       --clobber
+
+    hive_gsm_property=$(bdconfig get_property_value \
+      --configuration_file "/etc/hive/conf/hive-site.xml" \
+      --name "hadoop.security.credential.provider.path" 2>/dev/null)
+
+    if [[ "${hive_gsm_property}" != "None" ]]; then
+      log "Removing plaintext javax.jdo.option.ConnectionPassword from hive-site.xml..."
+      bdconfig remove_property --configuration_file "/etc/hive/conf/hive-site.xml" \
+        --name "javax.jdo.option.ConnectionPassword"
+    fi
   fi
 
   log 'Cloud SQL Proxy installation succeeded'
@@ -525,23 +550,31 @@ function initialize_mysql_metastore_db() {
   # Check if metastore is initialized.
   if ! mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_HIVE_USER}" "${db_hive_password_param}" --get-server-public-key -e ''; then
     if [[ ! "${DB_HIVE_METASTORE_REUSE,,}" == "true" ]]; then
+      log "About to create hive user account."
       mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_ADMIN_USER}" "${db_password_param}" --get-server-public-key -e \
-        "CREATE USER '${DB_HIVE_USER}' IDENTIFIED BY '${DB_HIVE_PASSWORD}';"
+        "CREATE USER IF NOT EXISTS ${DB_HIVE_USER} IDENTIFIED BY '${DB_HIVE_PASSWORD}';
+         GRANT ALL PRIVILEGES ON ${METASTORE_DB}.* TO ${DB_HIVE_USER}@'%';
+         FLUSH PRIVILEGES;"
+      log "Hive user account created."
     else
-      log "Re-using exiting hive user account"
+      log "Re-using existing hive user account"
     fi
   fi
 
   if ! mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_HIVE_USER}" "${db_hive_password_param}" --get-server-public-key -e "use ${METASTORE_DB}"; then
     # Initialize a Hive metastore DB
     if [[ ! "${DB_HIVE_METASTORE_REUSE,,}" == "true" ]]; then
+      log "About to create hive user account and ${METASTORE_DB} database."
       mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_ADMIN_USER}" "${db_password_param}" --get-server-public-key -e \
-        "CREATE DATABASE ${METASTORE_DB};
-         GRANT ALL PRIVILEGES ON ${METASTORE_DB}.* TO '${DB_HIVE_USER}';"
+        "CREATE DATABASE IF NOT EXISTS ${METASTORE_DB};
+         CREATE USER IF NOT EXISTS ${DB_HIVE_USER}@'%' IDENTIFIED BY '${DB_HIVE_PASSWORD}';
+         GRANT ALL PRIVILEGES ON ${METASTORE_DB}.* TO ${DB_HIVE_USER}@'%';
+         FLUSH PRIVILEGES;"
+      log "Hive user account created"
       /usr/lib/hive/bin/schematool -dbType mysql -initSchema || err 'Failed to set mysql schema.'
       log 'MYSQL DB initialized for Hive metastore'
     else
-      log "Re-using exiting hive user account"
+      log "Re-using existing hive user account"
     fi
   fi
 }
@@ -886,3 +919,4 @@ function main() {
 }
 
 main
+
