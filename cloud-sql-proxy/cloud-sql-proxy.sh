@@ -568,7 +568,7 @@ function initialize_mysql_metastore_db() {
       mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_ADMIN_USER}" "${db_password_param}" --get-server-public-key -e \
         "CREATE DATABASE IF NOT EXISTS ${METASTORE_DB};
          CREATE USER IF NOT EXISTS '${DB_HIVE_USER}'@'%' IDENTIFIED BY '${DB_HIVE_PASSWORD}';
-         GRANT ALL PRIVILEGES ON ${METASTORE_DB}.* TO ${DB_HIVE_USER}@'%';
+         GRANT ALL PRIVILEGES ON ${METASTORE_DB}.* TO '${DB_HIVE_USER}'@'%';
          FLUSH PRIVILEGES;"
       log "Hive user account created"
       /usr/lib/hive/bin/schematool -dbType mysql -initSchema || err 'Failed to set mysql schema.'
