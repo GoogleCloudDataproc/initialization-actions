@@ -292,7 +292,7 @@ else
       hive_gsm_version="latest"
     fi
     log "Fetching Hive password from Secret Manager (version: ${hive_gsm_version})..."
-    if ! db_hive_pwd=$(gcloud secrets versions access "${hive_gsm_version}" --secret="javax-jdo-option-ConnectionPassword" 2>&1); then
+    if ! db_hive_pwd=$(gcloud secrets versions access "${hive_gsm_version}" --secret="javax-jdo-option-ConnectionPassword" 2>/dev/null); then
       err "Failed to fetch Hive password from Secret Manager. Ensure the secret 'javax-jdo-option-ConnectionPassword' exists and the service account has 'roles/secretmanager.secretAccessor' permission. Error: ${db_hive_pwd}"
     fi
   fi
