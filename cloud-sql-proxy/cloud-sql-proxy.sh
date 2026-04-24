@@ -552,7 +552,7 @@ function initialize_mysql_metastore_db() {
     if [[ ! "${DB_HIVE_METASTORE_REUSE,,}" == "true" ]]; then
       log "About to create hive user account."
       mysql -h 127.0.0.1 -P "${METASTORE_PROXY_PORT}" -u "${DB_ADMIN_USER}" "${db_password_param}" --get-server-public-key -e \
-        "CREATE USER IF NOT EXISTS ${DB_HIVE_USER} IDENTIFIED BY '${DB_HIVE_PASSWORD}';
+        "CREATE USER IF NOT EXISTS '${DB_HIVE_USER}'@'%' IDENTIFIED BY '${DB_HIVE_PASSWORD}';
          GRANT ALL PRIVILEGES ON ${METASTORE_DB}.* TO ${DB_HIVE_USER}@'%';
          FLUSH PRIVILEGES;"
       log "Hive user account created."
