@@ -405,11 +405,11 @@ the `hive` user does not already exist in MySQL. Proceed as follows:
 
 As a more modern alternative to KMS, you can use [Secret Manager](https://cloud.google.com/secret-manager) to store and manage your Hive metastore passwords. The initialization action will automatically fetch the password from Secret Manager if the appropriate configuration is present in `hive-site.xml`.
 
-1.  **Create a Secret**: Create a secret named `javax-jdo-option-ConnectionPassword` in Secret Manager and add a version containing your Hive password.
+1.  **Create a Secret**: Create a secret named `javax-jdo-option-ConnectionPassword` in Secret Manager and add a version containing your Hive password. To create a Secret Manager see: https://docs.cloud.google.com/secret-manager/docs/create-secret-quickstart
+ 
+3.  **IAM Permissions**: Ensure the cluster's service account has the `roles/secretmanager.secretAccessor` role for the secret. To create a role see: https://docs.cloud.google.com/secret-manager/docs/manage-access-to-secrets
 
-2.  **IAM Permissions**: Ensure the cluster's service account has the `roles/secretmanager.secretAccessor` role for the secret.
-
-3.  **Create the Dataproc Cluster**: Specify the Secret Manager integration via cluster properties:
+4.  **Create the Dataproc Cluster**: Specify the Secret Manager integration via cluster properties:
 
     ```bash
     PROJECT_ID=<project_id>
