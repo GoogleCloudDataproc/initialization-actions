@@ -226,7 +226,7 @@ else
 fi
 
 # Update SPARK RAPIDS config
-readonly DEFAULT_SPARK_RAPIDS_VERSION="26.02.0"
+readonly DEFAULT_SPARK_RAPIDS_VERSION="26.02.1"
 readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
 readonly XGBOOST_VERSION=$(get_metadata_attribute 'xgboost-version' ${DEFAULT_XGBOOST_VERSION})
 
@@ -520,23 +520,20 @@ function install_nvidia_gpu_driver() {
       rm cuda.run
     elif [[ "${USE_REPO_INSTALL:-false}" == "true" ]]; then
       # Repository-based installation for latest CUDA and kernel 6.14+ compatibility
+      # Uses NVIDIA official repository only (no PPA to avoid conflicts)
       
       # Install CUDA keyring for repository access
       execute_with_retries "wget https://developer.download.nvidia.com/compute/cuda/repos/${shortname}/x86_64/cuda-keyring_1.1-1_all.deb"
       execute_with_retries "dpkg -i cuda-keyring_1.1-1_all.deb"
       rm -f cuda-keyring_1.1-1_all.deb
-      
-      # Add graphics-drivers PPA for latest NVIDIA drivers
-      execute_with_retries "apt-get install -y -q software-properties-common"
-      execute_with_retries "add-apt-repository -y ppa:graphics-drivers/ppa"
       execute_with_retries "apt-get update"
       
       execute_with_retries "apt-get install -y -q --no-install-recommends dkms"
       configure_dkms_certs
       
-      # Install latest CUDA toolkit and compatible NVIDIA driver
-      execute_with_retries "apt-get install -y -q --no-install-recommends cuda-toolkit"
-      execute_with_retries "apt-get install -y -q --no-install-recommends nvidia-driver-${NVIDIA_DRIVER_VERSION_PREFIX}-open"
+      # Install latest CUDA toolkit and open driver from NVIDIA official repository
+      # The cuda package includes both toolkit and compatible driver
+      execute_with_retries "apt-get install -y -q --no-install-recommends cuda"
       
       clear_dkms_key
       modprobe nvidia
