@@ -210,7 +210,27 @@ function set_cuda_version() {
   fi
   readonly DEFAULT_CUDA_VERSION
 
-  CUDA_VERSION=$(get_metadata_attribute 'cuda-version' "${DEFAULT_CUDA_VERSION}")
+  local raw_cuda_version
+  raw_cuda_version=$(get_metadata_attribute 'cuda-version' '') # Get raw value, default to empty
+
+  if [[ -n "${raw_cuda_version}" ]]; then
+    # Use metadata value only if it's not empty
+    CUDA_VERSION="${raw_cuda_version}"
+    echo "DEBUG: Using cuda-version from metadata: '${CUDA_VERSION}'"
+  else
+    # Fallback to DEFAULT_CUDA_VERSION if metadata is empty or not found
+    CUDA_VERSION="${DEFAULT_CUDA_VERSION}"
+    echo "DEBUG: cuda-version metadata not found or empty, using default: '${CUDA_VERSION}'"
+  fi
+
+  # Validate the chosen CUDA_VERSION
+  if ! test -n "$(echo "${CUDA_VERSION}" | perl -ne 'print if /\d+\.\d+/')" ; then
+     echo "ERROR: Invalid CUDA_VERSION obtained: '${CUDA_VERSION}'. Attempting to use DEFAULT: '${DEFAULT_CUDA_VERSION}'" >&2
+     CUDA_VERSION="${DEFAULT_CUDA_VERSION}"
+  fi
+
+  echo "DEBUG: Effective CUDA_VERSION: '${CUDA_VERSION}'"
+
   if test -n "$(echo "${CUDA_VERSION}" | perl -ne 'print if /\d+\.\d+\.\d+/')" ; then
     CUDA_FULL_VERSION="${CUDA_VERSION}"
     CUDA_VERSION="${CUDA_VERSION%.*}"
@@ -265,8 +285,23 @@ function set_driver_version() {
     DEFAULT_DRIVER=${DRIVER_FOR_CUDA["${CUDA_VERSION}"]}
   fi
 
-  DRIVER_VERSION=$(get_metadata_attribute 'gpu-driver-version' "${DEFAULT_DRIVER}")
+  local raw_driver_version
+  raw_driver_version=$(get_metadata_attribute 'gpu-driver-version' '')
 
+  if [[ -n "${raw_driver_version}" ]]; then
+    DRIVER_VERSION="${raw_driver_version}"
+    echo "DEBUG: Using gpu-driver-version from metadata: '${DRIVER_VERSION}'"
+  else
+    DRIVER_VERSION="${DEFAULT_DRIVER}"
+    echo "DEBUG: gpu-driver-version metadata not found or empty, using default: '${DRIVER_VERSION}'"
+  fi
+
+  if ! test -n "$(echo "${DRIVER_VERSION}" | perl -ne 'print if /\d+\.\d+\.\d+/')" ; then
+     echo "ERROR: Invalid DRIVER_VERSION obtained: '${DRIVER_VERSION}'. Attempting to use DEFAULT: '${DEFAULT_DRIVER}'" >&2
+     DRIVER_VERSION="${DEFAULT_DRIVER}"
+  fi
+
+  echo "DEBUG: Effective DRIVER_VERSION: '${DRIVER_VERSION}'"
   readonly DRIVER_VERSION
   readonly DRIVER="${DRIVER_VERSION%%.*}"
 
