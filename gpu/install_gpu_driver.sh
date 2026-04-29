@@ -38,7 +38,7 @@ if [[ "$(os_id)" == "rocky" ]];
   else _os_version="$(os_version)"
 fi
 for os_id_val in 'rocky' 'ubuntu' 'debian' ; do
-  eval "function is_${os_id_val}() { [[ \"$(os_id)\" == '${os_id_val}' ]] ; }"
+  eval "function is_${os_id_val}() { [[ \"$(os_id)\" == \"${os_id_val}\" ]] ; }"
 
   for osver in $(echo "${supported_os["${os_id_val}"]}") ; do
     eval "function is_${os_id_val}${osver%%.*}() { is_${os_id_val} && [[ \"${_os_version}\" == \"${osver}\" ]] ; }"
@@ -62,9 +62,9 @@ function repair_old_backports {
 
   # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
   debdists="https://deb.debian.org/debian/dists"
-  oldoldstable=$(curl ${curl_retry_args} "${debdists}/oldoldstable/Release" | awk '/^Codename/ {print $2}');
-  oldstable=$(   curl ${curl_retry_args} "${debdists}/oldstable/Release"    | awk '/^Codename/ {print $2}');
-  stable=$(      curl ${curl_retry_args} "${debdists}/stable/Release"       | awk '/^Codename/ {print $2}');
+  oldoldstable=$(curl "${curl_retry_args[@]}" "${debdists}/oldoldstable/Release" | awk '/^Codename/ {print $2}');
+  oldstable=$(   curl "${curl_retry_args[@]}" "${debdists}/oldstable/Release"    | awk '/^Codename/ {print $2}');
+  stable=$(      curl "${curl_retry_args[@]}" "${debdists}/stable/Release"       | awk '/^Codename/ {print $2}');
 
   matched_files=( $(test -d /etc/apt && grep -rsil '\-backports' /etc/apt/sources.list*||:) )
 
@@ -81,19 +81,19 @@ function print_metadata_value() {
     -s -o ${tmpfile} 2>/dev/null)
   local readonly return_code=$?
   # If the command completed successfully, print the metadata value to stdout.
-  if [[ ${return_code} == 0 && ${http_code} == 200 ]]; then
-    cat ${tmpfile}
+  if [[ "${return_code}" == 0 && "${http_code}" == 200 ]]; then
+    cat "${tmpfile}"
   fi
-  rm -f ${tmpfile}
-  return ${return_code}
+  rm -f "${tmpfile}"
+  return "${return_code}"
 }
 
 function print_metadata_value_if_exists() {
   local return_code=1
-  local readonly url=$1
-  print_metadata_value ${url}
+  local readonly url="$1"
+  print_metadata_value "${url}"
   return_code=$?
-  return ${return_code}
+  return "${return_code}"
 }
 
 # replicates /usr/share/google/get_metadata_value
@@ -101,14 +101,14 @@ function get_metadata_value() {
   local readonly varname=$1
   local -r MDS_PREFIX=http://metadata.google.internal/computeMetadata/v1
   # Print the instance metadata value.
-  print_metadata_value_if_exists ${MDS_PREFIX}/instance/${varname}
+  print_metadata_value_if_exists "${MDS_PREFIX}/instance/${varname}"
   return_code=$?
   # If the instance doesn't have the value, try the project.
-  if [[ ${return_code} != 0 ]]; then
-    print_metadata_value_if_exists ${MDS_PREFIX}/project/${varname}
+  if [[ "${return_code}" != 0 ]]; then
+    print_metadata_value_if_exists "${MDS_PREFIX}/project/${varname}"
     return_code=$?
   fi
-  return ${return_code}
+  return "${return_code}"
 }
 
 function get_metadata_attribute() {
@@ -245,10 +245,10 @@ function set_driver_version() {
     if [[ "${CUDA_URL_DRIVER_VERSION}" =~ ^[0-9]+.*[0-9]$ ]] ; then
       major_driver_version="${CUDA_URL_DRIVER_VERSION%%.*}"
       driver_max_maj_version=${DRIVER_SUBVER["${major_driver_version}"]}
-      if curl ${curl_retry_args} --head "${nv_xf86_x64_base}/${CUDA_URL_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${CUDA_URL_DRIVER_VERSION}.run" | grep -E -q 'HTTP.*200' ; then
+      if curl "${curl_retry_args[@]}" --head "${nv_xf86_x64_base}/${CUDA_URL_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${CUDA_URL_DRIVER_VERSION}.run" | grep -E -q 'HTTP.*200' ; then
         # use the version indicated by the cuda url as the default if it exists
         DEFAULT_DRIVER="${CUDA_URL_DRIVER_VERSION}"
-      elif curl ${curl_retry_args} --head "${nv_xf86_x64_base}/${driver_max_maj_version}/NVIDIA-Linux-x86_64-${driver_max_maj_version}.run" | grep -E -q 'HTTP.*200' ; then
+      elif curl "${curl_retry_args[@]}" --head "${nv_xf86_x64_base}/${driver_max_maj_version}/NVIDIA-Linux-x86_64-${driver_max_maj_version}.run" | grep -E -q 'HTTP.*200' ; then
         # use the maximum sub-version available for the major version indicated in cuda url as the default
         DEFAULT_DRIVER="${driver_max_maj_version}"
       fi
@@ -285,10 +285,10 @@ function set_driver_version() {
 
       # Download the file
       echo "Downloading from ${gpu_driver_url} to ${temp_driver_file}"
-      if curl -sSLf -o "${temp_driver_file}" "${gpu_driver_url}"; then
+      if curl "${curl_retry_args[@]}" -o "${temp_driver_file}" "${gpu_driver_url}"; then
         echo "Download complete. Uploading to ${gcs_cache_path}"
         # Upload to GCS
-        if gsutil cp "${temp_driver_file}" "${gcs_cache_path}"; then
+        if "${gsutil_cmd[@]}" cp "${temp_driver_file}" "${gcs_cache_path}"; then
           echo "Successfully cached to GCS."
           rm -f "${temp_driver_file}"
         else
@@ -439,7 +439,7 @@ function set_cuda_runfile_url() {
 
   NVIDIA_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_CUDA_URL}")
 
-  if ! curl ${curl_retry_args} --head "${NVIDIA_CUDA_URL}" | grep -E -q 'HTTP.*200' ; then
+  if ! curl "${curl_retry_args[@]}" --head "${NVIDIA_CUDA_URL}" | grep -E -q 'HTTP.*200' ; then
     echo "No CUDA distribution exists for this combination of DRIVER_VERSION=${drv_ver}, CUDA_VERSION=${CUDA_FULL_VERSION}"
     if [[ "${DEFAULT_NVIDIA_CUDA_URL}" != "${NVIDIA_CUDA_URL}" ]]; then
       echo "consider [${DEFAULT_NVIDIA_CUDA_URL}] instead"
@@ -527,7 +527,7 @@ function execute_with_retries() (
 function install_cuda_keyring_pkg() {
   is_complete cuda-keyring-installed && return
   local kr_ver=1.1
-  curl ${curl_retry_args} \
+  curl "${curl_retry_args[@]}" \
     "${NVIDIA_REPO_URL}/cuda-keyring_${kr_ver}-1_all.deb" \
     -o "${tmpdir}/cuda-keyring.deb"
   dpkg -i "${tmpdir}/cuda-keyring.deb"
@@ -549,7 +549,7 @@ function install_local_cuda_repo() {
   readonly LOCAL_DEB_URL="${NVIDIA_BASE_DL_URL}/cuda/${CUDA_FULL_VERSION}/local_installers/${LOCAL_INSTALLER_DEB}"
   readonly DIST_KEYRING_DIR="/var/${pkgname}"
 
-  curl ${curl_retry_args} \
+  curl "${curl_retry_args[@]}" \
     "${LOCAL_DEB_URL}" -o "${tmpdir}/${LOCAL_INSTALLER_DEB}"
 
   dpkg -i "${tmpdir}/${LOCAL_INSTALLER_DEB}"
@@ -557,7 +557,7 @@ function install_local_cuda_repo() {
   cp ${DIST_KEYRING_DIR}/cuda-*-keyring.gpg /usr/share/keyrings/
 
   if is_ubuntu ; then
-    curl ${curl_retry_args} \
+    curl "${curl_retry_args[@]}" \
       "${NVIDIA_REPO_URL}/cuda-${shortname}.pin" \
       -o /etc/apt/preferences.d/cuda-repository-pin-600
   fi
@@ -577,7 +577,7 @@ function install_local_cudnn_repo() {
   local_deb_url="${NVIDIA_BASE_DL_URL}/cudnn/${CUDNN_VERSION%.*}/local_installers/${local_deb_fn}"
 
   # ${NVIDIA_BASE_DL_URL}/redist/cudnn/v8.6.0/local_installers/11.8/cudnn-linux-x86_64-8.6.0.163_cuda11-archive.tar.xz
-  curl ${curl_retry_args} \
+  curl "${curl_retry_args[@]}" \
     "${local_deb_url}" -o "${tmpdir}/local-installer.deb"
 
   dpkg -i "${tmpdir}/local-installer.deb"
@@ -673,17 +673,17 @@ function install_nvidia_nccl() {
     if [[ "$(hostname -s)" =~ ^test-gpu && "$(nproc)" < 32 ]] ; then
       # when running with fewer than 32 cores, yield to in-progress build
       sleep $(( ( RANDOM % 11 ) + 10 ))
-      local output="$(${gsutil_stat_cmd} "${gcs_tarball}.building"|grep '.reation.time')"
+      local output="$("${gsutil_stat_cmd[@]}" "${gcs_tarball}.building"|grep '.reation.time')"
       if [[ "$?" == "0" ]] ; then
         local build_start_time build_start_epoch timeout_epoch
         build_start_time="$(echo ${output} | awk -F': +' '{print $2}')"
         build_start_epoch="$(date -u -d "${build_start_time}" +%s)"
         timeout_epoch=$((build_start_epoch + 2700)) # 45 minutes
-        while ${gsutil_stat_cmd} "${gcs_tarball}.building" ; do
+        while "${gsutil_stat_cmd[@]}" "${gcs_tarball}.building" ; do
           local now_epoch="$(date -u +%s)"
           if (( now_epoch > timeout_epoch )) ; then
             # detect unexpected build failure after 45m
-            ${gsutil_cmd} rm "${gcs_tarball}.building"
+            "${gsutil_cmd[@]}" rm "${gcs_tarball}.building"
             break
           fi
           sleep 5m
@@ -691,14 +691,14 @@ function install_nvidia_nccl() {
       fi
     fi
 
-    if ${gsutil_stat_cmd} "${gcs_tarball}" ; then
+    if "${gsutil_stat_cmd[@]}" "${gcs_tarball}" ; then
       # cache hit - unpack from cache
       echo "cache hit"
-      ${gsutil_cmd} cat "${gcs_tarball}" | tar xvz
+      "${gsutil_cmd[@]}" cat "${gcs_tarball}" | tar xvz
     else
       # build and cache
       touch "${local_tarball}.building"
-      ${gsutil_cmd} cp "${local_tarball}.building" "${gcs_tarball}.building"
+      "${gsutil_cmd[@]}" cp "${local_tarball}.building" "${gcs_tarball}.building"
       building_file="${gcs_tarball}.building"
       pushd nccl
       # https://github.com/NVIDIA/nccl?tab=readme-ov-file#install
@@ -750,8 +750,8 @@ function install_nvidia_nccl() {
       make clean
       popd
       tar xzvf "${local_tarball}"
-      ${gsutil_cmd} cp "${local_tarball}" "${gcs_tarball}"
-      if ${gsutil_stat_cmd} "${gcs_tarball}.building" ; then ${gsutil_cmd} rm "${gcs_tarball}.building" || true ; fi
+      "${gsutil_cmd[@]}" cp "${local_tarball}" "${gcs_tarball}"
+      if "${gsutil_stat_cmd[@]}" "${gcs_tarball}.building" ; then "${gsutil_cmd[@]}" rm "${gcs_tarball}.building" || true ; fi
       building_file=""
       rm "${local_tarball}"
     fi
@@ -862,17 +862,17 @@ function install_pytorch() {
   if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
     # when running with fewer than 32 cores, yield to in-progress build
     sleep $(( ( RANDOM % 11 ) + 10 ))
-    local output="$(${gsutil_stat_cmd} "${gcs_tarball}.building"|grep '.reation.time')"
+    local output="$("${gsutil_stat_cmd[@]}" "${gcs_tarball}.building"|grep '.reation.time')"
     if [[ "$?" == "0" ]] ; then
       local build_start_time build_start_epoch timeout_epoch
       build_start_time="$(echo ${output} | awk -F': +' '{print $2}')"
       build_start_epoch="$(date -u -d "${build_start_time}" +%s)"
       timeout_epoch=$((build_start_epoch + 2700)) # 45 minutes
-      while ${gsutil_stat_cmd} "${gcs_tarball}.building" ; do
+      while "${gsutil_stat_cmd[@]}" "${gcs_tarball}.building" ; do
         local now_epoch="$(date -u +%s)"
         if (( now_epoch > timeout_epoch )) ; then
           # detect unexpected build failure after 45m
-          ${gsutil_cmd} rm "${gcs_tarball}.building"
+          "${gsutil_cmd[@]}" rm "${gcs_tarball}.building"
           break
         fi
         sleep 5m
@@ -880,14 +880,14 @@ function install_pytorch() {
     fi
   fi
 
-  if ${gsutil_stat_cmd} "${gcs_tarball}" ; then
+  if "${gsutil_stat_cmd[@]}" "${gcs_tarball}" ; then
     # cache hit - unpack from cache
     echo "cache hit"
     mkdir -p "${envpath}"
-    ${gsutil_cmd} cat "${gcs_tarball}" | tar -C "${envpath}" -xz
+    "${gsutil_cmd[@]}" cat "${gcs_tarball}" | tar -C "${envpath}" -xz
   else
     touch "${local_tarball}.building"
-    ${gsutil_cmd} cp "${local_tarball}.building" "${gcs_tarball}.building"
+    "${gsutil_cmd[@]}" cp "${local_tarball}.building" "${gcs_tarball}.building"
     building_file="${gcs_tarball}.building"
     local verb=create
     if test -d "${envpath}" ; then verb=install ; fi
@@ -907,8 +907,8 @@ function install_pytorch() {
     pushd "${envpath}"
     tar czf "${local_tarball}" .
     popd
-    ${gsutil_cmd} cp "${local_tarball}" "${gcs_tarball}"
-    if ${gsutil_stat_cmd} "${gcs_tarball}.building" ; then ${gsutil_cmd} rm "${gcs_tarball}.building" || true ; fi
+    "${gsutil_cmd[@]}" cp "${local_tarball}" "${gcs_tarball}"
+    if "${gsutil_stat_cmd[@]}" "${gcs_tarball}.building" ; then "${gsutil_cmd[@]}" rm "${gcs_tarball}.building" || true ; fi
     building_file=""
   fi
 
@@ -1115,17 +1115,17 @@ function build_driver_from_github() {
     if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
       # when running with fewer than 32 cores, yield to in-progress build
       sleep $(( ( RANDOM % 11 ) + 10 ))
-      local output="$(${gsutil_stat_cmd} "${gcs_tarball}.building"|grep '.reation.time')"
+      local output="$("${gsutil_stat_cmd[@]}" "${gcs_tarball}.building"|grep '.reation.time')"
       if [[ "$?" == "0" ]] ; then
         local build_start_time build_start_epoch timeout_epoch
         build_start_time="$(echo ${output} | awk -F': +' '{print $2}')"
         build_start_epoch="$(date -u -d "${build_start_time}" +%s)"
         timeout_epoch=$((build_start_epoch + 2700)) # 45 minutes
-        while ${gsutil_stat_cmd} "${gcs_tarball}.building" ; do
+        while "${gsutil_stat_cmd[@]}" "${gcs_tarball}.building" ; do
           local now_epoch="$(date -u +%s)"
           if (( now_epoch > timeout_epoch )) ; then
             # detect unexpected build failure after 45m
-            ${gsutil_cmd} rm "${gcs_tarball}.building" || echo "might have been deleted by a peer"
+            "${gsutil_cmd[@]}" rm "${gcs_tarball}.building" || echo "might have been deleted by a peer"
             break
           fi
           sleep 5m
@@ -1133,12 +1133,12 @@ function build_driver_from_github() {
       fi
     fi
 
-    if ${gsutil_stat_cmd} "${gcs_tarball}" 2>&1 ; then
+    if "${gsutil_stat_cmd[@]}" "${gcs_tarball}" 2>&1 ; then
       echo "cache hit"
     else
       # build the kernel modules
       touch "${local_tarball}.building"
-      ${gsutil_cmd} cp "${local_tarball}.building" "${gcs_tarball}.building"
+      "${gsutil_cmd[@]}" cp "${local_tarball}.building" "${gcs_tarball}.building"
       building_file="${gcs_tarball}.building"
       pushd open-gpu-kernel-modules
       install_build_dependencies
@@ -1167,14 +1167,14 @@ function build_driver_from_github() {
       tar czvf "${local_tarball}" \
         "${workdir}/open-gpu-kernel-modules/kernel-open/"*.log \
         $(find /lib/modules/${uname_r}/ -iname 'nvidia*.ko')
-      ${gsutil_cmd} cp "${local_tarball}" "${gcs_tarball}"
-      if ${gsutil_stat_cmd} "${gcs_tarball}.building" ; then ${gsutil_cmd} rm "${gcs_tarball}.building" || true ; fi
+      "${gsutil_cmd[@]}" cp "${local_tarball}" "${gcs_tarball}"
+      if "${gsutil_stat_cmd[@]}" "${gcs_tarball}.building" ; then "${gsutil_cmd[@]}" rm "${gcs_tarball}.building" || true ; fi
       building_file=""
       rm "${local_tarball}"
       make clean
       popd
     fi
-    ${gsutil_cmd} cat "${gcs_tarball}" | tar -C / -xzv
+    "${gsutil_cmd[@]}" cat "${gcs_tarball}" | tar -C / -xzv
     depmod -a
   }
 
@@ -1273,17 +1273,17 @@ function install_nvidia_userspace_runfile() {
       if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
         # when running with fewer than 32 cores, yield to in-progress build
         sleep $(( ( RANDOM % 11 ) + 10 ))
-        local output="$(${gsutil_stat_cmd} "${gcs_tarball}.building"|grep '.reation.time')"
+        local output="$("${gsutil_stat_cmd[@]}" "${gcs_tarball}.building"|grep '.reation.time')"
         if [[ "$?" == "0" ]] ; then
           local build_start_time build_start_epoch timeout_epoch
           build_start_time="$(echo ${output} | awk -F': +' '{print $2}')"
           build_start_epoch="$(date -u -d "${build_start_time}" +%s)"
           timeout_epoch=$((build_start_epoch + 2700)) # 45 minutes
-          while ${gsutil_stat_cmd} "${gcs_tarball}.building" ; do
+          while "${gsutil_stat_cmd[@]}" "${gcs_tarball}.building" ; do
             local now_epoch="$(date -u +%s)"
             if (( now_epoch > timeout_epoch )) ; then
               # detect unexpected build failure after 45m
-              ${gsutil_cmd} rm "${gcs_tarball}.building"
+              "${gsutil_cmd[@]}" rm "${gcs_tarball}.building"
               break
             fi
             sleep 5m
@@ -1291,7 +1291,7 @@ function install_nvidia_userspace_runfile() {
         fi
       fi
 
-      if ${gsutil_stat_cmd} "${gcs_tarball}" ; then
+      if "${gsutil_stat_cmd[@]}" "${gcs_tarball}" ; then
         cache_hit="1"
         if version_ge "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" ; then
           runfile_args="${runfile_args} --no-kernel-modules"
@@ -1300,7 +1300,7 @@ function install_nvidia_userspace_runfile() {
       else
         # build the kernel modules
         touch "${local_tarball}.building"
-        ${gsutil_cmd} cp "${local_tarball}.building" "${gcs_tarball}.building"
+        "${gsutil_cmd[@]}" cp "${local_tarball}.building" "${gcs_tarball}.building"
         building_file="${gcs_tarball}.building"
         install_build_dependencies
         configure_dkms_certs
@@ -1335,16 +1335,16 @@ function install_nvidia_userspace_runfile() {
     || version_lt "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" \
     || [[ "$((16#${pci_device_id}))" < "$((16#1E00))" ]] ) ; then
     if [[ "${cache_hit}" == "1" ]] ; then
-      ${gsutil_cmd} cat "${gcs_tarball}" | tar -C / -xzv
+      "${gsutil_cmd[@]}" cat "${gcs_tarball}" | tar -C / -xzv
       depmod -a
     else
       clear_dkms_key
       tar czvf "${local_tarball}" \
         /var/log/nvidia-installer.log \
         $(find /lib/modules/${uname_r}/ -iname 'nvidia*.ko')
-      ${gsutil_cmd} cp "${local_tarball}" "${gcs_tarball}"
+      "${gsutil_cmd[@]}" cp "${local_tarball}" "${gcs_tarball}"
 
-      if ${gsutil_stat_cmd} "${gcs_tarball}.building" ; then ${gsutil_cmd} rm "${gcs_tarball}.building" || true ; fi
+      if "${gsutil_stat_cmd[@]}" "${gcs_tarball}.building" ; then "${gsutil_cmd[@]}" rm "${gcs_tarball}.building" || true ; fi
       building_file=""
     fi
   fi
@@ -1478,7 +1478,7 @@ function install_ops_agent(){
   mkdir -p /opt/google
   cd /opt/google
   # https://cloud.google.com/stackdriver/docs/solutions/agents/ops-agent/installation
-  curl ${curl_retry_args} -O https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
+  curl "${curl_retry_args[@]}" -O https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
   local expected="038d98644e4c4a7969d26da790946720d278c8d49bb82b677f550c2a2b858411  add-google-cloud-ops-agent-repo.sh"
 
   execute_with_retries bash add-google-cloud-ops-agent-repo.sh --also-install
@@ -1496,9 +1496,9 @@ function install_gpu_agent() {
   fi
   local install_dir=/opt/gpu-utilization-agent
   mkdir -p "${install_dir}"
-  curl ${curl_retry_args} \
+  curl "${curl_retry_args[@]}" \
     "${GPU_AGENT_REPO_URL}/requirements.txt" -o "${install_dir}/requirements.txt"
-  curl ${curl_retry_args} \
+  curl "${curl_retry_args[@]}" \
     "${GPU_AGENT_REPO_URL}/report_gpu_metrics.py" \
     | sed -e 's/-u --format=/--format=/' \
     | dd status=none of="${install_dir}/report_gpu_metrics.py"
@@ -1511,7 +1511,7 @@ function install_gpu_agent() {
   "${python_interpreter}" -m venv "${venv}"
 (
   source "${venv}/bin/activate"
-  if [[ -v METADATA_HTTP_PROXY_PEM_URI ]]; then
+  if [[ -v METADATA_HTTP_PROXY_PEM_URI ]] && [[ -n "${METADATA_HTTP_PROXY_PEM_URI}" ]]; then
     export REQUESTS_CA_BUNDLE="${trusted_pem_path}"
     pip install pip-system-certs
     unset REQUESTS_CA_BUNDLE
@@ -2149,14 +2149,15 @@ $(declare -f cache_fetched_package)
 $(declare -f execute_with_retries)
 
 # --- Define gsutil/gcloud commands and curl args ---
-gsutil_cmd="gcloud storage"
-gsutil_stat_cmd="gcloud storage objects describe"
-gcloud_sdk_version="\$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print \$2}' || echo '0.0.0')"
-if version_lt "\${gcloud_sdk_version}" "402.0.0" ; then
-  gsutil_cmd="gsutil -o GSUtil:check_hashes=never"
-  gsutil_stat_cmd="gsutil stat"
+gcloud_sdk_version="$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print $2}' || echo '0.0.0')"
+if version_lt "${gcloud_sdk_version}" "402.0.0" ; then
+  gsutil_cmd=("gsutil" "-o" "GSUtil:check_hashes=never")
+  gsutil_stat_cmd=("gsutil" "stat")
+else
+  gsutil_cmd=("gcloud" "storage")
+  gsutil_stat_cmd=("gcloud" "storage" "objects" "describe")
 fi
-curl_retry_args="-fsSL --retry-connrefused --retry 10 --retry-max-time 30"
+curl_retry_args=("-fsSL" "--retry-connrefused" "--retry" "10" "--retry-max-time" "30")
 
 # --- Include the main config function ---
 $(declare -f run_hadoop_spark_config)
@@ -2322,11 +2323,11 @@ function cache_fetched_package() {
   local gcs_fn="$2"
   local local_fn="$3"
 
-  if ${gsutil_stat_cmd} "${gcs_fn}" 2>&1 ; then
-    execute_with_retries ${gsutil_cmd} cp "${gcs_fn}" "${local_fn}"
+  if "${gsutil_stat_cmd[@]}" "${gcs_fn}" > /dev/null 2>&1; then
+    execute_with_retries "${gsutil_cmd[@]}" cp "${gcs_fn}" "${local_fn}"
   else
-    time ( curl ${curl_retry_args} "${src_url}" -o "${local_fn}" && \
-           execute_with_retries ${gsutil_cmd} cp "${local_fn}" "${gcs_fn}" ; )
+    time ( curl "${curl_retry_args[@]}" "${src_url}" -o "${local_fn}" && \
+           execute_with_retries "${gsutil_cmd[@]}" cp "${local_fn}" "${gcs_fn}" ; )
   fi
 }
 
@@ -2442,7 +2443,7 @@ function exit_handler() {
 
   # clean up incomplete build indicators
   if test -n "${building_file}" ; then
-    if ${gsutil_stat_cmd} "${building_file}" ; then ${gsutil_cmd} rm "${building_file}" || true ; fi
+    if "${gsutil_stat_cmd[@]}" "${building_file}" ; then "${gsutil_cmd[@]}" rm "${building_file}" || true ; fi
   fi
 
   set +e # Allow cleanup commands to fail without exiting script
@@ -2780,17 +2781,17 @@ function prepare_to_install(){
 
   # With the 402.0.0 release of gcloud sdk, `gcloud storage` can be
   # used as a more performant replacement for `gsutil`
-  gsutil_cmd="gcloud storage"
-  gsutil_stat_cmd="gcloud storage objects describe"
+  gsutil_cmd=("gcloud" "storage")
+  gsutil_stat_cmd=("gcloud" "storage" "objects" "describe")
   gcloud_sdk_version="$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print $2}')"
   if version_lt "${gcloud_sdk_version}" "402.0.0" ; then
-    gsutil_cmd="gsutil -o GSUtil:check_hashes=never"
-    gsutil_stat_cmd="gsutil stat"
+    gsutil_cmd=("gsutil" "-o" "GSUtil:check_hashes=never")
+    gsutil_stat_cmd=("gsutil" "stat")
   fi
 
   # if fetches of nvidia packages fail, apply -k argument to the following.
 
-  curl_retry_args="-fsSL --retry-connrefused --retry 10 --retry-max-time 30"
+  curl_retry_args=("-fsSL" "--retry-connrefused" "--retry" "10" "--retry-max-time" "30")
 
   # After manually verifying the veracity of the asset, take note of sha256sum
   # of the downloaded files in your gcs bucket and submit these data with an
