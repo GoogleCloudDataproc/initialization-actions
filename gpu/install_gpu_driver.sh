@@ -319,7 +319,7 @@ function set_driver_version() {
   if ! gsutil -q stat "${gcs_cache_path}"; then
     echo "Driver not found in GCS cache. Validating URL: ${gpu_driver_url}"
     # Use curl to check if the URL is valid (HEAD request)
-    if curl -sSLfI --connect-timeout 10 --max-time 30 "${gpu_driver_url}" 2>/dev/null | grep -E -q 'HTTP.*200'; then
+    if curl "${curl_retry_args[@]}" --head "${gpu_driver_url}" | grep -E -q 'HTTP.*200'; then
       echo "NVIDIA URL is valid. Downloading to cache..."
       local temp_driver_file="${tmpdir}/${driver_filename}"
 
@@ -495,6 +495,31 @@ function set_cuda_runfile_url() {
 
   CUDA_RUNFILE="$(echo ${NVIDIA_CUDA_URL} | perl -pe 's{^.+/}{}')"
   readonly CUDA_RUNFILE
+  export local_cuda_runfile="${tmpdir}/${CUDA_RUNFILE}"
+  local gcs_cache_path="${pkg_bucket}/nvidia/${CUDA_RUNFILE}"
+
+  echo "Checking for cached CUDA runfile at: ${gcs_cache_path}"
+  if "${gsutil_stat_cmd[@]}" "${gcs_cache_path}" > /dev/null 2>&1; then
+    echo "CUDA runfile found in GCS cache. Downloading from ${gcs_cache_path}"
+    if ! "${gsutil_cmd[@]}" cp "${gcs_cache_path}" "${local_cuda_runfile}"; then
+      echo "ERROR: Failed to download CUDA runfile from GCS cache."
+      exit 1
+    fi
+  else
+    echo "CUDA runfile not found in GCS cache. Downloading from NVIDIA: ${NVIDIA_CUDA_URL}"
+    # URL validity was already checked above
+    echo "Downloading from ${NVIDIA_CUDA_URL} to ${local_cuda_runfile}"
+    if curl "${curl_retry_args[@]}" -o "${local_cuda_runfile}" "${NVIDIA_CUDA_URL}"; then
+      echo "Download complete. Uploading to GCS cache: ${gcs_cache_path}"
+      if ! "${gsutil_cmd[@]}" cp "${local_cuda_runfile}" "${gcs_cache_path}"; then
+        echo "WARN: Failed to upload CUDA runfile to GCS cache."
+      fi
+    else
+      echo "ERROR: Failed to download CUDA runfile from NVIDIA."
+      exit 1
+    fi
+  fi
+  echo "DEBUG: Local CUDA runfile path: ${local_cuda_runfile}"
 
   if ( version_lt "${CUDA_FULL_VERSION}" "12.3.0" && ge_debian12 ) ; then
     echo "CUDA 12.3.0 is the minimum CUDA 12 version supported on Debian 12"
@@ -2080,6 +2105,7 @@ readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
 readonly SPARK_CONF_DIR='/etc/spark/conf'
 readonly bdcfg="/usr/local/bin/bdconfig"
 readonly workdir=/opt/install-dpgce # Needed for cache_fetched_package
+readonly tmpdir="${tmpdir}"
 
 # --- Define Necessary Global Arrays ---
 # These need to be explicitly defined here as they are not functions.
