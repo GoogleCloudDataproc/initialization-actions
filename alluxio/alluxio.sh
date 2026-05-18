@@ -50,7 +50,7 @@ download_file() {
   local -r uri="$1"
 
   if [[ "${uri}" == gs://* ]]; then
-    ${GSUTIL} "${uri}" ./
+    ${GSUTIL} cp "${uri}" ./
   else
     # TODO Add metadata header tag to the wget for filtering out in download metrics.
     wget -nv --timeout=30 --tries=5 --retry-connrefused "${uri}"
