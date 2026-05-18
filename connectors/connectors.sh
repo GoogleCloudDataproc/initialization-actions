@@ -31,9 +31,9 @@ function version_le() { [[ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]];
 function version_lt() { [[ "$1" = "$2" ]] && return 1 || version_le "$1" "$2"; }
 
 GCLOUD_SDK_VERSION="$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print $2}')"
-GSUTIL_CP="gcloud storage cp"
+GSUTIL="gcloud storage"
 if version_lt "${GCLOUD_SDK_VERSION}" "402.0.0"; then
-  GSUTIL_CP="gsutil cp"
+  GSUTIL="gsutil"
 fi
 
 min_version() {
@@ -137,7 +137,7 @@ update_connector_url() {
 
   find "${vm_connectors_dir}/" -name "${pattern}" -delete
 
-  ${GSUTIL_CP} --preserve-posix "${url}" "${vm_connectors_dir}/"
+  ${GSUTIL} cp --preserve-posix "${url}" "${vm_connectors_dir}/"
 
   local -r jar_name=${url##*/}
 
