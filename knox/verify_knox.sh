@@ -40,10 +40,19 @@ function test_installation() {
 
 }
 
+function version_le() { [[ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]]; }
+function version_lt() { [[ "$1" = "$2" ]] && return 1 || version_le "$1" "$2"; }
+
+GCLOUD_SDK_VERSION="$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print $2}')"
+GSUTIL="gcloud storage"
+if version_lt "${GCLOUD_SDK_VERSION}" "402.0.0"; then
+  GSUTIL="gsutil"
+fi
+
 # to test update, we will upload a new topology to gs bucket, and check whether it appears
 # we assume that knox initialization action is the very first one, /etc/google-dataproc/startup-scripts/dataproc-initialization-script-0
 function test_update_new_topology() {
-  gcloud storage cp /etc/knox/conf/topologies/example-hive-pii.xml "${KNOX_GW_CONFIG_GCS}/topologies/update_topology.xml"
+  ${GSUTIL} cp /etc/knox/conf/topologies/example-hive-pii.xml "${KNOX_GW_CONFIG_GCS}/topologies/update_topology.xml"
   sudo /bin/bash /etc/google-dataproc/startup-scripts/dataproc-initialization-script-0 update
   test_installation update_topology
   [[ $? == 1 ]] && return 1
