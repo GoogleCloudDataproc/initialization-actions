@@ -26,9 +26,9 @@ function version_le() { [[ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]];
 function version_lt() { [[ "$1" = "$2" ]] && return 1 || version_le "$1" "$2"; }
 
 GCLOUD_SDK_VERSION="$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print $2}')"
-GSUTIL_CP="gcloud storage cp"
+GSUTIL="gcloud storage"
 if version_lt "${GCLOUD_SDK_VERSION}" "402.0.0"; then
-  GSUTIL_CP="gsutil cp"
+  GSUTIL="gsutil"
 fi
 
 function is_master() {
@@ -49,7 +49,7 @@ function download_snapshot() {
   readonly snapshot_url="${1}"
   readonly protocol="$(echo "${snapshot_url}" | head -c5)"
   if [ "${protocol}" = "gs://" ]; then
-    ${GSUTIL_CP} "${snapshot_url}" "${LOCAL_JAR_NAME}"
+    ${GSUTIL} "${snapshot_url}" "${LOCAL_JAR_NAME}"
   else
     curl -o "${LOCAL_JAR_NAME}" "${snapshot_url}"
   fi
