@@ -42,8 +42,10 @@ function version_lt() { [[ "$1" = "$2" ]] && return 1 || version_le "$1" "$2"; }
 
 GCLOUD_SDK_VERSION="$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print $2}')"
 GSUTIL="gcloud storage"
+GSUTIL_OPTS=""
 if version_lt "${GCLOUD_SDK_VERSION}" "402.0.0"; then
-  GSUTIL="gsutil -m"
+  GSUTIL="gsutil"
+  GSUTIL_OPTS="-m"
 fi
 
 CONDA_PACKAGES=(
@@ -106,9 +108,9 @@ function download_init_actions() {
   # Download initialization actions locally.
   mkdir "${INIT_ACTIONS_DIR}"/{gpu,rapids,dask}
 
-  ${GSUTIL} rsync -r "${INIT_ACTIONS_REPO}/rapids/" "${INIT_ACTIONS_DIR}/rapids/"
-  ${GSUTIL} rsync -r "${INIT_ACTIONS_REPO}/gpu/" "${INIT_ACTIONS_DIR}/gpu/"
-  ${GSUTIL} rsync -r "${INIT_ACTIONS_REPO}/dask/" "${INIT_ACTIONS_DIR}/dask/"
+  ${GSUTIL} ${GSUTIL_OPTS} rsync -r "${INIT_ACTIONS_REPO}/rapids/" "${INIT_ACTIONS_DIR}/rapids/"
+  ${GSUTIL} ${GSUTIL_OPTS} rsync -r "${INIT_ACTIONS_REPO}/gpu/" "${INIT_ACTIONS_DIR}/gpu/"
+  ${GSUTIL} ${GSUTIL_OPTS} rsync -r "${INIT_ACTIONS_REPO}/dask/" "${INIT_ACTIONS_DIR}/dask/"
 
   find "${INIT_ACTIONS_DIR}" -name '*.sh' -exec chmod +x {} \;
 }
