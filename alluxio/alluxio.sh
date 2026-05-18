@@ -37,9 +37,9 @@ function version_le() { [[ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]];
 function version_lt() { [[ "$1" = "$2" ]] && return 1 || version_le "$1" "$2"; }
 
 GCLOUD_SDK_VERSION="$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print $2}')"
-GSUTIL_CP="gcloud storage cp"
+GSUTIL_CP="gcloud storage"
 if version_lt "${GCLOUD_SDK_VERSION}" "402.0.0"; then
-  GSUTIL_CP="gsutil cp"
+  GSUTIL="gsutil"
 fi
 
 # Downloads a file to the local machine from a remote HTTP(S) or GCS URI into the cwd
@@ -50,7 +50,7 @@ download_file() {
   local -r uri="$1"
 
   if [[ "${uri}" == gs://* ]]; then
-    ${GSUTIL_CP} "${uri}" ./
+    ${GSUTIL} "${uri}" ./
   else
     # TODO Add metadata header tag to the wget for filtering out in download metrics.
     wget -nv --timeout=30 --tries=5 --retry-connrefused "${uri}"
