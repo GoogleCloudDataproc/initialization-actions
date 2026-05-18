@@ -38,9 +38,9 @@ function version_le() { [[ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]];
 function version_lt() { [[ "$1" = "$2" ]] && return 1 || version_le "$1" "$2"; }
 
 GCLOUD_SDK_VERSION="$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print $2}')"
-GSUTIL_CP="gcloud storage"
+GSUTIL="gcloud storage"
 if version_lt "${GCLOUD_SDK_VERSION}" "402.0.0"; then
-  GSUTIL_CP="gsutil"
+  GSUTIL="gsutil"
 fi
 
 function retry_command() {
@@ -245,7 +245,7 @@ EOF
           "${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/hbase-${CLUSTER_NAME}-w-${c}.keytab"
       done
       touch /tmp/_success
-      ${GSUTIL_CP} cp /tmp/_success "${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/_success"
+      ${GSUTIL} cp /tmp/_success "${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/_success"
     fi
     success=1
     while [[ $success == "1" ]]; do
