@@ -100,9 +100,9 @@ Similarly, one can also specify a [conda environment yml file](https://github.co
 CONDA_ENV_YAML_GSC_LOC="gs://my-bucket/path/to/conda-environment.yml"
 CONDA_ENV_YAML_PATH="/root/conda-environment.yml"
 echo "Downloading conda environment at $CONDA_ENV_YAML_GSC_LOC to $CONDA_ENV_YAML_PATH ... "
-gcloud storage cp --recursive $CONDA_ENV_YAML_GSC_LOC $CONDA_ENV_YAML_PATH
-gcloud storage cp --recursive gs://goog-dataproc-initialization-actions-${REGION}/conda/bootstrap-conda.sh .
-gcloud storage cp --recursive gs://goog-dataproc-initialization-actions-${REGION}/conda/install-conda-env.sh .
+gcloud storage cp $CONDA_ENV_YAML_GSC_LOC $CONDA_ENV_YAML_PATH
+gcloud storage cp gs://goog-dataproc-initialization-actions-${REGION}/conda/bootstrap-conda.sh .
+gcloud storage cp gs://goog-dataproc-initialization-actions-${REGION}/conda/install-conda-env.sh .
 
 chmod 755 ./*conda*.sh
 
