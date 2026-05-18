@@ -27,6 +27,15 @@ readonly BIGQUERY_CONNECTOR_URL=$(/usr/share/google/get_metadata_value attribute
 readonly SPARK_BIGQUERY_CONNECTOR_URL=$(/usr/share/google/get_metadata_value attributes/spark-bigquery-connector-url || true)
 readonly HIVE_BIGQUERY_CONNECTOR_URL=$(/usr/share/google/get_metadata_value attributes/hive-bigquery-connector-url || true)
 
+function version_le() { [[ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]]; }
+function version_lt() { [[ "$1" = "$2" ]] && return 1 || version_le "$1" "$2"; }
+
+GCLOUD_SDK_VERSION="$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print $2}')"
+GSUTIL_CP="gcloud storage cp"
+if version_lt "${GCLOUD_SDK_VERSION}" "402.0.0"; then
+  GSUTIL_CP="gsutil cp"
+fi
+
 min_version() {
   echo -e "$1\n$2" | sort -r -t'.' -n -k1,1 -k2,2 -k3,3 | tail -n1
 }
@@ -128,7 +137,7 @@ update_connector_url() {
 
   find "${vm_connectors_dir}/" -name "${pattern}" -delete
 
-  gcloud storage cp --preserve-posix "${url}" "${vm_connectors_dir}/"
+  ${GSUTIL_CP} --preserve-posix "${url}" "${vm_connectors_dir}/"
 
   local -r jar_name=${url##*/}
 
