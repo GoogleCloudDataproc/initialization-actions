@@ -52,7 +52,8 @@ function install_jars() {
 }
 
 function restart_hive_server2_master() {
-  ROLE=$(curl -f -s -H Metadata-Flavor:Google http://metadata/computeMetadata/v1/instance/attributes/dataproc-role)
+  # Safely get metadata without failing the script if the key is missing
+  ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role || echo "Unknown")
   if [[ "${ROLE}" == 'Master' ]]; then
     echo "Restarting hive-server2"
     sudo systemctl restart hive-server2.service
