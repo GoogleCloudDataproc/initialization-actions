@@ -77,8 +77,8 @@ Where `create-my-cluster.sh` specifies a list of conda and/or pip packages to in
 ```
 #!/usr/bin/env bash
 
-gcloud storage cp --recursive gs://goog-dataproc-initialization-actions-${REGION}/conda/bootstrap-conda.sh .
-gcloud storage cp --recursive gs://goog-dataproc-initialization-actions-${REGION}/conda/install-conda-env.sh .
+gcloud storage cp gs://goog-dataproc-initialization-actions-${REGION}/conda/bootstrap-conda.sh .
+gcloud storage cp gs://goog-dataproc-initialization-actions-${REGION}/conda/install-conda-env.sh .
 
 chmod 755 ./*conda*.sh
 
