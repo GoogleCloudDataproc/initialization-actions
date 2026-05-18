@@ -8,6 +8,16 @@ readonly DATAPROC_IMAGE_VERSION=$3
 
 readonly POD_NAME=presubmit-${DATAPROC_IMAGE_VERSION//./-}-${BUILD_ID//_/-}
 
+function version_le() { [[ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]]; }
+function version_lt() { [[ "$1" = "$2" ]] && return 1 || version_le "$1" "$2"; }
+
+GCLOUD_SDK_VERSION="$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print $2}')"
+GSUTIL="gcloud storage"
+if version_lt "${GCLOUD_SDK_VERSION}" "402.0.0"; then
+  GSUTIL="gsutil"
+fi
+
+
 gcloud container clusters get-credentials "${CLOUDSDK_CONTAINER_CLUSTER}"
 
 LOGS_SINCE_TIME=$(date --iso-8601=seconds)
@@ -52,7 +62,7 @@ if [[ ${exit_code} != 0 ]]; then
   LOG_GCS_PATH="gs://${BUCKET}/${BUILD_ID}/logs/${POD_NAME}.log"
 
   echo "Attempting to upload logs to ${LOG_GCS_PATH}"
-  if kubectl logs "${POD_NAME}" | gcloud storage cp - "${LOG_GCS_PATH}"; then
+  if kubectl logs "${POD_NAME}" | ${GSUTIL} cp - "${LOG_GCS_PATH}"; then
     echo "Logs for failed pod ${POD_NAME} uploaded to: ${LOG_GCS_PATH}"
   else
     echo "Log upload to ${LOG_GCS_PATH} failed."
