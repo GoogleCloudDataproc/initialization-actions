@@ -43,8 +43,10 @@ function version_lt() { [[ "$1" = "$2" ]] && return 1 || version_le "$1" "$2"; }
 
 GCLOUD_SDK_VERSION="$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print $2}')"
 GSUTIL="gcloud storage"
+GSUTIL_OPTS=""
 if version_lt "${GCLOUD_SDK_VERSION}" "402.0.0"; then
   GSUTIL="gsutil"
+  GSUTIL_OPTS="-m"
 fi
 
 function exit_handler() {
@@ -57,7 +59,7 @@ function exit_handler() {
   # TODO: remove any test related resources in the project
 
   echo 'Uploading local logs to GCS bucket.'
-  ${GSUTIL} rsync -r "${log_dir}/" "${gcs_log_dir}/"
+  ${GSUTIL} ${GSUTIL_OPTS} rsync -r "${log_dir}/" "${gcs_log_dir}/"
 
   if [[ -f "${tmp_dir}/tests_success" ]]; then
     echo -e "${GREEN}Workflow succeeded${NC}, check logs at ${log_dir}/ or ${gcs_log_dir}/"
