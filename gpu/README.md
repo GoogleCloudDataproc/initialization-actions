@@ -289,6 +289,71 @@ handles metric creation and reporting.
     older versions of the `report_gpu_metrics.py` service. The current script
     and agent versions aim to mitigate this. If encountered, check agent logs.
 
+## Development and Testing
+
+If you are modifying this initialization action, you can use the provided test infrastructure to validate your changes locally before deploying them to production.
+
+### Local Integration Testing (Podman / Bazel)
+
+You can run the integration tests locally using Podman to simulate the CI environment. The tests use `absl.testing.parameterized` and the `integration_tests.dataproc_test_case` framework to spin up ephemeral Dataproc clusters and validate GPU functionality.
+
+1. Ensure you have your Google Cloud Application Default Credentials (ADC) saved locally, typically at `~/.config/gcloud/application_default_credentials.json`, and copy it to `initialization-actions/key.json`.
+2. You must have a configured `env.json` in the `gpu/` directory.
+
+To run tests in a Podman container (automatically handling the Bazel build and sandbox):
+
+```bash
+cd initialization-actions
+# Test a specific Dataproc image version
+./gpu/run-bazel-tests-with-podman.sh 2.2-ubuntu22
+```
+
+To run a specific test filter using Bazel manually inside the container:
+
+```bash
+podman build -t init-actions-test:latest -f cloudbuild/Dockerfile .
+podman run --rm -it -v $(pwd):/init-actions -w /init-actions \
+  -e INTERNAL_IP_SSH=true \
+  init-actions-test:latest \
+  bash -c "bazel test --jobs=1 --local_test_jobs=1 --test_output=errors --noshow_progress --noshow_loading_progress \
+    --test_arg=--image_version=2.2-debian12 \
+    --test_filter=NvidiaGpuDriverTestCase.test_gpu_allocation \
+    //gpu:test_gpu"
+```
+
+### Manual Verification Scripts
+
+If you have already provisioned a Dataproc cluster (e.g., `my-cluster`) and want to verify its GPU configuration without running the full Bazel test suite, you can use the standalone verification scripts.
+
+```bash
+# Verify using the local Python script
+python3 gpu/verify_external_cluster.py \
+  --cluster=my-cluster \
+  --region=us-east4 \
+  --zone=us-east4-b \
+  --project=my-project \
+  --tests smi agent spark torch tf numa
+
+# Or using the bash equivalent
+export CLUSTER_NAME=my-cluster PROJECT_ID=my-project REGION=us-east4 ZONE=us-east4-b
+./gpu/verify_external_gpu_cluster.sh
+```
+
+### Advanced Spark / ML Validation
+
+For comprehensive validation of Spark RAPIDS, PyTorch, and TensorFlow on a running cluster, an external testing script is available in the associated `cloud-dataproc/gcloud` repository.
+
+```bash
+# Configure the gcloud test environment
+cd ../cloud-dataproc/gcloud
+source lib/env.sh  # Populates environment variables from env.json
+
+# Execute the comprehensive Spark GPU test suite against the configured cluster
+./t/spark-gpu-test.sh
+```
+
+This script will remotely execute SSH commands to validate NUMA configurations, run PyTorch/TensorFlow isolated in their Conda environments, verify NVCC/cuDNN, and submit `SparkPi` and `JavaIndexToStringExample` Spark jobs configured to use the RAPIDS accelerator plugin.
+
 ## Important notes
 
   * This initialization script will install NVIDIA GPU drivers in all nodes in

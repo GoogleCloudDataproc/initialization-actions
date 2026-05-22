@@ -64,7 +64,7 @@ function repair_old_backports {
   debdists="https://deb.debian.org/debian/dists"
   oldoldstable=$(curl "${curl_retry_args[@]}" "${debdists}/oldoldstable/Release" | awk '/^Codename/ {print $2}');
   oldstable=$(   curl "${curl_retry_args[@]}" "${debdists}/oldstable/Release"    | awk '/^Codename/ {print $2}');
-  stable=$(      curl "${curl_retry_args[@]}" "${debdists}/stable/Release"       | awk '/^Codename/ {print $2}');
+  stable=$(      curl "${curl_retry_args[@]}" "${debdists}/stable/Release"       2>/dev/null | awk '/^Codename/ {print $2}');
 
   matched_files=( $(test -d /etc/apt && grep -rsil '\-backports' /etc/apt/sources.list*||:) )
 
@@ -78,7 +78,7 @@ function repair_old_backports {
 function print_metadata_value() {
   local readonly tmpfile=$(mktemp)
   http_code=$(curl -f "${1}" -H "Metadata-Flavor: Google" -w "%{http_code}" \
-    -s -o ${tmpfile} 2>/dev/null)
+    -s -o "${tmpfile}" 2>/dev/null)
   local readonly return_code=$?
   # If the command completed successfully, print the metadata value to stdout.
   if [[ "${return_code}" == 0 && "${http_code}" == 200 ]]; then
@@ -581,15 +581,17 @@ IS_CUSTOM_IMAGE_BUILD="false" # Default
 function execute_with_retries() (
   local -r cmd="$*"
 
-  if [[ "$cmd" =~ "^apt-get install" ]] ; then
+  if [[ "$cmd" =~ ^apt-get ]] ; then
     apt-get -y clean
-    apt-get -o DPkg::Lock::Timeout=60 -y autoremove
+    apt-get -y autoremove
   fi
   for ((i = 0; i < 3; i++)); do
-    time eval "$cmd" > "${install_log}" 2>&1 && retval=$? || { retval=$? ; cat "${install_log}" ; }
+    time eval "$cmd" 2>&1 | tee "${install_log}"
+    retval=${PIPESTATUS[0]}
     if [[ $retval == 0 ]] ; then return 0 ; fi
     sleep 5
   done
+  echo "ERROR: Command failed after 3 retries: ${cmd}" >&2
   return 1
 )
 
@@ -623,7 +625,7 @@ function install_local_cuda_repo() {
 
   dpkg -i "${tmpdir}/${LOCAL_INSTALLER_DEB}"
   rm "${tmpdir}/${LOCAL_INSTALLER_DEB}"
-  cp ${DIST_KEYRING_DIR}/cuda-*-keyring.gpg /usr/share/keyrings/
+  cp "${DIST_KEYRING_DIR}"/cuda-*-keyring.gpg /usr/share/keyrings/
 
   if is_ubuntu ; then
     curl "${curl_retry_args[@]}" \
@@ -658,6 +660,212 @@ function install_local_cudnn_repo() {
   mark_complete install-local-cudnn-repo
 }
 
+function create_conda_env() {
+  local env_name="$1"
+  shift
+  local packages=("$@")
+
+  local conda_root_path="/opt/conda/default"
+  [[ -d ${conda_root_path} ]] || return 1
+  local envpath="${conda_root_path}/envs/${env_name}"
+
+  # Set numa node to 0 for all GPUs
+  for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node 2>/dev/null) ; do echo 0 > "${f}" || true ; done
+
+  local build_tarball="${env_name}_${_shortname}_cuda${CUDA_VERSION}.tar.gz"
+  local local_tarball="${tmpdir}/${build_tarball}"
+  local gcs_tarball="${pkg_bucket}/conda/${_shortname}/${build_tarball}"
+
+  if is_complete "install_env_${env_name}"; then
+    echo "Environment '${env_name}' sentinel found, skipping creation."
+    # Still register kernel if not already done
+    if ! [[ -d "/usr/local/share/jupyter/kernels/${env_name}" ]]; then
+      echo "Registering Jupyter kernel for '${env_name}'"
+      "${envpath}/bin/python3" -m ipykernel install --user --name "${env_name}" --display-name "Python (${env_name})"
+    fi
+    return 0
+  fi
+
+  echo "Creating Conda environment: ${env_name}"
+
+  set +e
+  "${gsutil_stat_cmd[@]}" "${gcs_tarball}" > /dev/null 2>&1
+  local cache_exists_code=$?
+  set -e
+
+  if [[ ${cache_exists_code} -eq 0 ]]; then
+    echo "Cache hit for ${env_name}. Unpacking from ${gcs_tarball}"
+    if [[ -d "${envpath}" ]]; then
+      echo "INFO: Removing existing local Conda env directory: ${envpath}"
+      rm -rf "${envpath}"
+    fi
+    mkdir -p "${envpath}"
+    "${gsutil_cmd[@]}" cat "${gcs_tarball}" | tar -C "${envpath}" -xz
+  else
+    echo "Cache miss for ${env_name}. Building environment."
+
+    # Wait for any other node to finish building this same tarball
+    if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
+      sleep $(( ( RANDOM % 11 ) + 10 ))
+    fi
+    # Check for the .building file
+    local building_output
+    set +e # Don't exit if describe fails
+    building_output="$("${gsutil_stat_cmd[@]}" "${gcs_tarball}.building" 2>/dev/null)"
+    local gcs_describe_exit_code=$?
+    set -e
+    if [[ ${gcs_describe_exit_code} -eq 0 ]] && [[ -n "${building_output}" ]]; then
+      local build_start_time
+      build_start_time=$(echo "${building_output}" | grep -oP 'Creation time:\s*\K.*' || echo "")
+      if [[ -n "${build_start_time}" ]]; then
+        local build_start_epoch
+        build_start_epoch="$(date -u -d "${build_start_time}" +%s)"
+        local timeout_epoch
+        timeout_epoch=$((build_start_epoch + 3600)) # 60 minutes
+        while "${gsutil_stat_cmd[@]}" "${gcs_tarball}.building" > /dev/null 2>&1 ; do
+          # Check if the main tarball has appeared in the meantime
+          if "${gsutil_stat_cmd[@]}" "${gcs_tarball}" > /dev/null 2>&1; then
+            echo "INFO: Cache file ${gcs_tarball} appeared while waiting. Skipping build."
+            break # Exit while loop, will be caught by the next check
+          fi
+          local now_epoch
+          now_epoch="$(date -u +%s)"
+          if (( now_epoch > timeout_epoch )) ; then
+            echo "WARN: Timeout waiting for ${gcs_tarball}.building to be removed. Removing it myself."
+            "${gsutil_cmd[@]}" rm "${gcs_tarball}.building"
+            break
+          fi
+          echo "INFO: Waiting for existing build of ${gcs_tarball} to complete..."
+          sleep 1m # Shorter sleep for faster detection
+        done
+      fi
+    fi
+
+    # Re-check if the tarball was created while we were waiting
+    if "${gsutil_stat_cmd[@]}" "${gcs_tarball}" > /dev/null 2>&1 ; then
+      echo "Cache hit for ${env_name}. Unpacking from ${gcs_tarball}"
+      if [[ -d "${envpath}" ]]; then
+        echo "INFO: Removing existing local Conda env directory: ${envpath}"
+        rm -rf "${envpath}"
+      fi
+      mkdir -p "${envpath}"
+      "${gsutil_cmd[@]}" cat "${gcs_tarball}" | tar -C "${envpath}" -xz
+      # Skip the rest of the build, go directly to jupyter kernel registration
+      echo "Registering Jupyter kernel for '${env_name}'"
+      "${envpath}/bin/python3" -m pip install ipykernel
+      "${envpath}/bin/python3" -m ipykernel install --user --name "${env_name}" --display-name "Python (${env_name})"
+      mark_complete "install_env_${env_name}"
+      return 0
+    fi
+
+    echo "INFO: Proceeding to build ${env_name}."
+    # Clean up any previous partial build attempt (if timeout occurred)
+    "${gsutil_cmd[@]}" rm "${gcs_tarball}.building" || echo "WARN: No .building file to remove."
+    if [[ -d "${envpath}" ]]; then
+      echo "INFO: Removing existing local Conda env directory for rebuild: ${envpath}"
+      rm -rf "${envpath}"
+    fi
+
+    touch "${local_tarball}.building"
+    "${gsutil_cmd[@]}" cp "${local_tarball}.building" "${gcs_tarball}.building"
+    building_file="${gcs_tarball}.building"
+
+    local conda_path="${conda_root_path}/bin/mamba"
+    if ! command -v "${conda_path}" > /dev/null 2>&1; then
+      echo "Mamba not found, installing..."
+      "${conda_root_path}/bin/conda" install -n base -c conda-forge mamba -y \
+        || echo "WARN: Mamba installation failed."
+      if ! command -v "${conda_path}" > /dev/null 2>&1; then
+        echo "Mamba not found, falling back to conda."
+        conda_path="${conda_root_path}/bin/conda"
+      fi
+    fi
+
+    # Fallback to conda for older OSes due to download issues with mamba
+    if is_debian10 || is_ubuntu18; then
+      echo "INFO: Older OS detected, using conda instead of mamba for environment ${env_name}"
+      conda_path="${conda_root_path}/bin/conda"
+    fi
+    echo "Using installer: ${conda_path}"
+
+    local conda_err_file="${tmpdir}/conda_create_${env_name}.err"
+    echo "DEBUG: About to run ${conda_path} create for ${env_name}"
+    set +e
+    
+    if is_debian10 || is_ubuntu18; then
+      if [[ "${env_name}" == "tensorflow" ]]; then
+        "${conda_path}" create -y -n "${env_name}" "${packages[@]}" 2>&1 | tee "${conda_err_file}"
+        local conda_exit_code=${PIPESTATUS[0]}
+      else
+        timeout 3m "${conda_path}" create -y -n "${env_name}" "${packages[@]}" 2>&1 | tee "${conda_err_file}"
+        local conda_exit_code=${PIPESTATUS[0]}
+        
+        if [[ "${conda_exit_code}" == 124 ]]; then
+           echo "WARN: Timed out (3m) attempting to resolve ${env_name} dependencies." >&2
+           echo "WARN: The classic Conda dependency solver frequently deadlocks when installing massive packages like PyTorch or RAPIDS." >&2
+           echo "WARN: GPU-accelerated Machine Learning environments are not supported on Dataproc 2.0 (Debian 10/Ubuntu 18.04)." >&2
+           echo "WARN: Please upgrade to Dataproc 2.1 or newer (Debian 11+/Ubuntu 20.04+) to utilize these features." >&2
+           set -e
+           return 0
+        fi
+      fi
+    else
+      time "${conda_path}" create -y -n "${env_name}" "${packages[@]}" 2>&1 | tee "${conda_err_file}"
+      local conda_exit_code=${PIPESTATUS[0]}
+    fi
+    set -e
+    echo "DEBUG: ${conda_path} create finished with exit code ${conda_exit_code}"
+
+    if [[ "${conda_exit_code}" -ne 0 ]]; then
+      cat "${conda_err_file}" >&2
+      if [[ "${conda_path}" == *mamba ]] && grep -q "RuntimeError: Multi-download failed." "${conda_err_file}"; then
+        echo "ERROR: Mamba failed to create the environment, likely due to a proxy issue on this platform." >&2
+        echo "ERROR: Please run this initialization action in a non-proxied environment at least once to build and populate the GCS cache for '${gcs_tarball}'." >&2
+        echo "ERROR: Once the cache exists, subsequent runs in the proxied environment should succeed." >&2
+        exit 1
+      else
+        echo "ERROR: Conda/Mamba environment creation failed with exit code ${conda_exit_code}." >&2
+        exit "${conda_exit_code}"
+      fi
+    fi
+    rm -f "${conda_err_file}"
+
+    # Activate environment for any pip installs
+    echo "Activating ${env_name} environment..."
+    source "${conda_root_path}/etc/profile.d/conda.sh"
+    set +u # Temporarily disable unbound variable check
+    conda activate "${env_name}"
+    set -u # Re-enable unbound variable check
+    echo "Activated $(which python)"
+
+    if [[ "${env_name}" == "tensorflow" ]]; then
+      echo "Installing TensorFlow with GPU support using pip in '${env_name}' env..."
+      python -m pip install --upgrade pip
+      python -m pip install --no-cache-dir 'tensorflow[and-cuda]>=2.16.0,<2.17.0'
+    fi
+
+    set +u # Temporarily disable unbound variable check
+    conda deactivate
+    set -u # Re-enable unbound variable check
+
+    echo "Packaging environment '${env_name}'"
+    pushd "${envpath}"
+    tar czf "${local_tarball}" .
+    popd
+    "${gsutil_cmd[@]}" cp "${local_tarball}" "${gcs_tarball}"
+    if [[ -n "${building_file:-}" ]]; then
+      "${gsutil_cmd[@]}" rm "${building_file}" || true
+      building_file=""
+    fi
+    rm -f "${local_tarball}"
+    echo "Environment '${env_name}' built and cached."
+  fi
+
+  echo "Registering Jupyter kernel for '${env_name}'"
+  "${envpath}/bin/python3" -m pip install ipykernel
+  "${envpath}/bin/python3" -m ipykernel install --user --name "${env_name}" --display-name "Python (${env_name})"
+  mark_complete "install_env_${env_name}"
+}
 function uninstall_local_cudnn_repo() {
   apt-get purge -yq "${CUDNN_PKG_NAME}"
   mark_incomplete install-local-cudnn-repo
@@ -700,7 +908,60 @@ function install_local_cudnn8_repo() {
   cp "${cudnn_path}"/cudnn-local-*-keyring.gpg /usr/share/keyrings
   mark_complete install-local-cudnn8-repo
 }
+function install_tensorflow() {
+  include_tensorflow="$(get_metadata_attribute 'include-tensorflow' 'false')"
+  echo "DEBUG: include-tensorflow metadata value: [${include_tensorflow}]"
+  if [[ "${include_tensorflow^^}" != "TRUE" && "${include_tensorflow^^}" != "YES" && "${include_tensorflow}" != "1" ]]; then
+    echo "Skipping TensorFlow installation."
+      return 0
+  fi
+  is_complete install_env_tensorflow && return
 
+  local channels=('-c' 'conda-forge')
+  local packages=(
+    "python=3.11" "pyspark" "pandas" "numba" "pyarrow"
+  )
+  create_conda_env "tensorflow" "${channels[@]}" "${packages[@]}"
+}
+function install_pytorch() {
+  include_pytorch="$(get_metadata_attribute 'include-pytorch' 'false')"
+  echo "DEBUG: 062: include-pytorch metadata value: [${include_pytorch}]"
+  if [[ "${include_pytorch^^}" != "TRUE" && "${include_pytorch^^}" != "YES" && "${include_pytorch}" != "1" ]]; then
+    echo "DEBUG: 062: Skipping PyTorch/Rapids installation."
+    return 0
+  fi
+
+  echo "DEBUG: 062: Passed include-pytorch check"
+
+  # Create isolated PyTorch environment
+  if ! is_complete install_env_pytorch; then
+    echo "DEBUG: 062: About to create pytorch env"
+    local channels=('-c' 'pytorch' '-c' 'nvidia')
+    local pt_packages=(
+      "python=3.11" "pytorch" "torchvision" "torchaudio" "pytorch-cuda=${CUDA_VERSION}" "pyspark" "numba"
+    )
+    create_conda_env "pytorch" "${channels[@]}" "${pt_packages[@]}"
+    echo "DEBUG: 062: create_conda_env pytorch finished with exit code $?"
+  else
+    echo "DEBUG: 062: pytorch sentinel found, skipping creation"
+  fi
+
+  echo "DEBUG: 062: After pytorch env block"
+
+  # Create isolated Rapids environment
+  if ! is_complete install_env_rapids; then
+    echo "DEBUG: 062: About to create rapids env"
+    local channels=('-c' 'rapidsai' '-c' 'nvidia' '-c' 'conda-forge')
+    local rapids_packages=(
+      "python=3.11" "rapids" "pyspark" "numba"
+    )
+    create_conda_env "rapids" "${channels[@]}" "${rapids_packages[@]}"
+    echo "DEBUG: 062: create_conda_env rapids finished with exit code $?"
+  else
+    echo "DEBUG: 062: rapids sentinel found, skipping creation"
+  fi
+  echo "DEBUG: 062: End of install_pytorch function"
+}
 function uninstall_local_cudnn8_repo() {
   apt-get purge -yq "${CUDNN8_PKG_NAME}"
   mark_incomplete install-local-cudnn8-repo
@@ -724,7 +985,7 @@ function install_nvidia_nccl() {
 
   test -d "${workdir}/nccl" || {
     local tarball_fn="v${NCCL_VERSION}-1.tar.gz"
-    curl ${curl_retry_args} \
+    curl "${curl_retry_args[@]}" \
       "https://github.com/NVIDIA/nccl/archive/refs/tags/${tarball_fn}" \
       | tar xz
     mv "nccl-${NCCL_VERSION}-1" nccl
@@ -905,87 +1166,6 @@ function install_nvidia_cudnn() {
   mark_complete cudnn
 }
 
-function install_pytorch() {
-  is_complete pytorch && return
-
-  local env
-  env=$(get_metadata_attribute 'gpu-conda-env' 'dpgce')
-
-  local conda_root_path
-  if version_lt "${DATAPROC_IMAGE_VERSION}" "2.3" ; then
-    conda_root_path="/opt/conda/miniconda3"
-  else
-    conda_root_path="/opt/conda"
-  fi
-  [[ -d ${conda_root_path} ]] || return
-  local envpath="${conda_root_path}/envs/${env}"
-  if [[ "${env}" == "base" ]]; then
-    echo "WARNING: installing to base environment known to cause solve issues" ; envpath="${conda_root_path}" ; fi
-  # Set numa node to 0 for all GPUs
-  for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node) ; do echo 0 > ${f} ; done
-
-  local build_tarball="pytorch_${env}_${_shortname}_cuda${CUDA_VERSION}.tar.gz"
-  local local_tarball="${workdir}/${build_tarball}"
-  local gcs_tarball="${pkg_bucket}/conda/${_shortname}/${build_tarball}"
-
-  if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
-    # when running with fewer than 32 cores, yield to in-progress build
-    sleep $(( ( RANDOM % 11 ) + 10 ))
-    local output="$("${gsutil_stat_cmd[@]}" "${gcs_tarball}.building"|grep '.reation.time')"
-    if [[ "$?" == "0" ]] ; then
-      local build_start_time build_start_epoch timeout_epoch
-      build_start_time="$(echo ${output} | awk -F': +' '{print $2}')"
-      build_start_epoch="$(date -u -d "${build_start_time}" +%s)"
-      timeout_epoch=$((build_start_epoch + 2700)) # 45 minutes
-      while "${gsutil_stat_cmd[@]}" "${gcs_tarball}.building" ; do
-        local now_epoch="$(date -u +%s)"
-        if (( now_epoch > timeout_epoch )) ; then
-          # detect unexpected build failure after 45m
-          "${gsutil_cmd[@]}" rm "${gcs_tarball}.building"
-          break
-        fi
-        sleep 5m
-      done
-    fi
-  fi
-
-  if "${gsutil_stat_cmd[@]}" "${gcs_tarball}" ; then
-    # cache hit - unpack from cache
-    echo "cache hit"
-    mkdir -p "${envpath}"
-    "${gsutil_cmd[@]}" cat "${gcs_tarball}" | tar -C "${envpath}" -xz
-  else
-    touch "${local_tarball}.building"
-    "${gsutil_cmd[@]}" cp "${local_tarball}.building" "${gcs_tarball}.building"
-    building_file="${gcs_tarball}.building"
-    local verb=create
-    if test -d "${envpath}" ; then verb=install ; fi
-    cudart_spec="cuda-cudart"
-    if le_cuda11 ; then cudart_spec="cudatoolkit" ; fi
-
-    # Install pytorch and company to this environment
-    "${conda_root_path}/bin/mamba" "${verb}" -n "${env}" \
-      -c conda-forge -c nvidia -c rapidsai \
-      numba pytorch tensorflow[and-cuda] rapids pyspark \
-      "cuda-version<=${CUDA_VERSION}" "${cudart_spec}"
-
-    # Install jupyter kernel in this environment
-    "${envpath}/bin/python3" -m pip install ipykernel
-
-    # package environment and cache in GCS
-    pushd "${envpath}"
-    tar czf "${local_tarball}" .
-    popd
-    "${gsutil_cmd[@]}" cp "${local_tarball}" "${gcs_tarball}"
-    if "${gsutil_stat_cmd[@]}" "${gcs_tarball}.building" ; then "${gsutil_cmd[@]}" rm "${gcs_tarball}.building" || true ; fi
-    building_file=""
-  fi
-
-  # register the environment as a selectable kernel
-  "${envpath}/bin/python3" -m ipykernel install --name "${env}" --display-name "Python (${env})"
-
-  mark_complete pytorch
-}
 
 function configure_dkms_certs() {
   if test -v PSN && [[ -z "${PSN}" ]]; then
@@ -1091,6 +1271,56 @@ function add_nonfree_components() {
       sed -i -e 's/ main$/ main contrib non-free/' /etc/apt/sources.list
   fi
 }
+function import_gpg_keys() {
+  local keyring_path="$1"
+  shift
+  local keys=("$@")
+
+  mkdir -p "$(dirname "${keyring_path}")"
+
+  local GPG_PROXY_ARGS=()
+  if [[ -n "${HTTP_PROXY:-}" ]]; then
+    GPG_PROXY_ARGS=(--keyserver-options "http-proxy=${HTTP_PROXY}")
+  elif [[ -n "${http_proxy:-}" ]]; then
+    GPG_PROXY_ARGS=(--keyserver-options "http-proxy=${http_proxy}")
+  fi
+
+  local tmp_keyring
+  tmp_keyring=$(mktemp)
+  local keyserver_keys_found=0
+
+  for key in "${keys[@]}"; do
+    echo "DEBUG: Importing GPG key: ${key} into ${keyring_path}"
+    if [[ "${key}" =~ ^https?:// ]]; then
+      # Import dearmored key from URL, overwrites keyring_path
+      if ! execute_with_retries curl "${curl_retry_args[@]}" "${key}" | gpg --dearmor --yes -o "${keyring_path}"; then
+        echo "ERROR: Failed to import GPG key from URL: ${key}"
+        rm -f "${tmp_keyring}"
+        exit 1
+      fi
+    elif [[ "${key}" =~ ^0x ]]; then
+      # Fetch key from keyserver into tmp_keyring
+      keyserver_keys_found=1
+      if ! execute_with_retries gpg --keyserver keyserver.ubuntu.com "${GPG_PROXY_ARGS[@]}" --no-default-keyring --keyring "${tmp_keyring}" --recv-keys "${key}"; then
+         echo "ERROR: Failed to receive GPG key from keyserver: ${key}"
+         rm -f "${tmp_keyring}"
+         exit 1
+      fi
+    else
+      echo "WARN: Unrecognized key format, skipping: ${key}"
+    fi
+  done
+
+  # If any keys were fetched from keyserver, export and dearmor them all into the final keyring
+  if [[ "${keyserver_keys_found}" -eq 1 ]]; then
+    if ! gpg --no-default-keyring --keyring "${tmp_keyring}" --export | gpg --dearmor --yes -o "${keyring_path}"; then
+      echo "ERROR: Failed to export/dearmor GPG keys from temporary keyring"
+      rm -f "${tmp_keyring}"
+      exit 1
+    fi
+  fi
+  rm -f "${tmp_keyring}"
+}
 
 #
 # Install package signing key and add corresponding repository
@@ -1111,10 +1341,7 @@ function add_repo_nvidia_container_toolkit() {
     elif [[ -v http_proxy ]] ; then
       GPG_PROXY="--keyserver-options http-proxy=${http_proxy}"
     fi
-    execute_with_retries gpg --keyserver keyserver.ubuntu.com \
-      ${GPG_PROXY_ARGS} \
-      --no-default-keyring --keyring "${kr_path}" \
-      --recv-keys "0xae09fe4bbd223a84b2ccfce3f60f4b3d7fa2af80" "0xeb693b3035cd5710e231e123a4b469963bf863cc" "0xc95b321b61e88c1809c4f759ddcae044f796ecb0"
+    import_gpg_keys "${kr_path}" "0xae09fe4bbd223a84b2ccfce3f60f4b3d7fa2af80" "0xeb693b3035cd5710e231e123a4b469963bf863cc" "0xc95b321b61e88c1809c4f759ddcae044f796ecb0"
     local -r repo_data="${nvctk_root}/stable/deb/\$(ARCH) /"
     local -r repo_path="/etc/apt/sources.list.d/${repo_name}.list"
     echo "deb     [signed-by=${kr_path}] ${repo_data}" >  "${repo_path}"
@@ -1141,11 +1368,9 @@ function add_repo_cuda() {
       if [[ -n "${HTTP_PROXY}" ]] ; then
         GPG_PROXY="--keyserver-options http-proxy=${HTTP_PROXY}"
       elif [[ -n "${http_proxy}" ]] ; then
-        GPG_PROXY="--keyserver-options http-proxy=${http_proxy}"
+        GPG_PROXY="--keyserver-options http-proxy=\"${http_proxy}\""
       fi
-      execute_with_retries gpg --keyserver keyserver.ubuntu.com ${GPG_PROXY_ARGS} \
-        --no-default-keyring --keyring "${kr_path}" \
-        --recv-keys "0xae09fe4bbd223a84b2ccfce3f60f4b3d7fa2af80" "0xeb693b3035cd5710e231e123a4b469963bf863cc"
+      import_gpg_keys "${kr_path}" "0xae09fe4bbd223a84b2ccfce3f60f4b3d7fa2af80" "0xeb693b3035cd5710e231e123a4b469963bf863cc"
     else
       install_cuda_keyring_pkg # 11.7+, 12.0+
     fi
@@ -1164,7 +1389,7 @@ function build_driver_from_github() {
   pushd "${workdir}"
   test -d "${workdir}/open-gpu-kernel-modules" || {
     tarball_fn="${DRIVER_VERSION}.tar.gz"
-    execute_with_retries curl ${curl_retry_args} \
+    execute_with_retries curl "${curl_retry_args[@]}" \
       "https://github.com/NVIDIA/open-gpu-kernel-modules/archive/refs/tags/${tarball_fn}" \
       \| tar xz
     mv "open-gpu-kernel-modules-${DRIVER_VERSION}" open-gpu-kernel-modules
@@ -1570,6 +1795,7 @@ function install_gpu_agent() {
   curl "${curl_retry_args[@]}" \
     "${GPU_AGENT_REPO_URL}/report_gpu_metrics.py" \
     | sed -e 's/-u --format=/--format=/' \
+    | sed -e 's|http://metadata/|http://metadata.google.internal/|g' \
     | dd status=none of="${install_dir}/report_gpu_metrics.py"
   local venv="${install_dir}/venv"
   python_interpreter="/opt/conda/miniconda3/bin/python3"
@@ -1598,6 +1824,7 @@ Description=GPU Utilization Metric Agent
 [Service]
 Type=simple
 PIDFile=/run/gpu_agent.pid
+EnvironmentFile=-/etc/environment
 ExecStart=/bin/bash --login -c '. ${venv}/bin/activate ; python3 "${install_dir}/report_gpu_metrics.py"'
 User=root
 Group=root
@@ -1830,7 +2057,7 @@ function install_build_dependencies() {
   is_complete build-dependencies && return
 
   if is_debuntu ; then
-    if is_ubuntu22 && is_cuda12 ; then
+    if is_ubuntu22 && ge_cuda12 ; then
       # On ubuntu22, the default compiler does not build some kernel module versions
       # https://forums.developer.nvidia.com/t/linux-new-kernel-6-5-0-14-ubuntu-22-04-can-not-compile-nvidia-display-card-driver/278553/11
       execute_with_retries apt-get install -y -qq gcc-12
@@ -1894,6 +2121,98 @@ function is_complete() {
   phase="$1"
   test -f "${workdir}/complete/${phase}"
 }
+function evaluate_network() {
+  local state_file="${tmpdir}/network_state.json"
+  echo "INFO: Evaluating network and writing state to ${state_file}"
+
+  # Metadata checks
+  local http_proxy=$(get_metadata_attribute 'http-proxy' 'null')
+  if [[ "${http_proxy}" != "null" ]]; then http_proxy=""${http_proxy}""; fi
+  local swp_egress=$(get_metadata_attribute 'swp-egress' 'false')
+
+  local instance_ips=$(hostname -I || echo "")
+  local has_external_ip="false"
+  # Crude check for non-internal IP
+  if [[ "${instance_ips}" =~ [^10\.|^172\.(1[6-9]|2[0-9]|3[0-1])\.|^192\.168] ]]; then
+    has_external_ip="true"
+  fi
+
+  # Kernel Route Table
+  local default_route_v4="null"
+  local default_route_v6="null"
+  if ip -4 route show default | grep -q default; then
+    default_route_v4=""$(ip -4 route show default)""
+  fi
+  if ip -6 route show default | grep -q default; then
+    default_route_v6=""$(ip -6 route show default)""
+  fi
+
+  # DNS & Connectivity Tests
+  local target_host="www.gstatic.com"
+  local dns_v4_ips=($(dig +short A "${target_host}" || true))
+  local dns_v6_ips=($(dig +short AAAA "${target_host}" || true))
+
+  local dns_v4_ok="false"; [[ ${#dns_v4_ips[@]} -gt 0 ]] && dns_v4_ok="true"
+  local dns_v6_ok="false"; [[ ${#dns_v6_ips[@]} -gt 0 ]] && dns_v6_ok="true"
+
+  local ping_v4_ok="false"
+  if [[ "${dns_v4_ok}" == "true" ]]; then
+    if ping -c 1 "${dns_v4_ips[0]}" >/dev/null 2>&1; then ping_v4_ok="true"; fi
+  fi
+
+  local ping_v6_ok="false"
+  if [[ "${dns_v6_ok}" == "true" ]]; then
+    if ping -6 -c 1 "${dns_v6_ips[0]}" >/dev/null 2>&1; then ping_v6_ok="true"; fi
+  fi
+
+  local curl_target="http://${target_host}/generate_204"
+  local curl_v4_ok="false"
+  if curl -4 -s -m 10 --head "${curl_target}" >/dev/null 2>&1; then
+    curl_v4_ok="true"
+  fi
+
+  local curl_v6_ok="false"
+  if curl -6 -s -m 10 --head "${curl_target}" >/dev/null 2>&1; then
+    curl_v6_ok="true"
+  fi
+
+  # More general checks
+  local nvidia_http_ok="false"
+  if curl -s -m 10 --head "https://us.download.nvidia.com" >/dev/null 2>&1; then
+    nvidia_http_ok="true"
+  fi
+
+  # Assemble JSON
+  cat << EOF > "${state_file}"
+{
+  "config": {
+    "has_external_ip": ${has_external_ip},
+    "http_proxy": ${http_proxy},
+    "swp_egress": ${swp_egress}
+  },
+  "routing": {
+    "default_route_v4": ${default_route_v4},
+    "default_route_v6": ${default_route_v6}
+  },
+  "gstatic": {
+    "dns_v4_ok": ${dns_v4_ok},
+    "dns_v4_ips": [$(printf '"%s",' "${dns_v4_ips[@]}" | sed 's/,$//')],
+    "ping_v4_ok": ${ping_v4_ok},
+    "curl_v4_ok": ${curl_v4_ok},
+    "dns_v6_ok": ${dns_v6_ok},
+    "dns_v6_ips": [$(printf '"%s",' "${dns_v6_ips[@]}" | sed 's/,$//')],
+    "ping_v6_ok": ${ping_v6_ok},
+    "curl_v6_ok": ${curl_v6_ok}
+  },
+  "http_checks": {
+    "https://us.download.nvidia.com": ${nvidia_http_ok}
+  }
+}
+EOF
+
+  echo "INFO: Network state evaluation complete."
+  cat "${state_file}" # For debugging
+}
 
 function mark_complete() {
   phase="$1"
@@ -1908,7 +2227,7 @@ function mark_incomplete() {
 function install_dependencies() {
   is_complete install-dependencies && return 0
 
-  pkg_list="screen"
+  pkg_list="screen jq dnsutils"
   if is_debuntu ; then execute_with_retries apt-get -y -q install ${pkg_list}
   elif is_rocky ; then execute_with_retries dnf     -y -q install ${pkg_list} ; fi
   mark_complete install-dependencies
@@ -2106,6 +2425,7 @@ readonly SPARK_CONF_DIR='/etc/spark/conf'
 readonly bdcfg="/usr/local/bin/bdconfig"
 readonly workdir=/opt/install-dpgce # Needed for cache_fetched_package
 readonly tmpdir="${tmpdir}"
+readonly install_log="${tmpdir}/install.log"
 
 # --- Define Necessary Global Arrays ---
 # These need to be explicitly defined here as they are not functions.
@@ -2310,13 +2630,15 @@ function main() {
         install_nvidia_nccl
         install_nvidia_cudnn
       fi
-      case "${INCLUDE_PYTORCH^^}" in
-        "1" | "YES" | "TRUE" ) install_pytorch ;;
-      esac
+
+      install_tensorflow
+      install_pytorch
       #Install GPU metrics collection in Stackdriver if needed
       if [[ "${INSTALL_GPU_AGENT}" == "true" ]]; then
+        echo "DEBUG: About to call install_gpu_agent"
         #install_ops_agent
         install_gpu_agent
+        echo "DEBUG: Finished install_gpu_agent call. Exit code: $?"
         echo 'GPU metrics agent successfully deployed.'
       else
         echo 'GPU metrics agent will not be installed.'
@@ -2324,7 +2646,7 @@ function main() {
 
       # for some use cases, the kernel module needs to be removed before first use of nvidia-smi
       for module in nvidia_uvm nvidia_drm nvidia_modeset nvidia ; do
-        rmmod ${module} > /dev/null 2>&1 || echo "unable to rmmod ${module}"
+        rmmod "${module}" > /dev/null 2>&1 || echo "unable to rmmod \"${module}\""
       done
 
       if test -n "$(nvsmi -L)" ; then
@@ -2498,8 +2820,7 @@ function clean_up_sources_lists() {
   #
   if [[ -f /etc/apt/sources.list.d/mysql.list ]]; then
     rm -f /usr/share/keyrings/mysql.gpg
-    curl ${curl_retry_args} 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xBCA43417C3B485DD128EC6D4B7B3B788A8D3785C' | \
-      gpg --dearmor -o /usr/share/keyrings/mysql.gpg
+    import_gpg_keys "/usr/share/keyrings/mysql.gpg" "0xBCA43417C3B485DD128EC6D4B7B3B788A8D3785C"
     sed -i -e 's:deb https:deb [signed-by=/usr/share/keyrings/mysql.gpg] https:g' /etc/apt/sources.list.d/mysql.list
   fi
 
@@ -2743,12 +3064,12 @@ EOF
     echo "${output}"
     exit 1
   }
-  output=$(curl --verbose -fsSL --retry-connrefused --retry 10 --retry-max-time 30 --head "https://google.com" 2>&1)|| {
+  output="$(curl --verbose -fsSL --retry-connrefused --retry 10 --retry-max-time 30 --head "https://google.com" 2>&1)" || {
     echo "curl rejects proxy configuration"
-    echo "${curl_output}"
+    echo "${output}"
     exit 1
   }
-  output=$(curl --verbose -fsSL --retry-connrefused --retry 10 --retry-max-time 30 --head "https://developer.download.nvidia.com/compute/cuda/12.6.3/local_installers/cuda_12.6.3_560.35.05_linux.run" 2>&1)|| {
+  output="$(curl --verbose -fsSL --retry-connrefused --retry 10 --retry-max-time 30 --head "https://developer.download.nvidia.com/compute/cuda/12.6.3/local_installers/cuda_12.6.3_560.35.05_linux.run" 2>&1)" || {
     echo "curl rejects proxy configuration"
     echo "${output}"
     exit 1
@@ -2832,6 +3153,16 @@ function harden_sshd_config() {
 }
 
 function prepare_to_install(){
+  # Setup temporary directories (potentially on RAM disk)
+  tmpdir=/tmp/ # Default
+  mount_ramdisk # Updates tmpdir if successful
+  export tmpdir
+  install_log="${tmpdir}/install.log" # Set install log path based on final tmpdir
+  export install_log
+
+  # Evaluate network and cache results *before* any network operations
+  evaluate_network
+
   readonly uname_r=$(uname -r)
   # Verify OS compatability and Secure boot state
   check_os
@@ -2882,11 +3213,6 @@ function prepare_to_install(){
 #      ["NVIDIA-Linux-x86_64-550.135.run"]="a8c3ae0076f11e864745fac74bfdb01f"
 #      ["NVIDIA-Linux-x86_64-550.142.run"]="e507e578ecf10b01a08e5424dddb25b8"
 
-  # Setup temporary directories (potentially on RAM disk)
-  tmpdir=/tmp/ # Default
-  mount_ramdisk # Updates tmpdir if successful
-  install_log="${tmpdir}/install.log" # Set install log path based on final tmpdir
-
   workdir=/opt/install-dpgce
   # Set GCS bucket for caching
   temp_bucket="$(get_metadata_attribute dataproc-temp-bucket)"
@@ -2906,11 +3232,14 @@ function prepare_to_install(){
   harden_sshd_config
 
   if is_debuntu ; then
+    # Globally configure apt/dpkg to wait up to 60 seconds for locks
+    echo 'DPkg::Lock::Timeout="60";' > /etc/apt/apt.conf.d/99-dpkg-lock-timeout
+    
     repair_old_backports
     clean_up_sources_lists
     apt-get update -qq --allow-releaseinfo-change
     apt-get -y clean
-    apt-get -o DPkg::Lock::Timeout=60 -y autoremove
+    apt-get -y autoremove
     if ge_debian12 ; then
     apt-mark unhold systemd libsystemd0 ; fi
     if is_ubuntu ; then
@@ -2990,7 +3319,7 @@ function apt_add_repo() {
 
   echo "deb [signed-by=${kr_path}] ${repo_data}" > "${repo_path}"
   if [[ "${include_src}" == "yes" ]] ; then
-    echo "deb-src [signed-by=${kr_path}] ${repo_data}" >> "${repo_path}"
+    echo "deb-src [signed-by='${kr_path}'] ${repo_data}" >> "${repo_path}"
   fi
 
   apt-get update -qq
@@ -3005,7 +3334,7 @@ function dnf_add_repo() {
   local -r kr_path="${5:-/etc/pki/rpm-gpg/${repo_name}.gpg}"
   local -r repo_path="${6:-/etc/yum.repos.d/${repo_name}.repo}"
 
-  curl ${curl_retry_args} "${repo_url}" \
+  curl "${curl_retry_args[@]}" "${repo_url}" \
     | dd of="${repo_path}" status=progress
 }
 

@@ -18,6 +18,9 @@ time bazel test \
   --jobs="${max_parallel_tests}" \
   --local_test_jobs="${max_parallel_tests}" \
   --action_env="INTERNAL_IP_SSH=true" \
+  --test_env="PROJECT_ID=${PROJECT_ID}" \
+  --test_env="REGION=${REGION}" \
+  --test_env="GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}" \
   --test_output="errors" \
   --test_arg="--image_version=${IMAGE_VERSION}" \
   "${TESTS_TO_RUN[@]}"
