@@ -12,6 +12,12 @@ if [[ -z "${IMAGE_VERSION}" ]] ; then
 #declare -a TESTS_TO_RUN=('dask:test_dask' 'rapids:test_rapids')
 #declare -a TESTS_TO_RUN=('dask:test_dask')
 #declare -a TESTS_TO_RUN=('rapids:test_rapids')
+if [[ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]] && [[ -f "${GOOGLE_APPLICATION_CREDENTIALS}" ]]; then
+  echo "Authenticating gcloud with service account key..."
+  gcloud auth activate-service-account --key-file="${GOOGLE_APPLICATION_CREDENTIALS}"
+  gcloud config set project "${PROJECT_ID}"
+fi
+
 declare -a TESTS_TO_RUN=('gpu:test_gpu')
 
 time bazel test \

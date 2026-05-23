@@ -782,8 +782,8 @@ function create_conda_env() {
     fi
 
     # Fallback to conda for older OSes due to download issues with mamba
-    if is_debian10 || is_ubuntu18; then
-      echo "INFO: Older OS detected, using conda instead of mamba for environment ${env_name}"
+    if version_le "${DATAPROC_IMAGE_VERSION}" "2.0"; then
+      echo "INFO: Dataproc <= 2.0 detected, using conda instead of mamba for environment ${env_name}"
       conda_path="${conda_root_path}/bin/conda"
     fi
     echo "Using installer: ${conda_path}"
@@ -792,22 +792,17 @@ function create_conda_env() {
     echo "DEBUG: About to run ${conda_path} create for ${env_name}"
     set +e
     
-    if is_debian10 || is_ubuntu18; then
-      if [[ "${env_name}" == "tensorflow" ]]; then
-        "${conda_path}" create -y -n "${env_name}" "${packages[@]}" 2>&1 | tee "${conda_err_file}"
-        local conda_exit_code=${PIPESTATUS[0]}
-      else
-        timeout 3m "${conda_path}" create -y -n "${env_name}" "${packages[@]}" 2>&1 | tee "${conda_err_file}"
-        local conda_exit_code=${PIPESTATUS[0]}
-        
-        if [[ "${conda_exit_code}" == 124 ]]; then
-           echo "WARN: Timed out (3m) attempting to resolve ${env_name} dependencies." >&2
-           echo "WARN: The classic Conda dependency solver frequently deadlocks when installing massive packages like PyTorch or RAPIDS." >&2
-           echo "WARN: GPU-accelerated Machine Learning environments are not supported on Dataproc 2.0 (Debian 10/Ubuntu 18.04)." >&2
-           echo "WARN: Please upgrade to Dataproc 2.1 or newer (Debian 11+/Ubuntu 20.04+) to utilize these features." >&2
-           set -e
-           return 0
-        fi
+    if version_le "${DATAPROC_IMAGE_VERSION}" "2.0"; then
+      timeout 3m "${conda_path}" create -y -n "${env_name}" "${packages[@]}" 2>&1 | tee "${conda_err_file}"
+      local conda_exit_code=${PIPESTATUS[0]}
+
+      if [[ "${conda_exit_code}" == 124 ]]; then
+         echo "WARN: Timed out (3m) attempting to resolve ${env_name} dependencies." >&2
+         echo "WARN: The classic Conda dependency solver frequently deadlocks when installing massive packages like PyTorch or RAPIDS." >&2
+         echo "WARN: GPU-accelerated Machine Learning environments are not supported on Dataproc 2.0 (Debian 10/Ubuntu 18.04/Rocky 8)." >&2
+         echo "WARN: Please upgrade to Dataproc 2.1 or newer (Debian 11+/Ubuntu 20.04+/Rocky 8 on 2.1) to utilize these features." >&2
+         set -e
+         return 0
       fi
     else
       time "${conda_path}" create -y -n "${env_name}" "${packages[@]}" 2>&1 | tee "${conda_err_file}"
@@ -980,6 +975,20 @@ function install_nvidia_nccl() {
 
   local -r nccl_version="${NCCL_VERSION}-1+cuda${CUDA_VERSION}"
 
+  if is_debuntu && dpkg-query -W "libnccl2" > /dev/null 2>&1 ; then
+    local installed_nccl
+    installed_nccl="$(dpkg-query -W -f='${Version}' libnccl2 2>/dev/null)"
+    if [[ "${installed_nccl}" == "${nccl_version}"* ]]; then
+      echo "INFO: NCCL ${nccl_version} is already installed."
+      mark_complete nccl
+      return 0
+    fi
+  elif is_rocky && rpm -q "libnccl-${nccl_version}.x86_64" > /dev/null 2>&1; then
+    echo "INFO: NCCL ${nccl_version} is already installed."
+    mark_complete nccl
+    return 0
+  fi
+
   mkdir -p "${workdir}"
   pushd "${workdir}"
 
@@ -1049,8 +1058,10 @@ function install_nvidia_nccl() {
       # Ada:       SM_89,             compute_89
       # Hopper:    SM_90,SM_90a       compute_90,compute_90a
       # Blackwell: SM_100,            compute_100
-      local nvcc_gencode=("-gencode=arch=compute_70,code=sm_70" "-gencode=arch=compute_72,code=sm_72"
-                          "-gencode=arch=compute_80,code=sm_80" "-gencode=arch=compute_86,code=sm_86")
+      local nvcc_gencode=("-gencode=arch=compute_75,code=sm_75" "-gencode=arch=compute_80,code=sm_80" "-gencode=arch=compute_86,code=sm_86")
+      if version_lt "${CUDA_VERSION}" "13.0" ; then
+        nvcc_gencode+=("-gencode=arch=compute_70,code=sm_70" "-gencode=arch=compute_72,code=sm_72")
+      fi
 
       if version_gt "${CUDA_VERSION}" "11.6" ; then
         nvcc_gencode+=("-gencode=arch=compute_87,code=sm_87")
@@ -1077,7 +1088,7 @@ function install_nvidia_nccl() {
         execute_with_retries make -j$(nproc) pkg.redhat.build
       fi
       tar czvf "${local_tarball}" "../${build_path}"
-      make clean
+      make clean || true
       popd
       tar xzvf "${local_tarball}"
       "${gsutil_cmd[@]}" cp "${local_tarball}" "${gcs_tarball}"
@@ -1531,6 +1542,17 @@ function install_nvidia_userspace_runfile() {
   # wget https://us.download.nvidia.com/XFree86/Linux-x86_64/560.35.03/NVIDIA-Linux-x86_64-560.35.03.run
   # sh ./NVIDIA-Linux-x86_64-560.35.03.run -x # this will allow you to review the contents of the package without installing it.
   is_complete userspace && return
+  
+  if command -v nvidia-smi >/dev/null 2>&1; then
+    local installed_version
+    installed_version="$(nvidia-smi --query-gpu=driver_version --format=csv,noheader | head -n1)"
+    if [[ "${installed_version}" == "${DRIVER_VERSION}" ]]; then
+      echo "INFO: NVIDIA driver ${DRIVER_VERSION} is already installed."
+      mark_complete userspace
+      return 0
+    fi
+  fi
+
   local local_fn="${tmpdir}/${USERSPACE_RUNFILE}"
 
   cache_fetched_package "${USERSPACE_URL}" \
@@ -1553,16 +1575,17 @@ function install_nvidia_userspace_runfile() {
     || version_lt "${DRIVER_VERSION}" "${MIN_OPEN_DRIVER_VER}" \
     || [[ "$((16#${pci_device_id}))" < "$((16#1E00))" ]] )
   then
+    local build_tarball="kmod_${_shortname}_${DRIVER_VERSION}_nonfree.tar.gz"
+    local_tarball="${workdir}/${build_tarball}"
+    local build_dir
+    if test -v modulus_md5sum && [[ -n "${modulus_md5sum}" ]]
+      then build_dir="${modulus_md5sum}"
+      else build_dir="unsigned" ; fi
+
+    local gcs_tarball="${pkg_bucket}/nvidia/kmod/${_shortname}/${uname_r}/${build_dir}/${build_tarball}"
+
     local nvidia_ko_path="$(find /lib/modules/$(uname -r)/ -name 'nvidia.ko')"
     test -n "${nvidia_ko_path}" && test -f "${nvidia_ko_path}" || {
-      local build_tarball="kmod_${_shortname}_${DRIVER_VERSION}_nonfree.tar.gz"
-      local_tarball="${workdir}/${build_tarball}"
-      local build_dir
-      if test -v modulus_md5sum && [[ -n "${modulus_md5sum}" ]]
-        then build_dir="${modulus_md5sum}"
-        else build_dir="unsigned" ; fi
-
-      local gcs_tarball="${pkg_bucket}/nvidia/kmod/${_shortname}/${uname_r}/${build_dir}/${build_tarball}"
 
       if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
         # when running with fewer than 32 cores, yield to in-progress build
