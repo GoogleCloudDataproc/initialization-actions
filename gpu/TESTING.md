@@ -55,14 +55,44 @@ bash t/spark-gpu-test.sh
 
 ## Continuous Integration Testing (Bazel/Podman)
 
-Once the manual tests pass, verify the script behaves correctly within the isolated Python `absl` test harness running inside Podman.
+Once the manual tests pass, you **must** verify the script behaves correctly within the isolated Python `absl` test harness (`test_gpu.py`) before pushing your changes to GitHub. This validates the full matrix of installation scenarios (SINGLE, STANDARD, KERBEROS, MIG, etc.).
 
-```bash
-cd initialization-actions
-./gpu/run-bazel-tests-with-podman.sh "2.2-debian12"
-```
+We use a Podman wrapper to execute the Bazel test suite locally, perfectly simulating the remote CI environment.
 
-**Note:** Ensure your `key.json` (ADC credentials) and `--test_env` mappings are properly configured so the sandbox can authenticate against GCP APIs.
+1. **Credentials:** Ensure your Google Cloud Application Default Credentials (ADC) are saved locally (typically `~/.config/gcloud/application_default_credentials.json`). Copy them to the root of the repository:
+   ```bash
+   cp ~/.config/gcloud/application_default_credentials.json ./key.json
+   ```
+
+2. **Execute Full Suite (Unfiltered):** To execute the entire parameterized test matrix, run the wrapper script without a test filter. 
+   
+   > ⚠️ **WARNING: HIGH RESOURCE CONSUMPTION**
+   > An unfiltered run executes all ~12 active parameterized shards. Because the script runs with `--jobs=10`, this will concurrently provision up to 10 separate Dataproc clusters. This requires massive GCP quota (roughly ~900 vCPUs and ~30 GPUs simultaneously if using `n1-standard-32` profiles) and will take approximately 60 to 90 minutes to complete. Do not run this unless you are finalizing a major PR.
+
+   ```bash
+   cd initialization-actions
+   ./gpu/run-bazel-tests-with-podman.sh "2.2-ubuntu22"
+   ```
+
+3. **Execute Specific Tests (Recommended for Iteration):** When iterating on a specific feature or failure, always pass Bazel arguments to filter the test execution. This saves significant time and quota. You can filter by test function name or class.
+   
+   *Filter by a specific test function:*
+   ```bash
+   cd initialization-actions
+   ./gpu/run-bazel-tests-with-podman.sh "2.2-ubuntu22" "--test_filter=test_gpu_allocation"
+   ```
+
+   *Filter by a specific test function that executes spark jobs:*
+   ```bash
+   cd initialization-actions
+   ./gpu/run-bazel-tests-with-podman.sh "2.2-ubuntu22" "--test_filter=test_install_gpu_cuda_nvidia_with_spark_job"
+   ```
+
+   *Filter by test class (runs all tests in the class):*
+   ```bash
+   cd initialization-actions
+   ./gpu/run-bazel-tests-with-podman.sh "2.2-ubuntu22" "--test_filter=NvidiaGpuDriverTestCase"
+   ```
 
 ## Compiling the AST Splitter Tool (`split.go`)
 

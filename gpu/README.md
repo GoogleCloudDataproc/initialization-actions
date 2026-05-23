@@ -28,8 +28,8 @@ CUDA | Full Version | Driver    | cuDNN     | NCCL   | Tested Dataproc Image Ver
 -----| ------------ | --------- | --------- | -------| ---------------------------
 11.8 | 11.8.0       | 525.147.05| 9.5.1.17  | 2.21.5 | 2.0, 2.1 (Debian/Ubuntu/Rocky); 2.2 (Ubuntu 22.04)
 12.0 | 12.0.1       | 525.147.05| 8.8.1.3   | 2.16.5 | 2.0, 2.1 (Debian/Ubuntu/Rocky); 2.2 (Rocky 9, Ubuntu 22.04)
-12.4 | 12.4.1       | 550.135   | 9.1.0.70  | 2.23.4 | 2.1 (Ubuntu 20.04, Rocky 8); Dataproc 2.2+
-12.6 | 12.6.3       | 550.142   | 9.6.0.74  | 2.23.4 | 2.1 (Ubuntu 20.04, Rocky 8); Dataproc 2.2+
+12.4 | 12.4.1       | 590.48.01| 9.1.0.70  | 2.23.4 | 2.1 (Ubuntu 20.04, Rocky 8); Dataproc 2.2+
+12.6 | 12.6.3       | 590.48.01| 9.6.0.74  | 2.23.4 | 2.1 (Ubuntu 20.04, Rocky 8); Dataproc 2.2+
 
 **Supported Operating Systems:**
 
@@ -293,32 +293,39 @@ handles metric creation and reporting.
 
 If you are modifying this initialization action, you can use the provided test infrastructure to validate your changes locally before deploying them to production.
 
-### Local Integration Testing (Podman / Bazel)
+### Local Integration Testing (Bazel / Podman)
 
-You can run the integration tests locally using Podman to simulate the CI environment. The tests use `absl.testing.parameterized` and the `integration_tests.dataproc_test_case` framework to spin up ephemeral Dataproc clusters and validate GPU functionality.
+Before pushing any changes to GitHub, you **must** run the integration tests locally to validate your modifications against the full test matrix (`test_gpu.py`). These tests use `absl.testing.parameterized` and the `integration_tests.dataproc_test_case` framework to spin up ephemeral Dataproc clusters and validate GPU functionality (SINGLE, STANDARD, KERBEROS, MIG, etc.).
 
-1. Ensure you have your Google Cloud Application Default Credentials (ADC) saved locally, typically at `~/.config/gcloud/application_default_credentials.json`, and copy it to `initialization-actions/key.json`.
-2. You must have a configured `env.json` in the `gpu/` directory.
+We provide a Podman wrapper to execute the Bazel test suite locally, perfectly simulating the remote CI sandbox environment.
 
-To run tests in a Podman container (automatically handling the Bazel build and sandbox):
+1. **Credentials:** Ensure you have your Google Cloud Application Default Credentials (ADC) saved locally, typically at `~/.config/gcloud/application_default_credentials.json`, and copy it to `initialization-actions/key.json`.
+2. **Environment:** You must have a configured `env.json` in the `gpu/` directory.
+
+To run the full suite in the Podman container (Unfiltered):
+
+> ⚠️ **WARNING: HIGH RESOURCE CONSUMPTION**
+> An unfiltered run executes the entire test matrix (currently ~12 shards). Because the script is configured to run up to 10 jobs in parallel, this will concurrently provision up to 10 separate Dataproc clusters. This requires massive GCP quota (e.g., ~900 vCPUs and ~30 GPUs simultaneously if using `n1-standard-32` profiles) and will take 60-90 minutes.
 
 ```bash
 cd initialization-actions
-# Test a specific Dataproc image version
-./gpu/run-bazel-tests-with-podman.sh 2.2-ubuntu22
+# Test a specific Dataproc image version against the full suite
+./gpu/run-bazel-tests-with-podman.sh "2.2-ubuntu22"
 ```
 
-To run a specific test filter using Bazel manually inside the container:
+To run a specific test filter to iterate quickly on a failure (Recommended):
 
 ```bash
-podman build -t init-actions-test:latest -f cloudbuild/Dockerfile .
-podman run --rm -it -v $(pwd):/init-actions -w /init-actions \
-  -e INTERNAL_IP_SSH=true \
-  init-actions-test:latest \
-  bash -c "bazel test --jobs=1 --local_test_jobs=1 --test_output=errors --noshow_progress --noshow_loading_progress \
-    --test_arg=--image_version=2.2-debian12 \
-    --test_filter=NvidiaGpuDriverTestCase.test_gpu_allocation \
-    //gpu:test_gpu"
+cd initialization-actions
+
+# Filter by a specific test function
+./gpu/run-bazel-tests-with-podman.sh "2.2-ubuntu22" "--test_filter=test_gpu_allocation"
+
+# Filter by another specific test function
+./gpu/run-bazel-tests-with-podman.sh "2.2-ubuntu22" "--test_filter=test_install_gpu_cuda_nvidia_with_spark_job"
+
+# Filter by the entire class
+./gpu/run-bazel-tests-with-podman.sh "2.2-ubuntu22" "--test_filter=NvidiaGpuDriverTestCase"
 ```
 
 ### Manual Verification Scripts

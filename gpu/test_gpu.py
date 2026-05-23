@@ -194,7 +194,7 @@ exit 1 unless $cert eq lc $kmod
   def test_install_gpu_without_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
-    self.skipTest('Skipping as per user request to only run test_gpu_allocation')
+    self.skipTest('Limiting tests as we probe for success')
     metadata = "install-gpu-agent=false"
     if configuration == 'SINGLE' \
     and self.getImageOs() == 'rocky' \
@@ -225,7 +225,8 @@ exit 1 unless $cert eq lc $kmod
   def test_install_gpu_with_agent(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider):
-    self.skipTest('Skipping as per user request to only run test_gpu_allocation')
+    self.skipTest('Limiting tests as we probe for success')
+
     self.skipTest("No need to regularly test installing the agent on its own cluster ; this is exercised elsewhere")
 
     if configuration == 'KERBEROS' \
@@ -260,7 +261,8 @@ exit 1 unless $cert eq lc $kmod
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
-    self.skipTest('Skipping as per user request to only run test_gpu_allocation')
+    self.skipTest('Limiting tests as we probe for success')
+
     if configuration == 'KERBEROS' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
       # ('KERBEROS fails with image version <= 2.1')
@@ -308,7 +310,8 @@ exit 1 unless $cert eq lc $kmod
   def test_install_gpu_with_mig(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider, cuda_version):
-    self.skipTest('Skipping as per user request to only run test_gpu_allocation')
+    self.skipTest('Limiting tests as we probe for success')
+
     # Operation [projects/.../regions/.../operations/...] failed:
     # Invalid value for field 'resource.machineType': \
     # 'https://www.googleapis.com/compute/v1/projects/.../zones/.../' \
@@ -382,7 +385,7 @@ exit 1 unless $cert eq lc $kmod
   def test_install_gpu_cuda_nvidia_with_spark_job(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
-    self.skipTest('Skipping as per user request to only run test_gpu_allocation')
+    self.skipTest('Limiting tests as we probe for success')
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.4") \
     and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
           ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
@@ -437,7 +440,7 @@ exit 1 unless $cert eq lc $kmod
   def untested_driver_signing(self, configuration, machine_suffixes,
                            master_accelerator, worker_accelerator,
                            cuda_version, image_os, image_version):
-    self.skipTest('Skipping as per user request to only run test_gpu_allocation')
+    self.skipTest('Limiting tests as we probe for success')
 
     if configuration == 'KERBEROS' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):

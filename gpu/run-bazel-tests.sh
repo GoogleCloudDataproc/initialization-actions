@@ -6,6 +6,7 @@ IMAGE="rapids-actions-image:$BUILD_ID"
 max_parallel_tests=10
 
 IMAGE_VERSION="$1"
+shift
 if [[ -z "${IMAGE_VERSION}" ]] ; then
        IMAGE_VERSION="$(jq -r .IMAGE_VERSION        env.json)" ; fi ; export IMAGE_VERSION
 
@@ -29,4 +30,5 @@ time bazel test \
   --test_env="GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}" \
   --test_output="errors" \
   --test_arg="--image_version=${IMAGE_VERSION}" \
+  "$@" \
   "${TESTS_TO_RUN[@]}"

@@ -140,8 +140,8 @@ readonly -A DRIVER_FOR_CUDA=(
     ["11.4"]="470.256.02" ["11.5"]="495.46" ["11.6"]="510.108.03"
     ["11.7"]="515.65.01" ["11.8"]="525.147.05" ["12.0"]="525.147.05"
     ["12.1"]="530.30.02" ["12.2"]="535.216.01" ["12.3"]="545.29.06"
-    ["12.4"]="550.135" ["12.5"]="550.142" ["12.6"]="550.142"
-    ["12.8"]="570.211.01" ["12.9"]="575.64.05"
+    ["12.4"]="590.48.01" ["12.5"]="590.48.01" ["12.6"]="590.48.01"
+    ["12.8"]="590.48.01" ["12.9"]="575.64.05"
     ["13.0"]="580.126.20" ["13.1"]="590.48.01"
 )
 readonly -A DRIVER_SUBVER=(
@@ -586,8 +586,10 @@ function execute_with_retries() (
     apt-get -y autoremove
   fi
   for ((i = 0; i < 3; i++)); do
+    set +e
     time eval "$cmd" 2>&1 | tee "${install_log}"
     retval=${PIPESTATUS[0]}
+    set -e
     if [[ $retval == 0 ]] ; then return 0 ; fi
     sleep 5
   done
@@ -705,39 +707,44 @@ function create_conda_env() {
     echo "Cache miss for ${env_name}. Building environment."
 
     # Wait for any other node to finish building this same tarball
-    if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
+    if [[ "$(hostname -s)" =~ ^test ]] && (( $(nproc) < 32 )) ; then
       sleep $(( ( RANDOM % 11 ) + 10 ))
     fi
+
     # Check for the .building file
-    local building_output
-    set +e # Don't exit if describe fails
-    building_output="$("${gsutil_stat_cmd[@]}" "${gcs_tarball}.building" 2>/dev/null)"
-    local gcs_describe_exit_code=$?
-    set -e
-    if [[ ${gcs_describe_exit_code} -eq 0 ]] && [[ -n "${building_output}" ]]; then
-      local build_start_time
-      build_start_time=$(echo "${building_output}" | grep -oP 'Creation time:\s*\K.*' || echo "")
-      if [[ -n "${build_start_time}" ]]; then
-        local build_start_epoch
-        build_start_epoch="$(date -u -d "${build_start_time}" +%s)"
-        local timeout_epoch
-        timeout_epoch=$((build_start_epoch + 3600)) # 60 minutes
-        while "${gsutil_stat_cmd[@]}" "${gcs_tarball}.building" > /dev/null 2>&1 ; do
-          # Check if the main tarball has appeared in the meantime
-          if "${gsutil_stat_cmd[@]}" "${gcs_tarball}" > /dev/null 2>&1; then
-            echo "INFO: Cache file ${gcs_tarball} appeared while waiting. Skipping build."
-            break # Exit while loop, will be caught by the next check
-          fi
-          local now_epoch
-          now_epoch="$(date -u +%s)"
-          if (( now_epoch > timeout_epoch )) ; then
-            echo "WARN: Timeout waiting for ${gcs_tarball}.building to be removed. Removing it myself."
-            "${gsutil_cmd[@]}" rm "${gcs_tarball}.building"
-            break
-          fi
-          echo "INFO: Waiting for existing build of ${gcs_tarball} to complete..."
-          sleep 1m # Shorter sleep for faster detection
-        done
+    # Only respect the lock if we have a small number of cores; larger nodes
+    # should just build it concurrently to avoid 60 minute waits.
+    if (( $(nproc) < 16 )) ; then
+      local building_output
+      set +e # Don't exit if describe fails
+      building_output="$("${gsutil_stat_cmd[@]}" "${gcs_tarball}.building" 2>/dev/null)"
+      local gcs_describe_exit_code=$?
+      set -e
+      if [[ ${gcs_describe_exit_code} -eq 0 ]] && [[ -n "${building_output}" ]]; then
+        local build_start_time
+        build_start_time=$(echo "${building_output}" | grep -oP 'Creation time:\s*\K.*' || echo "")
+        if [[ -n "${build_start_time}" ]]; then
+          local build_start_epoch
+          build_start_epoch="$(date -u -d "${build_start_time}" +%s)"
+          local timeout_epoch
+          timeout_epoch=$((build_start_epoch + 3600)) # 60 minutes
+          while "${gsutil_stat_cmd[@]}" "${gcs_tarball}.building" > /dev/null 2>&1 ; do
+            # Check if the main tarball has appeared in the meantime
+            if "${gsutil_stat_cmd[@]}" "${gcs_tarball}" > /dev/null 2>&1; then
+              echo "INFO: Cache file ${gcs_tarball} appeared while waiting. Skipping build."
+              break # Exit while loop, will be caught by the next check
+            fi
+            local now_epoch
+            now_epoch="$(date -u +%s)"
+            if (( now_epoch > timeout_epoch )) ; then
+              echo "WARN: Timeout waiting for ${gcs_tarball}.building to be removed. Removing it myself."
+              "${gsutil_cmd[@]}" rm "${gcs_tarball}.building"
+              break
+            fi
+            echo "INFO: Waiting for existing build of ${gcs_tarball} to complete..."
+            sleep 1m # Shorter sleep for faster detection
+          done
+        fi
       fi
     fi
 
@@ -801,6 +808,10 @@ function create_conda_env() {
          echo "WARN: The classic Conda dependency solver frequently deadlocks when installing massive packages like PyTorch or RAPIDS." >&2
          echo "WARN: GPU-accelerated Machine Learning environments are not supported on Dataproc 2.0 (Debian 10/Ubuntu 18.04/Rocky 8)." >&2
          echo "WARN: Please upgrade to Dataproc 2.1 or newer (Debian 11+/Ubuntu 20.04+/Rocky 8 on 2.1) to utilize these features." >&2
+         if [[ -n "${building_file:-}" ]]; then
+           "${gsutil_cmd[@]}" rm "${building_file}" || true
+           building_file=""
+         fi
          set -e
          return 0
       fi
@@ -1009,7 +1020,7 @@ function install_nvidia_nccl() {
     local local_tarball="${workdir}/${build_tarball}"
     local gcs_tarball="${pkg_bucket}/nvidia/nccl/${_shortname}/${build_tarball}"
 
-    if [[ "$(hostname -s)" =~ ^test-gpu && "$(nproc)" < 32 ]] ; then
+    if [[ "$(hostname -s)" =~ ^test-gpu ]] && (( $(nproc) < 32 )) ; then
       # when running with fewer than 32 cores, yield to in-progress build
       sleep $(( ( RANDOM % 11 ) + 10 ))
       local output="$("${gsutil_stat_cmd[@]}" "${gcs_tarball}.building"|grep '.reation.time')"
@@ -1417,7 +1428,7 @@ function build_driver_from_github() {
 
     local gcs_tarball="${pkg_bucket}/nvidia/kmod/${_shortname}/${uname_r}/${build_dir}/${build_tarball}"
 
-    if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
+    if [[ "$(hostname -s)" =~ ^test ]] && (( $(nproc) < 32 )) ; then
       # when running with fewer than 32 cores, yield to in-progress build
       sleep $(( ( RANDOM % 11 ) + 10 ))
       local output="$("${gsutil_stat_cmd[@]}" "${gcs_tarball}.building"|grep '.reation.time')"
@@ -1587,7 +1598,7 @@ function install_nvidia_userspace_runfile() {
     local nvidia_ko_path="$(find /lib/modules/$(uname -r)/ -name 'nvidia.ko')"
     test -n "${nvidia_ko_path}" && test -f "${nvidia_ko_path}" || {
 
-      if [[ "$(hostname -s)" =~ ^test && "$(nproc)" < 32 ]] ; then
+      if [[ "$(hostname -s)" =~ ^test ]] && (( $(nproc) < 32 )) ; then
         # when running with fewer than 32 cores, yield to in-progress build
         sleep $(( ( RANDOM % 11 ) + 10 ))
         local output="$("${gsutil_stat_cmd[@]}" "${gcs_tarball}.building"|grep '.reation.time')"
@@ -2893,7 +2904,7 @@ function exit_handler() {
     apt-mark hold systemd libsystemd0 ; fi
     hold_nvidia_packages
   else
-    dnf clean all
+    execute_with_retries dnf clean all
   fi
 
   # print disk usage statistics for large components
@@ -3145,8 +3156,10 @@ function mount_ramdisk(){
 
   # Download OS packages to tmpfs
   if is_debuntu ; then
+    mkdir -p /var/cache/apt/archives
     mount -t tmpfs tmpfs /var/cache/apt/archives
   else
+    mkdir -p /var/cache/dnf
     mount -t tmpfs tmpfs /var/cache/dnf
   fi
 }
@@ -3270,7 +3283,7 @@ function prepare_to_install(){
       while ! command -v gcloud ; do sleep 5s ; done
     fi
   else # Rocky
-    dnf clean all
+    execute_with_retries dnf clean all
   fi
 
   # zero free disk space (only if creating image)
