@@ -261,7 +261,9 @@ exit 1 unless $cert eq lc $kmod
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
-    self.skipTest('Limiting tests as we probe for success')
+
+    if self.getImageOs() == 'rocky' and self.getImageVersion() <= pkg_resources.parse_version("2.0"):
+      self.skipTest("2.0-rocky8 known to fail")
 
     if configuration == 'KERBEROS' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
