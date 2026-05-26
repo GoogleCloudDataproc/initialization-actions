@@ -135,6 +135,9 @@ shared hive metastore.
     database in the SQL instance if they don't already exist. It does this by
     logging in as root with an empty password. You can reconfigure all of this
     in the script.
+*   If you are reusing an existing Cloud SQL instance that already has the
+    Hive user and database configured, you can set the `db-hive-metastore-reuse`
+    metadata key to `true` to skip these creation steps.
 
 ## Using this initialization action without configuring Hive metastore
 
@@ -397,3 +400,31 @@ the `hive` user does not already exist in MySQL. Proceed as follows:
     `/etc/hive/conf/hive-site.xml`. Therefore any user that can SSH on this
     cluster and has `sudo` access, and any user that can run jobs on this
     cluster, will be able to view the password in that file.
+
+## Protecting passwords with Secret Manager
+
+As a more modern alternative to KMS, you can use [Secret Manager](https://cloud.google.com/secret-manager) to store and manage your Hive metastore passwords. The initialization action will automatically fetch the password from Secret Manager if the appropriate configuration is present in `hive-site.xml`.
+
+1.  **Create a Secret**: Create a secret named `javax-jdo-option-ConnectionPassword` in Secret Manager and add a version containing your Hive password. To create a Secret Manager see: https://docs.cloud.google.com/secret-manager/docs/create-secret-quickstart
+ 
+3.  **IAM Permissions**: Ensure the cluster's service account has the `roles/secretmanager.secretAccessor` role for the secret. To create a role see: https://docs.cloud.google.com/secret-manager/docs/manage-access-to-secrets
+
+4.  **Create the Dataproc Cluster**: Specify the Secret Manager integration via cluster properties:
+
+    ```bash
+    PROJECT_ID=<project_id>
+    REGION=<region>
+    INSTANCE_NAME=<cloud_sql_instance_name>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --scopes cloud-platform \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/cloud-sql-proxy/cloud-sql-proxy.sh \
+        --metadata "hive-metastore-instance=${PROJECT_ID}:${REGION}:${INSTANCE_NAME}" \
+        --properties "hive:hadoop.security.credential.provider.path=gsm://projects/${PROJECT_ID}" \
+        --properties "hive:hadoop.security.credstore.google-secret-manager.secret-version=latest"
+    ```
+
+    *Note: The `hadoop.security.credential.provider.path` must be set to a value other than `None` (e.g., `gsm://projects/${PROJECT_ID}`) to enable the Secret Manager integration. You can specify a specific version instead of `latest` using the `hadoop.security.credstore.google-secret-manager.secret-version` property.*
+
+    When Secret Manager is used, the initialization action will automatically remove the plaintext `javax.jdo.option.ConnectionPassword` from the `/etc/hive/conf/hive-site.xml` file after the proxy is configured, providing an extra layer of security.
