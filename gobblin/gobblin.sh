@@ -25,6 +25,15 @@ readonly HADOOP_LIB="/usr/lib/hadoop/lib"
 
 readonly JAR_NAME_CANONICALIZER="s/([-a-zA-Z0-9]+?)[-]([0-9][0-9.]+?)([-.].*?)?.jar/\1/"
 
+function version_le() { [[ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]]; }
+function version_lt() { [[ "$1" = "$2" ]] && return 1 || version_le "$1" "$2"; }
+
+GCLOUD_SDK_VERSION="$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print $2}')"
+GSUTIL="gcloud storage"
+if version_lt "${GCLOUD_SDK_VERSION}" "402.0.0"; then
+  GSUTIL="gsutil"
+fi
+
 function maybe_symlink() {
   local jar=$1
   if [[ ! -f "${HADOOP_LIB}/${jar}" ]]; then
@@ -91,7 +100,7 @@ EOF
 function install_package() {
   # Download binary.
   local temp=$(mktemp -d)
-  gsutil cp "${PACKAGE_URL}" "${temp}/package.tar.gz"
+  ${GSUTIL} cp "${PACKAGE_URL}" "${temp}/package.tar.gz"
   tar -xf "${temp}/package.tar.gz" -C "${temp}"
 
   # Setup package.
