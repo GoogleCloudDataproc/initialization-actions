@@ -195,6 +195,7 @@ exit 1 unless $cert eq lc $kmod
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
     self.skipTest('Limiting tests as we probe for success')
+
     metadata = "install-gpu-agent=false"
     if configuration == 'SINGLE' \
     and self.getImageOs() == 'rocky' \
@@ -207,11 +208,11 @@ exit 1 unless $cert eq lc $kmod
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
-        machine_type="n1-standard-32", # temporarily increased from n1-standard-16
+        machine_type="n1-standard-16",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
-        timeout_in_minutes=120,
+        timeout_in_minutes=90,
         boot_disk_size="60GB")
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
@@ -225,7 +226,6 @@ exit 1 unless $cert eq lc $kmod
   def test_install_gpu_with_agent(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider):
-    self.skipTest('Limiting tests as we probe for success')
 
     self.skipTest("No need to regularly test installing the agent on its own cluster ; this is exercised elsewhere")
 
@@ -240,11 +240,11 @@ exit 1 unless $cert eq lc $kmod
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
-        machine_type="n1-standard-32", # temporarily increased from n1-standard-16
+        machine_type="n1-standard-16",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
-        timeout_in_minutes=120,
+        timeout_in_minutes=90,
         boot_disk_size="60GB",
         scopes="https://www.googleapis.com/auth/monitoring.write")
     for machine_suffix in machine_suffixes:
@@ -290,11 +290,11 @@ exit 1 unless $cert eq lc $kmod
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
-        machine_type="n1-standard-32", # temporarily increased from n1-standard-16
+        machine_type="n1-standard-16",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
-        timeout_in_minutes=120,
+        timeout_in_minutes=90,
         boot_disk_size="60GB")
 
     for machine_suffix in machine_suffixes:
@@ -312,7 +312,6 @@ exit 1 unless $cert eq lc $kmod
   def test_install_gpu_with_mig(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider, cuda_version):
-    self.skipTest('Limiting tests as we probe for success')
 
     # Operation [projects/.../regions/.../operations/...] failed:
     # Invalid value for field 'resource.machineType': \
@@ -341,7 +340,7 @@ exit 1 unless $cert eq lc $kmod
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         metadata=metadata,
-        timeout_in_minutes=120,
+        timeout_in_minutes=90,
         boot_disk_size="60GB",
         startup_script="gpu/mig.sh")
 
@@ -355,6 +354,10 @@ exit 1 unless $cert eq lc $kmod
   )
   def test_gpu_allocation(self, configuration, master_accelerator,
                           worker_accelerator, driver_provider):
+
+    if self.getImageOs() == 'rocky' and self.getImageVersion() <= pkg_resources.parse_version("2.0"):
+      self.skipTest("2.0-rocky8 known to fail")
+
     if configuration == 'SINGLE' \
     and self.getImageOs() == 'rocky' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
@@ -369,11 +372,11 @@ exit 1 unless $cert eq lc $kmod
         configuration,
         self.INIT_ACTIONS,
         metadata=metadata,
-        machine_type="n1-standard-32", # temporarily increased from n1-standard-16
+        machine_type="n1-standard-16",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
         boot_disk_size="60GB",
-        timeout_in_minutes=120)
+        timeout_in_minutes=90)
 
     self.verify_instance_spark()
 
@@ -388,6 +391,7 @@ exit 1 unless $cert eq lc $kmod
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
     self.skipTest('Limiting tests as we probe for success')
+
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.4") \
     and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
           ( self.getImageOs() == 'debian' and self.getImageVersion() <= pkg_resources.parse_version("2.1") ) ):
@@ -407,11 +411,11 @@ exit 1 unless $cert eq lc $kmod
     self.createCluster(
       configuration,
       self.INIT_ACTIONS,
-      machine_type="n1-standard-32", # temporarily increased from n1-standard-16
+      machine_type="n1-standard-16",
       master_accelerator=master_accelerator,
       worker_accelerator=worker_accelerator,
       metadata=metadata,
-      timeout_in_minutes=120,
+      timeout_in_minutes=90,
       boot_disk_size="60GB",
       scopes="https://www.googleapis.com/auth/monitoring.write")
 
@@ -442,7 +446,6 @@ exit 1 unless $cert eq lc $kmod
   def untested_driver_signing(self, configuration, machine_suffixes,
                            master_accelerator, worker_accelerator,
                            cuda_version, image_os, image_version):
-    self.skipTest('Limiting tests as we probe for success')
 
     if configuration == 'KERBEROS' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
@@ -471,11 +474,11 @@ exit 1 unless $cert eq lc $kmod
     self.createCluster(
       configuration,
       self.INIT_ACTIONS,
-      machine_type="n1-standard-32", # temporarily increased from n1-standard-16
+      machine_type="n1-standard-16",
       master_accelerator=master_accelerator,
       worker_accelerator=worker_accelerator,
       metadata=metadata,
-      timeout_in_minutes=120,
+      timeout_in_minutes=90,
       boot_disk_size="60GB",
       scopes="https://www.googleapis.com/auth/monitoring.write")
     for machine_suffix in machine_suffixes:

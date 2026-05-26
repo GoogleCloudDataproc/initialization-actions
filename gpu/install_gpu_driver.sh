@@ -1125,60 +1125,95 @@ function is_src_os()     { [[ "${GPU_DRIVER_PROVIDER}" == "OS" ]] ; }
 function install_nvidia_cudnn() {
   is_complete cudnn && return
   if le_debian10 ; then return ; fi
-  local major_version
-  major_version="${CUDNN_VERSION%%.*}"
-  local cudnn_pkg_version
-  cudnn_pkg_version="${CUDNN_VERSION}-1+cuda${CUDA_VERSION}"
 
-  if is_rocky ; then
-    if is_cudnn8 ; then
-      execute_with_retries dnf -y -q install \
-        "libcudnn${major_version}" \
-        "libcudnn${major_version}-devel"
-      sync
-    elif is_cudnn9 ; then
-      execute_with_retries dnf -y -q install \
-        "libcudnn9-static-cuda-${CUDA_VERSION%%.*}" \
-        "libcudnn9-devel-cuda-${CUDA_VERSION%%.*}"
-      sync
+  local source_method="${1:-package}"
+
+  if [[ "${source_method}" == "tarball" ]]; then
+    local local_tarball="${tmpdir}/${CUDNN_TARBALL}"
+    cache_fetched_package "${CUDNN_TARBALL_URL}" "${pkg_bucket}/nvidia/cudnn/${CUDNN_TARBALL}" "${local_tarball}"
+
+    pushd "${tmpdir}"
+    if [[ "${CUDNN_TARBALL}" == *.tar.xz ]]; then
+      tar xJf "${local_tarball}"
     else
-      echo "Unsupported cudnn version: '${major_version}'"
+      tar xzf "${local_tarball}"
     fi
-  elif is_debuntu; then
-    if ge_debian12 && is_src_os ; then
-      apt-get -y install nvidia-cudnn
-    else
+
+    local extracted_dir
+    extracted_dir="$(find . -maxdepth 1 -type d -name 'cudnn-*' -o -name 'cuda' | grep -v '\.tar' | head -n1)"
+    
+    if [[ -d "${extracted_dir}/include" ]]; then
+      cp -P "${extracted_dir}"/include/cudnn*.h /usr/local/cuda/include/
+      cp -P "${extracted_dir}"/lib/libcudnn* /usr/local/cuda/lib64/
+    elif [[ -d "${extracted_dir}/cuda/include" ]]; then
+      cp -P "${extracted_dir}"/cuda/include/cudnn*.h /usr/local/cuda/include/
+      cp -P "${extracted_dir}"/cuda/lib64/libcudnn* /usr/local/cuda/lib64/
+    fi
+    chmod a+r /usr/local/cuda/include/cudnn*.h /usr/local/cuda/lib64/libcudnn*
+    
+    popd
+    rm -f "${local_tarball}"
+    rm -rf "${tmpdir}/${extracted_dir}"
+
+  elif [[ "${source_method}" == "package" ]]; then
+    local major_version
+    major_version="${CUDNN_VERSION%%.*}"
+    local cudnn_pkg_version
+    cudnn_pkg_version="${CUDNN_VERSION}-1+cuda${CUDA_VERSION}"
+
+    if is_rocky ; then
       if is_cudnn8 ; then
-        add_repo_cuda
-
-        apt-get update -qq
-        # Ignore version requested and use the latest version in the package index
-        cudnn_pkg_version="$(apt-cache show libcudnn8 | awk "/^Ver.*cuda${CUDA_VERSION%%.*}.*/ {print \$2}" | sort -V | tail -1)"
-
-        execute_with_retries \
-          apt-get -y install --no-install-recommends \
-            "libcudnn8=${cudnn_pkg_version}" \
-            "libcudnn8-dev=${cudnn_pkg_version}"
-
+        execute_with_retries dnf -y -q install \
+          "libcudnn${major_version}" \
+          "libcudnn${major_version}-devel"
         sync
       elif is_cudnn9 ; then
-        install_cuda_keyring_pkg
-
-        apt-get update -qq
-
-        execute_with_retries \
-          apt-get -y install --no-install-recommends \
-          "libcudnn9-cuda-${CUDA_VERSION%%.*}" \
-          "libcudnn9-dev-cuda-${CUDA_VERSION%%.*}" \
-          "libcudnn9-static-cuda-${CUDA_VERSION%%.*}"
-
+        execute_with_retries dnf -y -q install \
+          "libcudnn9-static-cuda-${CUDA_VERSION%%.*}" \
+          "libcudnn9-devel-cuda-${CUDA_VERSION%%.*}"
         sync
       else
-        echo "Unsupported cudnn version: [${CUDNN_VERSION}]"
+        echo "Unsupported cudnn version: '${major_version}'"
       fi
+    elif is_debuntu; then
+      if ge_debian12 && is_src_os ; then
+        apt-get -y install nvidia-cudnn
+      else
+        if is_cudnn8 ; then
+          add_repo_cuda
+
+          apt-get update -qq
+          # Ignore version requested and use the latest version in the package index
+          cudnn_pkg_version="$(apt-cache show libcudnn8 | awk "/^Ver.*cuda${CUDA_VERSION%%.*}.*/ {print \$2}" | sort -V | tail -1)"
+
+          execute_with_retries \
+            apt-get -y install --no-install-recommends \
+              "libcudnn8=${cudnn_pkg_version}" \
+              "libcudnn8-dev=${cudnn_pkg_version}"
+
+          sync
+        elif is_cudnn9 ; then
+          install_cuda_keyring_pkg
+
+          apt-get update -qq
+
+          execute_with_retries \
+            apt-get -y install --no-install-recommends \
+            "libcudnn9-cuda-${CUDA_VERSION%%.*}" \
+            "libcudnn9-dev-cuda-${CUDA_VERSION%%.*}" \
+            "libcudnn9-static-cuda-${CUDA_VERSION%%.*}"
+
+          sync
+        else
+          echo "Unsupported cudnn version: [${CUDNN_VERSION}]"
+        fi
+      fi
+    else
+      echo "Unsupported OS: '${OS_NAME}'"
+      exit 1
     fi
   else
-    echo "Unsupported OS: '${OS_NAME}'"
+    echo "Unknown install method: ${source_method}"
     exit 1
   fi
 
@@ -1840,7 +1875,7 @@ function install_gpu_agent() {
   "${python_interpreter}" -m venv "${venv}"
 (
   source "${venv}/bin/activate"
-  if [[ -v METADATA_HTTP_PROXY_PEM_URI ]] && [[ -n "${METADATA_HTTP_PROXY_PEM_URI}" ]]; then
+  if [[ -n "${trusted_pem_path:-}" ]]; then
     export REQUESTS_CA_BUNDLE="${trusted_pem_path}"
     pip install pip-system-certs
     unset REQUESTS_CA_BUNDLE
@@ -2662,7 +2697,11 @@ function main() {
 
       if [[ -n ${CUDNN_VERSION} ]]; then
         install_nvidia_nccl
-        install_nvidia_cudnn
+        local default_cudnn_source="package"
+        if is_rocky && version_le "${DATAPROC_IMAGE_VERSION}" "2.1" ; then
+          default_cudnn_source="tarball"
+        fi
+        install_nvidia_cudnn "$(get_metadata_attribute 'cudnn-install-source' "${default_cudnn_source}")"
       fi
 
       install_tensorflow

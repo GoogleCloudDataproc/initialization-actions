@@ -189,6 +189,7 @@ This script accepts the following metadata parameters:
     Determines preference for OS-provided vs. NVIDIA-direct drivers.
     The script often prioritizes `.run` files or source builds for reliability.
   * `cudnn-version`: (Optional) Specify cuDNN version (e.g., `8.9.7.29`).
+  * `cudnn-install-source`: (Optional) `tarball`|`package`. Default: `package` (except for `2.0-rocky8` and `2.1-rocky8` where it defaults to `tarball` to bypass CDN flakes). Determines whether cuDNN is installed via the OS package manager or extracted from the standalone NVIDIA tarball cached in GCS.
   * `nccl-version`: (Optional) Specify NCCL version.
   * `include-pytorch`: (Optional) `yes`|`no`. Default: `no`.
     If `yes`, installs PyTorch, TensorFlow, RAPIDS, and PySpark in a Conda
@@ -290,6 +291,8 @@ handles metric creation and reporting.
     and agent versions aim to mitigate this. If encountered, check agent logs.
 
 ## Development and Testing
+
+For instructions on how to manually test changes to this initialization action, including iterative development on a live cluster, please see the [TESTING.md](./TESTING.md) guide.
 
 If you are modifying this initialization action, you can use the provided test infrastructure to validate your changes locally before deploying them to production.
 

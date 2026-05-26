@@ -53,6 +53,68 @@ cd cloud-dataproc/gcloud
 bash t/spark-gpu-test.sh
 ```
 
+## Fast Iterative Development (SSH/Manual)
+
+This initialization action is designed to be **idempotent**, meaning it can be run multiple times on the same node without breaking the environment. It achieves this by writing "completion sentinels" to `/opt/install-dpgce/complete/` after successfully finishing each phase (e.g., `build-dependencies`, `nccl`, `cuda`).
+
+To facilitate rapid iteration, we use the tooling provided in the companion `cloud-dataproc/gcloud` repository. This repo contains the test infrastructure, environment configuration (`env.json`), and lifecycle management scripts (`recreate-dpgce`, `ssh-m`, `scp-m`) necessary to provision and interact with test clusters efficiently.
+
+When making structural or execution logic changes, you want to avoid destroying and recreating the entire Dataproc cluster during each test cycle. Instead, follow this incremental workflow:
+
+### 1. Provision a "Bare" GPU Cluster
+First, configure your target OS and versions in `cloud-dataproc/gcloud/env.json`. Then, use the `--no-init-action` flag on the recreation script to provision a cluster with GPUs attached, but *without* running any initialization actions during boot.
+
+```bash
+cd ../cloud-dataproc/gcloud
+# Edit env.json to set IMAGE_VERSION, REGION, ZONE, ACCELERATOR_TYPE, etc.
+./bin/recreate-dpgce --gpu --no-init-action
+```
+*Note: `recreate-dpgce` will delete and recreate the cluster if it already exists.*
+
+### 2. Compile, Stage, and Execute in Screen
+The `install-in-screen.sh` script automates compiling the fragments, staging the script to the -m node, and running it within a detached `screen` session.
+
+```bash
+cd ../initialization-actions/gpu
+./install-in-screen.sh
+```
+
+This command will:
+*   Concatenate scripts from `install_gpu_driver.sh.d/` into `install_gpu_driver.sh`.
+*   Use `../cloud-dataproc/gcloud/bin/scp-m` to upload the script to `/tmp/install_gpu_driver.sh` on the -m node.
+*   SSH to the -m node and start the script in a `screen` session named `gpu_install`. If the session already exists, it reattaches.
+
+**Monitoring:**
+*   Logs are streamed to `/tmp/install_gpu_driver.log` on the -m node. You can tail this file via a separate SSH session:
+    ```bash
+    cd ../cloud-dataproc/gcloud
+    ./bin/ssh-m "tail -f /tmp/install_gpu_driver.log"
+    ```
+*   Re-run `./install-in-screen.sh` to reattach to the screen session.
+
+### 3. Incremental Testing & Clearing Sentinels
+To re-run specific parts of the script after making fixes, you MUST clear the completion sentinels for those parts on the -m node.
+
+*   To run the *entire* script from scratch:
+    ```bash
+    cd ../cloud-dataproc/gcloud
+    ./bin/ssh-m 'sudo rm -rf /opt/install-dpgce/complete'
+    ```
+*   To re-test only the NCCL build:
+    ```bash
+    cd ../cloud-dataproc/gcloud
+    ./bin/ssh-m 'sudo rm -f /opt/install-dpgce/complete/nccl && sudo rm -rf /opt/install-dpgce/nccl'
+    ```
+Then, run `./initialization-actions/gpu/install-in-screen.sh` again.
+
+### 4. Verify with the Test Suite
+Once the installation script completes without errors in the screen session, run the external testing suite from the `cloud-dataproc/gcloud` repository to ensure all Conda environments (PyTorch, TensorFlow, RAPIDS) and Spark services correctly bind to the GPU.
+
+```bash
+cd ../cloud-dataproc/gcloud
+bash t/spark-gpu-test.sh
+```
+
 ## Continuous Integration Testing (Bazel/Podman)
 
 Once the manual tests pass, you **must** verify the script behaves correctly within the isolated Python `absl` test harness (`test_gpu.py`) before pushing your changes to GitHub. This validates the full matrix of installation scenarios (SINGLE, STANDARD, KERBEROS, MIG, etc.).
