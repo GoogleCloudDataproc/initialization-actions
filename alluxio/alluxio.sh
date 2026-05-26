@@ -33,6 +33,15 @@ readonly ALLUXIO_HOME=/opt/alluxio
 readonly ALLUXIO_SITE_PROPERTIES=${ALLUXIO_HOME}/conf/alluxio-site.properties
 readonly ALLUXIO_DOWNLOAD_URL=https://downloads.alluxio.io/downloads/files/${ALLUXIO_VERSION}/alluxio-${ALLUXIO_VERSION}-bin.tar.gz
 
+function version_le() { [[ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]]; }
+function version_lt() { [[ "$1" = "$2" ]] && return 1 || version_le "$1" "$2"; }
+
+GCLOUD_SDK_VERSION="$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print $2}')"
+GSUTIL="gcloud storage"
+if version_lt "${GCLOUD_SDK_VERSION}" "402.0.0"; then
+  GSUTIL="gsutil"
+fi
+
 # Downloads a file to the local machine from a remote HTTP(S) or GCS URI into the cwd
 #
 # Args:
@@ -41,7 +50,7 @@ download_file() {
   local -r uri="$1"
 
   if [[ "${uri}" == gs://* ]]; then
-    gsutil cp "${uri}" ./
+    ${GSUTIL} cp "${uri}" ./
   else
     # TODO Add metadata header tag to the wget for filtering out in download metrics.
     wget -nv --timeout=30 --tries=5 --retry-connrefused "${uri}"

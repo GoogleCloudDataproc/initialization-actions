@@ -37,6 +37,17 @@ R_VERSION="$(R --version | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/
 readonly R_VERSION
 readonly SPARK_NLP_VERSION="3.2.1" # Must include subminor version here
 
+function version_le() { [[ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]]; }
+function version_lt() { [[ "$1" = "$2" ]] && return 1 || version_le "$1" "$2"; }
+
+GCLOUD_SDK_VERSION="$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print $2}')"
+GSUTIL="gcloud storage"
+GSUTIL_OPTS=""
+if version_lt "${GCLOUD_SDK_VERSION}" "402.0.0"; then
+  GSUTIL="gsutil"
+  GSUTIL_OPTS="-m"
+fi
+
 CONDA_PACKAGES=(
   "r-dplyr=1.0"
   "r-essentials=${R_VERSION}"
@@ -97,9 +108,9 @@ function download_init_actions() {
   # Download initialization actions locally.
   mkdir "${INIT_ACTIONS_DIR}"/{gpu,rapids,dask}
 
-  gsutil -m rsync -r "${INIT_ACTIONS_REPO}/rapids/" "${INIT_ACTIONS_DIR}/rapids/"
-  gsutil -m rsync -r "${INIT_ACTIONS_REPO}/gpu/" "${INIT_ACTIONS_DIR}/gpu/"
-  gsutil -m rsync -r "${INIT_ACTIONS_REPO}/dask/" "${INIT_ACTIONS_DIR}/dask/"
+  ${GSUTIL} ${GSUTIL_OPTS} rsync -r "${INIT_ACTIONS_REPO}/rapids/" "${INIT_ACTIONS_DIR}/rapids/"
+  ${GSUTIL} ${GSUTIL_OPTS} rsync -r "${INIT_ACTIONS_REPO}/gpu/" "${INIT_ACTIONS_DIR}/gpu/"
+  ${GSUTIL} ${GSUTIL_OPTS} rsync -r "${INIT_ACTIONS_REPO}/dask/" "${INIT_ACTIONS_DIR}/dask/"
 
   find "${INIT_ACTIONS_DIR}" -name '*.sh' -exec chmod +x {} \;
 }
@@ -167,7 +178,7 @@ function install_spark_nlp() {
 function install_connectors() {
   local -r url="gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.12-${SPARK_BIGQUERY_VERSION}.jar"
 
-  gsutil cp "${url}" "${CONNECTORS_DIR}/"
+  ${GSUTIL} cp "${url}" "${CONNECTORS_DIR}/"
 
   local -r jar_name=${url##*/}
 

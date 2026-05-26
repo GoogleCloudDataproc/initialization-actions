@@ -77,8 +77,8 @@ Where `create-my-cluster.sh` specifies a list of conda and/or pip packages to in
 ```
 #!/usr/bin/env bash
 
-gsutil -m cp -r gs://goog-dataproc-initialization-actions-${REGION}/conda/bootstrap-conda.sh .
-gsutil -m cp -r gs://goog-dataproc-initialization-actions-${REGION}/conda/install-conda-env.sh .
+gcloud storage cp gs://goog-dataproc-initialization-actions-${REGION}/conda/bootstrap-conda.sh .
+gcloud storage cp gs://goog-dataproc-initialization-actions-${REGION}/conda/install-conda-env.sh .
 
 chmod 755 ./*conda*.sh
 
@@ -100,9 +100,9 @@ Similarly, one can also specify a [conda environment yml file](https://github.co
 CONDA_ENV_YAML_GSC_LOC="gs://my-bucket/path/to/conda-environment.yml"
 CONDA_ENV_YAML_PATH="/root/conda-environment.yml"
 echo "Downloading conda environment at $CONDA_ENV_YAML_GSC_LOC to $CONDA_ENV_YAML_PATH ... "
-gsutil -m cp -r $CONDA_ENV_YAML_GSC_LOC $CONDA_ENV_YAML_PATH
-gsutil -m cp -r gs://goog-dataproc-initialization-actions-${REGION}/conda/bootstrap-conda.sh .
-gsutil -m cp -r gs://goog-dataproc-initialization-actions-${REGION}/conda/install-conda-env.sh .
+gcloud storage cp $CONDA_ENV_YAML_GSC_LOC $CONDA_ENV_YAML_PATH
+gcloud storage cp gs://goog-dataproc-initialization-actions-${REGION}/conda/bootstrap-conda.sh .
+gcloud storage cp gs://goog-dataproc-initialization-actions-${REGION}/conda/install-conda-env.sh .
 
 chmod 755 ./*conda*.sh
 
