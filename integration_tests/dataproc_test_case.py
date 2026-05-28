@@ -50,8 +50,7 @@ class DataprocTestCase(parameterized.TestCase):
     COMPONENT = None
     INIT_ACTIONS = None
     INIT_ACTIONS_REPO = None
-    IMAGE_VERSION_2_2_PATTERN = re.compile(
-        r'^2\.2(?:\.\d+)?-(?:debian12|ubuntu22|rocky9)$')
+    IMAGE_VERSION_2_2 = ['2.2-debian12', '2.2-ubuntu22', '2.2-rocky9']
 
     @classmethod
     def setUpClass(cls):
@@ -119,7 +118,7 @@ class DataprocTestCase(parameterized.TestCase):
             args.append("--image={}".format(FLAGS.image))
         elif FLAGS.image_version:
             args.append("--image-version={}".format(FLAGS.image_version))
-            if self.IMAGE_VERSION_2_2_PATTERN.match(FLAGS.image_version):
+            if FLAGS.image_version in self.IMAGE_VERSION_2_2:
                 args.append("--public-ip-address")
 
         for i in init_actions:
