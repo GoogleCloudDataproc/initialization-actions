@@ -418,12 +418,18 @@ function configure_ubuntu22_cuda12_compiler() {
 
   # Ubuntu 22 defaults to gcc-11, which fails to build some NVIDIA kernel
   # modules against newer Dataproc 2.2 GCP kernels such as 6.8.0-1058-gcp.
-  execute_with_retries "apt-get install -y -q gcc-12"
+  execute_with_retries "apt-get install -y -q gcc-12 g++-12"
   if [[ -x /usr/bin/gcc-11 ]]; then
     update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 11
   fi
   update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
   update-alternatives --set gcc /usr/bin/gcc-12
+
+  if [[ -x /usr/bin/g++-11 ]]; then
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 11
+  fi
+  update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 12
+  update-alternatives --set g++ /usr/bin/g++-12
 }
 
 # Install NVIDIA GPU driver provided by NVIDIA
