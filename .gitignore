@@ -11,3 +11,5 @@
 
 # Emacs
 *~
+
+gpu/install_gpu_driver.sh.d

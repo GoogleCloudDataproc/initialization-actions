@@ -28,8 +28,8 @@ CUDA | Full Version | Driver    | cuDNN     | NCCL   | Tested Dataproc Image Ver
 -----| ------------ | --------- | --------- | -------| ---------------------------
 11.8 | 11.8.0       | 525.147.05| 9.5.1.17  | 2.21.5 | 2.0, 2.1 (Debian/Ubuntu/Rocky); 2.2 (Ubuntu 22.04)
 12.0 | 12.0.1       | 525.147.05| 8.8.1.3   | 2.16.5 | 2.0, 2.1 (Debian/Ubuntu/Rocky); 2.2 (Rocky 9, Ubuntu 22.04)
-12.4 | 12.4.1       | 550.135   | 9.1.0.70  | 2.23.4 | 2.1 (Ubuntu 20.04, Rocky 8); Dataproc 2.2+
-12.6 | 12.6.3       | 550.142   | 9.6.0.74  | 2.23.4 | 2.1 (Ubuntu 20.04, Rocky 8); Dataproc 2.2+
+12.4 | 12.4.1       | 590.48.01| 9.1.0.70  | 2.23.4 | 2.1 (Ubuntu 20.04, Rocky 8); Dataproc 2.2+
+12.6 | 12.6.3       | 590.48.01| 9.6.0.74  | 2.23.4 | 2.1 (Ubuntu 20.04, Rocky 8); Dataproc 2.2+
 
 **Supported Operating Systems:**
 
@@ -189,6 +189,7 @@ This script accepts the following metadata parameters:
     Determines preference for OS-provided vs. NVIDIA-direct drivers.
     The script often prioritizes `.run` files or source builds for reliability.
   * `cudnn-version`: (Optional) Specify cuDNN version (e.g., `8.9.7.29`).
+  * `cudnn-install-source`: (Optional) `tarball`|`package`. Default: `package` (except for `2.0-rocky8` and `2.1-rocky8` where it defaults to `tarball` to bypass CDN flakes). Determines whether cuDNN is installed via the OS package manager or extracted from the standalone NVIDIA tarball cached in GCS.
   * `nccl-version`: (Optional) Specify NCCL version.
   * `include-pytorch`: (Optional) `yes`|`no`. Default: `no`.
     If `yes`, installs PyTorch, TensorFlow, RAPIDS, and PySpark in a Conda
@@ -288,6 +289,80 @@ handles metric creation and reporting.
   * **"Points written too frequently" (GPU Agent):** This was a known issue with
     older versions of the `report_gpu_metrics.py` service. The current script
     and agent versions aim to mitigate this. If encountered, check agent logs.
+
+## Development and Testing
+
+For instructions on how to manually test changes to this initialization action, including iterative development on a live cluster, please see the [TESTING.md](./TESTING.md) guide.
+
+If you are modifying this initialization action, you can use the provided test infrastructure to validate your changes locally before deploying them to production.
+
+### Local Integration Testing (Bazel / Podman)
+
+Before pushing any changes to GitHub, you **must** run the integration tests locally to validate your modifications against the full test matrix (`test_gpu.py`). These tests use `absl.testing.parameterized` and the `integration_tests.dataproc_test_case` framework to spin up ephemeral Dataproc clusters and validate GPU functionality (SINGLE, STANDARD, KERBEROS, MIG, etc.).
+
+We provide a Podman wrapper to execute the Bazel test suite locally, perfectly simulating the remote CI sandbox environment.
+
+1. **Credentials:** Ensure you have your Google Cloud Application Default Credentials (ADC) saved locally, typically at `~/.config/gcloud/application_default_credentials.json`, and copy it to `initialization-actions/key.json`.
+2. **Environment:** You must have a configured `env.json` in the `gpu/` directory.
+
+To run the full suite in the Podman container (Unfiltered):
+
+> ⚠️ **WARNING: HIGH RESOURCE CONSUMPTION**
+> An unfiltered run executes the entire test matrix (currently ~12 shards). Because the script is configured to run up to 10 jobs in parallel, this will concurrently provision up to 10 separate Dataproc clusters. This requires massive GCP quota (e.g., ~900 vCPUs and ~30 GPUs simultaneously if using `n1-standard-32` profiles) and will take 60-90 minutes.
+
+```bash
+cd initialization-actions
+# Test a specific Dataproc image version against the full suite
+./gpu/run-bazel-tests-with-podman.sh "2.2-ubuntu22"
+```
+
+To run a specific test filter to iterate quickly on a failure (Recommended):
+
+```bash
+cd initialization-actions
+
+# Filter by a specific test function
+./gpu/run-bazel-tests-with-podman.sh "2.2-ubuntu22" "--test_filter=test_gpu_allocation"
+
+# Filter by another specific test function
+./gpu/run-bazel-tests-with-podman.sh "2.2-ubuntu22" "--test_filter=test_install_gpu_cuda_nvidia_with_spark_job"
+
+# Filter by the entire class
+./gpu/run-bazel-tests-with-podman.sh "2.2-ubuntu22" "--test_filter=NvidiaGpuDriverTestCase"
+```
+
+### Manual Verification Scripts
+
+If you have already provisioned a Dataproc cluster (e.g., `my-cluster`) and want to verify its GPU configuration without running the full Bazel test suite, you can use the standalone verification scripts.
+
+```bash
+# Verify using the local Python script
+python3 gpu/verify_external_cluster.py \
+  --cluster=my-cluster \
+  --region=us-east4 \
+  --zone=us-east4-b \
+  --project=my-project \
+  --tests smi agent spark torch tf numa
+
+# Or using the bash equivalent
+export CLUSTER_NAME=my-cluster PROJECT_ID=my-project REGION=us-east4 ZONE=us-east4-b
+./gpu/verify_external_gpu_cluster.sh
+```
+
+### Advanced Spark / ML Validation
+
+For comprehensive validation of Spark RAPIDS, PyTorch, and TensorFlow on a running cluster, an external testing script is available in the associated `cloud-dataproc/gcloud` repository.
+
+```bash
+# Configure the gcloud test environment
+cd ../cloud-dataproc/gcloud
+source lib/env.sh  # Populates environment variables from env.json
+
+# Execute the comprehensive Spark GPU test suite against the configured cluster
+./t/spark-gpu-test.sh
+```
+
+This script will remotely execute SSH commands to validate NUMA configurations, run PyTorch/TensorFlow isolated in their Conda environments, verify NVCC/cuDNN, and submit `SparkPi` and `JavaIndexToStringExample` Spark jobs configured to use the RAPIDS accelerator plugin.
 
 ## Important notes
 

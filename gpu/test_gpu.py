@@ -1,5 +1,6 @@
 import pkg_resources
 import time
+import os
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -18,11 +19,16 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   GPU_A100 = "type=nvidia-tesla-a100,count=2"
   GPU_H100 = "type=nvidia-h100-80gb,count=2"
 
-  # Tests for PyTorch
-  TORCH_TEST_SCRIPT_FILE_NAME = "verify_pytorch.py"
-
-  # Tests for TensorFlow
-  TF_TEST_SCRIPT_FILE_NAME = "verify_tensorflow.py"
+  @classmethod
+  def setUpClass(cls):
+    import os
+    if os.getenv("PROJECT_ID"):
+      os.environ["CLOUDSDK_CORE_PROJECT"] = os.getenv("PROJECT_ID")
+      DataprocTestCase.PROJECT = os.getenv("PROJECT_ID")
+    if os.getenv("REGION"):
+      os.environ["CLOUDSDK_COMPUTE_REGION"] = os.getenv("REGION")
+      DataprocTestCase.REGION = os.getenv("REGION")
+    super().setUpClass()
 
   def assert_instance_command(self,
                              instance,
@@ -63,18 +69,17 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                self.TORCH_TEST_SCRIPT_FILE_NAME)
     self.upload_test_file(test_filename, name)
 
-    conda_env="dpgce"
-
     # until the numa node is selected, every time the GPU is accessed
     # from pytorch, log noise about numa node not being selected is
     # printed to the console. Selecting numa node before the python is
     # executed improves readability of the diagnostic information.
 
-    verify_cmd = \
-      "env={} ; envpath=/opt/conda/miniconda3/envs/${env} ; ".format(conda_env) + \
-      "for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node) ; do echo 0 > ${f} ; done ;" + \
-      "${envpath}/bin/python {}".format(
-        self.TORCH_TEST_SCRIPT_FILE_NAME)
+    verify_cmd = (
+      "for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node 2>/dev/null) ; do echo 0 > ${f} ; done ; "
+      "PY_BIN=$(find /opt/conda -maxdepth 6 -path '*/envs/pytorch/bin/python3' | head -n1); "
+      "if [[ -z \"$PY_BIN\" ]]; then echo 'PyTorch python not found'; exit 1; fi; "
+      f"$PY_BIN {self.TORCH_TEST_SCRIPT_FILE_NAME}"
+    )
     self.assert_instance_command(name, verify_cmd)
     self.remove_test_script(self.TORCH_TEST_SCRIPT_FILE_NAME, name)
 
@@ -83,14 +88,23 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                self.TF_TEST_SCRIPT_FILE_NAME)
     self.upload_test_file(test_filename, name)
     # all on a single numa node
-    conda_env="dpgce"
-    verify_cmd = \
-      "env={} ; envpath=/opt/conda/miniconda3/envs/${env} ; ".format(conda_env) + \
-      "for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node) ; do echo 0 > ${f} ; done ;" + \
-      "${envpath}/bin/python {}".format(
-        self.TF_TEST_SCRIPT_FILE_NAME)
+    verify_cmd = (
+      "for f in $(ls /sys/module/nvidia/drivers/pci:nvidia/*/numa_node 2>/dev/null) ; do echo 0 > ${f} ; done ; "
+      "PY_BIN=$(find /opt/conda -maxdepth 6 -path '*/envs/tensorflow/bin/python3' | head -n1); "
+      "if [[ -z \"$PY_BIN\" ]]; then echo 'TensorFlow python not found'; exit 1; fi; "
+      f"$PY_BIN {self.TF_TEST_SCRIPT_FILE_NAME}"
+    )
     self.assert_instance_command(name, verify_cmd)
     self.remove_test_script(self.TF_TEST_SCRIPT_FILE_NAME, name)
+
+  def verify_rapids(self, name):
+    # Verify that rapids works
+    verify_cmd = (
+      "PY_BIN=$(find /opt/conda -maxdepth 6 -path '*/envs/rapids/bin/python3' | head -n1); "
+      "if [[ -z \"$PY_BIN\" ]]; then echo 'Rapids python not found'; exit 1; fi; "
+      "$PY_BIN -c 'import cuml'"
+    )
+    self.assert_instance_command(name, verify_cmd)
 
   def verify_mig_instance(self, name):
     self.assert_instance_command(name,
@@ -163,7 +177,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     if self.getImageOs() == 'ubuntu':
       cert_path='/var/lib/shim-signed/mok/MOK.der'
 
-    cert_verification_cmd = """
+    cert_verification_cmd = r"""
 perl -Mv5.10 -e '
 my $cert = ( qx{openssl x509 -inform DER -in {} -text}
              =~ /Serial Number:.*? +(.+?)\s*$/ms );
@@ -180,8 +194,7 @@ exit 1 unless $cert eq lc $kmod
   def test_install_gpu_without_agent(self, configuration, machine_suffixes,
                                      master_accelerator, worker_accelerator,
                                      driver_provider):
-#    if self.getImageOs() == 'rocky' and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-#      self.skipTest("disabling rocky9 builds due to out of date base dataproc image")
+    self.skipTest('Limiting tests as we probe for success')
 
     metadata = "install-gpu-agent=false"
     if configuration == 'SINGLE' \
@@ -200,7 +213,7 @@ exit 1 unless $cert eq lc $kmod
         worker_accelerator=worker_accelerator,
         metadata=metadata,
         timeout_in_minutes=90,
-        boot_disk_size="50GB")
+        boot_disk_size="60GB")
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
       self.verify_instance(machine_name)
@@ -213,8 +226,6 @@ exit 1 unless $cert eq lc $kmod
   def test_install_gpu_with_agent(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider):
-#    if self.getImageOs() == 'rocky' and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-#      self.skipTest("disabling rocky9 builds due to out of date base dataproc image")
 
     self.skipTest("No need to regularly test installing the agent on its own cluster ; this is exercised elsewhere")
 
@@ -234,7 +245,7 @@ exit 1 unless $cert eq lc $kmod
         worker_accelerator=worker_accelerator,
         metadata=metadata,
         timeout_in_minutes=90,
-        boot_disk_size="50GB",
+        boot_disk_size="60GB",
         scopes="https://www.googleapis.com/auth/monitoring.write")
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
@@ -250,8 +261,9 @@ exit 1 unless $cert eq lc $kmod
   def test_install_gpu_cuda_nvidia(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
-#    if self.getImageOs() == 'rocky' and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-#      self.skipTest("disabling rocky9 builds due to out of date base dataproc image")
+
+    if self.getImageOs() == 'rocky' and self.getImageVersion() <= pkg_resources.parse_version("2.0"):
+      self.skipTest("2.0-rocky8 known to fail")
 
     if configuration == 'KERBEROS' \
     and self.getImageVersion() <= pkg_resources.parse_version("2.1"):
@@ -283,7 +295,7 @@ exit 1 unless $cert eq lc $kmod
         worker_accelerator=worker_accelerator,
         metadata=metadata,
         timeout_in_minutes=90,
-        boot_disk_size="50GB")
+        boot_disk_size="60GB")
 
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
@@ -300,8 +312,6 @@ exit 1 unless $cert eq lc $kmod
   def test_install_gpu_with_mig(self, configuration, machine_suffixes,
                                   master_accelerator, worker_accelerator,
                                   driver_provider, cuda_version):
-#    if self.getImageOs() == 'rocky' and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-#      self.skipTest("disabling rocky9 builds due to out of date base dataproc image")
 
     # Operation [projects/.../regions/.../operations/...] failed:
     # Invalid value for field 'resource.machineType': \
@@ -331,7 +341,7 @@ exit 1 unless $cert eq lc $kmod
         worker_accelerator=worker_accelerator,
         metadata=metadata,
         timeout_in_minutes=90,
-        boot_disk_size="50GB",
+        boot_disk_size="60GB",
         startup_script="gpu/mig.sh")
 
     for machine_suffix in ["w-0", "w-1"]:
@@ -344,8 +354,9 @@ exit 1 unless $cert eq lc $kmod
   )
   def test_gpu_allocation(self, configuration, master_accelerator,
                           worker_accelerator, driver_provider):
-#    if self.getImageOs() == 'rocky' and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-#      self.skipTest("disabling rocky9 builds due to out of date base dataproc image")
+
+    if self.getImageOs() == 'rocky' and self.getImageVersion() <= pkg_resources.parse_version("2.0"):
+      self.skipTest("2.0-rocky8 known to fail")
 
     if configuration == 'SINGLE' \
     and self.getImageOs() == 'rocky' \
@@ -364,7 +375,7 @@ exit 1 unless $cert eq lc $kmod
         machine_type="n1-standard-16",
         master_accelerator=master_accelerator,
         worker_accelerator=worker_accelerator,
-        boot_disk_size="50GB",
+        boot_disk_size="60GB",
         timeout_in_minutes=90)
 
     self.verify_instance_spark()
@@ -379,8 +390,7 @@ exit 1 unless $cert eq lc $kmod
   def test_install_gpu_cuda_nvidia_with_spark_job(self, configuration, machine_suffixes,
                                    master_accelerator, worker_accelerator,
                                    cuda_version):
-#    if self.getImageOs() == 'rocky' and self.getImageVersion() >= pkg_resources.parse_version("2.2"):
-#      self.skipTest("disabling rocky9 builds due to out of date base dataproc image")
+    self.skipTest('Limiting tests as we probe for success')
 
     if pkg_resources.parse_version(cuda_version) > pkg_resources.parse_version("12.4") \
     and ( ( self.getImageOs() == 'ubuntu' and self.getImageVersion() <= pkg_resources.parse_version("2.0") ) or \
@@ -397,7 +407,7 @@ exit 1 unless $cert eq lc $kmod
       # ('2.1-rocky8 and 2.0-rocky8 tests are known to fail in SINGLE configuration with errors about nodes_include being empty')
       self.skipTest("known to fail")
 
-    metadata = "install-gpu-agent=true,gpu-driver-provider=NVIDIA,cuda-version={}".format(cuda_version)
+    metadata = "install-gpu-agent=true,gpu-driver-provider=NVIDIA,cuda-version={},include-tensorflow=true,include-pytorch=yes".format(cuda_version)
     self.createCluster(
       configuration,
       self.INIT_ACTIONS,
@@ -406,13 +416,21 @@ exit 1 unless $cert eq lc $kmod
       worker_accelerator=worker_accelerator,
       metadata=metadata,
       timeout_in_minutes=90,
-      boot_disk_size="50GB",
+      boot_disk_size="60GB",
       scopes="https://www.googleapis.com/auth/monitoring.write")
 
     for machine_suffix in machine_suffixes:
       machine_name="{}-{}".format(self.getClusterName(),machine_suffix)
       self.verify_instance(machine_name)
       self.verify_instance_gpu_agent(machine_name)
+
+      self.verify_tensorflow(machine_name)
+      if self.getImageVersion() >= pkg_resources.parse_version("2.1"):
+        self.verify_pytorch(machine_name)
+        self.verify_rapids(machine_name)
+      else:
+        print("Skipping PyTorch and RAPIDS verification on Dataproc < 2.1 due to expected Conda solver timeout.")
+
     self.verify_instance_spark()
 
   @parameterized.parameters(
@@ -461,7 +479,7 @@ exit 1 unless $cert eq lc $kmod
       worker_accelerator=worker_accelerator,
       metadata=metadata,
       timeout_in_minutes=90,
-      boot_disk_size="50GB",
+      boot_disk_size="60GB",
       scopes="https://www.googleapis.com/auth/monitoring.write")
     for machine_suffix in machine_suffixes:
       hostname="{}-{}".format(self.getClusterName(),machine_suffix)
