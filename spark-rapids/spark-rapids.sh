@@ -248,6 +248,12 @@ if [[ "${OS_NAME}" == "ubuntu" ]]; then
       CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '12.1.1')  #12.1.1
       NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '530.30.02') #530.30.02
       CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.1
+    elif is_ubuntu22 ; then
+      # Dataproc 2.2 Ubuntu images can move to newer GCP kernels without
+      # changing the image version. Use the online repo to get a compatible
+      # package in the selected NVIDIA driver series instead of the older
+      # driver embedded in the local CUDA repo.
+      USE_REPO_INSTALL="true"
     elif is_ubuntu24 ; then
       # CUDA 12.4.1 is not available for Ubuntu 24.04, use 12.6.0 instead
       # For kernel 6.14+, use NVIDIA driver 570 for compatibility
@@ -405,6 +411,27 @@ function unhold_nvidia_packages() {
   apt-mark unhold xserver-xorg-video-nvidia* > /dev/null 2>&1
 }
 
+function configure_ubuntu22_cuda12_compiler() {
+  if ! is_ubuntu22 || [[ "${CUDA_VERSION_MAJOR}" != 12* ]]; then
+    return
+  fi
+
+  # Ubuntu 22 defaults to gcc-11, which fails to build some NVIDIA kernel
+  # modules against newer Dataproc 2.2 GCP kernels such as 6.8.0-1058-gcp.
+  execute_with_retries "apt-get install -y -q gcc-12 g++-12"
+  if [[ -x /usr/bin/gcc-11 ]]; then
+    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 11
+  fi
+  update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
+  update-alternatives --set gcc /usr/bin/gcc-12
+
+  if [[ -x /usr/bin/g++-11 ]]; then
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 11
+  fi
+  update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 12
+  update-alternatives --set g++ /usr/bin/g++-12
+}
+
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
 
@@ -465,6 +492,8 @@ function install_nvidia_gpu_driver() {
 
     # Unhold NVIDIA packages to allow upgrades (see issue #1321)
     unhold_nvidia_packages
+
+    configure_ubuntu22_cuda12_compiler
 
     execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
 
@@ -533,14 +562,19 @@ function install_nvidia_gpu_driver() {
       
       execute_with_retries "apt-get install -y -q --no-install-recommends dkms"
       configure_dkms_certs
-      
+
+      local cuda_toolkit_package="cuda-toolkit"
+      if [[ "${CUDA_VERSION}" != "latest" ]]; then
+        cuda_toolkit_package="cuda-toolkit-${CUDA_VERSION_MAJOR//./-}"
+      fi
+
       # Install latest CUDA toolkit and compatible NVIDIA driver
-      execute_with_retries "apt-get install -y -q --no-install-recommends cuda-toolkit"
+      execute_with_retries "apt-get install -y -q --no-install-recommends ${cuda_toolkit_package}"
       execute_with_retries "apt-get install -y -q --no-install-recommends nvidia-driver-${NVIDIA_DRIVER_VERSION_PREFIX}-open"
-      
+
       clear_dkms_key
       modprobe nvidia
-      
+
     else
       # Install from repo provided by NV
       readonly UBUNTU_REPO_CUDA_PIN="${NVIDIA_REPO_URL}/cuda-${shortname}.pin"
