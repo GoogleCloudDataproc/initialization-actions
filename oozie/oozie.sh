@@ -710,9 +710,7 @@ function install_fluentd_configuration() {
   enable_ruby true
   auto_typecast true
 
-  # "tag" is transtlated into log in Stackdriver
-  # Strip the instance name and .log from the filename if present
-  tag \${tag_suffix[-2].sub("-#{Socket.gethostname}", "").sub(/\.log\$/, "")}
+  tag ${tag_parts[-3]}
 
   # The following can be used when turning on jobid re-logging:
   # dataproc.googleapis.com/process_id \${job}
