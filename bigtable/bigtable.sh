@@ -230,7 +230,7 @@ function install_hbase() {
       fi
       ;;
 
-    "2.0" | "2.1" | "2.2" | "2.3" )
+    "2.0" | "2.1" | "2.2" | "2.3" | "3.0" | "99.0" )
 
       # get hbase tar from official site
       # Variants:
