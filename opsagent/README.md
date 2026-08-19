@@ -1,6 +1,6 @@
 # Ops Agent
 
-With [Dataproc 2.2 image version](https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-release-2.2), we recommend installing [Google Cloud Ops Agent](https://cloud.google.com/stackdriver/docs/solutions/agents/ops-agent) to obtain system metrics. 
+For [Dataproc image versions 2.2](https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-release-2.2)  and higher , we recommend installing [Google Cloud Ops Agent](https://cloud.google.com/stackdriver/docs/solutions/agents/ops-agent) to obtain system metrics. 
 
 This initialization action will install the Ops Agent on a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster and provide similar metrics as the [`--metric-sources=monitoring-agent-defaults`](https://cloud.google.com/dataproc/docs/guides/dataproc-metrics#monitoring_agent_metrics) setting which was supported until Dataproc 2.1.
 [This page](https://cloud.google.com/monitoring/api/metrics_agent#oagent-vs-magent) highlights differences in metric collection between the Ops Agent and the legacy monitoring agent.
