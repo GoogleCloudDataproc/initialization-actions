@@ -30,7 +30,15 @@ readonly KAFKA_CONFIG_FILE='/etc/kafka/conf/server.properties'
 readonly CRUISE_CONTROL_BUILD_SRC_FILE="${CRUISE_CONTROL_HOME}/buildSrc"
 
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-readonly CRUISE_CONTROL_VERSION="$(/usr/share/google/get_metadata_value attributes/cruise-control-version || echo 2.0.37)"
+readonly JAVA_MAJOR_VERSION="$(java -version 2>&1 | head -n 1 | awk -F '"' '{print $2}' | sed -E 's/^1\.([0-9]+).*/\1/; s/^([0-9]+).*/\1/')"
+if [[ "${JAVA_MAJOR_VERSION}" =~ ^[0-9]+$ ]] && (( JAVA_MAJOR_VERSION >= 17 )); then
+  # Default to 3.0.4 on Dataproc 3.0+ (Java 17/21, Kafka 3.9+, Gradle 8.5, Scala 2.13)
+  readonly DEFAULT_CRUISE_CONTROL_VERSION="3.0.4"
+else
+  # Preserve 2.0.37 default on Dataproc 2.2/2.3 (Java 11, Kafka 3.1.0, Scala 2.12)
+  readonly DEFAULT_CRUISE_CONTROL_VERSION="2.0.37"
+fi
+readonly CRUISE_CONTROL_VERSION="$(/usr/share/google/get_metadata_value attributes/cruise-control-version || echo "${DEFAULT_CRUISE_CONTROL_VERSION}")"
 readonly CRUISE_CONTROL_HTTP_PORT="$(/usr/share/google/get_metadata_value attributes/cruise-control-http-port || echo 9090)"
 readonly SELF_HEALING_BROKER_FAILURE_ENABLED="$(/usr/share/google/get_metadata_value attributes/self-healing-broker-failure-enabled || echo true)"
 readonly SELF_HEALING_GOAL_VIOLATION_ENABLED="$(/usr/share/google/get_metadata_value attributes/self-healing-goal-violation-enabled || echo true)"
@@ -41,17 +49,20 @@ readonly BROKER_FAILURE_SELF_HEALING_THRESHOLD_MS="$(/usr/share/google/get_metad
 function download_cruise_control() {
   mkdir -p /opt
   pushd /opt
-  git clone --branch ${CRUISE_CONTROL_VERSION} --depth 1 https://github.com/linkedin/cruise-control.git
+  git clone --branch "${CRUISE_CONTROL_VERSION}" --depth 1 https://github.com/linkedin/cruise-control.git
   popd
 }
 
 function update_jfrog_repository() {
-  pushd ${CRUISE_CONTROL_BUILD_SRC_FILE}
-  updated_jfrog_version="4.23.4"
-  sed "s/\(org.jfrog.buildinfo:build-info-extractor-gradle:\)[^']*/\1$updated_jfrog_version/" build.gradle | sudo tee temp > /dev/null && sudo mv temp build.gradle
-  popd
-  pushd ${CRUISE_CONTROL_HOME}
-  sudo tee build.gradle << 'EOF'
+  # For modern Cruise Control (3.x+), upstream uses Gradle 8.5, Scala 2.13, and MavenCentral out-of-the-box.
+  # Only apply legacy patches if an older 2.x branch is used.
+  if [[ "${CRUISE_CONTROL_VERSION}" =~ ^2\. ]]; then
+    pushd "${CRUISE_CONTROL_BUILD_SRC_FILE}"
+    updated_jfrog_version="4.23.4"
+    sed "s/\(org.jfrog.buildinfo:build-info-extractor-gradle:\)[^']*/\1${updated_jfrog_version}/" build.gradle | sudo tee temp > /dev/null && sudo mv temp build.gradle
+    popd
+    pushd "${CRUISE_CONTROL_HOME}"
+    sudo tee build.gradle << 'EOF'
 /*
  * Copyright 2017 LinkedIn Corp. Licensed under the BSD 2-Clause License (the "License"). See License in the project root for license information.
  */
@@ -380,11 +391,12 @@ task wrapper(type: Wrapper) {
   distributionType = Wrapper.DistributionType.ALL
 }
 EOF
-  popd
+    popd
+  fi
 }
 
 function build_cruise_control() {
-  pushd ${CRUISE_CONTROL_HOME}
+  pushd "${CRUISE_CONTROL_HOME}"
   ./gradlew jar copyDependantLibs
   popd
 }
@@ -395,9 +407,10 @@ function update_kafka_metrics_reporter() {
     return 0
   fi
 
-  cp ${CRUISE_CONTROL_HOME}/cruise-control-metrics-reporter/build/libs/cruise-control-metrics-reporter-2.0.38-SNAPSHOT.jar \
-    ${KAFKA_HOME}/libs
-  cat >>${KAFKA_CONFIG_FILE} <<EOF
+  # Building tag 2.0.37 produces cruise-control-metrics-reporter-2.0.38-SNAPSHOT.jar
+  # Building tag 3.0.4 produces cruise-control-metrics-reporter-3.0.5-SNAPSHOT.jar
+  find "${CRUISE_CONTROL_HOME}/cruise-control-metrics-reporter/build/libs/" -name "cruise-control-metrics-reporter-*.jar" ! -name "*-sources.jar" ! -name "*-javadoc.jar" ! -name "*-tests.jar" -exec cp {} "${KAFKA_HOME}/libs" \;
+  cat >>"${KAFKA_CONFIG_FILE}" <<EOF
 
 # Properties added by Cruise Control init action.
 metric.reporters=com.linkedin.kafka.cruisecontrol.metricsreporter.CruiseControlMetricsReporter
@@ -440,7 +453,11 @@ function start_cruise_control_server() {
   fi
 
   echo "Start Cruise Control server on ${HOSTNAME}."
-  pushd ${CRUISE_CONTROL_HOME}
+  pushd "${CRUISE_CONTROL_HOME}"
+  # Ensure necessary opens for Java 17+ runtime reflection (Dataproc 3.0+)
+  if [[ "${JAVA_MAJOR_VERSION}" =~ ^[0-9]+$ ]] && (( JAVA_MAJOR_VERSION >= 17 )); then
+    export KAFKA_OPTS="${KAFKA_OPTS:-} --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.time=ALL-UNNAMED"
+  fi
   ./kafka-cruise-control-start.sh config/cruisecontrol.properties &
   popd
 }
