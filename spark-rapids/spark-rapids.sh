@@ -105,6 +105,132 @@ function get_latest_xgboost_version() {
   wget -nv -O- "${metadata_url}" 2>/dev/null | sed -n 's/.*<release>\(.*\)<\/release>.*/\1/p'
 }
 
+function get_dkms_cache_path() {
+  local -r driver_version=$1
+  local -r os_id=$(os_id)
+  local -r os_version=$(os_version)
+  local -r kernel_version=$(uname -r)
+  local -r arch=$(uname -m)
+  local -r temp_bucket=$(get_metadata_attribute dataproc-temp-bucket)
+
+  if [[ -z "${temp_bucket}" ]]; then
+    echo ""
+    return
+  fi
+
+  local key_path=""
+  if [[ -f "/var/lib/dkms/mok.key" ]]; then
+    key_path="/var/lib/dkms/mok.key"
+  elif [[ -f "/var/lib/shim-signed/mok/MOK.priv" ]]; then
+    key_path="/var/lib/shim-signed/mok/MOK.priv"
+  fi
+
+  local key_dir="unsigned"
+  if [[ -n "${key_path}" ]]; then
+    local md5
+    md5=$(openssl rsa -noout -modulus -in "${key_path}" | openssl md5 | awk '{print $2}')
+    if [[ -n "${md5}" ]]; then
+      key_dir="kmod-${md5}"
+    fi
+  fi
+
+  echo "gs://${temp_bucket}/nvidia/dkms/${os_id}/${os_version}/${kernel_version}/${arch}/${key_dir}/cuda-${CUDA_VERSION}/nvidia-driver-${driver_version}.tar.gz"
+}
+
+function restore_dkms_cache() {
+  local -r driver_version=$1
+  local -r cache_path=$(get_dkms_cache_path "${driver_version}")
+
+  if [[ -z "${cache_path}" ]]; then
+    echo "No temp bucket configured, skipping DKMS cache restore."
+    return 1
+  fi
+
+  if gsutil -q stat "${cache_path}"; then
+    echo "Found cached DKMS module at ${cache_path}. Attempting to restore."
+    local -r local_tarball="/tmp/nvidia-dkms-cache.tar.gz"
+    gsutil cp "${cache_path}" "${local_tarball}"
+    if dkms ldtarball "${local_tarball}"; then
+      echo "Successfully loaded DKMS cache."
+      rm -f "${local_tarball}"
+      return 0
+    else
+      echo "Failed to load DKMS cache using ldtarball."
+      rm -f "${local_tarball}"
+      return 1
+    fi
+  else
+    echo "No cached DKMS module found at ${cache_path}."
+    return 1
+  fi
+}
+
+function save_dkms_cache() {
+  local -r driver_version=$1
+  local -r cache_path=$(get_dkms_cache_path "${driver_version}")
+
+  if [[ -z "${cache_path}" ]]; then
+    echo "No temp bucket configured, skipping DKMS cache save."
+    return 1
+  fi
+
+  # Find the registered nvidia module
+  local module_info
+  module_info=$(dkms status | grep -i nvidia | head -n1 || true)
+
+  if [[ -z "${module_info}" ]]; then
+    echo "No NVIDIA module found in DKMS status. Cannot cache."
+    return 1
+  fi
+
+  local module_name
+  module_name=$(echo "${module_info}" | cut -d, -f1 | cut -d/ -f1)
+  local module_version
+  module_version=$(echo "${module_info}" | cut -d, -f1 | cut -d/ -f2)
+
+  echo "Caching DKMS module ${module_name}/${module_version} to ${cache_path}"
+
+  local -r local_tarball="/tmp/nvidia-dkms-export.tar.gz"
+  rm -f "${local_tarball}"
+
+  if dkms mktarball -m "${module_name}" -v "${module_version}" --archive="${local_tarball}"; then
+    gsutil cp "${local_tarball}" "${cache_path}"
+    echo "Successfully cached DKMS module."
+    if [[ "${cache_path}" == *'kmod-'* ]]; then
+      local unsigned_cache_path
+      unsigned_cache_path=$(echo "${cache_path}" | sed 's/kmod-[^/]\+/unsigned/')
+      if ! gsutil -q stat "${unsigned_cache_path}"; then
+        echo "Mirroring signed DKMS cache to ${unsigned_cache_path}"
+        gsutil -q cp "${local_tarball}" "${unsigned_cache_path}" || true
+      fi
+    fi
+    rm -f "${local_tarball}"
+    return 0
+  else
+    echo "Failed to create DKMS tarball using --archive. Trying default path."
+    if dkms mktarball -m "${module_name}" -v "${module_version}"; then
+      local default_tarball
+      default_tarball=$(compgen -G "/var/lib/dkms/${module_name}/${module_version}/tarball/*.tar.gz" | head -n1 || true)
+      if [[ -n "${default_tarball}" ]]; then
+        gsutil cp "${default_tarball}" "${cache_path}"
+        echo "Successfully cached DKMS module from default path."
+        if [[ "${cache_path}" == *'kmod-'* ]]; then
+          local unsigned_cache_path
+          unsigned_cache_path=$(echo "${cache_path}" | sed 's/kmod-[^/]\+/unsigned/')
+          if ! gsutil -q stat "${unsigned_cache_path}"; then
+            echo "Mirroring signed DKMS cache to ${unsigned_cache_path}"
+            gsutil -q cp "${default_tarball}" "${unsigned_cache_path}" || true
+          fi
+        fi
+        return 0
+      fi
+    fi
+  fi
+
+  echo "Failed to cache DKMS module."
+  return 1
+}
+
 CA_TMPDIR="$(mktemp -u -d -p /run/tmp -t ca_dir-XXXX)"
 PSN="$(get_metadata_attribute private_secret_name)"
 readonly PSN
@@ -122,6 +248,9 @@ function configure_dkms_certs() {
 
     local expected_modulus_md5sum
     expected_modulus_md5sum=$(get_metadata_attribute cert_modulus_md5sum)
+    if [[ -z "${expected_modulus_md5sum}" ]]; then
+      expected_modulus_md5sum=$(get_metadata_attribute modulus_md5sum)
+    fi
     if [[ -n "${expected_modulus_md5sum}" ]]; then
       modulus_md5sum="${expected_modulus_md5sum}"
     else
@@ -238,7 +367,7 @@ else
 fi
 
 # Update SPARK RAPIDS config
-readonly HARDCODED_RAPIDS_VERSION="26.06.0"
+readonly HARDCODED_RAPIDS_VERSION="26.08.1"
 
 # 1. Try to get explicit version from GCE Metadata
 SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' '')
@@ -288,6 +417,17 @@ NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '550.54.15') #53
 CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.2
 
 # EXCEPTIONS
+# Debian 12 security kernel 6.1.0-52 includes a four-argument
+# pci_resize_resource API that is incompatible with NVIDIA 550 open modules.
+if is_debian12 ; then
+  NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '580.95.05')
+  if [[ "${NVIDIA_DRIVER_VERSION%%.*}" == "550" ]]; then
+    echo "WARNING: Driver version 550 is incompatible with Debian 12 kernel. Overriding to 580.95.05" >&2
+    NVIDIA_DRIVER_VERSION='580.95.05'
+  fi
+  USE_REPO_INSTALL="true"
+fi
+
 # Change CUDA version for Ubuntu 18 (Cuda 12.1.1 - Driver v530.30.02 is the latest version supported by Ubuntu 18)
 # Change CUDA version for Ubuntu 24 (Cuda 12.4.1 is not available, use 12.6.0)
 if [[ "${OS_NAME}" == "ubuntu" ]]; then
@@ -307,7 +447,7 @@ if [[ "${OS_NAME}" == "ubuntu" ]]; then
       KERNEL_VERSION=$(uname -r | cut -d'-' -f1)
       KERNEL_MAJOR=$(echo "$KERNEL_VERSION" | cut -d'.' -f1)
       KERNEL_MINOR=$(echo "$KERNEL_VERSION" | cut -d'.' -f2)
-      
+
       if [[ "$KERNEL_MAJOR" -eq 6 && "$KERNEL_MINOR" -ge 14 ]]; then
         # For kernel 6.14+ (dataproc 3), use repository installation to get latest CUDA and compatible drivers
         CUDA_VERSION=$(get_metadata_attribute 'cuda-version' 'latest')  #latest from repo
@@ -371,7 +511,7 @@ function execute_with_retries() {
 function install_spark_rapids() {
   local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
   local -r dmlc_repo_url='https://repo.maven.apache.org/maven2/ml/dmlc'
-  
+
   # For Spark 4.0 with Scala 2.13, use the cuda12 variant and Scala 2.13 XGBoost JARs
   if [[ "${SPARK_VERSION}" == "4.0" ]]; then
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
@@ -518,30 +658,76 @@ function install_nvidia_gpu_driver() {
 
     execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
 
-    curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
-      "${LOCAL_DEB_URL}" -o /tmp/local-installer.deb
+    if [[ "${USE_REPO_INSTALL:-false}" == "true" ]]; then
+      execute_with_retries \
+        "curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 https://developer.download.nvidia.com/compute/cuda/repos/${shortname}/x86_64/cuda-keyring_1.1-1_all.deb -o /tmp/cuda-keyring_1.1-1_all.deb"
+      execute_with_retries "dpkg -i /tmp/cuda-keyring_1.1-1_all.deb"
+      rm -f /tmp/cuda-keyring_1.1-1_all.deb
+      execute_with_retries "apt-get update"
 
-    dpkg -i /tmp/local-installer.deb
-    rm /tmp/local-installer.deb
-    cp ${DIST_KEYRING_DIR}/cuda-*-keyring.gpg /usr/share/keyrings/
+      execute_with_retries "apt-get install -y -q --no-install-recommends dkms"
+      execute_with_retries \
+        "apt-get install -y -q --no-install-recommends nvidia-driver-pinning-${NVIDIA_DRIVER_VERSION_PREFIX}"
+      execute_with_retries "apt-get update"
+      configure_dkms_certs
 
-    add_contrib_components
+      local cache_restored=0
+      if restore_dkms_cache "${NVIDIA_DRIVER_VERSION}"; then
+        cache_restored=1
+      fi
 
-    execute_with_retries "apt-get update"
+      execute_with_retries \
+        "apt-get install -y -q --no-install-recommends nvidia-kernel-open-dkms nvidia-driver-cuda"
 
-    ## EXCEPTION
-    if is_debian10 ; then
-      apt-get remove -y libglvnd0
-      apt-get install -y ca-certificates-java
+      if [[ "${cache_restored}" -eq 0 ]]; then
+        save_dkms_cache "${NVIDIA_DRIVER_VERSION}" || true
+      fi
+
+      clear_dkms_key
+
+      execute_with_retries \
+        "apt-get install -y -q --no-install-recommends cuda-toolkit-${CUDA_VERSION_MAJOR//./-}"
+    else
+      curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 \
+        "${LOCAL_DEB_URL}" -o /tmp/local-installer.deb
+
+      dpkg -i /tmp/local-installer.deb
+      rm /tmp/local-installer.deb
+      cp ${DIST_KEYRING_DIR}/cuda-*-keyring.gpg /usr/share/keyrings/
+
+      add_contrib_components
+
+      execute_with_retries "apt-get update"
+
+      ## EXCEPTION
+      if is_debian10 ; then
+        apt-get remove -y libglvnd0
+        apt-get install -y ca-certificates-java
+      fi
+
+      if is_debian11 ; then
+        apt-get install -y -q --allow-downgrades libglapi-mesa=20.3.5-1 ca-certificates=20210119
+      fi
+
+      configure_dkms_certs
+
+      local cache_restored=0
+      if restore_dkms_cache "${NVIDIA_DRIVER_VERSION}"; then
+        cache_restored=1
+      fi
+
+      execute_with_retries "apt-get install -y -q nvidia-kernel-open-dkms"
+
+      if [[ "${cache_restored}" -eq 0 ]]; then
+        save_dkms_cache "${NVIDIA_DRIVER_VERSION}" || true
+      fi
+
+      clear_dkms_key
+      execute_with_retries \
+        "apt-get install -y -q --no-install-recommends cuda-drivers-${NVIDIA_DRIVER_VERSION_PREFIX}"
+      execute_with_retries \
+        "apt-get install -y -q --no-install-recommends cuda-toolkit-${CUDA_VERSION_MAJOR//./-}"
     fi
-
-    configure_dkms_certs
-    execute_with_retries "apt-get install -y -q nvidia-kernel-open-dkms"
-    clear_dkms_key
-    execute_with_retries \
-	"apt-get install -y -q --no-install-recommends cuda-drivers-${NVIDIA_DRIVER_VERSION_PREFIX}"
-    execute_with_retries \
-	"apt-get install -y -q --no-install-recommends cuda-toolkit-${CUDA_VERSION_MAJOR//./-}"
 
     modprobe nvidia
 
@@ -611,19 +797,24 @@ function install_nvidia_gpu_driver() {
       rm cuda.run
     elif [[ "${USE_REPO_INSTALL:-false}" == "true" ]]; then
       # Repository-based installation for latest CUDA and kernel 6.14+ compatibility
-      
+
       # Install CUDA keyring for repository access
       execute_with_retries "wget https://developer.download.nvidia.com/compute/cuda/repos/${shortname}/x86_64/cuda-keyring_1.1-1_all.deb"
       execute_with_retries "dpkg -i cuda-keyring_1.1-1_all.deb"
       rm -f cuda-keyring_1.1-1_all.deb
-      
+
       # Add graphics-drivers PPA for latest NVIDIA drivers
       execute_with_retries "apt-get install -y -q software-properties-common"
       execute_with_retries "add-apt-repository -y ppa:graphics-drivers/ppa"
       execute_with_retries "apt-get update"
-      
+
       execute_with_retries "apt-get install -y -q --no-install-recommends dkms"
       configure_dkms_certs
+
+      local cache_restored=0
+      if restore_dkms_cache "${NVIDIA_DRIVER_VERSION}"; then
+        cache_restored=1
+      fi
 
       local cuda_toolkit_package="cuda-toolkit"
       if [[ "${CUDA_VERSION}" != "latest" ]]; then
@@ -633,6 +824,10 @@ function install_nvidia_gpu_driver() {
       # Install latest CUDA toolkit and compatible NVIDIA driver
       execute_with_retries "apt-get install -y -q --no-install-recommends ${cuda_toolkit_package}"
       execute_with_retries "apt-get install -y -q --no-install-recommends nvidia-driver-${NVIDIA_DRIVER_VERSION_PREFIX}-open"
+
+      if [[ "${cache_restored}" -eq 0 ]]; then
+        save_dkms_cache "${NVIDIA_DRIVER_VERSION}" || true
+      fi
 
       clear_dkms_key
       modprobe nvidia
@@ -654,12 +849,17 @@ function install_nvidia_gpu_driver() {
 
       execute_with_retries "apt-get install -y -q --no-install-recommends dkms"
       configure_dkms_certs
-      
+
+      local cache_restored=0
+      if restore_dkms_cache "${NVIDIA_DRIVER_VERSION}"; then
+        cache_restored=1
+      fi
+
       # Special handling for driver 570 which may not be in local CUDA repo
       if [[ "${NVIDIA_DRIVER_VERSION_PREFIX}" == "570" ]]; then
         # First install CUDA toolkit from local repo (this will install driver 560)
         execute_with_retries "apt-get install -y -q --no-install-recommends cuda-toolkit-${CUDA_VERSION_MAJOR//./-}"
-        
+
         # Then upgrade to driver 570 from graphics-drivers PPA
         execute_with_retries "apt-get install -y -q --no-install-recommends software-properties-common"
         execute_with_retries "add-apt-repository -y ppa:graphics-drivers/ppa"
@@ -673,7 +873,11 @@ function install_nvidia_gpu_driver() {
           execute_with_retries "apt-get install -y -q --no-install-recommends ${pkg}"
         done
       fi
-      
+
+      if [[ "${cache_restored}" -eq 0 ]]; then
+        save_dkms_cache "${NVIDIA_DRIVER_VERSION}" || true
+      fi
+
       clear_dkms_key
 
       modprobe nvidia
@@ -693,7 +897,7 @@ function install_nvidia_gpu_driver() {
     # Download the CUDA installer run file
     curl -fsSL --retry-connrefused --retry 3 --retry-max-time 30 -o driver.run \
         "https://developer.download.nvidia.com/compute/cuda/${CUDA_VERSION}/local_installers/cuda_${CUDA_VERSION}_${NVIDIA_DRIVER_VERSION}_linux.run"
-    
+
     # Run the installer in silent mode
     execute_with_retries "bash driver.run --silent --driver --toolkit --no-opengl-libs"
 
@@ -975,6 +1179,9 @@ function remove_old_backports {
   # backports repositories which have been archived.  In order to mitigate this
   # problem, we will remove any reference to backports repos older than oldstable
 
+  # Also handle expired release files for EOL distros (like Debian 11 security repo)
+  echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99ignore-valid-until
+
   # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
   oldoldstable=$(curl -s https://deb.debian.org/debian/dists/oldoldstable/Release | awk '/^Codename/ {print $2}');
   oldstable=$(curl -s https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
@@ -988,6 +1195,16 @@ function remove_old_backports {
       perl -pi -e "s{^(deb[^\s]*) https?://[^/]+/debian ${oldoldstable}-backports }
                      {\$1 https://archive.debian.org/debian ${oldoldstable}-backports }g" "${filename}"
     done
+  fi
+
+  # Remove security lines for EOL distros (Debian 10 and 11)
+  if is_debian10 || is_debian11; then
+    matched_files=( $(test -d /etc/apt && grep -rsil 'debian-security' /etc/apt/sources.list*||:) )
+    if [[ -n "${matched_files[0]:-}" ]]; then
+      for filename in "${matched_files[@]}"; do
+        perl -pi -e "s{^.*debian-security.*$}{}g" "${filename}"
+      done
+    fi
   fi
 }
 

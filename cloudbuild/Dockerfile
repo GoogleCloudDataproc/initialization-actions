@@ -16,7 +16,7 @@ ENV bazel_kr_path=/usr/share/keyrings/bazel-keyring.gpg \
     DEBIAN_FRONTEND=noninteractive
 RUN apt-get install -y -qq curl >/dev/null 2>&1 && \
     apt-get clean
-RUN /usr/bin/curl -s https://bazel.build/bazel-release.pub.gpg | \
+RUN /usr/bin/curl -s https://releases.bazel.build/bazel-release.pub.gpg | \
     gpg --import --no-default-keyring --keyring "${bazel_kr_path}" && \
     echo "deb [arch=amd64 signed-by=${bazel_kr_path}] ${bazel_repo_data}" | \
     dd of="${bazel_repo_file}" status=none && \
