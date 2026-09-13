@@ -15,11 +15,11 @@ class HBaseTestCase(DataprocTestCase):
         super().setUp()
         self.GCS_BUCKET = "test-hbase-{}-{}".format(self.datetime_str(),
                                                     self.random_str())
-        self.assert_command('gsutil mb -c regional -l {} gs://{}'.format(
+        self.assert_command('gcloud storage buckets create --default-storage-class=regional --location {} gs://{}'.format(
             self.REGION, self.GCS_BUCKET))
 
     def tearDown(self):
-        self.assert_command('gsutil -m rm -rf gs://{}'.format(self.GCS_BUCKET))
+        self.assert_command('gcloud storage rm --recursive --continue-on-error gs://{}'.format(self.GCS_BUCKET))
         super().tearDown()
 
     def verify_instance(self, name):

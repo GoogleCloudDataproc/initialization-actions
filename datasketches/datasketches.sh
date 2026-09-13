@@ -35,6 +35,15 @@ readonly DS_LIBPATH="/usr/lib/datasketches"
 readonly SPARK_VERSION=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
 readonly SPARK_JAVA_EXAMPLE_JAR="gs://spark-lib/datasketches/spark-java-thetasketches-1.0-SNAPSHOT.jar"
 
+function version_le() { [[ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]]; }
+function version_lt() { [[ "$1" = "$2" ]] && return 1 || version_le "$1" "$2"; }
+
+GCLOUD_SDK_VERSION="$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print $2}')"
+GSUTIL="gcloud storage"
+if version_lt "${GCLOUD_SDK_VERSION}" "402.0.0"; then
+  GSUTIL="gsutil"
+fi
+
 function download_libraries()
 {
   mkdir -p ${DS_LIBPATH}
@@ -57,7 +66,7 @@ function download_libraries()
 function download_example_jar()
 {
   if [[ "${SPARK_VERSION}" < "3.5" ]]; then
-  gsutil cp "${SPARK_JAVA_EXAMPLE_JAR}" "${DS_LIBPATH}"
+  ${GSUTIL} cp "${SPARK_JAVA_EXAMPLE_JAR}" "${DS_LIBPATH}"
   if [ $? -eq 0 ]; then
     echo "Downloaded "${SPARK_JAVA_EXAMPLE_JAR}" successfully"
   else
