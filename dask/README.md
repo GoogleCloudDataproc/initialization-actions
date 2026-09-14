@@ -136,7 +136,7 @@ You can also `ssh` into the cluster and execute Dask jobs from Python files. To
 run jobs, you can either `scp` a file onto your cluster or use `gsutil` on the
 cluster to download the Python file.
 
-`gcloud compute ssh <cluster-name> --command="gsutil cp gs://path/to/file.py .;
+`gcloud compute ssh <cluster-name> --command="gcloud storage cp gs://path/to/file.py .;
 python file.py`
 
 ### Accessing Web UIs

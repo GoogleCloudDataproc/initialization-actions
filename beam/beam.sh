@@ -22,6 +22,15 @@ readonly START_FLINK_YARN_SESSION_METADATA_KEY='flink-start-yarn-session'
 # Set this to true to start a flink yarn session at initialization time.
 readonly START_FLINK_YARN_SESSION_DEFAULT=true
 
+function version_le() { [[ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]]; }
+function version_lt() { [[ "$1" = "$2" ]] && return 1 || version_le "$1" "$2"; }
+
+GCLOUD_SDK_VERSION="$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print $2}')"
+GSUTIL="gcloud storage"
+if version_lt "${GCLOUD_SDK_VERSION}" "402.0.0"; then
+  GSUTIL="gsutil"
+fi
+
 function is_master() {
   local role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
   if [[ "$role" == 'Master' ]]; then
@@ -40,7 +49,7 @@ function download_snapshot() {
   readonly snapshot_url="${1}"
   readonly protocol="$(echo "${snapshot_url}" | head -c5)"
   if [ "${protocol}" = "gs://" ]; then
-    gsutil cp "${snapshot_url}" "${LOCAL_JAR_NAME}"
+    ${GSUTIL} cp "${snapshot_url}" "${LOCAL_JAR_NAME}"
   else
     curl -o "${LOCAL_JAR_NAME}" "${snapshot_url}"
   fi
