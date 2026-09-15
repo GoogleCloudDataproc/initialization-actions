@@ -518,8 +518,8 @@ function main() {
   echo "Dask for ${DASK_RUNTIME} successfully initialized."
 }
 
-function exit_handler() (
-  set +e
+function exit_handler() {
+  set +ex
   echo "Exit handler invoked"
 
   # Free conda cache
@@ -528,16 +528,29 @@ function exit_handler() (
   # Clear pip cache
   pip cache purge || echo "unable to purge pip cache"
 
-  # remove the tmpfs conda pkgs_dirs
-  if [[ -d /mnt/shm ]] ; then /opt/conda/miniconda3/bin/conda config --remove pkgs_dirs /mnt/shm ; fi
+  # If system memory was sufficient to mount memory-backed filesystems
+  if [[ "${tmpdir}" == "/mnt/shm" ]] ; then
+    # Stop hadoop services
+    systemctl list-units | perl -n -e 'qx(systemctl stop $1) if /^.*? ((hadoop|knox|hive|mapred|yarn|hdfs)\S*).service/'
 
-  # Clean up shared memory mounts
-  for shmdir in /var/cache/apt/archives /var/cache/dnf /mnt/shm ; do
-    if grep -q "^tmpfs ${shmdir}" /proc/mounts ; then
-      rm -rf ${shmdir}/*
-      umount -f ${shmdir}
-    fi
-  done
+    # remove the tmpfs conda pkgs_dirs
+    /opt/conda/miniconda3/bin/conda config --remove pkgs_dirs /mnt/shm || echo "unable to remove pkgs_dirs conda config"
+
+    # remove the tmpfs pip cache-dir
+    pip config unset global.cache-dir || echo "unable to unset global pip cache"
+
+    # Clean up shared memory mounts
+    for shmdir in /var/cache/apt/archives /var/cache/dnf /mnt/shm ; do
+      if grep -q "^tmpfs ${shmdir}" /proc/mounts ; then
+        sync
+        sleep 3s
+        execute_with_retries umount -f ${shmdir}
+      fi
+    done
+
+    umount -f /tmp
+    systemctl list-units | perl -n -e 'qx(systemctl start $1) if /^.*? ((hadoop|knox|hive|mapred|yarn|hdfs)\S*).service/'
+  fi
 
   # Clean up OS package cache ; re-hold systemd package
   if is_debuntu ; then
@@ -547,34 +560,65 @@ function exit_handler() (
     dnf clean all
   fi
 
-  # print disk usage statistics
-  if is_debuntu ; then
-    # Rocky doesn't have sort -h and fails when the argument is passed
-    du --max-depth 3 -hx / | sort -h | tail -10
+  # print disk usage statistics for large components
+  if is_ubuntu ; then
+    du -hs \
+      /usr/lib/{pig,hive,hadoop,jvm,spark,google-cloud-sdk,x86_64-linux-gnu} \
+      /usr/lib \
+      /opt/nvidia/* \
+      /usr/local/cuda-1?.? \
+      /opt/conda/miniconda3 \
+      "${DASK_CONDA_ENV}"
+  elif is_debian ; then
+    du -hs \
+      /usr/lib/{pig,hive,hadoop,jvm,spark,google-cloud-sdk,x86_64-linux-gnu} \
+      /usr/lib \
+      /usr/local/cuda-1?.? \
+      /opt/conda/miniconda3 \
+      "${DASK_CONDA_ENV}"
+  else
+    du -hs \
+      /var/lib/docker \
+      /usr/lib/{pig,hive,hadoop,firmware,jvm,spark,atlas} \
+      /usr/lib64/google-cloud-sdk \
+      /usr/lib \
+      /opt/nvidia/* \
+      /usr/local/cuda-1?.? \
+      /opt/conda/miniconda3 \
+      "${DASK_CONDA_ENV}"
   fi
 
   # Process disk usage logs from installation period
-  rm -f "${tmpdir}/keep-running-df"
-  sleep 6s
+  rm -f /run/keep-running-df
+  sync
+  sleep 5.01s
   # compute maximum size of disk during installation
   # Log file contains logs like the following (minus the preceeding #):
-#Filesystem      Size  Used Avail Use% Mounted on
-#/dev/vda2       6.8G  2.5G  4.0G  39% /
-  df -h / | tee -a "${tmpdir}/disk-usage.log"
-  perl -e '$max=( sort
-                 map { (split)[2] =~ /^(\d+)/ }
-                grep { m:^/: } <STDIN> )[-1];
-print( "maximum-disk-used: $max", $/ );' < "${tmpdir}/disk-usage.log"
+#Filesystem     1K-blocks    Used Available Use% Mounted on
+#/dev/vda2        7096908 2611344   4182932  39% /
+  df / | tee -a "/run/disk-usage.log"
+
+  perl -e '@siz=( sort { $a => $b }
+                   map { (split)[2] =~ /^(\d+)/ }
+                  grep { m:^/: } <STDIN> );
+$max=$siz[0]; $min=$siz[-1]; $inc=$max-$min;
+print( "    samples-taken: ", scalar @siz, $/,
+       "maximum-disk-used: $max", $/,
+       "minimum-disk-used: $min", $/,
+       "     increased-by: $inc", $/ )' < "/run/disk-usage.log"
 
   echo "exit_handler has completed"
 
   # zero free disk space
   if [[ -n "$(get_metadata_attribute creating-image)" ]]; then
-    dd if=/dev/zero of=/zero ; sync ; rm -f /zero
+    dd if=/dev/zero of=/zero
+    sync
+    sleep 3s
+    rm -f /zero
   fi
 
   return 0
-)
+}
 
 function prepare_to_install() {
   readonly DEFAULT_CUDA_VERSION="12.4"
@@ -600,7 +644,7 @@ function prepare_to_install() {
 
   free_mem="$(awk '/^MemFree/ {print $2}' /proc/meminfo)"
   # Write to a ramdisk instead of churning the persistent disk
-  if [[ ${free_mem} -ge 5250000 ]]; then
+  if [[ ${free_mem} -ge 10500000 ]]; then
     tmpdir=/mnt/shm
     mkdir -p /mnt/shm
     mount -t tmpfs tmpfs /mnt/shm
@@ -622,19 +666,19 @@ function prepare_to_install() {
   else
     tmpdir=/tmp
   fi
-  install_log="${tmpdir}/install.log"
+  install_log="/run/install.log"
   trap exit_handler EXIT
-  
+
   # Monitor disk usage in a screen session
   if is_debuntu ; then
       apt-get install -y -qq screen
   else
       dnf -y -q install screen
   fi
-  rm -f "${tmpdir}/disk-usage.log"
-  touch "${tmpdir}/keep-running-df"
+  df / | tee "/run/disk-usage.log"
+  touch "/run/keep-running-df"
   screen -d -m -US keep-running-df \
-    bash -c "while [[ -f ${tmpdir}/keep-running-df ]] ; do df -h / | tee -a ${tmpdir}/disk-usage.log ; sleep 5s ; done"
+    bash -c "while [[ -f /run/keep-running-df ]] ; do df / | tee -a /run/disk-usage.log ; sleep 5s ; done"
 }
 
 prepare_to_install
