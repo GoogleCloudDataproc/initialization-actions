@@ -39,6 +39,10 @@ function is_debian10() {
   is_debian && [[ "$(os_version)" == '10'* ]]
 }
 
+function is_debian11() {
+  is_debian && [[ "$(os_version)" == '11'* ]]
+}
+
 function is_ubuntu() {
   [[ "$(os_id)" == 'ubuntu' ]]
 }
@@ -75,6 +79,14 @@ function replace_backports_repo() {
   if is_debian10 ; then
     echo "deb https://archive.debian.org/debian buster-backports main" >> /etc/apt/sources.list
     echo "deb-src https://archive.debian.org/debian buster-backports main" >> /etc/apt/sources.list
+  elif is_debian11 ; then
+    sudo sed -i 's|https\?://[^/]\+/debian bullseye-backports|https://archive.debian.org/debian bullseye-backports|g' /etc/apt/sources.list
+    local security_mirror="https://snapshot.debian.org/archive/debian-security/20260830T000000Z"
+    if curl -fsSLI "https://archive.debian.org/debian-security/dists/bullseye-security/InRelease" >/dev/null 2>&1; then
+      security_mirror="https://archive.debian.org/debian-security"
+    fi
+    sudo sed -i "s|https\?://[^/]\+/debian-security|${security_mirror}|g" /etc/apt/sources.list
+    echo 'Acquire::Check-Valid-Until "false";' | sudo tee /etc/apt/apt.conf.d/99no-check-valid-until >/dev/null
   fi
 }
 
@@ -88,7 +100,7 @@ function update_repo() {
 
 function install_packages() {
   local -r packages="$*"
-  if test -d /etc/apt && grep -rsi 'buster-backports' /etc/apt/sources.list* ; then
+  if test -d /etc/apt && grep -rsiE '(buster|bullseye)-backports|bullseye-security' /etc/apt/sources.list* ; then
     replace_backports_repo
     update_repo
   fi
@@ -295,7 +307,7 @@ EOF
 
 # Only run on the master node ("0"-master in HA mode) of the cluster
 if [[ "$(hostname -s)" == "${MASTER_HOSTNAME}" ]]; then
-  if test -d /etc/apt && grep -rsi 'buster-backports' /etc/apt/sources.list* ; then
+  if test -d /etc/apt && grep -rsiE '(buster|bullseye)-backports|bullseye-security' /etc/apt/sources.list* ; then
     replace_backports_repo
   fi
   update_repo || echo "Ignored errors when updating OS repo index"

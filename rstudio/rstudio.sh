@@ -101,6 +101,18 @@ function repair_old_backports {
     perl -pi -e "s{^(deb[^\s]*) https?://[^/]+/debian ${oldoldstable}-backports }
                   {\$1 https://archive.debian.org/debian ${oldoldstable}-backports }g" "${filename}"
   done
+
+  local security_files=( $(grep -rsil 'bullseye-security' /etc/apt/sources.list*||:) )
+  if [[ ${#security_files[@]} -gt 0 ]]; then
+    local security_mirror="https://snapshot.debian.org/archive/debian-security/20260830T000000Z"
+    if curl -fsSLI "https://archive.debian.org/debian-security/dists/bullseye-security/InRelease" >/dev/null 2>&1; then
+      security_mirror="https://archive.debian.org/debian-security"
+    fi
+    for filename in "${security_files[@]}"; do
+      sed -i "s|https\?://[^/]\+/debian-security|${security_mirror}|g" "${filename}"
+    done
+    echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until
+  fi
 }
 
 function update_apt_get() {
