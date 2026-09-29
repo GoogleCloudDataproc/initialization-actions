@@ -37,6 +37,17 @@ export BUCKET="$(jq        -r .BUCKET               env.json)"
 
 gcs_log_dir="gs://${BUCKET}/${BUILD_ID}/logs"
 
+function version_le() { [[ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]]; }
+function version_lt() { [[ "$1" = "$2" ]] && return 1 || version_le "$1" "$2"; }
+
+GCLOUD_SDK_VERSION="$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print $2}')"
+GSUTIL="gcloud storage"
+GSUTIL_OPTS=""
+if version_lt "${GCLOUD_SDK_VERSION}" "402.0.0"; then
+  GSUTIL="gsutil"
+  GSUTIL_OPTS="-m"
+fi
+
 function exit_handler() {
   RED='\\e[0;31m'
   GREEN='\\e[0;32m'
@@ -47,7 +58,7 @@ function exit_handler() {
   # TODO: remove any test related resources in the project
 
   echo 'Uploading local logs to GCS bucket.'
-  gsutil -m rsync -r "${log_dir}/" "${gcs_log_dir}/"
+  ${GSUTIL} ${GSUTIL_OPTS} rsync -r "${log_dir}/" "${gcs_log_dir}/"
 
   if [[ -f "${tmp_dir}/tests_success" ]]; then
     echo -e "${GREEN}Workflow succeeded, check logs at ${log_dir}/ or ${gcs_log_dir}/${NC}"
@@ -72,6 +83,5 @@ export INTERNAL_IP_SSH="true"
 
 # Run tests in screen session so we can monitor the container in another window
 screen -US "${session_name}" -c rapids/bazel.screenrc
-
 
 

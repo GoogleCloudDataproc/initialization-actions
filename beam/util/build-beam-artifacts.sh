@@ -11,9 +11,18 @@ readonly BEAM_JOB_SERVICE_DESTINATION="$1"
 readonly BEAM_CONTAINER_IMAGE_DESTINATION="$2"
 readonly BEAM_SOURCE_VERSION="${3:-master}"
 
+function version_le() { [[ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]]; }
+function version_lt() { [[ "$1" = "$2" ]] && return 1 || version_le "$1" "$2"; }
+
+GCLOUD_SDK_VERSION="$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print $2}')"
+GSUTIL="gcloud storage"
+if version_lt "${GCLOUD_SDK_VERSION}" "402.0.0"; then
+  GSUTIL="gsutil"
+fi
+
 function build_job_service() {
   ./gradlew :beam-runners-flink_2.11-job-server:shadowJar
-  gsutil cp \
+  ${GSUTIL} cp \
     ./runners/flink/job-server/build/libs/beam-runners-flink_2.11-job-server-*-SNAPSHOT.jar \
     ${BEAM_JOB_SERVICE_DESTINATION}/beam-runners-flink_2.11-job-server-${BEAM_SOURCE_VERSION}-SNAPSHOT.jar
 }
