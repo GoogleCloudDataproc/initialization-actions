@@ -39,6 +39,15 @@ readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/in
 # directory files ingestied will reside
 readonly INIT_ACTIONS_DIR='/usr/lib/hive-llap'
 
+function version_le() { [[ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]]; }
+function version_lt() { [[ "$1" = "$2" ]] && return 1 || version_le "$1" "$2"; }
+
+GCLOUD_SDK_VERSION="$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print $2}')"
+GSUTIL="gcloud storage"
+if version_lt "${GCLOUD_SDK_VERSION}" "402.0.0"; then
+  GSUTIL="gsutil"
+fi
+
 function pre_flight_checks(){
     # check for bad configurations
     if [[ "${NUM_LLAP_NODES}" -ge "${WORKER_NODE_COUNT}" ]]; then
@@ -69,7 +78,7 @@ function download_init_actions() {
     # Download initialization actions locally. This will download the start_llap.sh file to the cluster for execution Check if metadata is supplied
     echo "downalod init actions supplied as metadata..."
     mkdir -p "${INIT_ACTIONS_DIR}"
-    gsutil cp "${INIT_ACTIONS_REPO}/hive-llap/start_llap.sh" "${INIT_ACTIONS_DIR}"
+    ${GSUTIL} cp "${INIT_ACTIONS_REPO}/hive-llap/start_llap.sh" "${INIT_ACTIONS_DIR}"
     chmod 700 "${INIT_ACTIONS_DIR}/start_llap.sh"
 }
 
