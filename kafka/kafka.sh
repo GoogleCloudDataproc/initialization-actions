@@ -98,7 +98,7 @@ function wait_for_zookeeper() {
 function wait_for_kafka() {
   for i in {1..20}; do
     local broker_list=$(get_broker_list || true)
-    if [[ "${broker_list}" == *" ${BROKER_ID},"* ]]; then
+    if echo "${broker_list}" | grep -q "${BROKER_ID}"; then
       return 0
     else
       echo "Kafka broker ${BROKER_ID} is not registered yet, retry ${i}..."
