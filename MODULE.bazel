@@ -1,0 +1,2 @@
+bazel_dep(name = "rules_python", version = "1.7.0")
+bazel_dep(name = "abseil-py", version = "2.1.0", repo_name = "io_abseil_py")

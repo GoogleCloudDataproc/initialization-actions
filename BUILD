@@ -1,3 +1,5 @@
+load("@rules_python//python:defs.bzl", "py_test", "py_library")
+
 package(default_visibility = ["//visibility:public"])
 
 test_suite(
@@ -6,6 +8,7 @@ test_suite(
         ":test_cloud_sql_proxy",
         ":test_dr_elephant",
         ":test_hive_hcatalog",
+        ":test_http_proxy",
         ":test_spark_rapids",
         ":test_starburst_presto",
         "//alluxio:test_alluxio",
@@ -146,6 +149,18 @@ py_test(
     ],
     local = True,
     shard_count = 3,
+    deps = [
+        "//integration_tests:dataproc_test_case",
+        "@io_abseil_py//absl/testing:parameterized",
+    ],
+)
+
+py_test(
+    name = "test_http_proxy",
+    size = "enormous",
+    srcs = ["http-proxy/test_http_proxy.py"],
+    data = ["http-proxy/http-proxy.sh"],
+    local = True,
     deps = [
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",
