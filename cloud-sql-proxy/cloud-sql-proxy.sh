@@ -170,7 +170,7 @@ function repair_old_backports {
   for filename in "${matched_files[@]}"; do
     # Fetch from archive.debian.org for ${oldoldstable}-backports
     perl -pi -e "s{^(deb[^\s]*) https?://[^/]+/debian ${oldoldstable}-backports }
-                  {\$1 https://archive.debian.org/debian ${oldoldstable}-backports }g" "${filename}"
+                  {\\\$1 https://archive.debian.org/debian ${oldoldstable}-backports }g" "${filename}"
   done
 }
 
