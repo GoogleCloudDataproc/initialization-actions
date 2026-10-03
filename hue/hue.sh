@@ -80,13 +80,21 @@ function replace_backports_repo() {
     echo "deb https://archive.debian.org/debian buster-backports main" >> /etc/apt/sources.list
     echo "deb-src https://archive.debian.org/debian buster-backports main" >> /etc/apt/sources.list
   elif is_debian11 ; then
-    sudo sed -i 's|https\?://[^/]\+/debian bullseye-backports|https://archive.debian.org/debian bullseye-backports|g' /etc/apt/sources.list
-    local security_mirror="https://snapshot.debian.org/archive/debian-security/20260830T000000Z"
-    if curl -fsSLI "https://archive.debian.org/debian-security/dists/bullseye-security/InRelease" >/dev/null 2>&1; then
-      security_mirror="https://archive.debian.org/debian-security"
+    local backports_files=( $(grep -rsil 'bullseye-backports' /etc/apt/sources.list*||:) )
+    for filename in "${backports_files[@]}"; do
+      sudo sed -i 's|https\?://[^/]\+/debian bullseye-backports|https://archive.debian.org/debian bullseye-backports|g' "${filename}"
+    done
+    local security_files=( $(grep -rsil 'bullseye-security' /etc/apt/sources.list*||:) )
+    if [[ ${#security_files[@]} -gt 0 ]]; then
+      local security_mirror="https://snapshot.debian.org/archive/debian-security/20260830T000000Z"
+      if curl -fsSLI --connect-timeout 5 --max-time 10 "https://archive.debian.org/debian-security/dists/bullseye-security/InRelease" >/dev/null 2>&1; then
+        security_mirror="https://archive.debian.org/debian-security"
+      fi
+      for filename in "${security_files[@]}"; do
+        sudo sed -i "s|https\?://[^/]\+/debian-security|${security_mirror}|g" "${filename}"
+      done
+      echo 'Acquire::Check-Valid-Until "false";' | sudo tee /etc/apt/apt.conf.d/99no-check-valid-until >/dev/null
     fi
-    sudo sed -i "s|https\?://[^/]\+/debian-security|${security_mirror}|g" /etc/apt/sources.list
-    echo 'Acquire::Check-Valid-Until "false";' | sudo tee /etc/apt/apt.conf.d/99no-check-valid-until >/dev/null
   fi
 }
 
