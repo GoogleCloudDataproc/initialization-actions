@@ -45,14 +45,14 @@ function retry_apt_command() {
 
 function recv_keys() {
   if [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 3.0" | bc -l) == 1 ]]; then
-    retry_apt_command "(apt-get update --allow-releaseinfo-change || true) && apt-get install -y gnupg"
+    retry_apt_command "apt-get update && apt-get install -y gnupg"
     export GNUPGHOME="$(mktemp -d)"
     trap 'rm -rf "${GNUPGHOME}"' EXIT
     gpg --keyserver keyserver.ubuntu.com --recv-keys B7B3B788A8D3785C
     mkdir -p /etc/apt/trusted.gpg.d
     gpg --export B7B3B788A8D3785C > /etc/apt/trusted.gpg.d/mysql-repo.gpg
   else
-    retry_apt_command "(apt-get update --allow-releaseinfo-change || true) && \
+    retry_apt_command "(apt-get update || true) && \
       apt-get install -y gnupg2 && \
       apt-key adv --keyserver keyserver.ubuntu.com --recv-keys B7B3B788A8D3785C"
   fi
@@ -213,11 +213,13 @@ function remove_old_backports {
   oldstable=$(curl -s https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
   stable=$(curl -s https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
 
-  local matched_files=( $(grep -rsil '\-backports' /etc/apt/sources.list*||:) )
-  for filename in "${matched_files[@]}"; do
-    grep -e "$oldstable-backports" -e "$stable-backports" "$filename" || \
-      sed -i -e 's/^.*-backports.*$//' "$filename"
-  done
+  matched_files="$(grep -rsil '\-backports' /etc/apt/sources.list* || true)"
+  if [[ -n "$matched_files" ]]; then
+    for filename in "$matched_files"; do
+      grep -e "$oldstable-backports" -e "$stable-backports" "$filename" || \
+        sed -i -e 's/^.*-backports.*$//' "$filename"
+    done
+  fi
 
   local security_files=( $(grep -rsil 'bullseye-security' /etc/apt/sources.list*||:) )
   if [[ ${#security_files[@]} -gt 0 ]]; then
