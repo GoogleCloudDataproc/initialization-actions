@@ -34,10 +34,15 @@ function install_packages(){
 
 function add_sources(){
    echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | tee /etc/apt/sources.list.d/sbt.list
-   echo "deb https://repo.scala-sbt.org/scalasbt/debian /" | tee /etc/apt/sources.list.d/sbt_old.list
 
-   curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" |
-      gpg --no-default-keyring --keyring gnupg-ring:/etc/apt/trusted.gpg.d/scalasbt-release.gpg --import
+   if [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 3.0" | bc -l) == 1 ]]; then
+      curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" |
+         gpg --dearmor -o /etc/apt/trusted.gpg.d/scalasbt-release.gpg
+   else
+      echo "deb https://repo.scala-sbt.org/scalasbt/debian /" | tee /etc/apt/sources.list.d/sbt_old.list
+      curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" |
+         gpg --no-default-keyring --keyring gnupg-ring:/etc/apt/trusted.gpg.d/scalasbt-release.gpg --import
+   fi
    chmod 644 /etc/apt/trusted.gpg.d/scalasbt-release.gpg
 }
 
@@ -46,12 +51,33 @@ function install_sbt(){
    apt-get install -yq sbt
 }
 
+function ensure_java11(){
+   local java_major_version=$(java -version 2>&1 | grep -oP 'version "?(1\.)?\K\d+' || true)
+   if [[ "${java_major_version}" -ge 17 ]]; then
+      if apt-get install -yq openjdk-11-jdk; then
+         export JAVA_HOME="/usr/lib/jvm/java-11-openjdk-$(dpkg --print-architecture)"
+      else
+         local arch="$(dpkg --print-architecture)"
+         [[ "${arch}" == "amd64" ]] && arch="x64"
+         mkdir -p /usr/lib/jvm/temurin-11
+         curl -fsSL "https://api.adoptium.net/v3/binary/latest/11/ga/linux/${arch}/jdk/hotspot/normal/eclipse" |
+            tar -xz -C /usr/lib/jvm/temurin-11 --strip-components=1
+         export JAVA_HOME="/usr/lib/jvm/temurin-11"
+      fi
+      export PATH="${JAVA_HOME}/bin:${PATH}"
+   fi
+}
+
 function build_cmak(){
    mkdir -p "${KAFKA_MANAGER_GIT_DIR}"
    cd "${KAFKA_MANAGER_GIT_DIR}"
    git clone "${KAFKA_MANAGER_GIT_URI}"
    cd "${KAFKA_MANAGER_GIT_DIR}"/CMAK
-   sbt clean dist
+   if [[ -n "${JAVA_HOME:-}" ]]; then
+      sbt -java-home "${JAVA_HOME}" clean dist
+   else
+      sbt clean dist
+   fi
 }
 
 function install_cmak(){
@@ -95,12 +121,24 @@ function remove_old_backports {
   oldstable=$(curl -s https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
   stable=$(curl -s https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
 
-  matched_files="$(grep -rsil '\-backports' /etc/apt/sources.list*)"
+  matched_files="$(grep -rsil '\-backports' /etc/apt/sources.list* || true)"
   if [[ -n "$matched_files" ]]; then
     for filename in "$matched_files"; do
       grep -e "$oldstable-backports" -e "$stable-backports" "$filename" || \
         sed -i -e 's/^.*-backports.*$//' "$filename"
     done
+  fi
+
+  local security_files=( $(grep -rsil 'bullseye-security' /etc/apt/sources.list*||:) )
+  if [[ ${#security_files[@]} -gt 0 ]]; then
+    local security_mirror="https://snapshot.debian.org/archive/debian-security/20260830T000000Z"
+    if curl -fsSLI --connect-timeout 5 --max-time 10 "https://archive.debian.org/debian-security/dists/bullseye-security/InRelease" >/dev/null 2>&1; then
+      security_mirror="https://archive.debian.org/debian-security"
+    fi
+    for filename in "${security_files[@]}"; do
+      sed -i "s|https\?://[^/]\+/debian-security|${security_mirror}|g" "${filename}"
+    done
+    echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until
   fi
 }
 
@@ -108,21 +146,9 @@ function main(){
    local java_major_version=$(java -version 2>&1 | grep -oP 'version "?(1\.)?\K\d+' || true)
    OS=$(. /etc/os-release && echo "${ID}")
 
-  # The remove_old_backports function is breaking the init action on
-  # Dataproc 2.1 (Debian 11) images.
-  #
-  # The function's logic fetches the current Debian stable (Trixie) and
-  # oldstable (Bookworm) codenames and deletes any backports repository
-  # that does not match.
-  #
-  # This incorrectly removes the essential bullseye-backports repository
-  # on Debian 11 systems, as "bullseye" is no longer stable or oldstable.
-  # This change disables the function to prevent it from damaging the
-  # system's valid apt configuration.
-  #
-  # if [[ ${OS} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
-  #   remove_old_backports
-  # fi
+   if [[ ${OS} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
+     remove_old_backports
+   fi
 
    if [[ ${java_major_version} -lt 11 ]]; then
       echo "Error: Java 11 or higher is required for CMAK" >&2
@@ -132,6 +158,7 @@ function main(){
       # Run Kafka Manager on the first master node.
       if [[ "${HOSTNAME}" == *-m || "${HOSTNAME}" == *-m-0 ]]; then
          install_packages
+         ensure_java11
          add_sources
          install_sbt
          build_cmak
