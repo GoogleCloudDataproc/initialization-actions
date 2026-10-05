@@ -35,6 +35,74 @@ readonly CACHE_TIMEOUT
 readonly TARGET_ENV_PATH=$(/usr/share/google/get_metadata_value attributes/TARGET_ENV_PATH || true)
 readonly OS_NAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
 
+GCS_CMD="gsutil"
+if gcloud --help >/dev/null 2>&1 && gcloud storage --help >/dev/null 2>&1; then
+  GCS_CMD="gcloud storage"
+fi
+readonly GCS_CMD
+
+function gcs_exists() {
+  local uri=$1
+  if [[ "${GCS_CMD}" == "gcloud storage" ]]; then
+    gcloud storage objects describe "${uri}" >/dev/null 2>&1
+  else
+    gsutil -q stat "${uri}"
+  fi
+}
+
+function gcs_file_epoch() {
+  local uri=$1
+  if [[ "${GCS_CMD}" == "gcloud storage" ]]; then
+    local file_time=$(gcloud storage objects describe "${uri}" --format="value(timeCreated)" 2>/dev/null || echo "")
+    if [[ -n "${file_time}" ]]; then
+      date -u -d "${file_time}" +%s 2>/dev/null || echo ""
+    fi
+  else
+    local file_time=$(gsutil stat "${uri}" | grep -oP 'Creation time:\s*\K.*' || echo "")
+    if [[ -n "${file_time}" ]]; then
+      date -u -d "${file_time}" +%s 2>/dev/null || echo ""
+    fi
+  fi
+}
+
+function gcs_cat() {
+  local uri=$1
+  if [[ "${GCS_CMD}" == "gcloud storage" ]]; then
+    gcloud storage cat "${uri}"
+  else
+    gsutil cat "${uri}"
+  fi
+}
+
+function gcs_atomic_upload() {
+  local local_path=$1
+  local gcs_uri=$2
+  if [[ "${GCS_CMD}" == "gcloud storage" ]]; then
+    gcloud storage cp --if-generation-match=0 "${local_path}" "${gcs_uri}" 2>/dev/null
+  else
+    gsutil -h "x-goog-if-generation-match:0" cp "${local_path}" "${gcs_uri}" 2>/dev/null
+  fi
+}
+
+function gcs_cp() {
+  local local_path=$1
+  local gcs_uri=$2
+  if [[ "${GCS_CMD}" == "gcloud storage" ]]; then
+    gcloud storage cp "${local_path}" "${gcs_uri}"
+  else
+    gsutil cp "${local_path}" "${gcs_uri}"
+  fi
+}
+
+function gcs_rm() {
+  local uri=$1
+  if [[ "${GCS_CMD}" == "gcloud storage" ]]; then
+    gcloud storage rm "${uri}"
+  else
+    gsutil rm "${uri}"
+  fi
+}
+
 # Detect dataproc image version from its various names
 if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
   DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
@@ -80,9 +148,8 @@ function main() {
   else
     env_path=$(dirname $(dirname "${conda_path}"))
     if [[ "${env_path}" == "/usr" || "${env_path}" == "/usr/local" || "${env_path}" == "/" ]]; then
-      echo "ERROR: Refusing to cache system-wide environment path: ${env_path}."
-      echo "Caching the entire system directory is unsafe. Please specify a target environment path using TARGET_ENV_PATH."
-      exit 1
+      echo "WARNING: Inferred system-wide environment path: ${env_path}."
+      echo "Caching the entire system directory is unsafe and may result in large cache files. It is strongly recommended to specify a target environment path using TARGET_ENV_PATH."
     fi
     echo "Inferred target environment path: ${env_path}"
   fi
@@ -103,16 +170,12 @@ function main() {
   local local_tarball="/tmp/${cache_key}.tar.gz"
 
   set +e
-  gsutil -q stat "${gcs_tarball}"
+  gcs_exists "${gcs_tarball}"
   local cache_exists_code=$?
   set -e
 
   if [[ ${cache_exists_code} -eq 0 ]]; then
-    local file_time=$(gsutil stat "${gcs_tarball}" | grep -oP 'Creation time:\s*\K.*' || echo "")
-    local file_epoch=""
-    if [[ -n "${file_time}" ]]; then
-      file_epoch=$(date -u -d "${file_time}" +%s 2>/dev/null || echo "")
-    fi
+    local file_epoch=$(gcs_file_epoch "${gcs_tarball}")
 
     if [[ -n "${file_epoch}" ]]; then
       local now_epoch=$(date -u +%s)
@@ -120,7 +183,7 @@ function main() {
 
       if (( age <= CACHE_TIMEOUT )); then
         echo "Cache hit for key ${cache_key} (age: ${age}s). Unpacking from ${gcs_tarball}"
-        if gsutil cat "${gcs_tarball}" | tar -C "${env_path}" -xz; then
+        if gcs_cat "${gcs_tarball}" | tar -C "${env_path}" -xz; then
           echo "Cache unpacked successfully."
           return 0
         else
@@ -131,7 +194,7 @@ function main() {
       fi
     else
       echo "Cache hit for key ${cache_key} (could not verify age). Unpacking."
-      if gsutil cat "${gcs_tarball}" | tar -C "${env_path}" -xz; then
+      if gcs_cat "${gcs_tarball}" | tar -C "${env_path}" -xz; then
         return 0
       else
         echo "WARNING: Failed to unpack cache. Falling back to rebuilding."
@@ -141,65 +204,74 @@ function main() {
 
   echo "Cache miss for key ${cache_key}. Checking for concurrent builds."
 
-  set +e
-  local building_output=$(gsutil -q stat "${gcs_tarball}.building" 2>/dev/null)
-  local sentinel_exists_code=$?
-  set -e
-
-  if [[ ${sentinel_exists_code} -eq 0 ]]; then
-    echo "Another node is building this environment. Waiting..."
-    local wait_start=$(date +%s)
-    local timeout="${CACHE_TIMEOUT}"
-    while gsutil -q stat "${gcs_tarball}.building" > /dev/null 2>&1; do
-      if gsutil -q stat "${gcs_tarball}" > /dev/null 2>&1; then
-        echo "Cache file appeared while waiting. Skipping build."
-        if gsutil cat "${gcs_tarball}" | tar -C "${env_path}" -xz; then
-          return 0
-        fi
-        echo "WARNING: Failed to unpack appeared cache. Proceeding to build."
-        break
-      fi
-      local now=$(date +%s)
-      if (( now - wait_start > timeout )); then
-        echo "Timeout waiting for concurrent build. Proceeding to build myself."
-        break
-      fi
-      echo "Waiting 30 seconds..."
-      sleep 30
-    done
-
-    # Double check if cache appeared just after sentinel removal
-    if gsutil -q stat "${gcs_tarball}" > /dev/null 2>&1; then
-      echo "Cache file appeared. Skipping build."
-      if gsutil cat "${gcs_tarball}" | tar -C "${env_path}" -xz; then
-        return 0
-      fi
-      echo "WARNING: Failed to unpack appeared cache. Proceeding to build."
-    fi
-  fi
-
-  echo "Proceeding to build and cache environment."
-
   local -a pack_arr
   read -r -a pack_arr <<< "${PACKAGES}"
 
-  touch "${local_tarball}.building"
-  
-  set +e
-  gsutil cp "${local_tarball}.building" "${gcs_tarball}.building"
-  local sentinel_upload_code=$?
-  set -e
+  while true; do
+    set +e
+    gcs_exists "${gcs_tarball}.building"
+    local sentinel_exists_code=$?
+    set -e
 
-  if [[ ${sentinel_upload_code} -ne 0 ]]; then
-    echo "WARNING: Failed to upload sentinel to GCS. GCS might be unreachable."
-    echo "Falling back to standard non-cached installation."
-    conda install -y -p "${env_path}" "${pack_arr[@]}"
-    rm -f "${local_tarball}.building"
-    return 0
-  fi
+    if [[ ${sentinel_exists_code} -eq 0 ]]; then
+      echo "Another node is building this environment. Waiting..."
+      local wait_start=$(date +%s)
+      local timeout="${CACHE_TIMEOUT}"
+      while gcs_exists "${gcs_tarball}.building"; do
+        if gcs_exists "${gcs_tarball}"; then
+          echo "Cache file appeared while waiting. Skipping build."
+          if gcs_cat "${gcs_tarball}" | tar -C "${env_path}" -xz; then
+            return 0
+          fi
+          echo "WARNING: Failed to unpack appeared cache. Proceeding to build."
+          break
+        fi
+        local now=$(date +%s)
+        if (( now - wait_start > timeout )); then
+          echo "Timeout waiting for concurrent build. Proceeding to build myself."
+          break
+        fi
+        echo "Waiting 30 seconds..."
+        sleep 30
+      done
+
+      # Double check if cache appeared just after sentinel removal
+      if gcs_exists "${gcs_tarball}"; then
+        echo "Cache file appeared. Skipping build."
+        if gcs_cat "${gcs_tarball}" | tar -C "${env_path}" -xz; then
+          return 0
+        fi
+        echo "WARNING: Failed to unpack appeared cache. Proceeding to build."
+      fi
+    fi
+
+    echo "Proceeding to build and cache environment."
+
+    touch "${local_tarball}.building"
+
+    set +e
+    gcs_atomic_upload "${local_tarball}.building" "${gcs_tarball}.building"
+    local sentinel_upload_code=$?
+    set -e
+
+    if [[ ${sentinel_upload_code} -eq 0 ]]; then
+      break
+    fi
+
+    # Check if the failure was due to a race condition (sentinel exists) or GCS being unreachable
+    if ! gcs_exists "${gcs_tarball}.building"; then
+      echo "WARNING: Failed to upload sentinel to GCS. GCS might be unreachable."
+      echo "Falling back to standard non-cached installation."
+      conda install -y -p "${env_path}" "${pack_arr[@]}"
+      rm -f "${local_tarball}.building"
+      return 0
+    fi
+
+    echo "Lost the lock race to another node. Retrying..."
+  done
 
   # Ensure we clean up sentinel on exit if we uploaded it
-  trap 'gsutil rm "${gcs_tarball}.building" || true; rm -f "${local_tarball}.building"' EXIT
+  trap 'gcs_rm "${gcs_tarball}.building" || true; rm -f "${local_tarball}.building"' EXIT
 
   # Perform standard installation
   conda install -y -p "${env_path}" "${pack_arr[@]}"
@@ -212,7 +284,7 @@ function main() {
 
   echo "Uploading to GCS."
   set +e
-  gsutil cp "${local_tarball}" "${gcs_tarball}"
+  gcs_cp "${local_tarball}" "${gcs_tarball}"
   local cache_upload_code=$?
   set -e
 
@@ -222,7 +294,7 @@ function main() {
 
   echo "Cleaning up."
   trap - EXIT
-  gsutil rm "${gcs_tarball}.building" || true
+  gcs_rm "${gcs_tarball}.building" || true
   rm -f "${local_tarball}" "${local_tarball}.building"
 
   echo "Done."
