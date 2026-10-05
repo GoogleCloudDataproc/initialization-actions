@@ -214,21 +214,35 @@ function main() {
     set -e
 
     if [[ ${sentinel_exists_code} -eq 0 ]]; then
+      local sentinel_epoch=$(gcs_file_epoch "${gcs_tarball}.building")
+      if [[ -n "${sentinel_epoch}" ]]; then
+        local now_epoch=$(date -u +%s)
+        local sentinel_age=$((now_epoch - sentinel_epoch))
+        if (( sentinel_age > 1200 )); then
+          echo "Found stale sentinel (age: ${sentinel_age}s > 1200s). Removing it."
+          gcs_rm "${gcs_tarball}.building" || true
+          sentinel_exists_code=1
+        fi
+      fi
+    fi
+
+    if [[ ${sentinel_exists_code} -eq 0 ]]; then
       echo "Another node is building this environment. Waiting..."
       local wait_start=$(date +%s)
-      local timeout="${CACHE_TIMEOUT}"
+      local timeout=1200
       while gcs_exists "${gcs_tarball}.building"; do
         if gcs_exists "${gcs_tarball}"; then
           echo "Cache file appeared while waiting. Skipping build."
           if gcs_cat "${gcs_tarball}" | tar -C "${env_path}" -xz; then
             return 0
           fi
-          echo "WARNING: Failed to unpack appeared cache. Proceeding to build."
+          echo "WARNING: Failed to unpack the newly available cache. Proceeding to build."
           break
         fi
         local now=$(date +%s)
         if (( now - wait_start > timeout )); then
-          echo "Timeout waiting for concurrent build. Proceeding to build myself."
+          echo "Timeout waiting for concurrent build. Removing stale sentinel and proceeding to build myself."
+          gcs_rm "${gcs_tarball}.building" || true
           break
         fi
         echo "Waiting 30 seconds..."
@@ -241,7 +255,7 @@ function main() {
         if gcs_cat "${gcs_tarball}" | tar -C "${env_path}" -xz; then
           return 0
         fi
-        echo "WARNING: Failed to unpack appeared cache. Proceeding to build."
+        echo "WARNING: Failed to unpack the newly available cache. Proceeding to build."
       fi
     fi
 

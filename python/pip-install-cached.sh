@@ -113,6 +113,24 @@ function err() {
   exit 1
 }
 
+function remove_old_backports() {
+  # This script uses 'apt-get update' and is therefore potentially dependent on
+  # backports repositories which have been archived.  In order to mitigate this
+  # problem, we will remove any reference to backports repos older than oldstable
+
+  # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
+  local oldstable=$(curl -s https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
+  local stable=$(curl -s https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
+
+  local matched_files=( $(grep -rsil '\-backports' /etc/apt/sources.list*||:) )
+  if [[ -n "$matched_files" ]]; then
+    for filename in "${matched_files[@]}"; do
+      grep -e "$oldstable-backports" -e "$stable-backports" "$filename" || \
+        sed -i -e 's/^.*-backports.*$//' "$filename"
+    done
+  fi
+}
+
 function run_with_retry() {
   local -r cmd=("$@")
   for ((i = 0; i < 10; i++)); do
@@ -162,6 +180,19 @@ function ensure_venv() {
   fi
 }
 
+function merge_isolated_env() {
+  local venv_path=$1
+  echo "Merging isolated environment back to system Python"
+  local system_site_packages=$(/usr/bin/python3 -c "import site; print(site.getsitepackages()[0])" 2>/dev/null)
+  local venv_site_packages=$(find "${venv_path}/lib" -maxdepth 2 -type d -name "site-packages" | head -n 1)
+  if [[ -n "${system_site_packages}" && -n "${venv_site_packages}" ]]; then
+    cp -a "${venv_site_packages}/." "${system_site_packages}/"
+  else
+    echo "ERROR: Could not find system or venv site-packages directory"
+    return 1
+  fi
+}
+
 function unpack_and_merge() {
   local tarball=$1
   local target_path=$2
@@ -171,10 +202,7 @@ function unpack_and_merge() {
   mkdir -p "${target_path}"
   if gcs_cat "${tarball}" | tar -C "${target_path}" -xz; then
     if [[ "${is_isolated}" == "true" ]]; then
-      echo "Merging isolated environment back to ${original_path}"
-      # Ensure target directories exist in original path if needed?
-      # cp -a should handle it if original_path is directory.
-      cp -a "${target_path}/." "${original_path}/"
+      merge_isolated_env "${target_path}"
     fi
     return 0
   fi
@@ -195,7 +223,7 @@ function main() {
   local env_path
   local pip_bin
   local original_env_path=""
-  local isolated_env_path="/tmp/pip-isolated-env"
+  local isolated_env_path="/opt/pip-isolated-env"
   local isolated="false"
 
   if [[ -n "${TARGET_ENV_PATH}" ]]; then
@@ -203,6 +231,9 @@ function main() {
     pip_bin="${env_path}/bin/pip"
     echo "Using target environment path from metadata: ${env_path}"
   else
+    if [[ "${OS_NAME}" == "debian" ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
+      remove_old_backports
+    fi
     install_pip
     local pip_path=$(which pip)
     env_path=$(dirname $(dirname "${pip_path}"))
@@ -277,21 +308,35 @@ function main() {
     set -e
 
     if [[ ${sentinel_exists_code} -eq 0 ]]; then
+      local sentinel_epoch=$(gcs_file_epoch "${gcs_tarball}.building")
+      if [[ -n "${sentinel_epoch}" ]]; then
+        local now_epoch=$(date -u +%s)
+        local sentinel_age=$((now_epoch - sentinel_epoch))
+        if (( sentinel_age > 1200 )); then
+          echo "Found stale sentinel (age: ${sentinel_age}s > 1200s). Removing it."
+          gcs_rm "${gcs_tarball}.building" || true
+          sentinel_exists_code=1
+        fi
+      fi
+    fi
+
+    if [[ ${sentinel_exists_code} -eq 0 ]]; then
       echo "Another node is building this environment. Waiting..."
       local wait_start=$(date +%s)
-      local timeout="${CACHE_TIMEOUT}"
+      local timeout=1200
       while gcs_exists "${gcs_tarball}.building"; do
         if gcs_exists "${gcs_tarball}"; then
           echo "Cache file appeared while waiting. Skipping build."
           if unpack_and_merge "${gcs_tarball}" "${env_path}" "${original_env_path}" "${isolated}"; then
             return 0
           fi
-          echo "WARNING: Failed to unpack appeared cache. Proceeding to build."
+          echo "WARNING: Failed to unpack the newly available cache. Proceeding to build."
           break
         fi
         local now=$(date +%s)
         if (( now - wait_start > timeout )); then
-          echo "Timeout waiting for concurrent build. Proceeding to build myself."
+          echo "Timeout waiting for concurrent build. Removing stale sentinel and proceeding to build myself."
+          gcs_rm "${gcs_tarball}.building" || true
           break
         fi
         echo "Waiting 30 seconds..."
@@ -304,7 +349,7 @@ function main() {
         if unpack_and_merge "${gcs_tarball}" "${env_path}" "${original_env_path}" "${isolated}"; then
           return 0
         fi
-        echo "WARNING: Failed to unpack appeared cache. Proceeding to build."
+        echo "WARNING: Failed to unpack the newly available cache. Proceeding to build."
       fi
     fi
 
@@ -329,8 +374,7 @@ function main() {
       read -r -a pack_arr <<< "${PACKAGES}"
       run_with_retry "${pip_bin}" install --upgrade "${pack_arr[@]}"
       if [[ "${isolated}" == "true" ]]; then
-        echo "Merging isolated environment back to ${original_env_path}"
-        cp -a "${env_path}/." "${original_env_path}/"
+        merge_isolated_env "${env_path}"
       fi
       rm -f "${local_tarball}.building"
       return 0
@@ -348,8 +392,7 @@ function main() {
   run_with_retry "${pip_bin}" install --upgrade "${pack_arr[@]}"
 
   if [[ "${isolated}" == "true" ]]; then
-    echo "Merging isolated environment back to ${original_env_path}"
-    cp -a "${env_path}/." "${original_env_path}/"
+    merge_isolated_env "${env_path}"
   fi
 
   echo "Packaging environment."
