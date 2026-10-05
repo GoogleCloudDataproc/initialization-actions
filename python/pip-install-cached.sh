@@ -119,8 +119,8 @@ function remove_old_backports() {
   # problem, we will remove any reference to backports repos older than oldstable
 
   # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
-  local oldstable=$(curl -s https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
-  local stable=$(curl -s https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
+  local oldstable=$(curl -s --connect-timeout 5 --max-time 10 https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
+  local stable=$(curl -s --connect-timeout 5 --max-time 10 https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
 
   local matched_files=( $(grep -rsil '\-backports' /etc/apt/sources.list*||:) )
   if [[ -n "$matched_files" ]]; then
@@ -184,9 +184,12 @@ function merge_isolated_env() {
   local venv_path=$1
   echo "Merging isolated environment back to system Python"
   local system_site_packages=$(/usr/bin/python3 -c "import site; print(site.getsitepackages()[0])" 2>/dev/null)
-  local venv_site_packages=$(find "${venv_path}/lib" -maxdepth 2 -type d -name "site-packages" | head -n 1)
+  local venv_site_packages=$(find "${venv_path}/lib" -maxdepth 2 -type d -name "site-packages" 2>/dev/null | head -n 1)
   if [[ -n "${system_site_packages}" && -n "${venv_site_packages}" ]]; then
     cp -a "${venv_site_packages}/." "${system_site_packages}/"
+    if [[ -d "${venv_path}/bin" ]]; then
+      find "${venv_path}/bin" -type f ! -name "python*" ! -name "pip*" ! -name "easy_install*" ! -name "activate*" -exec cp -a {} /usr/local/bin/ \;
+    fi
   else
     echo "ERROR: Could not find system or venv site-packages directory"
     return 1
@@ -231,7 +234,7 @@ function main() {
     pip_bin="${env_path}/bin/pip"
     echo "Using target environment path from metadata: ${env_path}"
   else
-    if [[ "${OS_NAME}" == "debian" ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
+    if [[ "${OS_NAME}" == "debian" ]] && [[ -n "${DATAPROC_IMAGE_VERSION}" ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
       remove_old_backports
     fi
     install_pip
