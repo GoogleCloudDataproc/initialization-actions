@@ -147,6 +147,40 @@ function get_cache_key() {
   echo "${sorted_packages}" | sha256sum | awk '{print $1}'
 }
 
+function ensure_venv() {
+  if python3 -m venv --help >/dev/null 2>&1; then
+    echo "venv is available."
+    return 0
+  fi
+
+  echo "Installing venv..."
+  if [[ "${OS_NAME}" == "debian" || "${OS_NAME}" == "ubuntu" ]]; then
+    run_with_retry apt update
+    run_with_retry apt install python3-venv -y
+  elif [[ "${OS_NAME}" == "rocky" ]]; then
+    run_with_retry yum install -y python3-virtualenv || run_with_retry dnf install -y python3-virtualenv
+  fi
+}
+
+function unpack_and_merge() {
+  local tarball=$1
+  local target_path=$2
+  local original_path=$3
+  local is_isolated=$4
+
+  mkdir -p "${target_path}"
+  if gcs_cat "${tarball}" | tar -C "${target_path}" -xz; then
+    if [[ "${is_isolated}" == "true" ]]; then
+      echo "Merging isolated environment back to ${original_path}"
+      # Ensure target directories exist in original path if needed?
+      # cp -a should handle it if original_path is directory.
+      cp -a "${target_path}/." "${original_path}/"
+    fi
+    return 0
+  fi
+  return 1
+}
+
 function main() {
   if [[ -z "${PACKAGES}" ]]; then
     echo "ERROR: Must specify PIP_PACKAGES metadata key"
@@ -160,6 +194,9 @@ function main() {
 
   local env_path
   local pip_bin
+  local original_env_path=""
+  local isolated_env_path="/tmp/pip-isolated-env"
+  local isolated="false"
 
   if [[ -n "${TARGET_ENV_PATH}" ]]; then
     env_path="${TARGET_ENV_PATH}"
@@ -171,9 +208,15 @@ function main() {
     env_path=$(dirname $(dirname "${pip_path}"))
     if [[ "${env_path}" == "/usr" || "${env_path}" == "/usr/local" || "${env_path}" == "/" ]]; then
       echo "WARNING: Inferred system-wide environment path: ${env_path}."
-      echo "Caching the entire system directory is unsafe and may result in large cache files. It is strongly recommended to specify a virtual environment path using TARGET_ENV_PATH."
+      echo "Switching to isolated venv for caching to avoid archiving system directories."
+      ensure_venv
+      original_env_path="${env_path}"
+      env_path="${isolated_env_path}"
+      pip_bin="${env_path}/bin/pip"
+      isolated="true"
+    else
+      pip_bin="pip"
     fi
-    pip_bin="pip"
     echo "Inferred target environment path: ${env_path}"
   fi
 
@@ -206,7 +249,7 @@ function main() {
 
       if (( age <= CACHE_TIMEOUT )); then
         echo "Cache hit for key ${cache_key} (age: ${age}s). Unpacking from ${gcs_tarball}"
-        if gcs_cat "${gcs_tarball}" | tar -C "${env_path}" -xz; then
+        if unpack_and_merge "${gcs_tarball}" "${env_path}" "${original_env_path}" "${isolated}"; then
           echo "Cache unpacked successfully."
           return 0
         else
@@ -217,7 +260,7 @@ function main() {
       fi
     else
       echo "Cache hit for key ${cache_key} (could not verify age). Unpacking."
-      if gcs_cat "${gcs_tarball}" | tar -C "${env_path}" -xz; then
+      if unpack_and_merge "${gcs_tarball}" "${env_path}" "${original_env_path}" "${isolated}"; then
         return 0
       else
         echo "WARNING: Failed to unpack cache. Falling back to rebuilding."
@@ -240,7 +283,7 @@ function main() {
       while gcs_exists "${gcs_tarball}.building"; do
         if gcs_exists "${gcs_tarball}"; then
           echo "Cache file appeared while waiting. Skipping build."
-          if gcs_cat "${gcs_tarball}" | tar -C "${env_path}" -xz; then
+          if unpack_and_merge "${gcs_tarball}" "${env_path}" "${original_env_path}" "${isolated}"; then
             return 0
           fi
           echo "WARNING: Failed to unpack appeared cache. Proceeding to build."
@@ -258,7 +301,7 @@ function main() {
       # Double check if cache appeared just after sentinel removal
       if gcs_exists "${gcs_tarball}"; then
         echo "Cache file appeared. Skipping build."
-        if gcs_cat "${gcs_tarball}" | tar -C "${env_path}" -xz; then
+        if unpack_and_merge "${gcs_tarball}" "${env_path}" "${original_env_path}" "${isolated}"; then
           return 0
         fi
         echo "WARNING: Failed to unpack appeared cache. Proceeding to build."
@@ -285,6 +328,10 @@ function main() {
       local -a pack_arr
       read -r -a pack_arr <<< "${PACKAGES}"
       run_with_retry "${pip_bin}" install --upgrade "${pack_arr[@]}"
+      if [[ "${isolated}" == "true" ]]; then
+        echo "Merging isolated environment back to ${original_env_path}"
+        cp -a "${env_path}/." "${original_env_path}/"
+      fi
       rm -f "${local_tarball}.building"
       return 0
     fi
@@ -299,6 +346,11 @@ function main() {
   local -a pack_arr
   read -r -a pack_arr <<< "${PACKAGES}"
   run_with_retry "${pip_bin}" install --upgrade "${pack_arr[@]}"
+
+  if [[ "${isolated}" == "true" ]]; then
+    echo "Merging isolated environment back to ${original_env_path}"
+    cp -a "${env_path}/." "${original_env_path}/"
+  fi
 
   echo "Packaging environment."
   # We package the contents of the environment path
