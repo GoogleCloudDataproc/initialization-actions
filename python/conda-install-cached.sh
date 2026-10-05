@@ -40,8 +40,6 @@ if (! test -v DATAPROC_IMAGE_VERSION) && test -v DATAPROC_VERSION; then
   DATAPROC_IMAGE_VERSION="${DATAPROC_VERSION}"
 fi
 
-function version_ge(){ [[ "$1" = "$(echo -e "$1\n$2"|sort -V|tail -n1)" ]]; }
-function version_le(){ [[ "$1" = "$(echo -e "$1\n$2"|sort -V|head -n1)" ]]; }
 
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
@@ -81,6 +79,11 @@ function main() {
     echo "Using target environment path from metadata: ${env_path}"
   else
     env_path=$(dirname $(dirname "${conda_path}"))
+    if [[ "${env_path}" == "/usr" || "${env_path}" == "/usr/local" || "${env_path}" == "/" ]]; then
+      echo "ERROR: Refusing to cache system-wide environment path: ${env_path}."
+      echo "Caching the entire system directory is unsafe. Please specify a target environment path using TARGET_ENV_PATH."
+      exit 1
+    fi
     echo "Inferred target environment path: ${env_path}"
   fi
 
@@ -106,23 +109,33 @@ function main() {
 
   if [[ ${cache_exists_code} -eq 0 ]]; then
     local file_time=$(gsutil stat "${gcs_tarball}" | grep -oP 'Creation time:\s*\K.*' || echo "")
+    local file_epoch=""
     if [[ -n "${file_time}" ]]; then
-      local file_epoch=$(date -u -d "${file_time}" +%s)
+      file_epoch=$(date -u -d "${file_time}" +%s 2>/dev/null || echo "")
+    fi
+
+    if [[ -n "${file_epoch}" ]]; then
       local now_epoch=$(date -u +%s)
       local age=$((now_epoch - file_epoch))
 
       if (( age <= CACHE_TIMEOUT )); then
         echo "Cache hit for key ${cache_key} (age: ${age}s). Unpacking from ${gcs_tarball}"
-        gsutil cat "${gcs_tarball}" | tar -C "${env_path}" -xz
-        echo "Cache unpacked successfully."
-        return 0
+        if gsutil cat "${gcs_tarball}" | tar -C "${env_path}" -xz; then
+          echo "Cache unpacked successfully."
+          return 0
+        else
+          echo "WARNING: Failed to unpack cache. Falling back to rebuilding."
+        fi
       else
         echo "Cache expired for key ${cache_key} (age: ${age}s > ${CACHE_TIMEOUT}s). Rebuilding."
       fi
     else
       echo "Cache hit for key ${cache_key} (could not verify age). Unpacking."
-      gsutil cat "${gcs_tarball}" | tar -C "${env_path}" -xz
-      return 0
+      if gsutil cat "${gcs_tarball}" | tar -C "${env_path}" -xz; then
+        return 0
+      else
+        echo "WARNING: Failed to unpack cache. Falling back to rebuilding."
+      fi
     fi
   fi
 
@@ -140,8 +153,11 @@ function main() {
     while gsutil -q stat "${gcs_tarball}.building" > /dev/null 2>&1; do
       if gsutil -q stat "${gcs_tarball}" > /dev/null 2>&1; then
         echo "Cache file appeared while waiting. Skipping build."
-        gsutil cat "${gcs_tarball}" | tar -C "${env_path}" -xz
-        return 0
+        if gsutil cat "${gcs_tarball}" | tar -C "${env_path}" -xz; then
+          return 0
+        fi
+        echo "WARNING: Failed to unpack appeared cache. Proceeding to build."
+        break
       fi
       local now=$(date +%s)
       if (( now - wait_start > timeout )); then
@@ -155,12 +171,17 @@ function main() {
     # Double check if cache appeared just after sentinel removal
     if gsutil -q stat "${gcs_tarball}" > /dev/null 2>&1; then
       echo "Cache file appeared. Skipping build."
-      gsutil cat "${gcs_tarball}" | tar -C "${env_path}" -xz
-      return 0
+      if gsutil cat "${gcs_tarball}" | tar -C "${env_path}" -xz; then
+        return 0
+      fi
+      echo "WARNING: Failed to unpack appeared cache. Proceeding to build."
     fi
   fi
 
   echo "Proceeding to build and cache environment."
+
+  local -a pack_arr
+  read -r -a pack_arr <<< "${PACKAGES}"
 
   touch "${local_tarball}.building"
   
@@ -172,7 +193,7 @@ function main() {
   if [[ ${sentinel_upload_code} -ne 0 ]]; then
     echo "WARNING: Failed to upload sentinel to GCS. GCS might be unreachable."
     echo "Falling back to standard non-cached installation."
-    conda install -y -p "${env_path}" ${PACKAGES}
+    conda install -y -p "${env_path}" "${pack_arr[@]}"
     rm -f "${local_tarball}.building"
     return 0
   fi
@@ -181,7 +202,7 @@ function main() {
   trap 'gsutil rm "${gcs_tarball}.building" || true; rm -f "${local_tarball}.building"' EXIT
 
   # Perform standard installation
-  conda install -y -p "${env_path}" ${PACKAGES}
+  conda install -y -p "${env_path}" "${pack_arr[@]}"
 
   echo "Packaging environment."
   # We package the contents of the environment path
