@@ -134,7 +134,9 @@ function main() {
 
   # Configure channels first
   if [[ -n "${CHANNELS}" ]]; then
-    for channel in ${CHANNELS}; do
+    local -a chan_arr
+    read -r -a chan_arr <<< "${CHANNELS}"
+    for channel in "${chan_arr[@]}"; do
       conda config --add channels "${channel}"
     done
   fi
