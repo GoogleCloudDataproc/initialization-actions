@@ -132,22 +132,17 @@ function main() {
     exit 1
   fi
 
-  # Configure channels first
-  if [[ -n "${CHANNELS}" ]]; then
-    local -a chan_arr
-    read -r -a chan_arr <<< "${CHANNELS}"
-    for channel in "${chan_arr[@]}"; do
-      conda config --add channels "${channel}"
-    done
-  fi
-
-  local conda_path=$(which conda)
+  local conda_path
+  conda_path=$(which conda 2>/dev/null) || true
   local env_path
 
   if [[ -n "${TARGET_ENV_PATH}" ]]; then
     env_path="${TARGET_ENV_PATH}"
     echo "Using target environment path from metadata: ${env_path}"
   else
+    if [[ -z "${conda_path}" ]]; then
+      err "conda command not found and TARGET_ENV_PATH not specified."
+    fi
     env_path=$(dirname $(dirname "${conda_path}"))
     if [[ "${env_path}" == "/usr" || "${env_path}" == "/usr/local" || "${env_path}" == "/" ]]; then
       echo "WARNING: Inferred system-wide environment path: ${env_path}."
@@ -157,6 +152,21 @@ function main() {
   fi
 
   echo "Target environment path: ${env_path}"
+  mkdir -p "${env_path}"
+
+  # Configure channels
+  if [[ -n "${CHANNELS}" ]]; then
+    if [[ -z "${conda_path}" ]]; then
+       echo "WARNING: Cannot configure channels, conda binary not found in PATH"
+    else
+      local -a chan_arr
+      read -r -a chan_arr <<< "${CHANNELS}"
+      for channel in "${chan_arr[@]}"; do
+        conda config --add channels "${channel}"
+      done
+    fi
+  fi
+
 
   local cache_key
   if [[ -n "${CACHE_KEY_OVERRIDE}" ]]; then

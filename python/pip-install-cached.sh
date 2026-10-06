@@ -119,8 +119,11 @@ function remove_old_backports() {
   # problem, we will remove any reference to backports repos older than oldstable
 
   # https://github.com/GoogleCloudDataproc/initialization-actions/issues/1157
-  local oldstable=$(curl -s --connect-timeout 5 --max-time 10 https://deb.debian.org/debian/dists/oldstable/Release | awk '/^Codename/ {print $2}');
-  local stable=$(curl -s --connect-timeout 5 --max-time 10 https://deb.debian.org/debian/dists/stable/Release | awk '/^Codename/ {print $2}');
+  local oldstable
+  oldstable=$(curl -s --connect-timeout 5 --max-time 10 https://deb.debian.org/debian/dists/oldstable/Release 2>/dev/null | awk '/^Codename/ {print $2}' || echo "oldstable")
+  local stable
+  stable=$(curl -s --connect-timeout 5 --max-time 10 https://deb.debian.org/debian/dists/stable/Release 2>/dev/null | awk '/^Codename/ {print $2}' || echo "stable")
+
 
   local matched_files=( $(grep -rsil '\-backports' /etc/apt/sources.list*||:) )
   if [[ -n "$matched_files" ]]; then
