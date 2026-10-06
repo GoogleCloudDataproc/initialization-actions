@@ -32,7 +32,7 @@ if [[ -z "${CACHE_TIMEOUT}" ]]; then
 fi
 readonly CACHE_TIMEOUT
 readonly TARGET_ENV_PATH=$(/usr/share/google/get_metadata_value attributes/TARGET_ENV_PATH || true)
-readonly OS_NAME=$(if command -v lsb_release >/dev/null 2>&1; then lsb_release -is | tr '[:upper:]' '[:lower:]'; else . /etc/os-release; echo "${ID}" | tr '[:upper:]' '[:lower:]'; fi)
+readonly OS_NAME=$(grep '^ID=' /etc/os-release | cut -d= -f2 | xargs | tr '[:upper:]' '[:lower:]')
 
 GCS_CMD="gsutil"
 if gcloud --help >/dev/null 2>&1 && gcloud storage --help >/dev/null 2>&1; then
