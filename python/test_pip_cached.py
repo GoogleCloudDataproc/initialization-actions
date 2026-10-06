@@ -21,7 +21,8 @@ class PipCachedTestCase(DataprocTestCase):
             self.REGION, self.GCS_BUCKET))
 
     def tearDown(self):
-        self.assert_command('gsutil -m rm -rf gs://{}'.format(self.GCS_BUCKET))
+        if self.GCS_BUCKET:
+            self.run_command('gsutil -m rm -rf gs://{}'.format(self.GCS_BUCKET))
         super().tearDown()
 
     def _verify_pip_packages(self, instance, pip_packages):

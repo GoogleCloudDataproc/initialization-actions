@@ -23,7 +23,8 @@ class CondaCachedTestCase(DataprocTestCase):
             self.REGION, self.GCS_BUCKET))
 
     def tearDown(self):
-        self.assert_command('gsutil -m rm -rf gs://{}'.format(self.GCS_BUCKET))
+        if self.GCS_BUCKET:
+            self.run_command('gsutil -m rm -rf gs://{}'.format(self.GCS_BUCKET))
         super().tearDown()
 
     def _verify_conda_packages(self, instance, conda_packages):

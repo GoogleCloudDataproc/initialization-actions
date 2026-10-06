@@ -144,7 +144,7 @@ function main() {
       err "conda command not found and TARGET_ENV_PATH not specified."
     fi
     env_path=$(dirname $(dirname "${conda_path}"))
-    if [[ "${env_path}" == "/usr" || "${env_path}" == "/usr/local" || "${env_path}" == "/" ]]; then
+    if [[ "${env_path}" == "/usr" || "${env_path}" == "/usr/local" || "${env_path}" == "/" || "${env_path}" == "/opt/conda" ]]; then
       echo "WARNING: Inferred system-wide environment path: ${env_path}."
       echo "Caching the entire system directory is unsafe and may result in large cache files. It is strongly recommended to specify a target environment path using TARGET_ENV_PATH."
     fi

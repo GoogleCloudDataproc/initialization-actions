@@ -243,8 +243,11 @@ function main() {
     pip_bin="${env_path}/bin/pip"
     echo "Using target environment path from metadata: ${env_path}"
   else
-    if [[ "${OS_NAME}" == "debian" ]] && [[ -n "${DATAPROC_IMAGE_VERSION}" ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} <= 2.1" | bc -l) == 1 ]]; then
-      remove_old_backports
+    if [[ "${OS_NAME}" == "debian" ]] && [[ -n "${DATAPROC_IMAGE_VERSION}" ]]; then
+      local dp_ver=$(echo "${DATAPROC_IMAGE_VERSION}" | sed -E 's/^([0-9]+\.[0-9]+).*$/\1/')
+      if [[ $(echo "${dp_ver} <= 2.1" | bc -l 2>/dev/null) == 1 ]]; then
+        remove_old_backports
+      fi
     fi
     install_pip
     local pip_path=$(which pip)
@@ -253,7 +256,8 @@ function main() {
       echo "WARNING: Inferred system-wide environment path: ${env_path}."
       echo "Switching to isolated venv for caching to avoid archiving system directories."
       ensure_venv
-      python3 -m venv "${isolated_env_path}" || virtualenv "${isolated_env_path}"
+      python3 -m venv --system-site-packages "${isolated_env_path}" || virtualenv --system-site-packages "${isolated_env_path}"
+
       original_env_path="${env_path}"
       env_path="${isolated_env_path}"
       pip_bin="${env_path}/bin/pip"
