@@ -32,7 +32,7 @@ if [[ -z "${CACHE_TIMEOUT}" ]]; then
 fi
 readonly CACHE_TIMEOUT
 readonly TARGET_ENV_PATH=$(/usr/share/google/get_metadata_value attributes/TARGET_ENV_PATH || true)
-readonly OS_NAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
+readonly OS_NAME=$(if command -v lsb_release >/dev/null 2>&1; then lsb_release -is | tr '[:upper:]' '[:lower:]'; else . /etc/os-release; echo "${ID}" | tr '[:upper:]' '[:lower:]'; fi)
 
 GCS_CMD="gsutil"
 if gcloud --help >/dev/null 2>&1 && gcloud storage --help >/dev/null 2>&1; then
@@ -189,6 +189,12 @@ function merge_isolated_env() {
     cp -a "${venv_site_packages}/." "${system_site_packages}/"
     if [[ -d "${venv_path}/bin" ]]; then
       find "${venv_path}/bin" -type f ! -name "python*" ! -name "pip*" ! -name "easy_install*" ! -name "activate*" -exec cp -a {} /usr/local/bin/ \;
+      # Rewrite shebangs of copied scripts to use system python
+      for f in $(find "${venv_path}/bin" -type f ! -name "python*" ! -name "pip*" ! -name "easy_install*" ! -name "activate*" -exec basename {} \;); do
+        if head -n 1 "/usr/local/bin/${f}" | grep -q "python"; then
+          sed -i "1s|^#!.*python.*|#!/usr/bin/env python3|" "/usr/local/bin/${f}"
+        fi
+      done
     fi
   else
     echo "ERROR: Could not find system or venv site-packages directory"
@@ -205,7 +211,7 @@ function unpack_and_merge() {
   mkdir -p "${target_path}"
   if gcs_cat "${tarball}" | tar -C "${target_path}" -xz; then
     if [[ "${is_isolated}" == "true" ]]; then
-      merge_isolated_env "${target_path}"
+      merge_isolated_env "${target_path}" || return 1
     fi
     return 0
   fi
@@ -244,6 +250,7 @@ function main() {
       echo "WARNING: Inferred system-wide environment path: ${env_path}."
       echo "Switching to isolated venv for caching to avoid archiving system directories."
       ensure_venv
+      python3 -m venv "${isolated_env_path}" || virtualenv "${isolated_env_path}"
       original_env_path="${env_path}"
       env_path="${isolated_env_path}"
       pip_bin="${env_path}/bin/pip"
