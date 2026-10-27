@@ -172,11 +172,11 @@ function configure_dkms_certs() {
 
 function clear_dkms_key {
   if [[ -z "${PSN}" ]]; then
-      echo "No signing secret provided.  skipping" >2
+      echo "No signing secret provided.  skipping" >&2
       return 0
   fi
-  echo "WARN -- PURGING SIGNING MATERIAL -- WARN" >2
-  echo "future dkms runs will not use correct signing key" >2
+  echo "WARN -- PURGING SIGNING MATERIAL -- WARN" >&2
+  echo "future dkms runs will not use correct signing key" >&2
   rm -rf "${CA_TMPDIR}" /var/lib/dkms/mok.key /var/lib/shim-signed/mok/MOK.priv
 }
 
@@ -318,7 +318,6 @@ function install_nvidia_gpu_driver() {
       execute_with_retries "apt-get install -y -q --no-install-recommends dkms"
       execute_with_retries \
         "apt-get install -y -q --no-install-recommends nvidia-driver-pinning-${NVIDIA_DRIVER_VERSION_PREFIX}"
-      execute_with_retries "apt-get update"
 
       configure_dkms_certs
       execute_with_retries \
