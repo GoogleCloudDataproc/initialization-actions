@@ -312,6 +312,7 @@ function install_nvidia_gpu_driver() {
         "curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 https://developer.download.nvidia.com/compute/cuda/repos/${shortname}/x86_64/cuda-keyring_1.1-1_all.deb -o /tmp/cuda-keyring_1.1-1_all.deb"
       execute_with_retries "dpkg -i /tmp/cuda-keyring_1.1-1_all.deb"
       rm -f /tmp/cuda-keyring_1.1-1_all.deb
+      add_contrib_components
       execute_with_retries "apt-get update"
 
       execute_with_retries "apt-get install -y -q --no-install-recommends dkms"
