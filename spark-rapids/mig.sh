@@ -104,6 +104,26 @@ function get_metadata_attribute() {
   /usr/share/google/get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
 }
 
+REBOOT_FOR_CGROUP_V1=0
+
+function configure_cgroup_v1_for_yarn_gpu_isolation() {
+  if ! is_debian13 || [[ ! -f /sys/fs/cgroup/cgroup.controllers ]]; then
+    return
+  fi
+
+  # YARN's GPU isolation requires the cgroup v1 devices controller. Debian 13
+  # defaults to cgroup v2, and systemd 257 requires both kernel parameters to
+  # temporarily enable its legacy hierarchy.
+  local -r cgroup_v1_params="systemd.unified_cgroup_hierarchy=0 SYSTEMD_CGROUP_ENABLE_LEGACY_FORCE=1"
+  if ! grep -q 'SYSTEMD_CGROUP_ENABLE_LEGACY_FORCE=1' /etc/default/grub; then
+    sed -i \
+      "s|^GRUB_CMDLINE_LINUX_DEFAULT=\"\\(.*\\)\"|GRUB_CMDLINE_LINUX_DEFAULT=\"\\1 ${cgroup_v1_params}\"|" \
+      /etc/default/grub
+    update-grub
+  fi
+  REBOOT_FOR_CGROUP_V1=1
+}
+
 CA_TMPDIR="$(mktemp -u -d -p /run/tmp -t ca_dir-XXXX)"
 PSN="$(get_metadata_attribute private_secret_name)"
 readonly PSN
@@ -227,23 +247,38 @@ NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '550.54.15') #53
 CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.2
 
 # EXCEPTIONS
-# Debian 12 security kernels and Debian 13 kernels use the four-argument pci_resize_resource API,
+# Debian 12 security kernels use the four-argument pci_resize_resource API,
 # which is incompatible with NVIDIA 550 open modules.
-if is_debian12 || is_debian13 ; then
+if is_debian12 ; then
   NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '580.95.05')
   if [[ "${NVIDIA_DRIVER_VERSION%%.*}" == "550" ]]; then
-    echo "WARNING: Driver version 550 is incompatible with Debian 12/13 kernel. Overriding to 580.95.05" >&2
+    echo "WARNING: Driver version 550 is incompatible with Debian 12 kernel. Overriding to 580.95.05" >&2
     NVIDIA_DRIVER_VERSION='580.95.05'
+  fi
+  USE_REPO_INSTALL="true"
+elif is_debian13 ; then
+  # The Debian 13 repository starts at driver 590 and CUDA 13.
+  CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '13.0')
+  NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '590')
+  CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"
+  if [[ "${NVIDIA_DRIVER_VERSION%%.*}" -lt 590 ]]; then
+    echo "WARNING: Driver version ${NVIDIA_DRIVER_VERSION} is unavailable for Debian 13. Overriding to 590" >&2
+    NVIDIA_DRIVER_VERSION='590'
   fi
   USE_REPO_INSTALL="true"
 fi
 
-# Change CUDA version for Ubuntu 18 (Cuda 12.1.1 - Driver v530.30.02 is the latest version supported by Ubuntu 18)
+# Change CUDA and driver versions for Ubuntu-specific repository availability.
 if [[ "${OS_NAME}" == "ubuntu" ]]; then
     if is_ubuntu18 ; then
       CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '12.1.1')  #12.1.1
       NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '530.30.02') #530.30.02
       CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.1
+    elif is_ubuntu24 ; then
+      CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '12.6.0')
+      NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '580.95.05')
+      CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"
+      USE_REPO_INSTALL="true"
     fi
 fi
 
@@ -423,6 +458,20 @@ function install_nvidia_gpu_driver() {
        -o cuda.run
       bash cuda.run --silent --toolkit --no-opengl-libs
       rm cuda.run
+    elif [[ "${USE_REPO_INSTALL:-false}" == "true" ]]; then
+      execute_with_retries \
+        "curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 https://developer.download.nvidia.com/compute/cuda/repos/${shortname}/x86_64/cuda-keyring_1.1-1_all.deb -o /tmp/cuda-keyring_1.1-1_all.deb"
+      execute_with_retries "dpkg -i /tmp/cuda-keyring_1.1-1_all.deb"
+      rm -f /tmp/cuda-keyring_1.1-1_all.deb
+      execute_with_retries "apt-get update"
+
+      execute_with_retries "apt-get install -y -q --no-install-recommends dkms"
+      configure_dkms_certs
+      for pkg in "nvidia-driver-${NVIDIA_DRIVER_VERSION_PREFIX}-open" \
+                 "cuda-toolkit-${CUDA_VERSION_MAJOR//./-}" ; do
+        execute_with_retries "apt-get install -y -q --no-install-recommends ${pkg}"
+      done
+      clear_dkms_key
     else
       # Install from repo provided by NV
       readonly UBUNTU_REPO_CUDA_PIN="${NVIDIA_REPO_URL}/cuda-${shortname}.pin"
@@ -578,6 +627,7 @@ function main() {
   fi
 
   if (lspci | grep -q NVIDIA); then
+    configure_cgroup_v1_for_yarn_gpu_isolation
     if [[ $META_MIG_VALUE -ne 0 ]]; then
       # if the first invocation, the NVIDIA drivers and tools are not installed
       if [[ -f "/usr/bin/nvidia-smi" ]]; then
@@ -586,6 +636,11 @@ function main() {
         NUM_GPUS_WITH_DIFF_MIG_MODES=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
         if [[ $NUM_GPUS_WITH_DIFF_MIG_MODES -eq 1 ]]; then
           if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
+            if [[ $REBOOT_FOR_CGROUP_V1 -ne 0 ]]; then
+              echo "Rebooting to enable the cgroup v1 devices controller"
+              reboot
+              exit 0
+            fi
             echo "MIG is enabled on all GPUs, configuring instances"
             configure_mig_cgi
             exit 0
@@ -611,6 +666,11 @@ function main() {
 
     if [[ ${META_MIG_VALUE} -ne 0 ]]; then
       enable_mig
+      if [[ $REBOOT_FOR_CGROUP_V1 -ne 0 ]]; then
+        echo "Rebooting to enable MIG and the cgroup v1 devices controller"
+        reboot
+        exit 0
+      fi
       NUM_GPUS_WITH_DIFF_MIG_MODES=`/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | uniq | wc -l`
       if [[ NUM_GPUS_WITH_DIFF_MIG_MODES -eq 1 ]]; then
         if (/usr/bin/nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | grep Enabled); then
@@ -626,6 +686,10 @@ function main() {
       fi
     else
       echo "Not enabling MIG"
+      if [[ $REBOOT_FOR_CGROUP_V1 -ne 0 ]]; then
+        echo "Rebooting to enable the cgroup v1 devices controller"
+        reboot
+      fi
     fi
   fi
 }
