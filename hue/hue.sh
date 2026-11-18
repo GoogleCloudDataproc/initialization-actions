@@ -167,6 +167,7 @@ function ensure_python39_runtime_libs() {
       libncursesw6 libreadline8 libsqlite3-0 libssl3 libuuid1 zlib1g ||
       err "Failed to install Python 3.9 runtime libraries on Ubuntu"
   else
+    # Rocky Linux 9 AppStream provides libmysqlclient.so.21 (needed by MySQLdb) via mysql-libs.
     install_packages \
       bzip2-libs gdbm-libs libffi libuuid mysql-libs ncurses-libs \
       openssl-libs readline sqlite-libs xz-libs zlib ||
@@ -219,8 +220,10 @@ function install_python39_if_needed() {
       err "Failed to download ${gcs_base_dir}/${archive_name}"
     retry_command "gsutil cp '${gcs_base_dir}/${archive_name}.sha256' '${tmp_dir}/${archive_name}.sha256'" ||
       err "Failed to download ${gcs_base_dir}/${archive_name}.sha256"
-    (cd "${tmp_dir}" && sha256sum -c "${archive_name}.sha256") ||
-      err "SHA-256 verification failed for ${archive_name}"
+    (
+      cd "${tmp_dir}" &&
+        awk -v f="${archive_name}" '{print $1 "  " f}' "${archive_name}.sha256" | sha256sum -c -
+    ) || err "SHA-256 verification failed for ${archive_name}"
   fi
 
   tar --no-same-owner -xzf "${tmp_dir}/${archive_name}" -C / ||
