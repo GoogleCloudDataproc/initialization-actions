@@ -52,6 +52,10 @@ function is_debian12() {
   is_debian && [[ "$(os_version)" == '12'* ]]
 }
 
+function is_debian13() {
+  is_debian && [[ "$(os_version)" == '13'* ]]
+}
+
 function is_ubuntu() {
   [[ "$(os_id)" == 'ubuntu' ]]
 }
@@ -66,6 +70,10 @@ function is_ubuntu20() {
 
 function is_ubuntu22() {
   is_ubuntu && [[ "$(os_version)" == '22.04'* ]]
+}
+
+function is_ubuntu24() {
+  is_ubuntu && [[ "$(os_version)" == '24.04'* ]]
 }
 
 function is_rocky() {
@@ -186,7 +194,7 @@ function add_contrib_components() {
   if ! is_debian ; then
     return
   fi
-  if is_debian12 ; then
+  if is_debian12 || is_debian13 ; then
       # Include in sources file components on which nvidia-open-kernel-dkms depends
       local -r debian_sources="/etc/apt/sources.list.d/debian.sources"
       local components="main contrib"
@@ -219,12 +227,12 @@ NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '550.54.15') #53
 CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.2
 
 # EXCEPTIONS
-# Debian 12 security kernels use the four-argument pci_resize_resource API,
+# Debian 12 security kernels and Debian 13 kernels use the four-argument pci_resize_resource API,
 # which is incompatible with NVIDIA 550 open modules.
-if is_debian12 ; then
+if is_debian12 || is_debian13 ; then
   NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '580.95.05')
   if [[ "${NVIDIA_DRIVER_VERSION%%.*}" == "550" ]]; then
-    echo "WARNING: Driver version 550 is incompatible with Debian 12 kernel. Overriding to 580.95.05" >&2
+    echo "WARNING: Driver version 550 is incompatible with Debian 12/13 kernel. Overriding to 580.95.05" >&2
     NVIDIA_DRIVER_VERSION='580.95.05'
   fi
   USE_REPO_INSTALL="true"
@@ -488,12 +496,12 @@ function configure_mig_cgi() {
 # Verify if compatible linux distros and secure boot options are used
 function check_os_and_secure_boot() {
   if is_debian ; then
-    if ! is_debian10 && ! is_debian11 && ! is_debian12 ; then
+    if ! is_debian10 && ! is_debian11 && ! is_debian12 && ! is_debian13 ; then
       echo "Error: The Debian version ($(os_version)) is not supported. Please use a compatible Debian version."
       exit 1
     fi
   elif is_ubuntu ; then
-    if ! is_ubuntu18 && ! is_ubuntu20 && ! is_ubuntu22 ; then
+    if ! is_ubuntu18 && ! is_ubuntu20 && ! is_ubuntu22 && ! is_ubuntu24 ; then
       echo "Error: The Ubuntu version ($(os_version)) is not supported. Please use a compatible Ubuntu version."
       exit 1
     fi
@@ -539,6 +547,8 @@ function remove_old_backports {
 function main() {
   # Rebooting a master before Dataproc initialization completes causes its
   # master-only services to be initialized twice. MIG is only needed on workers.
+  # Note: Single-node clusters (where ROLE=Master and primary workers=0) will
+  # skip MIG configuration by design.
   if [[ "${ROLE}" == "Master" ]]; then
     echo "Skipping MIG setup and reboot on Dataproc master"
     return
