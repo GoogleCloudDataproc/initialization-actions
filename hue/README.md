@@ -37,6 +37,11 @@ installed:
     initialization action](../oozie/README.md) before this one in the
     --initialization-actions list argument to `gcloud dataproc
     clusters create`.
+*   On Dataproc `2.2` and `2.3` images where standalone Python 3.9 is not
+    pre-installed, this script downloads and installs the matching OS-flavour
+    Python 3.9 archive (`python-3.9-{debian12,ubuntu22,rocky9,ubuntu22-arm}.tar.gz`)
+    from `gs://goog-dataproc-artifacts-${REGION}/hue/python3.9/` (or a custom
+    archive URI passed via `--metadata hue-python-archive-url=gs://...`).
     
 ****************************************************************************
 
