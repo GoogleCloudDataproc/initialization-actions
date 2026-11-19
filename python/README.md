@@ -94,3 +94,56 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
     --metadata 'CONDA_PACKAGES=recentrifuge=1.0.0' \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/python/conda-install.sh
 ```
+
+## Install PyPI packages with Caching
+
+Install [PyPI](https://pypi.org) packages into user Python environment using `pip` command, with support for caching the resulting environment in GCS to speed up subsequent cluster creations.
+
+### Options
+
+-   `PIP_PACKAGES` - a space separated list of packages to install. Packages can contain version selectors.
+-   `CACHE_BUCKET` - (Optional) The GCS bucket to store/fetch caches. Defaults to the cluster's temporary bucket (`dataproc-temp-bucket`).
+-   `CACHE_KEY_OVERRIDE` - (Optional) Explicit name for the cache file. If omitted, a hash of the packages and environment is used.
+-   `CACHE_TIMEOUT` - (Optional) Cache validity period in seconds. Defaults to 10 years (effectively infinite).
+-   `TARGET_ENV_PATH` - (Optional) Explicit path to the target Python environment. If omitted, defaults to the active environment.
+
+### Examples
+
+Installing packages with default caching (uses temp bucket):
+
+```bash
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
+    --metadata 'PIP_PACKAGES=pandas scipy' \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/python/pip-install-cached.sh
+```
+
+## Install Conda packages with Caching
+
+Install Conda packages into user Python environment using `conda` command, with support for caching the resulting environment in GCS to speed up subsequent cluster creations.
+
+### Options
+
+-   `CONDA_CHANNELS` - a space separated list of new channels to configure in addition to default channels.
+-   `CONDA_PACKAGES` - a space separated list of packages to install. Packages can contain version selectors.
+-   `CACHE_BUCKET` - (Optional) The GCS bucket to store/fetch caches. Defaults to the cluster's temporary bucket (`dataproc-temp-bucket`).
+-   `CACHE_KEY_OVERRIDE` - (Optional) Explicit name for the cache file. If omitted, a hash of the channels, packages, and environment is used.
+-   `CACHE_TIMEOUT` - (Optional) Cache validity period in seconds. Defaults to 10 years (effectively infinite).
+-   `TARGET_ENV_PATH` - (Optional) Explicit path to the target Conda environment. If omitted, defaults to the active environment.
+
+### Examples
+
+Installing packages with explicit cache bucket and override:
+
+```bash
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
+    --metadata 'CONDA_PACKAGES=scipy' \
+    --metadata 'CACHE_BUCKET=my-custom-cache-bucket' \
+    --metadata 'CACHE_KEY_OVERRIDE=my-scipy-env' \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/python/conda-install-cached.sh
+```

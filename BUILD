@@ -28,6 +28,7 @@ test_suite(
         "//mlvm:test_mlvm",
         "//oozie:test_oozie",
         "//presto:test_presto",
+        "//python:test_python",
         "//ranger:test_ranger",
         "//rapids:test_rapids",
         "//rstudio:test_rstudio",
