@@ -45,6 +45,14 @@ function is_debian12() {
   is_debian && [[ "$(os_version)" == '12'* ]]
 }
 
+function is_debian13() {
+  is_debian && [[ "$(os_version)" == '13'* ]]
+}
+
+function is_cgroup_v2() {
+  [[ -f /sys/fs/cgroup/cgroup.controllers ]]
+}
+
 function is_ubuntu() {
   [[ "$(os_id)" == 'ubuntu' ]]
 }
@@ -312,11 +320,11 @@ function configure_dkms_certs() {
 
 function clear_dkms_key {
   if [[ -z "${PSN}" ]]; then
-      echo "No signing secret provided.  skipping" >2
+      echo "No signing secret provided.  skipping" >&2
       return 0
   fi
-  echo "WARN -- PURGING SIGNING MATERIAL -- WARN" >2
-  echo "future dkms runs will not use correct signing key" >2
+  echo "WARN -- PURGING SIGNING MATERIAL -- WARN" >&2
+  echo "future dkms runs will not use correct signing key" >&2
   rm -rf "${CA_TMPDIR}" /var/lib/dkms/mok.key /var/lib/shim-signed/mok/MOK.priv
 }
 
@@ -324,7 +332,7 @@ function add_contrib_components() {
   if ! is_debian ; then
     return
   fi
-  if is_debian12 ; then
+  if is_debian12 || is_debian13 ; then
       # Include in sources file components on which nvidia-open-kernel-dkms depends
       local -r debian_sources="/etc/apt/sources.list.d/debian.sources"
       local components="main contrib"
@@ -367,7 +375,7 @@ else
 fi
 
 # Update SPARK RAPIDS config
-readonly HARDCODED_RAPIDS_VERSION="26.08.1"
+readonly HARDCODED_RAPIDS_VERSION="26.10.0"
 
 # 1. Try to get explicit version from GCE Metadata
 SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' '')
@@ -424,6 +432,16 @@ if is_debian12 ; then
   if [[ "${NVIDIA_DRIVER_VERSION%%.*}" == "550" ]]; then
     echo "WARNING: Driver version 550 is incompatible with Debian 12 kernel. Overriding to 580.95.05" >&2
     NVIDIA_DRIVER_VERSION='580.95.05'
+  fi
+  USE_REPO_INSTALL="true"
+elif is_debian13 ; then
+  # The Debian 13 repository starts at driver 590 and CUDA 13.
+  CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '13.0')
+  NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '590')
+  CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"
+  if [[ "${NVIDIA_DRIVER_VERSION%%.*}" -lt 590 ]]; then
+    echo "WARNING: Driver version ${NVIDIA_DRIVER_VERSION} is unavailable for Debian 13. Overriding to 590" >&2
+    NVIDIA_DRIVER_VERSION='590'
   fi
   USE_REPO_INSTALL="true"
 fi
@@ -663,6 +681,7 @@ function install_nvidia_gpu_driver() {
         "curl -fsSL --retry-connrefused --retry 3 --retry-max-time 5 https://developer.download.nvidia.com/compute/cuda/repos/${shortname}/x86_64/cuda-keyring_1.1-1_all.deb -o /tmp/cuda-keyring_1.1-1_all.deb"
       execute_with_retries "dpkg -i /tmp/cuda-keyring_1.1-1_all.deb"
       rm -f /tmp/cuda-keyring_1.1-1_all.deb
+      add_contrib_components
       execute_with_retries "apt-get update"
 
       execute_with_retries "apt-get install -y -q --no-install-recommends dkms"
@@ -978,6 +997,14 @@ function configure_yarn_nodemanager() {
     'yarn.nodemanager.resource-plugins.gpu.allowed-gpu-devices' 'auto'
   set_hadoop_property 'yarn-site.xml' \
     'yarn.nodemanager.resource-plugins.gpu.path-to-discovery-executables' $NVIDIA_SMI_PATH
+
+  # YARN's GPU isolation requires the cgroup v1 devices controller, which is
+  # not available with the unified cgroup v2 hierarchy.
+  if is_cgroup_v2; then
+    echo "WARNING: cgroup v2 detected; configuring GPU scheduling without cgroup device isolation." >&2
+    return
+  fi
+
   set_hadoop_property 'yarn-site.xml' \
     'yarn.nodemanager.linux-container-executor.cgroups.mount' 'true'
   set_hadoop_property 'yarn-site.xml' \
@@ -1048,6 +1075,10 @@ echo {\"name\": \"gpu\", \"addresses\":[\"$ADDRS\"]}
 }
 
 function configure_gpu_isolation() {
+  if is_cgroup_v2; then
+    return
+  fi
+
   # enable GPU isolation
   sed -i "s/yarn\.nodemanager\.linux\-container\-executor\.group\=.*$/yarn\.nodemanager\.linux\-container\-executor\.group\=yarn/g" "${HADOOP_CONF_DIR}/container-executor.cfg"
   if [[ $IS_MIG_ENABLED -ne 0 ]]; then
@@ -1065,7 +1096,7 @@ function configure_gpu_isolation() {
 Description=Set permissions to allow YARN to access device directories
 
 [Service]
-ExecStart=/bin/bash -c "chmod a+rwx -R /sys/fs/cgroup/cpu,cpuacct; chmod a+rwx -R /sys/fs/cgroup/devices"
+ExecStart=/bin/bash -c "if [[ -d /sys/fs/cgroup/cpu,cpuacct ]]; then chmod a+rwx -R /sys/fs/cgroup/cpu,cpuacct; fi; if [[ -d /sys/fs/cgroup/devices ]]; then chmod a+rwx -R /sys/fs/cgroup/devices; fi"
 
 [Install]
 WantedBy=multi-user.target
@@ -1147,7 +1178,7 @@ function setup_gpu_yarn() {
 # Verify if compatible linux distros and secure boot options are used
 function check_os_and_secure_boot() {
   if is_debian ; then
-    if ! is_debian10 && ! is_debian11 && ! is_debian12 ; then
+    if ! is_debian10 && ! is_debian11 && ! is_debian12 && ! is_debian13 ; then
       echo "Error: The Debian version ($(os_version)) is not supported. Please use a compatible Debian version."
       exit 1
     fi

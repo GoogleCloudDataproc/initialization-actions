@@ -106,6 +106,10 @@ profile id or the name (ie 3g.20gb) can be specified. For example:
         --metadata=^:^MIG_CGI='3g.20gb,9'
     ```
   Create cluster with MIG enabled:
+
+  The MIG startup script runs only on worker nodes. It skips the master node
+  so that the required MIG reboot does not interrupt Dataproc master service
+  initialization.
     
     ```bash
     REGION=<region>
