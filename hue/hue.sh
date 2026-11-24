@@ -23,6 +23,10 @@ readonly MASTER_HOSTNAME
 OS_NAME=$(grep '^ID=' /etc/os-release | cut -d= -f2 | xargs)
 readonly OS_NAME
 
+readonly REGIONAL_ARTIFACTS_BUCKET_PREFIX="gs://goog-dataproc-artifacts-"
+readonly GLOBAL_ARTIFACTS_BUCKET="gs://hadoop-lib"
+readonly HUE_PYTHON_GCS_SUBDIR="hue/python3.9"
+
 function os_id() {
   grep '^ID=' /etc/os-release | cut -d= -f2 | xargs
 }
@@ -113,10 +117,122 @@ function install_packages() {
     # After installation, the default can be changed by setting the
     # default_authentication_plugin server setting.
 
-    retry_command "DEBIAN_FRONTEND=noninteractive apt-get install -t $(lsb_release -sc)-backports -y ${packages}"
+    local backports_flag=""
+    local codename
+    codename="$(lsb_release -sc)"
+    if grep -rsEq "^[[:space:]]*(deb|Suites:).*${codename}-backports" \
+      /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null; then
+      backports_flag="-t ${codename}-backports"
+    fi
+    retry_command "DEBIAN_FRONTEND=noninteractive apt-get install ${backports_flag} -y ${packages}"
   else
     retry_command "yum install -y ${packages}"
   fi
+}
+
+function resolve_python39_os_flavour() {
+  local id ver_major arch
+  id="$(os_id)"
+  ver_major="$(os_version | cut -d. -f1)"
+  arch="$(uname -m)"
+
+  case "${id}-${ver_major}-${arch}" in
+    debian-12-x86_64)
+      echo "debian12"
+      ;;
+    ubuntu-22-x86_64)
+      echo "ubuntu22"
+      ;;
+    rocky-9-x86_64)
+      echo "rocky9"
+      ;;
+    ubuntu-22-aarch64)
+      echo "ubuntu22-arm"
+      ;;
+    *)
+      err "Unsupported OS/architecture '${id}-${ver_major}-${arch}' for Hue Python 3.9 installation"
+      ;;
+  esac
+}
+
+function ensure_python39_runtime_libs() {
+  if is_debian; then
+    install_packages \
+      libbz2-1.0 libffi8 libgdbm6 libgdbm-compat4 liblzma5 libmariadb3 \
+      libncursesw6 libreadline8 libsqlite3-0 libssl3 libuuid1 zlib1g ||
+      err "Failed to install Python 3.9 runtime libraries on Debian"
+  elif is_ubuntu; then
+    install_packages \
+      libbz2-1.0 libffi8 libgdbm6 libgdbm-compat4 liblzma5 libmysqlclient21 \
+      libncursesw6 libreadline8 libsqlite3-0 libssl3 libuuid1 zlib1g ||
+      err "Failed to install Python 3.9 runtime libraries on Ubuntu"
+  else
+    # Rocky Linux 9 AppStream provides libmysqlclient.so.21 (needed by MySQLdb) via mysql-libs.
+    install_packages \
+      bzip2-libs gdbm-libs libffi libuuid mysql-libs ncurses-libs \
+      openssl-libs readline sqlite-libs xz-libs zlib ||
+      err "Failed to install Python 3.9 runtime libraries on Rocky Linux"
+  fi
+}
+
+function install_python39_if_needed() {
+  local image_version="${DATAPROC_IMAGE_VERSION:-${DATAPROC_VERSION:-}}"
+  if [[ "${image_version}" != "2.2" && "${image_version}" != "2.3" ]]; then
+    return 0
+  fi
+
+  if [[ -x /usr/local/bin/python3.9 ]] &&
+    /usr/local/bin/python3.9 -c "import encodings, sqlite3, ssl" >/dev/null 2>&1; then
+    echo "Python 3.9 is already installed at /usr/local/bin/python3.9; skipping archive installation."
+    return 0
+  fi
+
+  local flavour archive_name custom_url region gcs_base_dir tmp_dir
+  flavour="$(resolve_python39_os_flavour)"
+  archive_name="python-3.9-${flavour}.tar.gz"
+  custom_url="$(/usr/share/google/get_metadata_value attributes/hue-python-archive-url || true)"
+  region="$(/usr/share/google/get_metadata_value attributes/dataproc-region || echo 'global')"
+
+  ensure_python39_runtime_libs
+
+  tmp_dir="$(mktemp -d)"
+  if [[ -n "${custom_url}" ]]; then
+    retry_command "gsutil cp '${custom_url}' '${tmp_dir}/${archive_name}'" ||
+      err "Failed to download custom Python 3.9 archive from ${custom_url}"
+    if gsutil -q stat "${custom_url}.sha256"; then
+      retry_command "gsutil cp '${custom_url}.sha256' '${tmp_dir}/${archive_name}.sha256'" ||
+        err "Failed to download ${custom_url}.sha256"
+      (
+        cd "${tmp_dir}" &&
+          awk -v f="${archive_name}" '{print $1 "  " f}' "${archive_name}.sha256" | sha256sum -c -
+      ) || err "SHA-256 verification failed for ${custom_url}"
+    fi
+  else
+    if [[ "${region}" != "global" ]] &&
+      gsutil -q stat "${REGIONAL_ARTIFACTS_BUCKET_PREFIX}${region}/${HUE_PYTHON_GCS_SUBDIR}/${archive_name}"; then
+      gcs_base_dir="${REGIONAL_ARTIFACTS_BUCKET_PREFIX}${region}/${HUE_PYTHON_GCS_SUBDIR}"
+    else
+      echo "WARNING: Regional Python 3.9 archive not found for region '${region}'; falling back to ${GLOBAL_ARTIFACTS_BUCKET}."
+      gcs_base_dir="${GLOBAL_ARTIFACTS_BUCKET}/${HUE_PYTHON_GCS_SUBDIR}"
+    fi
+
+    retry_command "gsutil cp '${gcs_base_dir}/${archive_name}' '${tmp_dir}/${archive_name}'" ||
+      err "Failed to download ${gcs_base_dir}/${archive_name}"
+    retry_command "gsutil cp '${gcs_base_dir}/${archive_name}.sha256' '${tmp_dir}/${archive_name}.sha256'" ||
+      err "Failed to download ${gcs_base_dir}/${archive_name}.sha256"
+    (
+      cd "${tmp_dir}" &&
+        awk -v f="${archive_name}" '{print $1 "  " f}' "${archive_name}.sha256" | sha256sum -c -
+    ) || err "SHA-256 verification failed for ${archive_name}"
+  fi
+
+  tar --no-same-owner -xzf "${tmp_dir}/${archive_name}" -C / ||
+    err "Failed to extract ${archive_name}"
+  ldconfig
+  rm -rf "${tmp_dir}"
+
+  /usr/local/bin/python3.9 -c "import encodings, sqlite3, ssl, MySQLdb" ||
+    err "Python 3.9 runtime verification failed after extracting ${archive_name}"
 }
 
 function install_libmysqlclient20() {
@@ -144,6 +260,10 @@ function install_hue_and_configure() {
   local new_mysql_settings
   new_mysql_settings="engine=mysql\$1host=127.0.0.1\$2port=3306\$3user=hue\$4password=${hue_password}"
   local -r hadoop_conf_dir='/etc/hadoop/conf'
+
+  # Ensure Python 3.9 is installed on Dataproc 2.2/2.3 before installing Hue,
+  # because Hue package post-install hooks execute app_reg.py under Python 3.9.
+  install_python39_if_needed || err "Failed to install Python 3.9 for Hue"
 
   # Install Hue
   install_packages hue || err "Failed to install Hue"
