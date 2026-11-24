@@ -161,13 +161,13 @@ git checkout spark-2
 # Upload PySpark application files
 pushd /tmp/rapidsai-spark-examples/examples/apps/python
 zip -r samples.zip ai
-gsutil cp samples.zip main.py gs://${GCS_BUCKET}/pyspark/
+gcloud storage cp samples.zip main.py gs://${GCS_BUCKET}/pyspark/
 popd
 
 # Upload a sample dataset for a XGBoost applications
 pushd /tmp/rapidsai-spark-examples/datasets
 tar -xzf mortgage-small.tar.gz
-gsutil cp -r mortgage-small/ gs://${GCS_BUCKET}/
+gcloud storage cp --recursive mortgage-small/ gs://${GCS_BUCKET}/
 popd
 ```
 
@@ -237,7 +237,7 @@ into the `gs://${GCS_BUCKET}/scala/` folder. To do this you can either drag and
 drop files from your local machine into the
 [Cloud Storage browser](https://console.cloud.google.com/storage/browser), or
 use the
-[gsutil cp command](https://cloud.google.com/storage/docs/gsutil/commands/cp) as
+[gcloud storage cp command](https://cloud.google.com/sdk/gcloud/reference/storage/cp) as
 was shown previously to do this from a command line.
 
 Use the following commands to submit sample Scala application on this cluster.
