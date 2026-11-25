@@ -454,10 +454,14 @@ if [[ "${OS_NAME}" == "ubuntu" ]]; then
       NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '530.30.02') #530.30.02
       CUDA_VERSION_MAJOR="${CUDA_VERSION%.*}"  #12.1
     elif is_ubuntu22 ; then
-      # Dataproc 2.2 Ubuntu images can move to newer GCP kernels without
-      # changing the image version. Use the online repo to get a compatible
-      # package in the selected NVIDIA driver series instead of the older
-      # driver embedded in the local CUDA repo.
+      # Ubuntu kernel 6.8.0-1073-gcp uses the four-argument
+      # pci_resize_resource API, which is incompatible with NVIDIA 550 open
+      # modules. Use the online repository and override the 550 series.
+      NVIDIA_DRIVER_VERSION=$(get_metadata_attribute 'driver-version' '580.95.05')
+      if [[ "${NVIDIA_DRIVER_VERSION%%.*}" == "550" ]]; then
+        echo "WARNING: Driver version 550 is incompatible with the Ubuntu 22 kernel. Overriding to 580.95.05" >&2
+        NVIDIA_DRIVER_VERSION='580.95.05'
+      fi
       USE_REPO_INSTALL="true"
     elif is_ubuntu24 ; then
       # CUDA 12.4.1 is not available for Ubuntu 24.04, use 12.6.0 instead
