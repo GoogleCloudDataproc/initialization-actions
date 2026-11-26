@@ -46,9 +46,18 @@ function set_hive_lineage_conf() {
   done
 }
 
+function version_le() { [[ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]]; }
+function version_lt() { [[ "$1" = "$2" ]] && return 1 || version_le "$1" "$2"; }
+
+GCLOUD_SDK_VERSION="$(gcloud --version | awk -F'SDK ' '/Google Cloud SDK/ {print $2}')"
+GSUTIL="gcloud storage"
+if version_lt "${GCLOUD_SDK_VERSION}" "402.0.0"; then
+  GSUTIL="gsutil"
+fi
+
 function install_jars() {
   echo "Installing openlineage-hive hook"
-  gsutil cp -P "$INSTALLATION_SOURCE/hive-openlineage-hook-$HIVE_OL_HOOK_VERSION.jar" "$HIVE_LIB_DIR/hive-openlineage-hook.jar"
+  ${GSUTIL} cp -P "$INSTALLATION_SOURCE/hive-openlineage-hook-$HIVE_OL_HOOK_VERSION.jar" "$HIVE_LIB_DIR/hive-openlineage-hook.jar"
 }
 
 function restart_hive_server2_master() {
