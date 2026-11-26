@@ -66,6 +66,7 @@ This repository currently offers the following actions for use with Dataproc clu
 * Configure the environment
   * Configure a *nice* shell environment
   * To switch to Python 3, use the conda initialization action
+  * [HTTP Proxy](http-proxy/README.md)
 * Connect to Google Cloud Platform services
   * Install alternate versions of the [Cloud Storage and BigQuery connectors](https://github.com/GoogleCloudPlatform/bigdata-interop/releases). [Specific versions](https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-versions) of these connectors come pre-installed on Cloud Dataproc clusters.
   * Share a [Cloud SQL](https://cloud.google.com/sql/) Hive Metastore, or simply read/write data from Cloud SQL.

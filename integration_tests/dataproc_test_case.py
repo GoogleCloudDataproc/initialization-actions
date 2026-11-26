@@ -67,7 +67,7 @@ class DataprocTestCase(parameterized.TestCase):
         assert cls.PROJECT
         assert cls.REGION
 
-        cls.INIT_ACTIONS_REPO = DataprocTestCase().stage_init_actions(
+        cls.INIT_ACTIONS_REPO = cls().stage_init_actions(
             cls.PROJECT)
 
         assert cls.COMPONENT
@@ -103,7 +103,9 @@ class DataprocTestCase(parameterized.TestCase):
                       master_machine_type=None,
                       worker_machine_type=None,
                       boot_disk_size="50GB",
-                      startup_script=None):
+                      startup_script=None,
+                      network=None,
+                      subnet=None):
         self.initClusterName(configuration)
         self.cluster_version = None
         self.cluster_zone = zone
@@ -146,6 +148,10 @@ class DataprocTestCase(parameterized.TestCase):
             args.append("--properties={}".format(properties))
         if metadata:
             args.append("--metadata={}".format(metadata))
+        if network:
+            args.append("--network={}".format(network))
+        if subnet:
+            args.append("--subnet={}".format(subnet))
 
         if scopes:
             args.append("--scopes={}".format(scopes))
@@ -367,12 +373,18 @@ class DataprocTestCase(parameterized.TestCase):
                           "gcloud beta compute scp --internal-ip ") if (
                               INTERNAL_IP_SSH
                               and "gcloud compute scp " in cmd) else cmd
+        env = os.environ.copy()
+        if "PYTHONPATH" in env:
+            del env["PYTHONPATH"]
+        if "PYTHONSAFEPATH" in env:
+            del env["PYTHONSAFEPATH"]
         p = subprocess.Popen(
             cmd,
             shell=True,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            env=env,
         )
         timeout = timeout_in_minutes * 60
         my_timer = Timer(timeout, lambda process: process.kill(), [p])
