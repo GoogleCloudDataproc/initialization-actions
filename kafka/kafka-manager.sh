@@ -34,10 +34,15 @@ function install_packages(){
 
 function add_sources(){
    echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | tee /etc/apt/sources.list.d/sbt.list
-   echo "deb https://repo.scala-sbt.org/scalasbt/debian /" | tee /etc/apt/sources.list.d/sbt_old.list
 
-   curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" |
-      gpg --no-default-keyring --keyring gnupg-ring:/etc/apt/trusted.gpg.d/scalasbt-release.gpg --import
+   if [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 3.0" | bc -l) == 1 ]]; then
+      curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" |
+         gpg --dearmor -o /etc/apt/trusted.gpg.d/scalasbt-release.gpg
+   else
+      echo "deb https://repo.scala-sbt.org/scalasbt/debian /" | tee /etc/apt/sources.list.d/sbt_old.list
+      curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" |
+         gpg --no-default-keyring --keyring gnupg-ring:/etc/apt/trusted.gpg.d/scalasbt-release.gpg --import
+   fi
    chmod 644 /etc/apt/trusted.gpg.d/scalasbt-release.gpg
 }
 
@@ -46,12 +51,33 @@ function install_sbt(){
    apt-get install -yq sbt
 }
 
+function ensure_java11(){
+   local java_major_version=$(java -version 2>&1 | grep -oP 'version "?(1\.)?\K\d+' || true)
+   if [[ "${java_major_version}" -ge 17 ]]; then
+      if apt-get install -yq openjdk-11-jdk; then
+         export JAVA_HOME="/usr/lib/jvm/java-11-openjdk-$(dpkg --print-architecture)"
+      else
+         local arch="$(dpkg --print-architecture)"
+         [[ "${arch}" == "amd64" ]] && arch="x64"
+         mkdir -p /usr/lib/jvm/temurin-11
+         curl -fsSL "https://api.adoptium.net/v3/binary/latest/11/ga/linux/${arch}/jdk/hotspot/normal/eclipse" |
+            tar -xz -C /usr/lib/jvm/temurin-11 --strip-components=1
+         export JAVA_HOME="/usr/lib/jvm/temurin-11"
+      fi
+      export PATH="${JAVA_HOME}/bin:${PATH}"
+   fi
+}
+
 function build_cmak(){
    mkdir -p "${KAFKA_MANAGER_GIT_DIR}"
    cd "${KAFKA_MANAGER_GIT_DIR}"
    git clone "${KAFKA_MANAGER_GIT_URI}"
    cd "${KAFKA_MANAGER_GIT_DIR}"/CMAK
-   sbt clean dist
+   if [[ -n "${JAVA_HOME:-}" ]]; then
+      sbt -java-home "${JAVA_HOME}" clean dist
+   else
+      sbt clean dist
+   fi
 }
 
 function install_cmak(){
@@ -132,6 +158,7 @@ function main(){
       # Run Kafka Manager on the first master node.
       if [[ "${HOSTNAME}" == *-m || "${HOSTNAME}" == *-m-0 ]]; then
          install_packages
+         ensure_java11
          add_sources
          install_sbt
          build_cmak

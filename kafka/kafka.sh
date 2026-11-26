@@ -44,7 +44,7 @@ function retry_apt_command() {
 }
 
 function recv_keys() {
-  if [[ ${OS} == debian ]] && [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 3.0" | bc -l) == 1 ]]; then
+  if [[ $(echo "${DATAPROC_IMAGE_VERSION} >= 3.0" | bc -l) == 1 ]]; then
     retry_apt_command "apt-get update && apt-get install -y gnupg"
     export GNUPGHOME="$(mktemp -d)"
     trap 'rm -rf "${GNUPGHOME}"' EXIT
