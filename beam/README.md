@@ -62,7 +62,7 @@ Then, upload the jar to a Cloud Storage path that clusters can access during
 initialization.
 
 ```bash
-gsutil cp \
+gcloud storage cp \
   ./runners/flink/job-server/build/libs/beam-runners-flink_2.11-job-server-*-SNAPSHOT.jar \
   <BEAM_JOB_SERVICE_DESTINATION>/beam-runners-flink_2.11-job-server-latest-SNAPSHOT.jar
 ```
