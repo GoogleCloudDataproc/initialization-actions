@@ -48,8 +48,15 @@ function set_hive_lineage_conf() {
 
 function install_jars() {
   echo "Installing openlineage-hive hook"
-  gsutil cp -P "$INSTALLATION_SOURCE/hive-openlineage-hook-$HIVE_OL_HOOK_VERSION.jar" "$HIVE_LIB_DIR/hive-openlineage-hook.jar"
-}
+  gcloud storage cp "$INSTALLATION_SOURCE/hive-openlineage-hook-$HIVE_OL_HOOK_VERSION.jar" "$HIVE_LIB_DIR/hive-openlineage-hook.jar"
+  
+    echo "Copying GCP lineage transport jar into Hive lib folder for Dataproc 3.0 compatibility..."
+    if [[ -f "/usr/lib/spark/connector/transports-gcplineage.jar" ]]; then
+      cp "/usr/lib/spark/connector/transports-gcplineage.jar" "$HIVE_LIB_DIR/openlineage-gcp-transport.jar"
+    elif [[ -f "/usr/lib/spark/jars/transports-gcplineage.jar" ]]; then
+      cp "/usr/lib/spark/jars/transports-gcplineage.jar" "$HIVE_LIB_DIR/openlineage-gcp-transport.jar"
+    fi
+  }
 
 function restart_hive_server2_master() {
   # Safely get metadata without failing the script if the key is missing
